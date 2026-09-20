@@ -1,0 +1,40 @@
+@inherits LayoutComponentBase
+
+<MudThemeProvider Theme="AdminTheme.Theme" IsDarkMode="true" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudLayout>
+    <MudAppBar Elevation="0" Class="border-b">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@((_) => _drawerOpen = !_drawerOpen)" />
+        <MudText Typo="Typo.h6" Class="ml-2">
+            SSeMU <MudText Typo="Typo.h6" Class="mud-text-secondary" Style="display:inline">0.99B</MudText>
+        </MudText>
+        <MudSpacer />
+        <ServerStatusBadge />
+        @* El logout es un POST normal por el mismo motivo que el login: la cookie se borra en la
+           respuesta HTTP, no desde el circuito de Blazor. *@
+        <form method="post" action="/auth/logout" class="ml-3 d-flex">
+            <AntiforgeryToken />
+            <MudTooltip Text="Salir">
+                <MudIconButton Icon="@Icons.Material.Filled.Logout" Color="Color.Inherit"
+                               ButtonType="ButtonType.Submit" />
+            </MudTooltip>
+        </form>
+    </MudAppBar>
+
+    <MudDrawer @bind-Open="_drawerOpen" Elevation="0" Variant="DrawerVariant.Mini" OpenMiniOnHover="true">
+        <NavMenu />
+    </MudDrawer>
+
+    <MudMainContent Class="pa-4">
+        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-2">
+            @Body
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
+
+@code {
+    private bool _drawerOpen = true;
+}

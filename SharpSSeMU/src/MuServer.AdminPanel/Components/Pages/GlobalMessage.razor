@@ -1,0 +1,53 @@
+@page "/global-message"
+@using MuServer.AdminPanel.Config
+@using MuServer.AdminPanel.Repositories
+@inject GameDataPaths DataPaths
+@inject ISnackbar Snackbar
+
+<PageTitle>Mensaje global</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-1">Mensaje global</MudText>
+<MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">
+    Manda un aviso a todos los jugadores conectados ahora mismo (no queda guardado para los que se
+    conecten después). El GameServer lo recoge en un plazo de hasta 2 segundos.
+</MudText>
+
+<MudPaper Class="pa-4" Elevation="0" Style="max-width: 640px;">
+    <MudTextField T="string" @bind-Value="_message" Label="Mensaje" Variant="Variant.Outlined"
+                   Lines="3" MaxLength="120" Counter="120" Class="mb-4" />
+
+    <MudRadioGroup T="byte" @bind-Value="_type" Class="mb-4">
+        <MudRadio T="byte" Value="@((byte)0)" Color="Color.Primary">Noticia dorada en pantalla</MudRadio>
+        <MudRadio T="byte" Value="@((byte)1)" Color="Color.Primary">Mensaje azul en el chat</MudRadio>
+    </MudRadioGroup>
+
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Send"
+               OnClick="Send" Disabled="@(_sending || string.IsNullOrWhiteSpace(_message))">
+        Enviar
+    </MudButton>
+</MudPaper>
+
+@code {
+    private string _message = string.Empty;
+    private byte _type;
+    private bool _sending;
+
+    private void Send()
+    {
+        _sending = true;
+        try
+        {
+            GlobalMessageRepository.Send(DataPaths.Root, _message.Trim(), _type);
+            Snackbar.Add("Mensaje mandado.", Severity.Success);
+            _message = string.Empty;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"No se pudo mandar: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _sending = false;
+        }
+    }
+}

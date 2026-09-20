@@ -1,0 +1,162 @@
+#pragma once
+
+// Include CameraState before compatibility layer
+#include "Camera/CameraState.h"
+
+extern int OpenglWindowWidth;
+extern int OpenglWindowHeight;
+extern unsigned int WindowWidth;
+extern unsigned int WindowHeight;
+extern vec3_t CollisionPosition;
+extern double  FPS;
+extern double  FPS_AVG;
+extern float  FPS_ANIMATION_FACTOR;
+extern double  WorldTime;
+extern bool   FogEnable;
+extern bool   TextureEnable;
+extern bool   DepthTestEnable;
+extern bool   CullFaceEnable;
+extern bool   DepthMaskEnable;
+extern vec3_t       MousePosition;
+extern vec3_t       MouseTarget;
+extern int          MouseX;
+extern int          MouseY;
+extern int          BackMouseX;
+extern int          BackMouseY;
+extern bool         MouseLButton;
+extern bool     	MouseLButtonPop;
+extern bool 		MouseLButtonPush;
+extern bool         MouseRButton;
+extern bool 		MouseRButtonPop;
+extern bool 		MouseRButtonPush;
+extern bool 		MouseLButtonDBClick;
+extern bool         MouseMButton;
+extern bool 		MouseMButtonPop;
+extern bool 		MouseMButtonPush;
+extern int          MouseWheel;
+extern DWORD		MouseRButtonPress;
+extern wchar_t         GrabFileName[];
+extern bool         GrabEnable;
+
+//  etc
+bool CheckID_HistoryDay(wchar_t* Name, WORD day);
+void glViewport2(int x, int y, int Width, int Height);
+void BeginSprite();
+void EndSprite();
+void EnableDepthTest();
+void DisableDepthTest();
+void EnableCullFace();
+void DisableCullFace();
+void EnableDepthMask();
+void DisableDepthMask();
+void DisableTexture(bool AlphaTest = false);
+void DisableAlphaBlend();
+void EnableLightMap();
+void EnableAlphaTest(bool DepthMake = true);
+// Sets glAlphaFunc(GL_GREATER, ref) and mirrors it to the shader-side alpha-test ref (DXP-01).
+void SetAlphaFuncRef(float ref);
+void EnableAlphaBlend();
+void EnableAlphaBlendMinus();
+void EnableAlphaBlend2();
+void EnableAlphaBlend3();
+void EnableAlphaBlend4();
+void BindTexture(int tex);
+void EndTextureStream();
+
+// DXP-10 dumb single-call state wrappers. Unlike the Enable/DisableAlphaBlend family above,
+// these do NOT cache state or bundle other toggles -- each is the exact single GL call a
+// call site outside Render/ used to make directly, same guard, nothing added or removed.
+// NOT interchangeable with the smart bundled wrappers of the same GL enum (e.g. DisableTexture()
+// also touches alpha-test/depth-mask state; DisableTexture2D() below does not).
+void EnableTexture2D();
+void DisableTexture2D();
+void EnableAlphaTestRaw();
+void DisableAlphaTestRaw();
+void EnableFog();
+void DisableFog();
+void EnableBlend();
+void DisableBlend();
+void SetBlendFuncAlpha();
+void SetDepthFuncLEqual();
+void ClearColorBuffer();
+void ClearDepthBuffer();
+void ClearColorAndDepthBuffers();
+void SetClearColor(float r, float g, float b, float a = 1.0f);
+void FlushGL();
+void BeginOpengl(int x = 0, int y = 0, int Width = REFERENCE_WIDTH, int Height = REFERENCE_HEIGHT);
+void EndOpengl();
+
+// Perspective setup for item/3D-UI rendering. Sets g_Camera perspective state
+// so item rendering can compute screen positions. Use SaveCameraPerspective /
+// RestoreCameraPerspective around item-rendering blocks to prevent corruption
+// of the main camera's cached values between frames.
+void gluPerspective2(float Fov, float Aspect, float ZNear, float ZFar);
+
+// Save/restore g_Camera perspective state around item-rendering blocks.
+// Prevents gluPerspective2's FOV=1 values from leaking to ScreenToWorldRay.
+void SaveCameraPerspective();
+void RestoreCameraPerspective();
+
+void InitVSync();
+bool IsVSyncAvailable();
+bool IsVSyncEnabled();
+bool EnableVSync();
+bool DisableVSync();
+int GetFPSLimit();
+
+// Present the current GL frame via SDL (replaces the Win32 ::SwapBuffers, #442).
+void PlatformSwapBuffers();
+
+void UpdateMousePositionn();
+inline void TEXCOORD(float* c, float u, float v)
+{
+    c[0] = u;
+    c[1] = v;
+}
+// GLP-19: the cached render state IR must key a batch on. These all live as file-scope globals in
+// ZzzOpenglUtil.cpp; exposing a snapshot accessor keeps them encapsulated there rather than
+// scattering `extern` declarations, and matches the DXP-10 state-wrapper monopoly convention.
+// Read by ImmediateRenderer to decide whether two consecutive Begin/End pairs can be merged into
+// one draw -- so it must cover every piece of state that changes what a quad looks like.
+struct GLRenderStateSnapshot
+{
+    int   alphaBlendType;
+    bool  alphaTestEnable;
+    float alphaRef;
+    bool  depthTestEnable;
+    bool  depthMaskEnable;
+    bool  cullFaceEnable;
+    bool  textureEnable;
+    bool  fogEnable;
+    int   cachTexture;
+};
+GLRenderStateSnapshot GetRenderStateSnapshot();
+
+void RenderPlane3D(float Width, float Height, float Matrix[3][4]);
+void RenderSprite(int Texture, vec3_t Position, float Width, float Height, vec3_t Light, float Angle = 0.f, float u = 0.f, float v = 0.f, float uWidth = 1.f, float vHeight = 1.f);
+void RenderSpriteUV(int Texture, vec3_t Position, float Width, float Height, float(*UV)[2], vec3_t Light[4], float Alpha = 1.f);
+void RenderNumber(vec3_t Position, int Num, vec3_t Color, float Alpha = 1.f, float Scale = 15.f);
+float RenderNumber2D(float x, float y, int Num, float Width, float Height);
+void RenderColor(float x, float y, float Width, float Height, float Alpha = 0.f, int Flag = 0);
+void EndRenderColor();
+void RenderBitmap(int Texture, float x, float y, float Width, float Height, float u = 0.f, float v = 0.f, float uWidth = 1.f, float vHeight = 1.f, bool Scale = true, bool StartScale = true, float Alpha = 0.f);
+void RenderColorBitmap(int Texture, float x, float y, float Width, float Height, float u = 0.f, float v = 0.f, float uWidth = 1.f, float vHeight = 1.f, unsigned int color = 0xffffffff);
+void RenderBitmapRotate(int Texture, float x, float y, float Width, float Height, float Angle, float u = 0.f, float v = 0.f, float uWidth = 1.f, float vHeight = 1.f);
+void RenderBitRotate(int Texture, float x, float y, float Width, float Height, float Rotate);
+void RenderPointRotate(int Texture, float ix, float iy, float iWidth, float iHeight, float x, float y, float Width, float Height, float Rotate, float Rotate_Loc, float uWidth, float vHeight, int Num = -1);
+void RenderBitmapLocalRotate(int Texture, float x, float y, float Width, float Height, float Rotate, float u = 0.f, float v = 0.f, float uWidth = 1.f, float vHeight = 1.f);
+void RenderBitmapAlpha(int Texture, float sx, float sy, float Width, float Height);
+void RenderBitmapUV(int Texture, float x, float y, float Width, float Height, float u, float v, float uWidth, float vHeight);
+void BeginBitmap();
+void EndBitmap();
+float absf(float a);
+float minf(float a, float b);
+float maxf(float a, float b);
+void InitCollisionDetectLineToFace();
+bool CollisionDetectLineToFace(vec3_t Position, vec3_t Target, int Polygon, float* v1, float* v2, float* v3, float* v4, vec3_t Normal, bool Collision = true);
+bool CollisionDetectLineToOBB(vec3_t p1, vec3_t p2, OBB_t obb);
+void CalcFPS();
+bool rand_fps_check(int reference_frames);
+
+// Camera zoom level (external, not part of CameraState yet)
+extern short g_shCameraLevel;

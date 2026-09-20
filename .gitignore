@@ -1,0 +1,62 @@
+# ---------------------------------------------------------------------------
+# Content that must NOT be published (see NOTICE.md)
+# ---------------------------------------------------------------------------
+# Original game package -- proprietary client binaries/assets and the original
+# SSeMU emulator package. Users supply these locally next to the repo folders
+# (see docs/GETTING_STARTED.md, "Bring your own game files").
+/MuClient/
+/MuServer99B/
+/Source/
+
+# Local dev leftovers at the top level (archives, videos, stray files)
+/*.zip
+/*.mp4
+/ziQjxIaT
+
+# AI assistant / IDE local state
+/.claude/
+.vs/
+.idea/
+*.suo
+*.user
+*.DotSettings.user
+
+# ---------------------------------------------------------------------------
+# Third-party sources fetched by scripts/setup-thirdparty.{ps1,sh}
+# (pinned release branches; see docs/BUILDING.md)
+# ---------------------------------------------------------------------------
+/MuMain-099B/src/ThirdParty/SDL/
+/MuMain-099B/src/ThirdParty/SDL_mixer/
+/MuMain-099B/src/ThirdParty/imgui/
+
+# ---------------------------------------------------------------------------
+# Build outputs
+# ---------------------------------------------------------------------------
+# .NET (server). The client tree has its own .gitignore that keeps
+# src/bin/fonts and src/bin/Translations tracked, so bin/ is NOT ignored globally.
+/SharpSSeMU/**/bin/
+/SharpSSeMU/**/obj/
+*.nupkg
+# C++ / CMake (client)
+/MuMain-099B/out/
+/MuMain-099B/build/
+/MuMain-099B/.nuget/
+CMakeFiles/
+CMakeCache.txt
+
+# ---------------------------------------------------------------------------
+# Runtime artefacts
+# ---------------------------------------------------------------------------
+LOG/
+*.log
+status.json
+global-message.json
+# AdminPanel writes a .bak next to every game data file it edits the first time
+*.bak
+__pycache__/
+*.pyc
+
+# OS noise
+.DS_Store
+Thumbs.db
+desktop.ini

@@ -1,0 +1,21 @@
+cmake_minimum_required(VERSION 3.25)
+
+project(MuMain LANGUAGES CXX)
+
+#Set global C++ standard
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+option(BUILD_TESTING "Build unit tests" OFF)
+
+add_subdirectory("src")
+
+if(BUILD_TESTING)
+    enable_testing()
+    add_subdirectory(tests)
+
+    # Herramientas de diagnostico que necesitan un servidor vivo. Van con
+    # BUILD_TESTING porque sirven para lo mismo, pero no se registran en CTest.
+    add_subdirectory(tools/probe099b)
+endif()

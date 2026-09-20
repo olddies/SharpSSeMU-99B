@@ -1,0 +1,38 @@
+@using MuServer.AdminPanel.Repositories
+
+<table class="rate-group-table">
+    <thead>
+        <tr>
+            <th></th>
+            <th>AL0</th>
+            <th>AL1</th>
+            <th>AL2</th>
+            <th>AL3</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var (label, rate) in Rows)
+        {
+            <tr>
+                <td>@label</td>
+                <td><MudNumericField T="int" @bind-Value="rate.Al0" Variant="Variant.Outlined" Margin="Margin.Dense" /></td>
+                <td><MudNumericField T="int" @bind-Value="rate.Al1" Variant="Variant.Outlined" Margin="Margin.Dense" /></td>
+                <td><MudNumericField T="int" @bind-Value="rate.Al2" Variant="Variant.Outlined" Margin="Margin.Dense" /></td>
+                <td><MudNumericField T="int" @bind-Value="rate.Al3" Variant="Variant.Outlined" Margin="Margin.Dense" /></td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<style>
+    .rate-group-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    .rate-group-table th, .rate-group-table td { padding: 4px 8px; text-align: left; vertical-align: middle; }
+    .rate-group-table th:first-child, .rate-group-table td:first-child { width: 46%; }
+    .rate-group-table th:not(:first-child), .rate-group-table td:not(:first-child) { width: 13.5%; }
+    .rate-group-table td:not(:first-child) .mud-input-control { max-width: 100px; }
+</style>
+
+@code {
+    [Parameter, EditorRequired]
+    public required IEnumerable<(string Label, RateSet Rate)> Rows { get; set; }
+}

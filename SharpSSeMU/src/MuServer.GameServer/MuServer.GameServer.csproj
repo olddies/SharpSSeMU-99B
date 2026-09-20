@@ -1,0 +1,22 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\MuServer.Shared\MuServer.Shared.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <!-- Los 7 GameServerInfo - *.dat reales (config de servidor, texto plano chico; NO la carpeta
+       Data/ completa de mapas/monstruos/items, que sigue siendo responsabilidad del despliegue del
+       usuario por su tamaño) se shippean con el repo para que GameServerConfig/GameServerInfoCommon
+       y hermanas tengan valores reales de fábrica sin depender de que el usuario los copie a mano. -->
+  <ItemGroup>
+    <None Include="Data\GameServerInfo - *.dat" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

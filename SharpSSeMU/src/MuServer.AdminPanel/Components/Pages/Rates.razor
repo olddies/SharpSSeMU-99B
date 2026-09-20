@@ -1,0 +1,169 @@
+@page "/rates"
+@using MuServer.AdminPanel.Config
+@using MuServer.AdminPanel.Repositories
+@inject GameDataPaths DataPaths
+@inject ISnackbar Snackbar
+
+<PageTitle>Tasas</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-1">Tasas del servidor</MudText>
+<MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">
+    Lo que más se toca para configurar un servidor -- experiencia, drop, zen, joyas -- sacado a mano de
+    Data/GameServerInfo - Common.dat y con el nombre de lo que hace cada cosa. Es un atajo: los ~845
+    campos crudos siguen estando completos en <b>Configuración</b>.
+</MudText>
+<MudAlert Severity="Severity.Warning" Class="mb-4" Dense="true">
+    El GameServer lee este archivo <b>al arrancar</b>: los cambios aplican recién cuando lo reinicias.
+    Los campos marcados con <MudChip T="string" Size="Size.Small" Class="ma-0">4 niveles de cuenta</MudChip>
+    se guardan en los cuatro (AL0-AL3) a la vez, porque el servidor no tiene cuentas premium y dejarlos
+    distintos sólo confunde.
+</MudAlert>
+
+@if (_doc is null)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+else
+{
+    <MudTextField T="string" @bind-Value="_filter" Label="Buscar ajuste" Variant="Variant.Outlined"
+                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                  Immediate="true" Clearable="true" Margin="Margin.Dense" Class="mb-4" Style="max-width: 420px;" />
+
+    @foreach (var group in VisibleGroups)
+    {
+        <MudPaper Class="pa-4 mb-4" Elevation="0">
+            <MudText Typo="Typo.subtitle1" Class="mb-3">@group.Title</MudText>
+            <MudGrid Spacing="3">
+                @foreach (var setting in VisibleSettings(group))
+                {
+                    <MudItem xs="12" sm="6" md="4">
+                        <MudNumericField T="int" Value="@GetValue(setting)"
+                                         ValueChanged="@(v => SetValue(setting, v))"
+                                         Label="@setting.Label" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                            @setting.Help
+                            <span class="rate-key">@setting.Key@(setting.PerAccountLevel ? "_AL0-3" : "")</span>
+                        </MudText>
+                    </MudItem>
+                }
+            </MudGrid>
+        </MudPaper>
+    }
+
+    @if (!VisibleGroups.Any())
+    {
+        <MudAlert Severity="Severity.Info">Ningún ajuste coincide con "@_filter".</MudAlert>
+    }
+
+    <div class="d-flex gap-2 mt-2 mb-8">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
+                   OnClick="Save" Disabled="@_saving">
+            Guardar (@_pending.Count cambio@(_pending.Count == 1 ? "" : "s"))
+        </MudButton>
+        <MudButton Variant="Variant.Outlined" OnClick="Reload" Disabled="@_saving">
+            Descartar cambios
+        </MudButton>
+    </div>
+}
+
+<style>
+    .rate-key {
+        display: block;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.7rem;
+        opacity: 0.5;
+        margin-top: 2px;
+    }
+</style>
+
+@code {
+    private IniDocument? _doc;
+    private readonly Dictionary<string, int> _pending = new();
+    private string? _filter;
+    private bool _saving;
+    private bool _backedUp;
+
+    private string Path => DataPaths.Combine(RateSettings.FileName);
+
+    private IEnumerable<RateGroup> VisibleGroups => RateSettings.Groups.Where(g => VisibleSettings(g).Any());
+
+    private IEnumerable<RateSetting> VisibleSettings(RateGroup group) =>
+        string.IsNullOrWhiteSpace(_filter)
+            ? group.Settings
+            : group.Settings.Where(s =>
+                s.Label.Contains(_filter, StringComparison.OrdinalIgnoreCase)
+                || s.Key.Contains(_filter, StringComparison.OrdinalIgnoreCase));
+
+    protected override void OnInitialized() => Reload();
+
+    private void Reload()
+    {
+        _doc = IniDocument.Load(Path);
+        _pending.Clear();
+    }
+
+    /// <summary>Las claves por nivel de cuenta viven como <c>Clave_AL0</c>; se lee la AL0 como
+    /// representante de las cuatro.</summary>
+    private static string ReadKey(RateSetting setting) => setting.PerAccountLevel ? setting.Key + "_AL0" : setting.Key;
+
+    private int GetValue(RateSetting setting) =>
+        _pending.TryGetValue(setting.Key, out var pending)
+            ? pending
+            : _doc!.GetInt(RateSettings.Section, ReadKey(setting));
+
+    private void SetValue(RateSetting setting, int value) => _pending[setting.Key] = value;
+
+    private void Save()
+    {
+        if (_doc is null || _pending.Count == 0)
+        {
+            Snackbar.Add("No hay cambios para guardar.", Severity.Info);
+            return;
+        }
+
+        _saving = true;
+        try
+        {
+            if (!_backedUp)
+            {
+                var backupPath = Path + ".bak";
+                if (!File.Exists(backupPath))
+                {
+                    File.Copy(Path, backupPath);
+                }
+                _backedUp = true;
+            }
+
+            int changed = _pending.Count;
+
+            foreach (var (key, value) in _pending)
+            {
+                var setting = RateSettings.Groups.SelectMany(g => g.Settings).First(s => s.Key == key);
+
+                if (setting.PerAccountLevel)
+                {
+                    for (int al = 0; al < 4; al++)
+                    {
+                        _doc.SetInt(RateSettings.Section, $"{key}_AL{al}", value);
+                    }
+                }
+                else
+                {
+                    _doc.SetInt(RateSettings.Section, key, value);
+                }
+            }
+
+            _doc.Save(Path);
+            Snackbar.Add($"Guardado: {changed} ajuste(s). Reiniciá el GameServer para que apliquen.", Severity.Success);
+            Reload();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"No se pudo guardar: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+}

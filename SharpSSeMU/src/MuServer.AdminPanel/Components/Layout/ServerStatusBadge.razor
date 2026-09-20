@@ -1,0 +1,41 @@
+@using MuServer.AdminPanel.Repositories
+@inject ServerStatusRepository StatusRepository
+@implements IDisposable
+
+@if (_status is null)
+{
+    <MudChip T="string" Icon="@Icons.Material.Filled.CloudOff" Color="Color.Default" Size="Size.Small">
+        GameServer sin conexión
+    </MudChip>
+}
+else if (_status.IsStale)
+{
+    <MudChip T="string" Icon="@Icons.Material.Filled.WarningAmber" Color="Color.Warning" Size="Size.Small">
+        @_status.ServerName -- sin actualizar hace @((int)(DateTime.UtcNow - _status.UpdatedAtUtc).TotalSeconds)s
+    </MudChip>
+}
+else
+{
+    <MudChip T="string" Icon="@Icons.Material.Filled.Circle" Color="Color.Success" Size="Size.Small">
+        @_status.ServerName -- @_status.PlayerCount / @_status.MaxPlayers jugadores
+    </MudChip>
+}
+
+@code {
+    private ServerStatusInfo? _status;
+    private Timer? _timer;
+
+    protected override void OnInitialized()
+    {
+        _status = StatusRepository.Read();
+        _timer = new Timer(_ => InvokeAsync(Refresh), null, TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(3));
+    }
+
+    private void Refresh()
+    {
+        _status = StatusRepository.Read();
+        StateHasChanged();
+    }
+
+    public void Dispose() => _timer?.Dispose();
+}

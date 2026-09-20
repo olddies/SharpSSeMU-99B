@@ -1,0 +1,174 @@
+@page "/items"
+@using MuServer.AdminPanel.Config
+@using MuServer.AdminPanel.Repositories
+@inject GameDataPaths DataPaths
+@inject ISnackbar Snackbar
+
+<PageTitle>Items</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-1">Items</MudText>
+<MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">
+    Data/Item/Item.txt -- el balance real que usa el GameServer para calcular daño/defensa y para
+    elegir qué items pueden dropear los monstruos. El archivo tiene 16 secciones con columnas
+    distintas cada una; elegí una categoría para ver y editar sus columnas.
+</MudText>
+
+@if (_rowsBySection is null)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+else
+{
+    <MudSelect T="int" Value="_selectedSection" ValueChanged="OnSectionChangedAsync" Label="Categoría"
+               Variant="Variant.Outlined" Dense="true" Class="mb-4" Style="max-width: 360px;">
+        @foreach (var (section, label) in ItemFileRepository.Sections)
+        {
+            <MudSelectItem Value="section">@($"{section} -- {label}")</MudSelectItem>
+        }
+    </MudSelect>
+
+    <MudPaper Class="pa-2" Elevation="0">
+        <MudDataGrid Items="@CurrentRows" T="ItemRow" EditMode="DataGridEditMode.Cell" ReadOnly="false"
+                     Bordered="false" Dense="true" FixedHeader="true" Height="65vh"
+                     Filterable="true" SortMode="SortMode.Multiple">
+            <Columns>
+                <PropertyColumn Property="x => x.Sub" Title="Índice" Editable="false" />
+                <PropertyColumn Property="x => x.Name" Title="Nombre" />
+                <PropertyColumn Property="x => x.DropItem" Title="Dropea" />
+
+                <PropertyColumn Property="x => x.Level" Title="Nivel" />
+                <PropertyColumn Property="x => x.Value" Title="Valor" Hidden="@(!HasValue)" />
+                <PropertyColumn Property="x => x.BuyMoney" Title="Precio" Hidden="@(!HasBuyMoney)" />
+
+                <PropertyColumn Property="x => x.DamageMin" Title="Daño mín." Hidden="@(!HasDamage)" />
+                <PropertyColumn Property="x => x.DamageMax" Title="Daño máx." Hidden="@(!HasDamage)" />
+                <PropertyColumn Property="x => x.AttackSpeed" Title="Vel. ataque" Hidden="@(!HasAttackSpeed)" />
+                <PropertyColumn Property="x => x.MagicDamageRate" Title="% daño mágico" Hidden="@(!HasMagicDamageRate)" />
+
+                <PropertyColumn Property="x => x.Defense" Title="Defensa" Hidden="@(!HasDefense)" />
+                <PropertyColumn Property="x => x.DefenseSuccessRate" Title="% bloqueo" Hidden="@(!HasDefenseSuccessRate)" />
+                <PropertyColumn Property="x => x.MagicDefense" Title="Def. mágica" Hidden="@(!HasMagicDefense)" />
+                <PropertyColumn Property="x => x.WalkSpeed" Title="Vel. movimiento" Hidden="@(!HasWalkSpeed)" />
+                <PropertyColumn Property="x => x.Durability" Title="Durabilidad" Hidden="@(!HasDurability)" />
+                <PropertyColumn Property="x => x.SetAttr" Title="Set" Hidden="@(!HasSetAttr)" />
+
+                <PropertyColumn Property="x => x.RequireLevel" Title="Nivel req." Hidden="@(!HasRequireLevel)" />
+                <PropertyColumn Property="x => x.RequireStrength" Title="Fuerza req." Hidden="@(!HasRequireStr)" />
+                <PropertyColumn Property="x => x.RequireDexterity" Title="Agilidad req." Hidden="@(!HasRequireDex)" />
+                <PropertyColumn Property="x => x.RequireEnergy" Title="Energía req." Hidden="@(!HasRequireEne)" />
+                <PropertyColumn Property="x => x.RequireVitality" Title="Vitalidad req." Hidden="@(!HasRequireVit)" />
+                <PropertyColumn Property="x => x.RequireLeadership" Title="Mando req." Hidden="@(!HasRequireLead)" />
+            </Columns>
+        </MudDataGrid>
+    </MudPaper>
+
+    <div class="d-flex gap-2 mt-4">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
+                   OnClick="SaveAsync" Disabled="@_saving">
+            Guardar en Item.txt
+        </MudButton>
+        <MudButton Variant="Variant.Outlined" OnClick="ReloadAsync" Disabled="@_saving">
+            Descartar cambios
+        </MudButton>
+    </div>
+    <MudText Typo="Typo.caption" Class="mud-text-secondary mt-2">
+        Guardar reescribe las 16 secciones del archivo completo (no sólo la categoría que estás
+        viendo), pero las que no tocaste quedan tal cual se cargaron. Se guarda un respaldo
+        (Item.txt.bak) la primera vez que grabás en esta sesión.
+    </MudText>
+}
+
+@code {
+    private Dictionary<int, string>? _headers;
+    private Dictionary<int, List<ItemRow>>? _rowsBySection;
+    private int _selectedSection;
+    private bool _saving;
+    private bool _backedUp;
+
+    private List<ItemRow> CurrentRows =>
+        _rowsBySection is not null && _rowsBySection.TryGetValue(_selectedSection, out var rows)
+            ? rows
+            : new List<ItemRow>();
+
+    private bool IsWeapon => _selectedSection is >= 0 and <= 5;
+    private bool IsShield => _selectedSection == 6;
+    private bool IsArmorPiece => _selectedSection is 7 or 8 or 9;
+    private bool IsGloves => _selectedSection == 10;
+    private bool IsBoots => _selectedSection == 11;
+    private bool IsWings => _selectedSection == 12;
+    private bool IsMisc => _selectedSection == 13;
+    private bool IsConsumable => _selectedSection == 14;
+    private bool IsScroll => _selectedSection == 15;
+    private bool IsEquippable => IsWeapon || IsShield || IsArmorPiece || IsGloves || IsBoots || IsWings;
+
+    private bool HasValue => IsConsumable;
+    private bool HasBuyMoney => IsWings || IsScroll;
+    private bool HasDamage => IsWeapon;
+    private bool HasAttackSpeed => IsWeapon || IsGloves;
+    private bool HasMagicDamageRate => IsWeapon;
+    private bool HasDefense => IsShield || IsArmorPiece || IsGloves || IsBoots || IsWings;
+    private bool HasDefenseSuccessRate => IsShield;
+    private bool HasMagicDefense => IsArmorPiece;
+    private bool HasWalkSpeed => IsBoots;
+    private bool HasDurability => IsEquippable || IsMisc;
+    private bool HasSetAttr => (IsEquippable && !IsWings) || IsMisc;
+    private bool HasRequireLevel => !IsConsumable;
+    private bool HasRequireStr => IsEquippable;
+    private bool HasRequireDex => IsEquippable;
+    private bool HasRequireEne => IsEquippable || IsScroll;
+    private bool HasRequireVit => IsEquippable && !IsWings;
+    private bool HasRequireLead => IsEquippable;
+
+    protected override Task OnInitializedAsync() => ReloadAsync();
+
+    private Task ReloadAsync()
+    {
+        var path = DataPaths.Combine("Item", "Item.txt");
+        var (headers, rowsBySection) = ItemFileRepository.Load(path);
+        _headers = headers;
+        _rowsBySection = rowsBySection;
+        return Task.CompletedTask;
+    }
+
+    private Task OnSectionChangedAsync(int section)
+    {
+        _selectedSection = section;
+        return Task.CompletedTask;
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_rowsBySection is null || _headers is null)
+        {
+            return;
+        }
+
+        _saving = true;
+        try
+        {
+            var path = DataPaths.Combine("Item", "Item.txt");
+
+            if (!_backedUp)
+            {
+                var backupPath = path + ".bak";
+                if (!File.Exists(backupPath))
+                {
+                    File.Copy(path, backupPath);
+                }
+                _backedUp = true;
+            }
+
+            ItemFileRepository.Save(path, _headers, _rowsBySection);
+            var total = _rowsBySection.Values.Sum(r => r.Count);
+            Snackbar.Add($"Guardado: {total} items en 16 secciones.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"No se pudo guardar: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+}

@@ -1,0 +1,117 @@
+@page "/chaos-mix"
+@using MuServer.AdminPanel.Config
+@using MuServer.AdminPanel.Repositories
+@using MuServer.AdminPanel.Components.Shared
+@inject GameDataPaths DataPaths
+@inject ISnackbar Snackbar
+
+<PageTitle>Chaos Machine</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-1">Chaos Machine</MudText>
+<MudText Typo="Typo.body2" Class="mud-text-secondary mb-2">
+    Data/GameServerInfo - ChaosMix.dat -- las tasas de éxito (%) que ChaosMixLogic usa de verdad
+    para calcular si una combinación de la Caja del Caos, +10/11/12/13, alas, mascota, etc. funciona.
+    <b>-1</b> significa "sin tasa fija de config": esas combinaciones (Caja del Caos y alas)
+    calculan el % con una fórmula en base al dinero invertido en vez de leer este valor.
+</MudText>
+<MudAlert Severity="Severity.Info" Class="mb-4" Dense="true">
+    Las columnas AL1/AL2/AL3 son por nivel de cuenta premium -- el servidor no tiene ese sistema
+    portado todavía, así que el nivel de cuenta siempre vale 0 y sólo la columna <b>AL0</b> aplica
+    en el juego real hoy. Se muestran y se pueden editar las 4 igual, para no perder esos valores
+    del archivo y para cuando el sistema de cuentas premium se porte.
+</MudAlert>
+
+@if (_rates is null)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+else
+{
+    <MudPaper Class="pa-4 mb-4" Elevation="0">
+        <MudText Typo="Typo.subtitle1" Class="mb-2">General</MudText>
+        <RateGroupTable Rows="@(ChaosMixLayout.Singles.Select(g => (g.Title, _rates[g.Prefix])))" />
+    </MudPaper>
+
+    @foreach (var group in ChaosMixLayout.Numbered)
+    {
+        <MudPaper Class="pa-4 mb-4" Elevation="0">
+            <MudText Typo="Typo.subtitle1" Class="mb-2">@group.Title</MudText>
+            <RateGroupTable Rows="@(Enumerable.Range(1, group.Count).Select(n => ($"Mapa {n}", _rates[group.Prefix + n])))" />
+        </MudPaper>
+    }
+
+    <MudPaper Class="pa-4 mb-4" Elevation="0">
+        <MudText Typo="Typo.subtitle1" Class="mb-2">Mejora de nivel (+10 a +13)</MudText>
+        <RateGroupTable Rows="@(ChaosMixLayout.PlusLevels.SelectMany(g => new (string, RateSet)[]
+        {
+            ($"{g.Title} -- item normal", _rates[g.CommonPrefix]),
+            ($"{g.Title} -- excelente/set", _rates[g.ExcSetPrefix]),
+        }))" />
+    </MudPaper>
+
+    <div class="d-flex gap-2 mt-2">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
+                   OnClick="SaveAsync" Disabled="@_saving">
+            Guardar en ChaosMix.dat
+        </MudButton>
+        <MudButton Variant="Variant.Outlined" OnClick="ReloadAsync" Disabled="@_saving">
+            Descartar cambios
+        </MudButton>
+    </div>
+    <MudText Typo="Typo.caption" Class="mud-text-secondary mt-2">
+        Se guarda un respaldo ("GameServerInfo - ChaosMix.dat.bak") la primera vez que grabás en
+        esta sesión.
+    </MudText>
+}
+
+@code {
+    private IniDocument? _doc;
+    private Dictionary<string, RateSet>? _rates;
+    private bool _saving;
+    private bool _backedUp;
+
+    private string Path => DataPaths.Combine("GameServerInfo - ChaosMix.dat");
+
+    protected override Task OnInitializedAsync() => ReloadAsync();
+
+    private Task ReloadAsync()
+    {
+        var (doc, rates) = ChaosMixConfigRepository.Load(Path);
+        _doc = doc;
+        _rates = rates;
+        return Task.CompletedTask;
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_doc is null || _rates is null)
+        {
+            return;
+        }
+
+        _saving = true;
+        try
+        {
+            if (!_backedUp)
+            {
+                var backupPath = Path + ".bak";
+                if (!File.Exists(backupPath))
+                {
+                    File.Copy(Path, backupPath);
+                }
+                _backedUp = true;
+            }
+
+            ChaosMixConfigRepository.Save(Path, _doc, _rates);
+            Snackbar.Add("Guardado en GameServerInfo - ChaosMix.dat.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"No se pudo guardar: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+}

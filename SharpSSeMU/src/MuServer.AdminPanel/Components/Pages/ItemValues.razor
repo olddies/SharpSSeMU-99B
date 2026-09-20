@@ -1,0 +1,157 @@
+@page "/item-values"
+@using MuServer.AdminPanel.Config
+@using MuServer.AdminPanel.Repositories
+@inject GameDataPaths DataPaths
+@inject ISnackbar Snackbar
+
+<PageTitle>Precios</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-1">Precios de items</MudText>
+<MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">
+    Data/Item/ItemValue.txt -- precios explícitos que <b>pisan</b> la fórmula general de precios. Acá
+    están las joyas, entradas de evento y pociones de asedio: si un item no figura en esta lista, su
+    precio de tienda sale de la fórmula, no de acá.
+</MudText>
+<MudAlert Severity="Severity.Info" Class="mb-4" Dense="true">
+    El precio de compra es este valor; el de venta al NPC es un tercio. "Nivel" y "Grado" en
+    <b>*</b> significan "cualquiera" -- así una misma fila cubre todos los +0..+15 del item.
+</MudAlert>
+
+@if (_rows is null)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+else
+{
+    <MudPaper Class="pa-2" Elevation="0">
+        <MudDataGrid Items="@_rows" T="ItemValueRow" EditMode="DataGridEditMode.Cell" ReadOnly="false"
+                     Bordered="false" Dense="true" FixedHeader="true" Height="62vh"
+                     SortMode="SortMode.Multiple" QuickFilter="@QuickFilter">
+            <ToolBarContent>
+                <MudTextField T="string" @bind-Value="_search" Placeholder="Buscar por nombre"
+                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                              Immediate="true" Clearable="true" Margin="Margin.Dense" Class="mt-0" />
+            </ToolBarContent>
+            <Columns>
+                <PropertyColumn Property="x => x.Section" Title="Sección" />
+                <PropertyColumn Property="x => x.Sub" Title="Índice" />
+                <TemplateColumn Title="Item" Editable="false" Sortable="false">
+                    <CellTemplate>@ItemName(context.Item)</CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="Nivel" Sortable="false">
+                    <CellTemplate>@(context.Item.Level?.ToString() ?? "*")</CellTemplate>
+                    <EditTemplate>
+                        <MudTextField T="string" Value="@(context.Item.Level?.ToString() ?? "*")"
+                                      ValueChanged="@(v => context.Item.Level = ParseOptional(v))"
+                                      Margin="Margin.Dense" />
+                    </EditTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="Grado" Sortable="false">
+                    <CellTemplate>@(context.Item.Grade?.ToString() ?? "*")</CellTemplate>
+                    <EditTemplate>
+                        <MudTextField T="string" Value="@(context.Item.Grade?.ToString() ?? "*")"
+                                      ValueChanged="@(v => context.Item.Grade = ParseOptional(v))"
+                                      Margin="Margin.Dense" />
+                    </EditTemplate>
+                </TemplateColumn>
+                <PropertyColumn Property="x => x.MoneyValue" Title="Precio (zen)" Format="N0" />
+                <PropertyColumn Property="x => x.Comment" Title="Comentario" />
+            </Columns>
+        </MudDataGrid>
+    </MudPaper>
+
+    <div class="d-flex gap-2 mt-4">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
+                   OnClick="Save" Disabled="@_saving">
+            Guardar en ItemValue.txt
+        </MudButton>
+        <MudButton Variant="Variant.Outlined" OnClick="Reload" Disabled="@_saving">
+            Descartar cambios
+        </MudButton>
+        <MudText Typo="Typo.caption" Class="mud-text-secondary align-self-center">
+            @_rows.Count precio(s) definido(s)
+        </MudText>
+    </div>
+}
+
+@code {
+    private string? _header;
+    private List<ItemValueRow>? _rows;
+    private Dictionary<int, string> _itemNames = new();
+    private string? _search;
+    private bool _saving;
+    private bool _backedUp;
+
+    private string Path => DataPaths.Combine("Item", "ItemValue.txt");
+
+    private Func<ItemValueRow, bool> QuickFilter => row =>
+        string.IsNullOrWhiteSpace(_search)
+        || row.Comment.Contains(_search, StringComparison.OrdinalIgnoreCase)
+        || ItemName(row).Contains(_search, StringComparison.OrdinalIgnoreCase);
+
+    protected override void OnInitialized()
+    {
+        LoadItemNames();
+        Reload();
+    }
+
+    private void LoadItemNames()
+    {
+        try
+        {
+            var (_, rowsBySection) = ItemFileRepository.Load(DataPaths.Combine("Item", "Item.txt"));
+            _itemNames = rowsBySection.Values.SelectMany(r => r).ToDictionary(r => r.Index, r => r.Name);
+        }
+        catch (Exception)
+        {
+            _itemNames = new Dictionary<int, string>();
+        }
+    }
+
+    private string ItemName(ItemValueRow row) =>
+        _itemNames.TryGetValue(row.Index, out var name) ? name : "(desconocido)";
+
+    private static int? ParseOptional(string? value) =>
+        string.IsNullOrWhiteSpace(value) || value.Trim() == "*" ? null
+        : int.TryParse(value.Trim(), out var n) ? n : null;
+
+    private void Reload()
+    {
+        var (header, rows) = ItemValueFileRepository.Load(Path);
+        _header = header;
+        _rows = rows;
+    }
+
+    private void Save()
+    {
+        if (_rows is null || _header is null)
+        {
+            return;
+        }
+
+        _saving = true;
+        try
+        {
+            if (!_backedUp)
+            {
+                var backupPath = Path + ".bak";
+                if (!File.Exists(backupPath))
+                {
+                    File.Copy(Path, backupPath);
+                }
+                _backedUp = true;
+            }
+
+            ItemValueFileRepository.Save(Path, _header, _rows);
+            Snackbar.Add($"Guardado: {_rows.Count} precios.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"No se pudo guardar: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+}

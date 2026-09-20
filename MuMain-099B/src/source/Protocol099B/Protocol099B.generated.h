@@ -1,0 +1,6610 @@
+// Generado por tools/protogen/emit_cpp.py -- NO EDITAR A MANO.
+//
+// Formato de wire del servidor SSeMU 0.99B (2.1.7), derivado de
+// Source/Source/Emulator 0.99 (2.1.7)/GameServer/*.h. Para regenerarlo:
+//
+//     python tools/protogen/parse_protocol.py --gameserver-dir <...> --out protocol_099b.json
+//     python tools/protogen/annotate_opcodes.py --ir protocol_099b.json --gameserver-dir <...>
+//     python tools/protogen/emit_cpp.py --ir protocol_099b.json --out <este archivo>
+//
+// Los static_assert de abajo no son decorativos: si el layout derivado se
+// desviara del que arma MSVC, esto no compila. Ver tools/protogen/README.md.
+
+#pragma once
+
+#include <cstddef>
+#include <cstdint>
+
+namespace Mu099B
+{
+
+using BYTE = unsigned char;
+using WORD = unsigned short;
+using DWORD = unsigned long;
+using QWORD = unsigned long long;
+using UINT = unsigned int;
+
+/// De qué lado nace el paquete.
+enum class Direction
+{
+    ServerToClient,
+    ClientToServer,
+};
+
+
+// DevilSquare.h
+// Relleno de alineación en el wire: @10(+2). El servidor manda el struct
+// entero (memcpy/sizeof), así que esos bytes VIAJAN: no se pueden omitir.
+#pragma pack(push, 8)
+struct PMSG_DEVIL_SQUARE_SCORE
+{
+    char name[10];
+    DWORD score;
+    DWORD RewardExperience;
+    DWORD RewardMoney;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_DEVIL_SQUARE_SCORE) == 24, "PMSG_DEVIL_SQUARE_SCORE: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_DEVIL_SQUARE_SCORE, name) == 0,
+              "PMSG_DEVIL_SQUARE_SCORE.name: offset no coincide con el IR");
+static_assert(offsetof(PMSG_DEVIL_SQUARE_SCORE, score) == 12,
+              "PMSG_DEVIL_SQUARE_SCORE.score: offset no coincide con el IR");
+static_assert(offsetof(PMSG_DEVIL_SQUARE_SCORE, RewardExperience) == 16,
+              "PMSG_DEVIL_SQUARE_SCORE.RewardExperience: offset no coincide con el IR");
+static_assert(offsetof(PMSG_DEVIL_SQUARE_SCORE, RewardMoney) == 20,
+              "PMSG_DEVIL_SQUARE_SCORE.RewardMoney: offset no coincide con el IR");
+
+// Friend.h
+#pragma pack(push, 8)
+struct PMSG_FRIEND_LIST
+{
+    char Name[10];
+    BYTE server;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_FRIEND_LIST) == 11, "PMSG_FRIEND_LIST: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_LIST, Name) == 0,
+              "PMSG_FRIEND_LIST.Name: offset no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_LIST, server) == 10,
+              "PMSG_FRIEND_LIST.server: offset no coincide con el IR");
+
+// Guild.h
+#pragma pack(push, 8)
+struct PMSG_GUILD_LIST
+{
+    char name[10];
+    BYTE number;
+    BYTE connected;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_GUILD_LIST) == 12, "PMSG_GUILD_LIST: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_GUILD_LIST, name) == 0,
+              "PMSG_GUILD_LIST.name: offset no coincide con el IR");
+static_assert(offsetof(PMSG_GUILD_LIST, number) == 10,
+              "PMSG_GUILD_LIST.number: offset no coincide con el IR");
+static_assert(offsetof(PMSG_GUILD_LIST, connected) == 11,
+              "PMSG_GUILD_LIST.connected: offset no coincide con el IR");
+
+// ItemManager.h
+#pragma pack(push, 8)
+struct PMSG_ITEM_LIST
+{
+    BYTE slot;
+    BYTE ItemInfo[5];
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_ITEM_LIST) == 6, "PMSG_ITEM_LIST: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_LIST, slot) == 0,
+              "PMSG_ITEM_LIST.slot: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_LIST, ItemInfo) == 1,
+              "PMSG_ITEM_LIST.ItemInfo: offset no coincide con el IR");
+
+// Party.h
+// Relleno de alineación en el wire: @14(+2). El servidor manda el struct
+// entero (memcpy/sizeof), así que esos bytes VIAJAN: no se pueden omitir.
+#pragma pack(push, 8)
+struct PMSG_PARTY_LIST
+{
+    char name[10];
+    BYTE number;
+    BYTE map;
+    BYTE x;
+    BYTE y;
+    DWORD CurLife;
+    DWORD MaxLife;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_PARTY_LIST) == 24, "PMSG_PARTY_LIST: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_PARTY_LIST, name) == 0,
+              "PMSG_PARTY_LIST.name: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PARTY_LIST, number) == 10,
+              "PMSG_PARTY_LIST.number: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PARTY_LIST, map) == 11,
+              "PMSG_PARTY_LIST.map: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PARTY_LIST, x) == 12,
+              "PMSG_PARTY_LIST.x: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PARTY_LIST, y) == 13,
+              "PMSG_PARTY_LIST.y: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PARTY_LIST, CurLife) == 16,
+              "PMSG_PARTY_LIST.CurLife: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PARTY_LIST, MaxLife) == 20,
+              "PMSG_PARTY_LIST.MaxLife: offset no coincide con el IR");
+
+// Party.h
+#pragma pack(push, 8)
+struct PMSG_PARTY_LIFE
+{
+    BYTE number;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_PARTY_LIFE) == 1, "PMSG_PARTY_LIFE: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_PARTY_LIFE, number) == 0,
+              "PMSG_PARTY_LIFE.number: offset no coincide con el IR");
+
+// PersonalShop.h
+#pragma pack(push, 8)
+struct PMSG_PSHOP_VIEWPORT
+{
+    BYTE index[2];
+    char text[36];
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_PSHOP_VIEWPORT) == 38, "PMSG_PSHOP_VIEWPORT: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_VIEWPORT, index) == 0,
+              "PMSG_PSHOP_VIEWPORT.index: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_VIEWPORT, text) == 2,
+              "PMSG_PSHOP_VIEWPORT.text: offset no coincide con el IR");
+
+// PersonalShop.h
+// Relleno de alineación en el wire: @6(+2). El servidor manda el struct
+// entero (memcpy/sizeof), así que esos bytes VIAJAN: no se pueden omitir.
+#pragma pack(push, 8)
+struct PMSG_PSHOP_ITEM_LIST
+{
+    BYTE slot;
+    BYTE ItemInfo[5];
+    DWORD value;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_PSHOP_ITEM_LIST) == 12, "PMSG_PSHOP_ITEM_LIST: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_ITEM_LIST, slot) == 0,
+              "PMSG_PSHOP_ITEM_LIST.slot: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_ITEM_LIST, ItemInfo) == 1,
+              "PMSG_PSHOP_ITEM_LIST.ItemInfo: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_ITEM_LIST, value) == 8,
+              "PMSG_PSHOP_ITEM_LIST.value: offset no coincide con el IR");
+
+// PersonalShop.h
+#pragma pack(push, 8)
+struct PMSG_PSHOP_SEARCH
+{
+    BYTE index[2];
+    char name[11];
+    char text[37];
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_PSHOP_SEARCH) == 50, "PMSG_PSHOP_SEARCH: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_SEARCH, index) == 0,
+              "PMSG_PSHOP_SEARCH.index: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_SEARCH, name) == 2,
+              "PMSG_PSHOP_SEARCH.name: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_SEARCH, text) == 13,
+              "PMSG_PSHOP_SEARCH.text: offset no coincide con el IR");
+
+// PersonalShop.h
+#pragma pack(push, 8)
+struct PMSG_PSHOP_ITEM_VALUE
+{
+#pragma pack(1)
+    DWORD slot;
+    DWORD serial;
+    DWORD value;
+    WORD JoBValue;
+    WORD JoSValue;
+    WORD JoCValue;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_PSHOP_ITEM_VALUE) == 18, "PMSG_PSHOP_ITEM_VALUE: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_ITEM_VALUE, slot) == 0,
+              "PMSG_PSHOP_ITEM_VALUE.slot: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_ITEM_VALUE, serial) == 4,
+              "PMSG_PSHOP_ITEM_VALUE.serial: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_ITEM_VALUE, value) == 8,
+              "PMSG_PSHOP_ITEM_VALUE.value: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_ITEM_VALUE, JoBValue) == 12,
+              "PMSG_PSHOP_ITEM_VALUE.JoBValue: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_ITEM_VALUE, JoSValue) == 14,
+              "PMSG_PSHOP_ITEM_VALUE.JoSValue: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_ITEM_VALUE, JoCValue) == 16,
+              "PMSG_PSHOP_ITEM_VALUE.JoCValue: offset no coincide con el IR");
+
+// ConnectServerProtocol.h
+#pragma pack(push, 8)
+struct PBMSG_HEAD
+{
+    BYTE type;
+    BYTE size;
+    BYTE head;
+};
+#pragma pack(pop)
+static_assert(sizeof(PBMSG_HEAD) == 3, "PBMSG_HEAD: sizeof no coincide con el IR");
+static_assert(offsetof(PBMSG_HEAD, type) == 0,
+              "PBMSG_HEAD.type: offset no coincide con el IR");
+static_assert(offsetof(PBMSG_HEAD, size) == 1,
+              "PBMSG_HEAD.size: offset no coincide con el IR");
+static_assert(offsetof(PBMSG_HEAD, head) == 2,
+              "PBMSG_HEAD.head: offset no coincide con el IR");
+
+// ConnectServerProtocol.h
+#pragma pack(push, 8)
+struct PSBMSG_HEAD
+{
+    BYTE type;
+    BYTE size;
+    BYTE head;
+    BYTE subh;
+};
+#pragma pack(pop)
+static_assert(sizeof(PSBMSG_HEAD) == 4, "PSBMSG_HEAD: sizeof no coincide con el IR");
+static_assert(offsetof(PSBMSG_HEAD, type) == 0,
+              "PSBMSG_HEAD.type: offset no coincide con el IR");
+static_assert(offsetof(PSBMSG_HEAD, size) == 1,
+              "PSBMSG_HEAD.size: offset no coincide con el IR");
+static_assert(offsetof(PSBMSG_HEAD, head) == 2,
+              "PSBMSG_HEAD.head: offset no coincide con el IR");
+static_assert(offsetof(PSBMSG_HEAD, subh) == 3,
+              "PSBMSG_HEAD.subh: offset no coincide con el IR");
+
+// ConnectServerProtocol.h
+#pragma pack(push, 8)
+struct PWMSG_HEAD
+{
+    BYTE type;
+    BYTE size[2];
+    BYTE head;
+};
+#pragma pack(pop)
+static_assert(sizeof(PWMSG_HEAD) == 4, "PWMSG_HEAD: sizeof no coincide con el IR");
+static_assert(offsetof(PWMSG_HEAD, type) == 0,
+              "PWMSG_HEAD.type: offset no coincide con el IR");
+static_assert(offsetof(PWMSG_HEAD, size) == 1,
+              "PWMSG_HEAD.size: offset no coincide con el IR");
+static_assert(offsetof(PWMSG_HEAD, head) == 3,
+              "PWMSG_HEAD.head: offset no coincide con el IR");
+
+// ConnectServerProtocol.h
+#pragma pack(push, 8)
+struct PSWMSG_HEAD
+{
+    BYTE type;
+    BYTE size[2];
+    BYTE head;
+    BYTE subh;
+};
+#pragma pack(pop)
+static_assert(sizeof(PSWMSG_HEAD) == 5, "PSWMSG_HEAD: sizeof no coincide con el IR");
+static_assert(offsetof(PSWMSG_HEAD, type) == 0,
+              "PSWMSG_HEAD.type: offset no coincide con el IR");
+static_assert(offsetof(PSWMSG_HEAD, size) == 1,
+              "PSWMSG_HEAD.size: offset no coincide con el IR");
+static_assert(offsetof(PSWMSG_HEAD, head) == 3,
+              "PSWMSG_HEAD.head: offset no coincide con el IR");
+static_assert(offsetof(PSWMSG_HEAD, subh) == 4,
+              "PSWMSG_HEAD.subh: offset no coincide con el IR");
+
+// Protocol.h
+// Opcode 0x00 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_CHAT_RECV
+{
+    PBMSG_HEAD header;
+    char name[10];
+    char message[60];
+
+    static constexpr uint8_t kHead = 0x00;
+    static constexpr bool kHasSub = false;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_CHAT_RECV) == 73, "PMSG_CHAT_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_CHAT_RECV, header) == 0,
+              "PMSG_CHAT_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHAT_RECV, name) == 3,
+              "PMSG_CHAT_RECV.name: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHAT_RECV, message) == 13,
+              "PMSG_CHAT_RECV.message: offset no coincide con el IR");
+
+// Protocol.h
+// Opcode 0x02 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_CHAT_WHISPER_RECV
+{
+    PBMSG_HEAD header;
+    char name[10];
+    char message[60];
+
+    static constexpr uint8_t kHead = 0x02;
+    static constexpr bool kHasSub = false;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_CHAT_WHISPER_RECV) == 73, "PMSG_CHAT_WHISPER_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_CHAT_WHISPER_RECV, header) == 0,
+              "PMSG_CHAT_WHISPER_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHAT_WHISPER_RECV, name) == 3,
+              "PMSG_CHAT_WHISPER_RECV.name: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHAT_WHISPER_RECV, message) == 13,
+              "PMSG_CHAT_WHISPER_RECV.message: offset no coincide con el IR");
+
+// Protocol.h
+// Relleno de alineación en el wire: @3(+1). El servidor manda el struct
+// entero (memcpy/sizeof), así que esos bytes VIAJAN: no se pueden omitir.
+// Opcode 0x03 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_MAIN_CHECK_RECV
+{
+    PBMSG_HEAD header;
+    DWORD key;
+
+    static constexpr uint8_t kHead = 0x03;
+    static constexpr bool kHasSub = false;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_MAIN_CHECK_RECV) == 8, "PMSG_MAIN_CHECK_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_MAIN_CHECK_RECV, header) == 0,
+              "PMSG_MAIN_CHECK_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_MAIN_CHECK_RECV, key) == 4,
+              "PMSG_MAIN_CHECK_RECV.key: offset no coincide con el IR");
+
+// Protocol.h
+// Relleno de alineación en el wire: @3(+1). El servidor manda el struct
+// entero (memcpy/sizeof), así que esos bytes VIAJAN: no se pueden omitir.
+// Opcode 0x0E (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_LIVE_CLIENT_RECV
+{
+    PBMSG_HEAD header;
+    DWORD TickCount;
+    WORD PhysiSpeed;
+    WORD MagicSpeed;
+
+    static constexpr uint8_t kHead = 0x0E;
+    static constexpr bool kHasSub = false;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_LIVE_CLIENT_RECV) == 12, "PMSG_LIVE_CLIENT_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_LIVE_CLIENT_RECV, header) == 0,
+              "PMSG_LIVE_CLIENT_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_LIVE_CLIENT_RECV, TickCount) == 4,
+              "PMSG_LIVE_CLIENT_RECV.TickCount: offset no coincide con el IR");
+static_assert(offsetof(PMSG_LIVE_CLIENT_RECV, PhysiSpeed) == 8,
+              "PMSG_LIVE_CLIENT_RECV.PhysiSpeed: offset no coincide con el IR");
+static_assert(offsetof(PMSG_LIVE_CLIENT_RECV, MagicSpeed) == 10,
+              "PMSG_LIVE_CLIENT_RECV.MagicSpeed: offset no coincide con el IR");
+
+// Protocol.h
+// Opcode 0xD0 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_POSITION_RECV
+{
+    PBMSG_HEAD header;
+    BYTE x;
+    BYTE y;
+
+    static constexpr uint8_t kHead = 0xD0;
+    static constexpr bool kHasSub = false;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_POSITION_RECV) == 5, "PMSG_POSITION_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_POSITION_RECV, header) == 0,
+              "PMSG_POSITION_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_POSITION_RECV, x) == 3,
+              "PMSG_POSITION_RECV.x: offset no coincide con el IR");
+static_assert(offsetof(PMSG_POSITION_RECV, y) == 4,
+              "PMSG_POSITION_RECV.y: offset no coincide con el IR");
+
+// Protocol.h
+// Opcode 0x18 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_ACTION_RECV
+{
+    PBMSG_HEAD header;
+    BYTE dir;
+    BYTE action;
+    BYTE index[2];
+
+    static constexpr uint8_t kHead = 0x18;
+    static constexpr bool kHasSub = false;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_ACTION_RECV) == 7, "PMSG_ACTION_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_ACTION_RECV, header) == 0,
+              "PMSG_ACTION_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ACTION_RECV, dir) == 3,
+              "PMSG_ACTION_RECV.dir: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ACTION_RECV, action) == 4,
+              "PMSG_ACTION_RECV.action: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ACTION_RECV, index) == 5,
+              "PMSG_ACTION_RECV.index: offset no coincide con el IR");
+
+// Protocol.h
+// Opcode 0x91 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_EVENT_REMAIN_TIME_RECV
+{
+    PBMSG_HEAD header;
+    BYTE EventType;
+    BYTE ItemLevel;
+
+    static constexpr uint8_t kHead = 0x91;
+    static constexpr bool kHasSub = false;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_EVENT_REMAIN_TIME_RECV) == 5, "PMSG_EVENT_REMAIN_TIME_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_EVENT_REMAIN_TIME_RECV, header) == 0,
+              "PMSG_EVENT_REMAIN_TIME_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_EVENT_REMAIN_TIME_RECV, EventType) == 3,
+              "PMSG_EVENT_REMAIN_TIME_RECV.EventType: offset no coincide con el IR");
+static_assert(offsetof(PMSG_EVENT_REMAIN_TIME_RECV, ItemLevel) == 4,
+              "PMSG_EVENT_REMAIN_TIME_RECV.ItemLevel: offset no coincide con el IR");
+
+// Protocol.h
+// Opcode 0xA7 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_PET_ITEM_COMMAND_RECV
+{
+    PBMSG_HEAD header;
+    BYTE type;
+    BYTE command;
+    BYTE index[2];
+
+    static constexpr uint8_t kHead = 0xA7;
+    static constexpr bool kHasSub = false;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_PET_ITEM_COMMAND_RECV) == 7, "PMSG_PET_ITEM_COMMAND_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_PET_ITEM_COMMAND_RECV, header) == 0,
+              "PMSG_PET_ITEM_COMMAND_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PET_ITEM_COMMAND_RECV, type) == 3,
+              "PMSG_PET_ITEM_COMMAND_RECV.type: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PET_ITEM_COMMAND_RECV, command) == 4,
+              "PMSG_PET_ITEM_COMMAND_RECV.command: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PET_ITEM_COMMAND_RECV, index) == 5,
+              "PMSG_PET_ITEM_COMMAND_RECV.index: offset no coincide con el IR");
+
+// Protocol.h
+// Opcode 0xA9 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_PET_ITEM_INFO_RECV
+{
+    PBMSG_HEAD header;
+    BYTE type;
+    BYTE flag;
+    BYTE slot;
+
+    static constexpr uint8_t kHead = 0xA9;
+    static constexpr bool kHasSub = false;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_PET_ITEM_INFO_RECV) == 6, "PMSG_PET_ITEM_INFO_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_PET_ITEM_INFO_RECV, header) == 0,
+              "PMSG_PET_ITEM_INFO_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PET_ITEM_INFO_RECV, type) == 3,
+              "PMSG_PET_ITEM_INFO_RECV.type: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PET_ITEM_INFO_RECV, flag) == 4,
+              "PMSG_PET_ITEM_INFO_RECV.flag: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PET_ITEM_INFO_RECV, slot) == 5,
+              "PMSG_PET_ITEM_INFO_RECV.slot: offset no coincide con el IR");
+
+// Protocol.h
+// Relleno de alineación en el wire: @69(+3). El servidor manda el struct
+// entero (memcpy/sizeof), así que esos bytes VIAJAN: no se pueden omitir.
+#pragma pack(push, 8)
+struct PMSG_MAP_SERVER_MOVE_AUTH_RECV
+{
+    PSBMSG_HEAD header;
+    char account[12];
+    char name[12];
+    DWORD AuthCode1;
+    DWORD AuthCode2;
+    DWORD AuthCode3;
+    DWORD AuthCode4;
+    DWORD TickCount;
+    BYTE ClientVersion[5];
+    BYTE ClientSerial[16];
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_MAP_SERVER_MOVE_AUTH_RECV) == 72, "PMSG_MAP_SERVER_MOVE_AUTH_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_MAP_SERVER_MOVE_AUTH_RECV, header) == 0,
+              "PMSG_MAP_SERVER_MOVE_AUTH_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_MAP_SERVER_MOVE_AUTH_RECV, account) == 4,
+              "PMSG_MAP_SERVER_MOVE_AUTH_RECV.account: offset no coincide con el IR");
+static_assert(offsetof(PMSG_MAP_SERVER_MOVE_AUTH_RECV, name) == 16,
+              "PMSG_MAP_SERVER_MOVE_AUTH_RECV.name: offset no coincide con el IR");
+static_assert(offsetof(PMSG_MAP_SERVER_MOVE_AUTH_RECV, AuthCode1) == 28,
+              "PMSG_MAP_SERVER_MOVE_AUTH_RECV.AuthCode1: offset no coincide con el IR");
+static_assert(offsetof(PMSG_MAP_SERVER_MOVE_AUTH_RECV, AuthCode2) == 32,
+              "PMSG_MAP_SERVER_MOVE_AUTH_RECV.AuthCode2: offset no coincide con el IR");
+static_assert(offsetof(PMSG_MAP_SERVER_MOVE_AUTH_RECV, AuthCode3) == 36,
+              "PMSG_MAP_SERVER_MOVE_AUTH_RECV.AuthCode3: offset no coincide con el IR");
+static_assert(offsetof(PMSG_MAP_SERVER_MOVE_AUTH_RECV, AuthCode4) == 40,
+              "PMSG_MAP_SERVER_MOVE_AUTH_RECV.AuthCode4: offset no coincide con el IR");
+static_assert(offsetof(PMSG_MAP_SERVER_MOVE_AUTH_RECV, TickCount) == 44,
+              "PMSG_MAP_SERVER_MOVE_AUTH_RECV.TickCount: offset no coincide con el IR");
+static_assert(offsetof(PMSG_MAP_SERVER_MOVE_AUTH_RECV, ClientVersion) == 48,
+              "PMSG_MAP_SERVER_MOVE_AUTH_RECV.ClientVersion: offset no coincide con el IR");
+static_assert(offsetof(PMSG_MAP_SERVER_MOVE_AUTH_RECV, ClientSerial) == 53,
+              "PMSG_MAP_SERVER_MOVE_AUTH_RECV.ClientSerial: offset no coincide con el IR");
+
+// Protocol.h
+// Relleno de alineación en el wire: @1082(+2). El servidor manda el struct
+// entero (memcpy/sizeof), así que esos bytes VIAJAN: no se pueden omitir.
+#pragma pack(push, 8)
+struct PMSG_FRIEND_MESSAGE_RECV
+{
+    PWMSG_HEAD header;
+    DWORD guid;
+    char name[10];
+    char subject[60];
+    BYTE dir;
+    BYTE action;
+    WORD size;
+    char text[1000];
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_FRIEND_MESSAGE_RECV) == 1084, "PMSG_FRIEND_MESSAGE_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_MESSAGE_RECV, header) == 0,
+              "PMSG_FRIEND_MESSAGE_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_MESSAGE_RECV, guid) == 4,
+              "PMSG_FRIEND_MESSAGE_RECV.guid: offset no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_MESSAGE_RECV, name) == 8,
+              "PMSG_FRIEND_MESSAGE_RECV.name: offset no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_MESSAGE_RECV, subject) == 18,
+              "PMSG_FRIEND_MESSAGE_RECV.subject: offset no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_MESSAGE_RECV, dir) == 78,
+              "PMSG_FRIEND_MESSAGE_RECV.dir: offset no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_MESSAGE_RECV, action) == 79,
+              "PMSG_FRIEND_MESSAGE_RECV.action: offset no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_MESSAGE_RECV, size) == 80,
+              "PMSG_FRIEND_MESSAGE_RECV.size: offset no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_MESSAGE_RECV, text) == 82,
+              "PMSG_FRIEND_MESSAGE_RECV.text: offset no coincide con el IR");
+
+// Protocol.h
+// Opcode 0xD7 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_MOVE_RECV
+{
+    PBMSG_HEAD header;
+    BYTE x;
+    BYTE y;
+    BYTE path[8];
+
+    static constexpr uint8_t kHead = 0xD7;
+    static constexpr bool kHasSub = false;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_MOVE_RECV) == 13, "PMSG_MOVE_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_MOVE_RECV, header) == 0,
+              "PMSG_MOVE_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_MOVE_RECV, x) == 3,
+              "PMSG_MOVE_RECV.x: offset no coincide con el IR");
+static_assert(offsetof(PMSG_MOVE_RECV, y) == 4,
+              "PMSG_MOVE_RECV.y: offset no coincide con el IR");
+static_assert(offsetof(PMSG_MOVE_RECV, path) == 5,
+              "PMSG_MOVE_RECV.path: offset no coincide con el IR");
+
+// Protocol.h
+// Opcode 0xF1:0x01 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_CONNECT_ACCOUNT_RECV
+{
+#pragma pack(1)
+    PSBMSG_HEAD header;
+    char account[10];
+    char password[10];
+    DWORD TickCount;
+    BYTE ClientVersion[5];
+    BYTE ClientSerial[16];
+
+    static constexpr uint8_t kHead = 0xF1;
+    static constexpr uint8_t kSub = 0x01;
+    static constexpr bool kHasSub = true;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_CONNECT_ACCOUNT_RECV) == 49, "PMSG_CONNECT_ACCOUNT_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_CONNECT_ACCOUNT_RECV, header) == 0,
+              "PMSG_CONNECT_ACCOUNT_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CONNECT_ACCOUNT_RECV, account) == 4,
+              "PMSG_CONNECT_ACCOUNT_RECV.account: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CONNECT_ACCOUNT_RECV, password) == 14,
+              "PMSG_CONNECT_ACCOUNT_RECV.password: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CONNECT_ACCOUNT_RECV, TickCount) == 24,
+              "PMSG_CONNECT_ACCOUNT_RECV.TickCount: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CONNECT_ACCOUNT_RECV, ClientVersion) == 28,
+              "PMSG_CONNECT_ACCOUNT_RECV.ClientVersion: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CONNECT_ACCOUNT_RECV, ClientSerial) == 33,
+              "PMSG_CONNECT_ACCOUNT_RECV.ClientSerial: offset no coincide con el IR");
+
+// Protocol.h
+// Opcode 0xF1:0x02 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_CLOSE_CLIENT_RECV
+{
+    PSBMSG_HEAD header;
+    BYTE type;
+
+    static constexpr uint8_t kHead = 0xF1;
+    static constexpr uint8_t kSub = 0x02;
+    static constexpr bool kHasSub = true;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_CLOSE_CLIENT_RECV) == 5, "PMSG_CLOSE_CLIENT_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_CLOSE_CLIENT_RECV, header) == 0,
+              "PMSG_CLOSE_CLIENT_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CLOSE_CLIENT_RECV, type) == 4,
+              "PMSG_CLOSE_CLIENT_RECV.type: offset no coincide con el IR");
+
+// Protocol.h
+// Opcode 0xF3:0x01 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_CHARACTER_CREATE_RECV
+{
+    PSBMSG_HEAD header;
+    char name[10];
+    BYTE Class;
+
+    static constexpr uint8_t kHead = 0xF3;
+    static constexpr uint8_t kSub = 0x01;
+    static constexpr bool kHasSub = true;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_CHARACTER_CREATE_RECV) == 15, "PMSG_CHARACTER_CREATE_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_CREATE_RECV, header) == 0,
+              "PMSG_CHARACTER_CREATE_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_CREATE_RECV, name) == 4,
+              "PMSG_CHARACTER_CREATE_RECV.name: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_CREATE_RECV, Class) == 14,
+              "PMSG_CHARACTER_CREATE_RECV.Class: offset no coincide con el IR");
+
+// Protocol.h
+// Opcode 0xF3:0x02 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_CHARACTER_DELETE_RECV
+{
+    PSBMSG_HEAD header;
+    char name[10];
+    char PersonalCode[10];
+
+    static constexpr uint8_t kHead = 0xF3;
+    static constexpr uint8_t kSub = 0x02;
+    static constexpr bool kHasSub = true;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_CHARACTER_DELETE_RECV) == 24, "PMSG_CHARACTER_DELETE_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_DELETE_RECV, header) == 0,
+              "PMSG_CHARACTER_DELETE_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_DELETE_RECV, name) == 4,
+              "PMSG_CHARACTER_DELETE_RECV.name: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_DELETE_RECV, PersonalCode) == 14,
+              "PMSG_CHARACTER_DELETE_RECV.PersonalCode: offset no coincide con el IR");
+
+// Protocol.h
+// Opcode 0xF3:0x03 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_CHARACTER_INFO_RECV
+{
+    PSBMSG_HEAD header;
+    char name[10];
+
+    static constexpr uint8_t kHead = 0xF3;
+    static constexpr uint8_t kSub = 0x03;
+    static constexpr bool kHasSub = true;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_CHARACTER_INFO_RECV) == 14, "PMSG_CHARACTER_INFO_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_INFO_RECV, header) == 0,
+              "PMSG_CHARACTER_INFO_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_INFO_RECV, name) == 4,
+              "PMSG_CHARACTER_INFO_RECV.name: offset no coincide con el IR");
+
+// Protocol.h
+// Opcode 0xF3:0x06 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_LEVEL_UP_POINT_RECV
+{
+    PSBMSG_HEAD header;
+    BYTE type;
+
+    static constexpr uint8_t kHead = 0xF3;
+    static constexpr uint8_t kSub = 0x06;
+    static constexpr bool kHasSub = true;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_LEVEL_UP_POINT_RECV) == 5, "PMSG_LEVEL_UP_POINT_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_LEVEL_UP_POINT_RECV, header) == 0,
+              "PMSG_LEVEL_UP_POINT_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_LEVEL_UP_POINT_RECV, type) == 4,
+              "PMSG_LEVEL_UP_POINT_RECV.type: offset no coincide con el IR");
+
+// Protocol.h
+// Opcode 0xF3:0x30 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_OPTION_DATA_RECV
+{
+#pragma pack(1)
+    PSBMSG_HEAD header;
+    BYTE SkillKey[10];
+    BYTE GameOption;
+    BYTE QKey;
+    BYTE WKey;
+    BYTE EKey;
+    BYTE ChatWindow;
+
+    static constexpr uint8_t kHead = 0xF3;
+    static constexpr uint8_t kSub = 0x30;
+    static constexpr bool kHasSub = true;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_OPTION_DATA_RECV) == 19, "PMSG_OPTION_DATA_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_OPTION_DATA_RECV, header) == 0,
+              "PMSG_OPTION_DATA_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_OPTION_DATA_RECV, SkillKey) == 4,
+              "PMSG_OPTION_DATA_RECV.SkillKey: offset no coincide con el IR");
+static_assert(offsetof(PMSG_OPTION_DATA_RECV, GameOption) == 14,
+              "PMSG_OPTION_DATA_RECV.GameOption: offset no coincide con el IR");
+static_assert(offsetof(PMSG_OPTION_DATA_RECV, QKey) == 15,
+              "PMSG_OPTION_DATA_RECV.QKey: offset no coincide con el IR");
+static_assert(offsetof(PMSG_OPTION_DATA_RECV, WKey) == 16,
+              "PMSG_OPTION_DATA_RECV.WKey: offset no coincide con el IR");
+static_assert(offsetof(PMSG_OPTION_DATA_RECV, EKey) == 17,
+              "PMSG_OPTION_DATA_RECV.EKey: offset no coincide con el IR");
+static_assert(offsetof(PMSG_OPTION_DATA_RECV, ChatWindow) == 18,
+              "PMSG_OPTION_DATA_RECV.ChatWindow: offset no coincide con el IR");
+
+// Protocol.h
+// Opcode 0x00 (server_to_client) -- Guild.cpp
+// También se manda como 0xA0:0x02 (Guild.cpp)
+// También se manda como 0xA0:0x03 (Guild.cpp)
+// También se manda como 0xA0:0x04 (Guild.cpp)
+// También se manda como 0xA0:0x05 (Guild.cpp)
+// También se manda como 0xA0:0x06 (Guild.cpp)
+#pragma pack(push, 8)
+struct PMSG_CHAT_SEND
+{
+    PBMSG_HEAD header;
+    char name[10];
+    char message[60];
+
+    static constexpr uint8_t kHead = 0x00;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_CHAT_SEND) == 73, "PMSG_CHAT_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_CHAT_SEND, header) == 0,
+              "PMSG_CHAT_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHAT_SEND, name) == 3,
+              "PMSG_CHAT_SEND.name: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHAT_SEND, message) == 13,
+              "PMSG_CHAT_SEND.message: offset no coincide con el IR");
+
+// Protocol.h
+// Opcode 0x01 (server_to_client) -- Protocol.cpp
+#pragma pack(push, 8)
+struct PMSG_CHAT_TARGET_SEND
+{
+    PBMSG_HEAD header;
+    BYTE index[2];
+    char message[60];
+
+    static constexpr uint8_t kHead = 0x01;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_CHAT_TARGET_SEND) == 65, "PMSG_CHAT_TARGET_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_CHAT_TARGET_SEND, header) == 0,
+              "PMSG_CHAT_TARGET_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHAT_TARGET_SEND, index) == 3,
+              "PMSG_CHAT_TARGET_SEND.index: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHAT_TARGET_SEND, message) == 5,
+              "PMSG_CHAT_TARGET_SEND.message: offset no coincide con el IR");
+
+// Protocol.h
+// Opcode 0x02 (server_to_client) -- Protocol.cpp
+#pragma pack(push, 8)
+struct PMSG_CHAT_WHISPER_SEND
+{
+    PBMSG_HEAD header;
+    char name[10];
+    char message[60];
+
+    static constexpr uint8_t kHead = 0x02;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_CHAT_WHISPER_SEND) == 73, "PMSG_CHAT_WHISPER_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_CHAT_WHISPER_SEND, header) == 0,
+              "PMSG_CHAT_WHISPER_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHAT_WHISPER_SEND, name) == 3,
+              "PMSG_CHAT_WHISPER_SEND.name: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHAT_WHISPER_SEND, message) == 13,
+              "PMSG_CHAT_WHISPER_SEND.message: offset no coincide con el IR");
+
+// Protocol.h
+// Relleno de alineación en el wire: @3(+1). El servidor manda el struct
+// entero (memcpy/sizeof), así que esos bytes VIAJAN: no se pueden omitir.
+// Opcode 0x03 (server_to_client) -- Protocol.cpp
+#pragma pack(push, 8)
+struct PMSG_MAIN_CHECK_SEND
+{
+    PBMSG_HEAD header;
+    WORD key;
+
+    static constexpr uint8_t kHead = 0x03;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_MAIN_CHECK_SEND) == 6, "PMSG_MAIN_CHECK_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_MAIN_CHECK_SEND, header) == 0,
+              "PMSG_MAIN_CHECK_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_MAIN_CHECK_SEND, key) == 4,
+              "PMSG_MAIN_CHECK_SEND.key: offset no coincide con el IR");
+
+// Protocol.h
+// Opcode 0x0B (server_to_client) -- Protocol.cpp
+#pragma pack(push, 8)
+struct PMSG_EVENT_STATE_SEND
+{
+    PBMSG_HEAD header;
+    BYTE state;
+    BYTE event;
+
+    static constexpr uint8_t kHead = 0x0B;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_EVENT_STATE_SEND) == 5, "PMSG_EVENT_STATE_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_EVENT_STATE_SEND, header) == 0,
+              "PMSG_EVENT_STATE_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_EVENT_STATE_SEND, state) == 3,
+              "PMSG_EVENT_STATE_SEND.state: offset no coincide con el IR");
+static_assert(offsetof(PMSG_EVENT_STATE_SEND, event) == 4,
+              "PMSG_EVENT_STATE_SEND.event: offset no coincide con el IR");
+
+// Protocol.h
+// Opcode 0x0C (server_to_client) -- Protocol.cpp
+#pragma pack(push, 8)
+struct PMSG_SERVER_MSG_SEND
+{
+    PBMSG_HEAD header;
+    BYTE MsgNumber;
+
+    static constexpr uint8_t kHead = 0x0C;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_SERVER_MSG_SEND) == 4, "PMSG_SERVER_MSG_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_SERVER_MSG_SEND, header) == 0,
+              "PMSG_SERVER_MSG_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_SERVER_MSG_SEND, MsgNumber) == 3,
+              "PMSG_SERVER_MSG_SEND.MsgNumber: offset no coincide con el IR");
+
+// Protocol.h
+// Opcode 0x0F (server_to_client) -- Protocol.cpp
+#pragma pack(push, 8)
+struct PMSG_WEATHER_SEND
+{
+    PBMSG_HEAD header;
+    BYTE weather;
+
+    static constexpr uint8_t kHead = 0x0F;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_WEATHER_SEND) == 4, "PMSG_WEATHER_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_WEATHER_SEND, header) == 0,
+              "PMSG_WEATHER_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_WEATHER_SEND, weather) == 3,
+              "PMSG_WEATHER_SEND.weather: offset no coincide con el IR");
+
+// Protocol.h
+// Opcode 0xD9 (server_to_client) -- Protocol.cpp
+#pragma pack(push, 8)
+struct PMSG_DAMAGE_SEND
+{
+    PBMSG_HEAD header;
+    BYTE index[2];
+    BYTE damage[2];
+    BYTE type;
+    DWORD ViewCurHP;
+    DWORD ViewDamageHP;
+
+    static constexpr uint8_t kHead = 0xD9;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_DAMAGE_SEND) == 16, "PMSG_DAMAGE_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_DAMAGE_SEND, header) == 0,
+              "PMSG_DAMAGE_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_DAMAGE_SEND, index) == 3,
+              "PMSG_DAMAGE_SEND.index: offset no coincide con el IR");
+static_assert(offsetof(PMSG_DAMAGE_SEND, damage) == 5,
+              "PMSG_DAMAGE_SEND.damage: offset no coincide con el IR");
+static_assert(offsetof(PMSG_DAMAGE_SEND, type) == 7,
+              "PMSG_DAMAGE_SEND.type: offset no coincide con el IR");
+static_assert(offsetof(PMSG_DAMAGE_SEND, ViewCurHP) == 8,
+              "PMSG_DAMAGE_SEND.ViewCurHP: offset no coincide con el IR");
+static_assert(offsetof(PMSG_DAMAGE_SEND, ViewDamageHP) == 12,
+              "PMSG_DAMAGE_SEND.ViewDamageHP: offset no coincide con el IR");
+
+// Protocol.h
+// Opcode 0xD0 (server_to_client) -- Protocol.cpp
+#pragma pack(push, 8)
+struct PMSG_POSITION_SEND
+{
+    PBMSG_HEAD header;
+    BYTE index[2];
+    BYTE x;
+    BYTE y;
+
+    static constexpr uint8_t kHead = 0xD0;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_POSITION_SEND) == 7, "PMSG_POSITION_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_POSITION_SEND, header) == 0,
+              "PMSG_POSITION_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_POSITION_SEND, index) == 3,
+              "PMSG_POSITION_SEND.index: offset no coincide con el IR");
+static_assert(offsetof(PMSG_POSITION_SEND, x) == 5,
+              "PMSG_POSITION_SEND.x: offset no coincide con el IR");
+static_assert(offsetof(PMSG_POSITION_SEND, y) == 6,
+              "PMSG_POSITION_SEND.y: offset no coincide con el IR");
+
+// Protocol.h
+// Opcode 0x17 (server_to_client) -- Protocol.cpp
+#pragma pack(push, 8)
+struct PMSG_USER_DIE_SEND
+{
+    PBMSG_HEAD header;
+    BYTE index[2];
+    BYTE skill;
+    BYTE killer[2];
+
+    static constexpr uint8_t kHead = 0x17;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_USER_DIE_SEND) == 8, "PMSG_USER_DIE_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_USER_DIE_SEND, header) == 0,
+              "PMSG_USER_DIE_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_USER_DIE_SEND, index) == 3,
+              "PMSG_USER_DIE_SEND.index: offset no coincide con el IR");
+static_assert(offsetof(PMSG_USER_DIE_SEND, skill) == 5,
+              "PMSG_USER_DIE_SEND.skill: offset no coincide con el IR");
+static_assert(offsetof(PMSG_USER_DIE_SEND, killer) == 6,
+              "PMSG_USER_DIE_SEND.killer: offset no coincide con el IR");
+
+// Protocol.h
+// Opcode 0x18 (server_to_client) -- Protocol.cpp
+#pragma pack(push, 8)
+struct PMSG_ACTION_SEND
+{
+    PBMSG_HEAD header;
+    BYTE index[2];
+    BYTE dir;
+    BYTE action;
+    BYTE target[2];
+
+    static constexpr uint8_t kHead = 0x18;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_ACTION_SEND) == 9, "PMSG_ACTION_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_ACTION_SEND, header) == 0,
+              "PMSG_ACTION_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ACTION_SEND, index) == 3,
+              "PMSG_ACTION_SEND.index: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ACTION_SEND, dir) == 5,
+              "PMSG_ACTION_SEND.dir: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ACTION_SEND, action) == 6,
+              "PMSG_ACTION_SEND.action: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ACTION_SEND, target) == 7,
+              "PMSG_ACTION_SEND.target: offset no coincide con el IR");
+
+// Protocol.h
+// Relleno de alineación en el wire: @7(+1). El servidor manda el struct
+// entero (memcpy/sizeof), así que esos bytes VIAJAN: no se pueden omitir.
+// Opcode 0x26 (server_to_client) -- Protocol.cpp
+#pragma pack(push, 8)
+struct PMSG_LIFE_SEND
+{
+    PBMSG_HEAD header;
+    BYTE type;
+    BYTE life[2];
+    BYTE flag;
+    DWORD ViewHP;
+
+    static constexpr uint8_t kHead = 0x26;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_LIFE_SEND) == 12, "PMSG_LIFE_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_LIFE_SEND, header) == 0,
+              "PMSG_LIFE_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_LIFE_SEND, type) == 3,
+              "PMSG_LIFE_SEND.type: offset no coincide con el IR");
+static_assert(offsetof(PMSG_LIFE_SEND, life) == 4,
+              "PMSG_LIFE_SEND.life: offset no coincide con el IR");
+static_assert(offsetof(PMSG_LIFE_SEND, flag) == 6,
+              "PMSG_LIFE_SEND.flag: offset no coincide con el IR");
+static_assert(offsetof(PMSG_LIFE_SEND, ViewHP) == 8,
+              "PMSG_LIFE_SEND.ViewHP: offset no coincide con el IR");
+
+// Protocol.h
+// Opcode 0x27 (server_to_client) -- Protocol.cpp
+#pragma pack(push, 8)
+struct PMSG_MANA_SEND
+{
+    PBMSG_HEAD header;
+    BYTE type;
+    BYTE mana[2];
+    BYTE bp[2];
+    DWORD ViewMP;
+    DWORD ViewBP;
+
+    static constexpr uint8_t kHead = 0x27;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_MANA_SEND) == 16, "PMSG_MANA_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_MANA_SEND, header) == 0,
+              "PMSG_MANA_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_MANA_SEND, type) == 3,
+              "PMSG_MANA_SEND.type: offset no coincide con el IR");
+static_assert(offsetof(PMSG_MANA_SEND, mana) == 4,
+              "PMSG_MANA_SEND.mana: offset no coincide con el IR");
+static_assert(offsetof(PMSG_MANA_SEND, bp) == 6,
+              "PMSG_MANA_SEND.bp: offset no coincide con el IR");
+static_assert(offsetof(PMSG_MANA_SEND, ViewMP) == 8,
+              "PMSG_MANA_SEND.ViewMP: offset no coincide con el IR");
+static_assert(offsetof(PMSG_MANA_SEND, ViewBP) == 12,
+              "PMSG_MANA_SEND.ViewBP: offset no coincide con el IR");
+
+// Protocol.h
+// Opcode 0x29 (server_to_client) -- Protocol.cpp
+#pragma pack(push, 8)
+struct PMSG_ITEM_SPECIAL_TIME_SEND
+{
+    PBMSG_HEAD header;
+    BYTE number;
+    WORD time;
+
+    static constexpr uint8_t kHead = 0x29;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = true;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_ITEM_SPECIAL_TIME_SEND) == 6, "PMSG_ITEM_SPECIAL_TIME_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_SPECIAL_TIME_SEND, header) == 0,
+              "PMSG_ITEM_SPECIAL_TIME_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_SPECIAL_TIME_SEND, number) == 3,
+              "PMSG_ITEM_SPECIAL_TIME_SEND.number: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_SPECIAL_TIME_SEND, time) == 4,
+              "PMSG_ITEM_SPECIAL_TIME_SEND.time: offset no coincide con el IR");
+
+// Protocol.h
+// Opcode 0x46 (server_to_client) -- Protocol.cpp
+#pragma pack(push, 8)
+struct PMSG_MAP_ATTR_SEND
+{
+    PBMSG_HEAD header;
+    BYTE type;
+    BYTE attr;
+    BYTE flag;
+    BYTE count;
+
+    static constexpr uint8_t kHead = 0x46;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_MAP_ATTR_SEND) == 7, "PMSG_MAP_ATTR_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_MAP_ATTR_SEND, header) == 0,
+              "PMSG_MAP_ATTR_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_MAP_ATTR_SEND, type) == 3,
+              "PMSG_MAP_ATTR_SEND.type: offset no coincide con el IR");
+static_assert(offsetof(PMSG_MAP_ATTR_SEND, attr) == 4,
+              "PMSG_MAP_ATTR_SEND.attr: offset no coincide con el IR");
+static_assert(offsetof(PMSG_MAP_ATTR_SEND, flag) == 5,
+              "PMSG_MAP_ATTR_SEND.flag: offset no coincide con el IR");
+static_assert(offsetof(PMSG_MAP_ATTR_SEND, count) == 6,
+              "PMSG_MAP_ATTR_SEND.count: offset no coincide con el IR");
+
+// Protocol.h
+#pragma pack(push, 8)
+struct PMSG_MAP_ATTR
+{
+    BYTE x;
+    BYTE y;
+    BYTE tx;
+    BYTE ty;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_MAP_ATTR) == 4, "PMSG_MAP_ATTR: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_MAP_ATTR, x) == 0,
+              "PMSG_MAP_ATTR.x: offset no coincide con el IR");
+static_assert(offsetof(PMSG_MAP_ATTR, y) == 1,
+              "PMSG_MAP_ATTR.y: offset no coincide con el IR");
+static_assert(offsetof(PMSG_MAP_ATTR, tx) == 2,
+              "PMSG_MAP_ATTR.tx: offset no coincide con el IR");
+static_assert(offsetof(PMSG_MAP_ATTR, ty) == 3,
+              "PMSG_MAP_ATTR.ty: offset no coincide con el IR");
+
+// Protocol.h
+// Relleno de alineación en el wire: @5(+1), @9(+1). El servidor manda el struct
+// entero (memcpy/sizeof), así que esos bytes VIAJAN: no se pueden omitir.
+// Opcode 0x47 (server_to_client) -- Protocol.cpp
+#pragma pack(push, 8)
+struct PMSG_PARTY_ITEM_INFO_SEND
+{
+    PBMSG_HEAD header;
+    BYTE index[2];
+    WORD ItemInfo;
+    BYTE level;
+
+    static constexpr uint8_t kHead = 0x47;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_PARTY_ITEM_INFO_SEND) == 10, "PMSG_PARTY_ITEM_INFO_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_PARTY_ITEM_INFO_SEND, header) == 0,
+              "PMSG_PARTY_ITEM_INFO_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PARTY_ITEM_INFO_SEND, index) == 3,
+              "PMSG_PARTY_ITEM_INFO_SEND.index: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PARTY_ITEM_INFO_SEND, ItemInfo) == 6,
+              "PMSG_PARTY_ITEM_INFO_SEND.ItemInfo: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PARTY_ITEM_INFO_SEND, level) == 8,
+              "PMSG_PARTY_ITEM_INFO_SEND.level: offset no coincide con el IR");
+
+// Protocol.h
+// Opcode 0x48 (server_to_client) -- Protocol.cpp
+#pragma pack(push, 8)
+struct PMSG_EFFECT_INFO_SEND
+{
+    PBMSG_HEAD header;
+    BYTE index[2];
+    BYTE effect;
+
+    static constexpr uint8_t kHead = 0x48;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_EFFECT_INFO_SEND) == 6, "PMSG_EFFECT_INFO_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_EFFECT_INFO_SEND, header) == 0,
+              "PMSG_EFFECT_INFO_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_EFFECT_INFO_SEND, index) == 3,
+              "PMSG_EFFECT_INFO_SEND.index: offset no coincide con el IR");
+static_assert(offsetof(PMSG_EFFECT_INFO_SEND, effect) == 5,
+              "PMSG_EFFECT_INFO_SEND.effect: offset no coincide con el IR");
+
+// Protocol.h
+// Opcode 0x69 (server_to_client) -- Protocol.cpp
+#pragma pack(push, 8)
+struct PMSG_MONSTER_SKILL_SEND
+{
+    PBMSG_HEAD header;
+    BYTE skill;
+    WORD index;
+    WORD target;
+
+    static constexpr uint8_t kHead = 0x69;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_MONSTER_SKILL_SEND) == 8, "PMSG_MONSTER_SKILL_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_MONSTER_SKILL_SEND, header) == 0,
+              "PMSG_MONSTER_SKILL_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_MONSTER_SKILL_SEND, skill) == 3,
+              "PMSG_MONSTER_SKILL_SEND.skill: offset no coincide con el IR");
+static_assert(offsetof(PMSG_MONSTER_SKILL_SEND, index) == 4,
+              "PMSG_MONSTER_SKILL_SEND.index: offset no coincide con el IR");
+static_assert(offsetof(PMSG_MONSTER_SKILL_SEND, target) == 6,
+              "PMSG_MONSTER_SKILL_SEND.target: offset no coincide con el IR");
+
+// Protocol.h
+// Opcode 0x91 (server_to_client) -- Protocol.cpp
+#pragma pack(push, 8)
+struct PMSG_EVENT_REMAIN_TIME_SEND
+{
+    PBMSG_HEAD header;
+    BYTE EventType;
+    BYTE RemainTimeH;
+    BYTE EnteredUser;
+    BYTE RemainTimeL;
+
+    static constexpr uint8_t kHead = 0x91;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_EVENT_REMAIN_TIME_SEND) == 7, "PMSG_EVENT_REMAIN_TIME_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_EVENT_REMAIN_TIME_SEND, header) == 0,
+              "PMSG_EVENT_REMAIN_TIME_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_EVENT_REMAIN_TIME_SEND, EventType) == 3,
+              "PMSG_EVENT_REMAIN_TIME_SEND.EventType: offset no coincide con el IR");
+static_assert(offsetof(PMSG_EVENT_REMAIN_TIME_SEND, RemainTimeH) == 4,
+              "PMSG_EVENT_REMAIN_TIME_SEND.RemainTimeH: offset no coincide con el IR");
+static_assert(offsetof(PMSG_EVENT_REMAIN_TIME_SEND, EnteredUser) == 5,
+              "PMSG_EVENT_REMAIN_TIME_SEND.EnteredUser: offset no coincide con el IR");
+static_assert(offsetof(PMSG_EVENT_REMAIN_TIME_SEND, RemainTimeL) == 6,
+              "PMSG_EVENT_REMAIN_TIME_SEND.RemainTimeL: offset no coincide con el IR");
+
+// Protocol.h
+// Opcode 0x92 (server_to_client) -- BloodCastle.cpp
+#pragma pack(push, 8)
+struct PMSG_TIME_COUNT_SEND
+{
+    PBMSG_HEAD header;
+    BYTE type;
+
+    static constexpr uint8_t kHead = 0x92;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_TIME_COUNT_SEND) == 4, "PMSG_TIME_COUNT_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_TIME_COUNT_SEND, header) == 0,
+              "PMSG_TIME_COUNT_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_TIME_COUNT_SEND, type) == 3,
+              "PMSG_TIME_COUNT_SEND.type: offset no coincide con el IR");
+
+// Protocol.h
+// Relleno de alineación en el wire: @5(+1). El servidor manda el struct
+// entero (memcpy/sizeof), así que esos bytes VIAJAN: no se pueden omitir.
+// Opcode 0x9C (server_to_client) -- Protocol.cpp
+#pragma pack(push, 8)
+struct PMSG_REWARD_EXPERIENCE_SEND
+{
+    PBMSG_HEAD header;
+    BYTE index[2];
+    WORD experience[2];
+    BYTE damage[2];
+    DWORD ViewDamageHP;
+    DWORD ViewExperience;
+    DWORD ViewNextExperience;
+
+    static constexpr uint8_t kHead = 0x9C;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = true;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_REWARD_EXPERIENCE_SEND) == 24, "PMSG_REWARD_EXPERIENCE_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_REWARD_EXPERIENCE_SEND, header) == 0,
+              "PMSG_REWARD_EXPERIENCE_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_REWARD_EXPERIENCE_SEND, index) == 3,
+              "PMSG_REWARD_EXPERIENCE_SEND.index: offset no coincide con el IR");
+static_assert(offsetof(PMSG_REWARD_EXPERIENCE_SEND, experience) == 6,
+              "PMSG_REWARD_EXPERIENCE_SEND.experience: offset no coincide con el IR");
+static_assert(offsetof(PMSG_REWARD_EXPERIENCE_SEND, damage) == 10,
+              "PMSG_REWARD_EXPERIENCE_SEND.damage: offset no coincide con el IR");
+static_assert(offsetof(PMSG_REWARD_EXPERIENCE_SEND, ViewDamageHP) == 12,
+              "PMSG_REWARD_EXPERIENCE_SEND.ViewDamageHP: offset no coincide con el IR");
+static_assert(offsetof(PMSG_REWARD_EXPERIENCE_SEND, ViewExperience) == 16,
+              "PMSG_REWARD_EXPERIENCE_SEND.ViewExperience: offset no coincide con el IR");
+static_assert(offsetof(PMSG_REWARD_EXPERIENCE_SEND, ViewNextExperience) == 20,
+              "PMSG_REWARD_EXPERIENCE_SEND.ViewNextExperience: offset no coincide con el IR");
+
+// Protocol.h
+// Relleno de alineación en el wire: @7(+1). El servidor manda el struct
+// entero (memcpy/sizeof), así que esos bytes VIAJAN: no se pueden omitir.
+// Opcode 0xA9 (server_to_client) -- Protocol.cpp
+#pragma pack(push, 8)
+struct PMSG_PET_ITEM_INFO_SEND
+{
+    PBMSG_HEAD header;
+    BYTE type;
+    BYTE flag;
+    BYTE slot;
+    BYTE level;
+    UINT experience;
+
+    static constexpr uint8_t kHead = 0xA9;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_PET_ITEM_INFO_SEND) == 12, "PMSG_PET_ITEM_INFO_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_PET_ITEM_INFO_SEND, header) == 0,
+              "PMSG_PET_ITEM_INFO_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PET_ITEM_INFO_SEND, type) == 3,
+              "PMSG_PET_ITEM_INFO_SEND.type: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PET_ITEM_INFO_SEND, flag) == 4,
+              "PMSG_PET_ITEM_INFO_SEND.flag: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PET_ITEM_INFO_SEND, slot) == 5,
+              "PMSG_PET_ITEM_INFO_SEND.slot: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PET_ITEM_INFO_SEND, level) == 6,
+              "PMSG_PET_ITEM_INFO_SEND.level: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PET_ITEM_INFO_SEND, experience) == 8,
+              "PMSG_PET_ITEM_INFO_SEND.experience: offset no coincide con el IR");
+
+// Protocol.h
+// Opcode 0xB8:0x01 (server_to_client) -- User.cpp
+#pragma pack(push, 8)
+struct PMSG_KILL_COUNT_SEND
+{
+    PSBMSG_HEAD header;
+    BYTE count;
+
+    static constexpr uint8_t kHead = 0xB8;
+    static constexpr uint8_t kSub = 0x01;
+    static constexpr bool kHasSub = true;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_KILL_COUNT_SEND) == 5, "PMSG_KILL_COUNT_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_KILL_COUNT_SEND, header) == 0,
+              "PMSG_KILL_COUNT_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_KILL_COUNT_SEND, count) == 4,
+              "PMSG_KILL_COUNT_SEND.count: offset no coincide con el IR");
+
+// Protocol.h
+// Opcode 0xD7 (server_to_client) -- Protocol.cpp
+#pragma pack(push, 8)
+struct PMSG_MOVE_SEND
+{
+    PBMSG_HEAD header;
+    BYTE index[2];
+    BYTE x;
+    BYTE y;
+    BYTE dir;
+
+    static constexpr uint8_t kHead = 0xD7;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_MOVE_SEND) == 8, "PMSG_MOVE_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_MOVE_SEND, header) == 0,
+              "PMSG_MOVE_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_MOVE_SEND, index) == 3,
+              "PMSG_MOVE_SEND.index: offset no coincide con el IR");
+static_assert(offsetof(PMSG_MOVE_SEND, x) == 5,
+              "PMSG_MOVE_SEND.x: offset no coincide con el IR");
+static_assert(offsetof(PMSG_MOVE_SEND, y) == 6,
+              "PMSG_MOVE_SEND.y: offset no coincide con el IR");
+static_assert(offsetof(PMSG_MOVE_SEND, dir) == 7,
+              "PMSG_MOVE_SEND.dir: offset no coincide con el IR");
+
+// Protocol.h
+// Relleno de alineación en el wire: @6(+2). El servidor manda el struct
+// entero (memcpy/sizeof), así que esos bytes VIAJAN: no se pueden omitir.
+#pragma pack(push, 8)
+struct PMSG_ELEMENTAL_DAMAGE_SEND
+{
+    PBMSG_HEAD header;
+    BYTE index[2];
+    BYTE attribute;
+    DWORD damage;
+    DWORD ViewCurHP;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_ELEMENTAL_DAMAGE_SEND) == 16, "PMSG_ELEMENTAL_DAMAGE_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_ELEMENTAL_DAMAGE_SEND, header) == 0,
+              "PMSG_ELEMENTAL_DAMAGE_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ELEMENTAL_DAMAGE_SEND, index) == 3,
+              "PMSG_ELEMENTAL_DAMAGE_SEND.index: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ELEMENTAL_DAMAGE_SEND, attribute) == 5,
+              "PMSG_ELEMENTAL_DAMAGE_SEND.attribute: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ELEMENTAL_DAMAGE_SEND, damage) == 8,
+              "PMSG_ELEMENTAL_DAMAGE_SEND.damage: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ELEMENTAL_DAMAGE_SEND, ViewCurHP) == 12,
+              "PMSG_ELEMENTAL_DAMAGE_SEND.ViewCurHP: offset no coincide con el IR");
+
+// Protocol.h
+// Relleno de alineación en el wire: @5(+1). El servidor manda el struct
+// entero (memcpy/sizeof), así que esos bytes VIAJAN: no se pueden omitir.
+// Opcode 0xDE (server_to_client) -- Protocol.cpp
+#pragma pack(push, 8)
+struct PMSG_CHARACTER_CREATION_ENABLE_SEND
+{
+    PBMSG_HEAD header;
+    BYTE flag;
+    BYTE result;
+    WORD ExperienceMultiplierConstA;
+    WORD ExperienceMultiplierConstB;
+    WORD CharacterMaxLevel;
+    WORD CharacterDeleteMaxLevel;
+
+    static constexpr uint8_t kHead = 0xDE;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_CHARACTER_CREATION_ENABLE_SEND) == 14, "PMSG_CHARACTER_CREATION_ENABLE_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_CREATION_ENABLE_SEND, header) == 0,
+              "PMSG_CHARACTER_CREATION_ENABLE_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_CREATION_ENABLE_SEND, flag) == 3,
+              "PMSG_CHARACTER_CREATION_ENABLE_SEND.flag: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_CREATION_ENABLE_SEND, result) == 4,
+              "PMSG_CHARACTER_CREATION_ENABLE_SEND.result: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_CREATION_ENABLE_SEND, ExperienceMultiplierConstA) == 6,
+              "PMSG_CHARACTER_CREATION_ENABLE_SEND.ExperienceMultiplierConstA: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_CREATION_ENABLE_SEND, ExperienceMultiplierConstB) == 8,
+              "PMSG_CHARACTER_CREATION_ENABLE_SEND.ExperienceMultiplierConstB: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_CREATION_ENABLE_SEND, CharacterMaxLevel) == 10,
+              "PMSG_CHARACTER_CREATION_ENABLE_SEND.CharacterMaxLevel: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_CREATION_ENABLE_SEND, CharacterDeleteMaxLevel) == 12,
+              "PMSG_CHARACTER_CREATION_ENABLE_SEND.CharacterDeleteMaxLevel: offset no coincide con el IR");
+
+// Protocol.h
+#pragma pack(push, 8)
+struct PMSG_LIFE_UPDATE_SEND
+{
+    PSBMSG_HEAD header;
+    BYTE index[2];
+    BYTE MaxHP[4];
+    BYTE CurHP[4];
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_LIFE_UPDATE_SEND) == 14, "PMSG_LIFE_UPDATE_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_LIFE_UPDATE_SEND, header) == 0,
+              "PMSG_LIFE_UPDATE_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_LIFE_UPDATE_SEND, index) == 4,
+              "PMSG_LIFE_UPDATE_SEND.index: offset no coincide con el IR");
+static_assert(offsetof(PMSG_LIFE_UPDATE_SEND, MaxHP) == 6,
+              "PMSG_LIFE_UPDATE_SEND.MaxHP: offset no coincide con el IR");
+static_assert(offsetof(PMSG_LIFE_UPDATE_SEND, CurHP) == 10,
+              "PMSG_LIFE_UPDATE_SEND.CurHP: offset no coincide con el IR");
+
+// Protocol.h
+#pragma pack(push, 8)
+struct PMSG_CHARACTER_ATTACK_SPEED_SEND
+{
+    PSBMSG_HEAD header;
+    DWORD PhysiSpeed;
+    DWORD MagicSpeed;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_CHARACTER_ATTACK_SPEED_SEND) == 12, "PMSG_CHARACTER_ATTACK_SPEED_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_ATTACK_SPEED_SEND, header) == 0,
+              "PMSG_CHARACTER_ATTACK_SPEED_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_ATTACK_SPEED_SEND, PhysiSpeed) == 4,
+              "PMSG_CHARACTER_ATTACK_SPEED_SEND.PhysiSpeed: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_ATTACK_SPEED_SEND, MagicSpeed) == 8,
+              "PMSG_CHARACTER_ATTACK_SPEED_SEND.MagicSpeed: offset no coincide con el IR");
+
+// Protocol.h
+#pragma pack(push, 8)
+struct PMSG_ENTER_EVENT_MAP_ERROR_SEND
+{
+    PSBMSG_HEAD header;
+    DWORD result;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_ENTER_EVENT_MAP_ERROR_SEND) == 8, "PMSG_ENTER_EVENT_MAP_ERROR_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_ENTER_EVENT_MAP_ERROR_SEND, header) == 0,
+              "PMSG_ENTER_EVENT_MAP_ERROR_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ENTER_EVENT_MAP_ERROR_SEND, result) == 4,
+              "PMSG_ENTER_EVENT_MAP_ERROR_SEND.result: offset no coincide con el IR");
+
+// Protocol.h
+// Opcode 0xF1:0x00 (server_to_client) -- Protocol.cpp
+#pragma pack(push, 8)
+struct PMSG_CONNECT_CLIENT_SEND
+{
+    PSBMSG_HEAD header;
+    BYTE result;
+    BYTE index[2];
+    BYTE ClientVersion[5];
+    WORD ServerCode;
+
+    static constexpr uint8_t kHead = 0xF1;
+    static constexpr uint8_t kSub = 0x00;
+    static constexpr bool kHasSub = true;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_CONNECT_CLIENT_SEND) == 14, "PMSG_CONNECT_CLIENT_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_CONNECT_CLIENT_SEND, header) == 0,
+              "PMSG_CONNECT_CLIENT_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CONNECT_CLIENT_SEND, result) == 4,
+              "PMSG_CONNECT_CLIENT_SEND.result: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CONNECT_CLIENT_SEND, index) == 5,
+              "PMSG_CONNECT_CLIENT_SEND.index: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CONNECT_CLIENT_SEND, ClientVersion) == 7,
+              "PMSG_CONNECT_CLIENT_SEND.ClientVersion: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CONNECT_CLIENT_SEND, ServerCode) == 12,
+              "PMSG_CONNECT_CLIENT_SEND.ServerCode: offset no coincide con el IR");
+
+// Protocol.h
+// Opcode 0xF1:0x01 (server_to_client) -- Protocol.cpp
+#pragma pack(push, 8)
+struct PMSG_CONNECT_ACCOUNT_SEND
+{
+    PSBMSG_HEAD header;
+    BYTE result;
+
+    static constexpr uint8_t kHead = 0xF1;
+    static constexpr uint8_t kSub = 0x01;
+    static constexpr bool kHasSub = true;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_CONNECT_ACCOUNT_SEND) == 5, "PMSG_CONNECT_ACCOUNT_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_CONNECT_ACCOUNT_SEND, header) == 0,
+              "PMSG_CONNECT_ACCOUNT_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CONNECT_ACCOUNT_SEND, result) == 4,
+              "PMSG_CONNECT_ACCOUNT_SEND.result: offset no coincide con el IR");
+
+// Protocol.h
+// Opcode 0xF1:0x02 (server_to_client) -- Protocol.cpp
+#pragma pack(push, 8)
+struct PMSG_CLOSE_CLIENT_SEND
+{
+    PSBMSG_HEAD header;
+    BYTE result;
+
+    static constexpr uint8_t kHead = 0xF1;
+    static constexpr uint8_t kSub = 0x02;
+    static constexpr bool kHasSub = true;
+    static constexpr bool kEncrypted = true;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_CLOSE_CLIENT_SEND) == 5, "PMSG_CLOSE_CLIENT_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_CLOSE_CLIENT_SEND, header) == 0,
+              "PMSG_CLOSE_CLIENT_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CLOSE_CLIENT_SEND, result) == 4,
+              "PMSG_CLOSE_CLIENT_SEND.result: offset no coincide con el IR");
+
+// Protocol.h
+// Opcode 0xF3:0x00 (server_to_client) -- DSProtocol.cpp
+#pragma pack(push, 8)
+struct PMSG_CHARACTER_LIST_SEND
+{
+    PSBMSG_HEAD header;
+    BYTE ClassCode;
+    BYTE MoveCnt;
+    BYTE count;
+
+    static constexpr uint8_t kHead = 0xF3;
+    static constexpr uint8_t kSub = 0x00;
+    static constexpr bool kHasSub = true;
+    static constexpr bool kEncrypted = true;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_CHARACTER_LIST_SEND) == 7, "PMSG_CHARACTER_LIST_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_LIST_SEND, header) == 0,
+              "PMSG_CHARACTER_LIST_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_LIST_SEND, ClassCode) == 4,
+              "PMSG_CHARACTER_LIST_SEND.ClassCode: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_LIST_SEND, MoveCnt) == 5,
+              "PMSG_CHARACTER_LIST_SEND.MoveCnt: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_LIST_SEND, count) == 6,
+              "PMSG_CHARACTER_LIST_SEND.count: offset no coincide con el IR");
+
+// Protocol.h
+// Relleno de alineación en el wire: @11(+1). El servidor manda el struct
+// entero (memcpy/sizeof), así que esos bytes VIAJAN: no se pueden omitir.
+#pragma pack(push, 8)
+struct PMSG_CHARACTER_LIST
+{
+    BYTE slot;
+    char Name[10];
+    WORD Level;
+    BYTE CtlCode;
+    BYTE CharSet[13];
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_CHARACTER_LIST) == 28, "PMSG_CHARACTER_LIST: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_LIST, slot) == 0,
+              "PMSG_CHARACTER_LIST.slot: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_LIST, Name) == 1,
+              "PMSG_CHARACTER_LIST.Name: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_LIST, Level) == 12,
+              "PMSG_CHARACTER_LIST.Level: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_LIST, CtlCode) == 14,
+              "PMSG_CHARACTER_LIST.CtlCode: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_LIST, CharSet) == 15,
+              "PMSG_CHARACTER_LIST.CharSet: offset no coincide con el IR");
+
+// Protocol.h
+// Relleno de alineación en el wire: @43(+1). El servidor manda el struct
+// entero (memcpy/sizeof), así que esos bytes VIAJAN: no se pueden omitir.
+// Opcode 0xF3:0x01 (server_to_client) -- DSProtocol.cpp
+#pragma pack(push, 8)
+struct PMSG_CHARACTER_CREATE_SEND
+{
+    PSBMSG_HEAD header;
+    BYTE result;
+    char name[10];
+    BYTE slot;
+    WORD level;
+    BYTE Class;
+    BYTE equipment[24];
+
+    static constexpr uint8_t kHead = 0xF3;
+    static constexpr uint8_t kSub = 0x01;
+    static constexpr bool kHasSub = true;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_CHARACTER_CREATE_SEND) == 44, "PMSG_CHARACTER_CREATE_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_CREATE_SEND, header) == 0,
+              "PMSG_CHARACTER_CREATE_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_CREATE_SEND, result) == 4,
+              "PMSG_CHARACTER_CREATE_SEND.result: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_CREATE_SEND, name) == 5,
+              "PMSG_CHARACTER_CREATE_SEND.name: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_CREATE_SEND, slot) == 15,
+              "PMSG_CHARACTER_CREATE_SEND.slot: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_CREATE_SEND, level) == 16,
+              "PMSG_CHARACTER_CREATE_SEND.level: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_CREATE_SEND, Class) == 18,
+              "PMSG_CHARACTER_CREATE_SEND.Class: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_CREATE_SEND, equipment) == 19,
+              "PMSG_CHARACTER_CREATE_SEND.equipment: offset no coincide con el IR");
+
+// Protocol.h
+// Opcode 0xF3:0x02 (server_to_client) -- DSProtocol.cpp
+#pragma pack(push, 8)
+struct PMSG_CHARACTER_DELETE_SEND
+{
+    PSBMSG_HEAD header;
+    BYTE result;
+
+    static constexpr uint8_t kHead = 0xF3;
+    static constexpr uint8_t kSub = 0x02;
+    static constexpr bool kHasSub = true;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_CHARACTER_DELETE_SEND) == 5, "PMSG_CHARACTER_DELETE_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_DELETE_SEND, header) == 0,
+              "PMSG_CHARACTER_DELETE_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_DELETE_SEND, result) == 4,
+              "PMSG_CHARACTER_DELETE_SEND.result: offset no coincide con el IR");
+
+// Protocol.h
+// Relleno de alineación en el wire: @38(+2). El servidor manda el struct
+// entero (memcpy/sizeof), así que esos bytes VIAJAN: no se pueden omitir.
+// Opcode 0xF3:0x03 (server_to_client) -- DSProtocol.cpp
+#pragma pack(push, 8)
+struct PMSG_CHARACTER_INFO_SEND
+{
+    PSBMSG_HEAD header;
+    BYTE X;
+    BYTE Y;
+    BYTE Map;
+    BYTE Dir;
+    DWORD Experience;
+    DWORD NextExperience;
+    WORD LevelUpPoint;
+    WORD Strength;
+    WORD Dexterity;
+    WORD Vitality;
+    WORD Energy;
+    WORD Life;
+    WORD MaxLife;
+    WORD Mana;
+    WORD MaxMana;
+    WORD BP;
+    WORD MaxBP;
+    DWORD Money;
+    BYTE PKLevel;
+    BYTE CtlCode;
+    WORD FruitAddPoint;
+    WORD MaxFruitAddPoint;
+    WORD Leadership;
+    WORD FruitSubPoint;
+    WORD MaxFruitSubPoint;
+    DWORD ViewReset;
+    DWORD ViewPoint;
+    DWORD ViewCurHP;
+    DWORD ViewMaxHP;
+    DWORD ViewCurMP;
+    DWORD ViewMaxMP;
+    DWORD ViewCurBP;
+    DWORD ViewMaxBP;
+    DWORD ViewStrength;
+    DWORD ViewDexterity;
+    DWORD ViewVitality;
+    DWORD ViewEnergy;
+    DWORD ViewLeadership;
+
+    static constexpr uint8_t kHead = 0xF3;
+    static constexpr uint8_t kSub = 0x03;
+    static constexpr bool kHasSub = true;
+    static constexpr bool kEncrypted = true;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_CHARACTER_INFO_SEND) == 108, "PMSG_CHARACTER_INFO_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_INFO_SEND, header) == 0,
+              "PMSG_CHARACTER_INFO_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_INFO_SEND, X) == 4,
+              "PMSG_CHARACTER_INFO_SEND.X: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_INFO_SEND, Y) == 5,
+              "PMSG_CHARACTER_INFO_SEND.Y: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_INFO_SEND, Map) == 6,
+              "PMSG_CHARACTER_INFO_SEND.Map: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_INFO_SEND, Dir) == 7,
+              "PMSG_CHARACTER_INFO_SEND.Dir: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_INFO_SEND, Experience) == 8,
+              "PMSG_CHARACTER_INFO_SEND.Experience: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_INFO_SEND, NextExperience) == 12,
+              "PMSG_CHARACTER_INFO_SEND.NextExperience: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_INFO_SEND, LevelUpPoint) == 16,
+              "PMSG_CHARACTER_INFO_SEND.LevelUpPoint: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_INFO_SEND, Strength) == 18,
+              "PMSG_CHARACTER_INFO_SEND.Strength: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_INFO_SEND, Dexterity) == 20,
+              "PMSG_CHARACTER_INFO_SEND.Dexterity: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_INFO_SEND, Vitality) == 22,
+              "PMSG_CHARACTER_INFO_SEND.Vitality: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_INFO_SEND, Energy) == 24,
+              "PMSG_CHARACTER_INFO_SEND.Energy: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_INFO_SEND, Life) == 26,
+              "PMSG_CHARACTER_INFO_SEND.Life: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_INFO_SEND, MaxLife) == 28,
+              "PMSG_CHARACTER_INFO_SEND.MaxLife: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_INFO_SEND, Mana) == 30,
+              "PMSG_CHARACTER_INFO_SEND.Mana: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_INFO_SEND, MaxMana) == 32,
+              "PMSG_CHARACTER_INFO_SEND.MaxMana: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_INFO_SEND, BP) == 34,
+              "PMSG_CHARACTER_INFO_SEND.BP: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_INFO_SEND, MaxBP) == 36,
+              "PMSG_CHARACTER_INFO_SEND.MaxBP: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_INFO_SEND, Money) == 40,
+              "PMSG_CHARACTER_INFO_SEND.Money: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_INFO_SEND, PKLevel) == 44,
+              "PMSG_CHARACTER_INFO_SEND.PKLevel: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_INFO_SEND, CtlCode) == 45,
+              "PMSG_CHARACTER_INFO_SEND.CtlCode: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_INFO_SEND, FruitAddPoint) == 46,
+              "PMSG_CHARACTER_INFO_SEND.FruitAddPoint: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_INFO_SEND, MaxFruitAddPoint) == 48,
+              "PMSG_CHARACTER_INFO_SEND.MaxFruitAddPoint: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_INFO_SEND, Leadership) == 50,
+              "PMSG_CHARACTER_INFO_SEND.Leadership: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_INFO_SEND, FruitSubPoint) == 52,
+              "PMSG_CHARACTER_INFO_SEND.FruitSubPoint: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_INFO_SEND, MaxFruitSubPoint) == 54,
+              "PMSG_CHARACTER_INFO_SEND.MaxFruitSubPoint: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_INFO_SEND, ViewReset) == 56,
+              "PMSG_CHARACTER_INFO_SEND.ViewReset: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_INFO_SEND, ViewPoint) == 60,
+              "PMSG_CHARACTER_INFO_SEND.ViewPoint: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_INFO_SEND, ViewCurHP) == 64,
+              "PMSG_CHARACTER_INFO_SEND.ViewCurHP: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_INFO_SEND, ViewMaxHP) == 68,
+              "PMSG_CHARACTER_INFO_SEND.ViewMaxHP: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_INFO_SEND, ViewCurMP) == 72,
+              "PMSG_CHARACTER_INFO_SEND.ViewCurMP: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_INFO_SEND, ViewMaxMP) == 76,
+              "PMSG_CHARACTER_INFO_SEND.ViewMaxMP: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_INFO_SEND, ViewCurBP) == 80,
+              "PMSG_CHARACTER_INFO_SEND.ViewCurBP: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_INFO_SEND, ViewMaxBP) == 84,
+              "PMSG_CHARACTER_INFO_SEND.ViewMaxBP: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_INFO_SEND, ViewStrength) == 88,
+              "PMSG_CHARACTER_INFO_SEND.ViewStrength: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_INFO_SEND, ViewDexterity) == 92,
+              "PMSG_CHARACTER_INFO_SEND.ViewDexterity: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_INFO_SEND, ViewVitality) == 96,
+              "PMSG_CHARACTER_INFO_SEND.ViewVitality: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_INFO_SEND, ViewEnergy) == 100,
+              "PMSG_CHARACTER_INFO_SEND.ViewEnergy: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_INFO_SEND, ViewLeadership) == 104,
+              "PMSG_CHARACTER_INFO_SEND.ViewLeadership: offset no coincide con el IR");
+
+// Protocol.h
+// Relleno de alineación en el wire: @14(+2). El servidor manda el struct
+// entero (memcpy/sizeof), así que esos bytes VIAJAN: no se pueden omitir.
+// Opcode 0xF3:0x04 (server_to_client) -- Protocol.cpp
+#pragma pack(push, 8)
+struct PMSG_CHARACTER_REGEN_SEND
+{
+    PSBMSG_HEAD header;
+    BYTE X;
+    BYTE Y;
+    BYTE Map;
+    BYTE Dir;
+    WORD Life;
+    WORD Mana;
+    WORD BP;
+    DWORD Experience;
+    DWORD Money;
+    DWORD ViewCurHP;
+    DWORD ViewCurMP;
+    DWORD ViewCurBP;
+
+    static constexpr uint8_t kHead = 0xF3;
+    static constexpr uint8_t kSub = 0x04;
+    static constexpr bool kHasSub = true;
+    static constexpr bool kEncrypted = true;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_CHARACTER_REGEN_SEND) == 36, "PMSG_CHARACTER_REGEN_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_REGEN_SEND, header) == 0,
+              "PMSG_CHARACTER_REGEN_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_REGEN_SEND, X) == 4,
+              "PMSG_CHARACTER_REGEN_SEND.X: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_REGEN_SEND, Y) == 5,
+              "PMSG_CHARACTER_REGEN_SEND.Y: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_REGEN_SEND, Map) == 6,
+              "PMSG_CHARACTER_REGEN_SEND.Map: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_REGEN_SEND, Dir) == 7,
+              "PMSG_CHARACTER_REGEN_SEND.Dir: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_REGEN_SEND, Life) == 8,
+              "PMSG_CHARACTER_REGEN_SEND.Life: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_REGEN_SEND, Mana) == 10,
+              "PMSG_CHARACTER_REGEN_SEND.Mana: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_REGEN_SEND, BP) == 12,
+              "PMSG_CHARACTER_REGEN_SEND.BP: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_REGEN_SEND, Experience) == 16,
+              "PMSG_CHARACTER_REGEN_SEND.Experience: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_REGEN_SEND, Money) == 20,
+              "PMSG_CHARACTER_REGEN_SEND.Money: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_REGEN_SEND, ViewCurHP) == 24,
+              "PMSG_CHARACTER_REGEN_SEND.ViewCurHP: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_REGEN_SEND, ViewCurMP) == 28,
+              "PMSG_CHARACTER_REGEN_SEND.ViewCurMP: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHARACTER_REGEN_SEND, ViewCurBP) == 32,
+              "PMSG_CHARACTER_REGEN_SEND.ViewCurBP: offset no coincide con el IR");
+
+// Protocol.h
+// Relleno de alineación en el wire: @22(+2). El servidor manda el struct
+// entero (memcpy/sizeof), así que esos bytes VIAJAN: no se pueden omitir.
+// Opcode 0xF3:0x05 (server_to_client) -- Protocol.cpp
+#pragma pack(push, 8)
+struct PMSG_LEVEL_UP_SEND
+{
+    PSBMSG_HEAD header;
+    WORD Level;
+    WORD LevelUpPoint;
+    WORD MaxLife;
+    WORD MaxMana;
+    WORD MaxBP;
+    WORD FruitAddPoint;
+    WORD MaxFruitAddPoint;
+    WORD FruitSubPoint;
+    WORD MaxFruitSubPoint;
+    DWORD ViewPoint;
+    DWORD ViewMaxHP;
+    DWORD ViewMaxMP;
+    DWORD ViewMaxBP;
+    DWORD ViewExperience;
+    DWORD ViewNextExperience;
+
+    static constexpr uint8_t kHead = 0xF3;
+    static constexpr uint8_t kSub = 0x05;
+    static constexpr bool kHasSub = true;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_LEVEL_UP_SEND) == 48, "PMSG_LEVEL_UP_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_LEVEL_UP_SEND, header) == 0,
+              "PMSG_LEVEL_UP_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_LEVEL_UP_SEND, Level) == 4,
+              "PMSG_LEVEL_UP_SEND.Level: offset no coincide con el IR");
+static_assert(offsetof(PMSG_LEVEL_UP_SEND, LevelUpPoint) == 6,
+              "PMSG_LEVEL_UP_SEND.LevelUpPoint: offset no coincide con el IR");
+static_assert(offsetof(PMSG_LEVEL_UP_SEND, MaxLife) == 8,
+              "PMSG_LEVEL_UP_SEND.MaxLife: offset no coincide con el IR");
+static_assert(offsetof(PMSG_LEVEL_UP_SEND, MaxMana) == 10,
+              "PMSG_LEVEL_UP_SEND.MaxMana: offset no coincide con el IR");
+static_assert(offsetof(PMSG_LEVEL_UP_SEND, MaxBP) == 12,
+              "PMSG_LEVEL_UP_SEND.MaxBP: offset no coincide con el IR");
+static_assert(offsetof(PMSG_LEVEL_UP_SEND, FruitAddPoint) == 14,
+              "PMSG_LEVEL_UP_SEND.FruitAddPoint: offset no coincide con el IR");
+static_assert(offsetof(PMSG_LEVEL_UP_SEND, MaxFruitAddPoint) == 16,
+              "PMSG_LEVEL_UP_SEND.MaxFruitAddPoint: offset no coincide con el IR");
+static_assert(offsetof(PMSG_LEVEL_UP_SEND, FruitSubPoint) == 18,
+              "PMSG_LEVEL_UP_SEND.FruitSubPoint: offset no coincide con el IR");
+static_assert(offsetof(PMSG_LEVEL_UP_SEND, MaxFruitSubPoint) == 20,
+              "PMSG_LEVEL_UP_SEND.MaxFruitSubPoint: offset no coincide con el IR");
+static_assert(offsetof(PMSG_LEVEL_UP_SEND, ViewPoint) == 24,
+              "PMSG_LEVEL_UP_SEND.ViewPoint: offset no coincide con el IR");
+static_assert(offsetof(PMSG_LEVEL_UP_SEND, ViewMaxHP) == 28,
+              "PMSG_LEVEL_UP_SEND.ViewMaxHP: offset no coincide con el IR");
+static_assert(offsetof(PMSG_LEVEL_UP_SEND, ViewMaxMP) == 32,
+              "PMSG_LEVEL_UP_SEND.ViewMaxMP: offset no coincide con el IR");
+static_assert(offsetof(PMSG_LEVEL_UP_SEND, ViewMaxBP) == 36,
+              "PMSG_LEVEL_UP_SEND.ViewMaxBP: offset no coincide con el IR");
+static_assert(offsetof(PMSG_LEVEL_UP_SEND, ViewExperience) == 40,
+              "PMSG_LEVEL_UP_SEND.ViewExperience: offset no coincide con el IR");
+static_assert(offsetof(PMSG_LEVEL_UP_SEND, ViewNextExperience) == 44,
+              "PMSG_LEVEL_UP_SEND.ViewNextExperience: offset no coincide con el IR");
+
+// Protocol.h
+// Relleno de alineación en el wire: @5(+1), @10(+2). El servidor manda el struct
+// entero (memcpy/sizeof), así que esos bytes VIAJAN: no se pueden omitir.
+// Opcode 0xF3:0x06 (server_to_client) -- Protocol.cpp
+#pragma pack(push, 8)
+struct PMSG_LEVEL_UP_POINT_SEND
+{
+    PSBMSG_HEAD header;
+    BYTE result;
+    WORD MaxLifeAndMana;
+    WORD MaxBP;
+    DWORD ViewPoint;
+    DWORD ViewMaxHP;
+    DWORD ViewMaxMP;
+    DWORD ViewMaxBP;
+    DWORD ViewStrength;
+    DWORD ViewDexterity;
+    DWORD ViewVitality;
+    DWORD ViewEnergy;
+    DWORD ViewLeadership;
+
+    static constexpr uint8_t kHead = 0xF3;
+    static constexpr uint8_t kSub = 0x06;
+    static constexpr bool kHasSub = true;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_LEVEL_UP_POINT_SEND) == 48, "PMSG_LEVEL_UP_POINT_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_LEVEL_UP_POINT_SEND, header) == 0,
+              "PMSG_LEVEL_UP_POINT_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_LEVEL_UP_POINT_SEND, result) == 4,
+              "PMSG_LEVEL_UP_POINT_SEND.result: offset no coincide con el IR");
+static_assert(offsetof(PMSG_LEVEL_UP_POINT_SEND, MaxLifeAndMana) == 6,
+              "PMSG_LEVEL_UP_POINT_SEND.MaxLifeAndMana: offset no coincide con el IR");
+static_assert(offsetof(PMSG_LEVEL_UP_POINT_SEND, MaxBP) == 8,
+              "PMSG_LEVEL_UP_POINT_SEND.MaxBP: offset no coincide con el IR");
+static_assert(offsetof(PMSG_LEVEL_UP_POINT_SEND, ViewPoint) == 12,
+              "PMSG_LEVEL_UP_POINT_SEND.ViewPoint: offset no coincide con el IR");
+static_assert(offsetof(PMSG_LEVEL_UP_POINT_SEND, ViewMaxHP) == 16,
+              "PMSG_LEVEL_UP_POINT_SEND.ViewMaxHP: offset no coincide con el IR");
+static_assert(offsetof(PMSG_LEVEL_UP_POINT_SEND, ViewMaxMP) == 20,
+              "PMSG_LEVEL_UP_POINT_SEND.ViewMaxMP: offset no coincide con el IR");
+static_assert(offsetof(PMSG_LEVEL_UP_POINT_SEND, ViewMaxBP) == 24,
+              "PMSG_LEVEL_UP_POINT_SEND.ViewMaxBP: offset no coincide con el IR");
+static_assert(offsetof(PMSG_LEVEL_UP_POINT_SEND, ViewStrength) == 28,
+              "PMSG_LEVEL_UP_POINT_SEND.ViewStrength: offset no coincide con el IR");
+static_assert(offsetof(PMSG_LEVEL_UP_POINT_SEND, ViewDexterity) == 32,
+              "PMSG_LEVEL_UP_POINT_SEND.ViewDexterity: offset no coincide con el IR");
+static_assert(offsetof(PMSG_LEVEL_UP_POINT_SEND, ViewVitality) == 36,
+              "PMSG_LEVEL_UP_POINT_SEND.ViewVitality: offset no coincide con el IR");
+static_assert(offsetof(PMSG_LEVEL_UP_POINT_SEND, ViewEnergy) == 40,
+              "PMSG_LEVEL_UP_POINT_SEND.ViewEnergy: offset no coincide con el IR");
+static_assert(offsetof(PMSG_LEVEL_UP_POINT_SEND, ViewLeadership) == 44,
+              "PMSG_LEVEL_UP_POINT_SEND.ViewLeadership: offset no coincide con el IR");
+
+// Protocol.h
+// Relleno de alineación en el wire: @6(+2). El servidor manda el struct
+// entero (memcpy/sizeof), así que esos bytes VIAJAN: no se pueden omitir.
+// Opcode 0xF3:0x07 (server_to_client) -- Protocol.cpp
+#pragma pack(push, 8)
+struct PMSG_MONSTER_DAMAGE_SEND
+{
+    PSBMSG_HEAD header;
+    BYTE damage[2];
+    DWORD ViewCurHP;
+    DWORD ViewDamageHP;
+
+    static constexpr uint8_t kHead = 0xF3;
+    static constexpr uint8_t kSub = 0x07;
+    static constexpr bool kHasSub = true;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_MONSTER_DAMAGE_SEND) == 16, "PMSG_MONSTER_DAMAGE_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_MONSTER_DAMAGE_SEND, header) == 0,
+              "PMSG_MONSTER_DAMAGE_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_MONSTER_DAMAGE_SEND, damage) == 4,
+              "PMSG_MONSTER_DAMAGE_SEND.damage: offset no coincide con el IR");
+static_assert(offsetof(PMSG_MONSTER_DAMAGE_SEND, ViewCurHP) == 8,
+              "PMSG_MONSTER_DAMAGE_SEND.ViewCurHP: offset no coincide con el IR");
+static_assert(offsetof(PMSG_MONSTER_DAMAGE_SEND, ViewDamageHP) == 12,
+              "PMSG_MONSTER_DAMAGE_SEND.ViewDamageHP: offset no coincide con el IR");
+
+// Protocol.h
+// Opcode 0xF3:0x08 (server_to_client) -- Protocol.cpp
+#pragma pack(push, 8)
+struct PMSG_PK_LEVEL_SEND
+{
+    PSBMSG_HEAD header;
+    BYTE index[2];
+    BYTE PKLevel;
+
+    static constexpr uint8_t kHead = 0xF3;
+    static constexpr uint8_t kSub = 0x08;
+    static constexpr bool kHasSub = true;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_PK_LEVEL_SEND) == 7, "PMSG_PK_LEVEL_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_PK_LEVEL_SEND, header) == 0,
+              "PMSG_PK_LEVEL_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PK_LEVEL_SEND, index) == 4,
+              "PMSG_PK_LEVEL_SEND.index: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PK_LEVEL_SEND, PKLevel) == 6,
+              "PMSG_PK_LEVEL_SEND.PKLevel: offset no coincide con el IR");
+
+// Protocol.h
+// Opcode 0xF3:0x20 (server_to_client) -- Protocol.cpp
+#pragma pack(push, 8)
+struct PMSG_SUMMON_LIFE_SEND
+{
+    PSBMSG_HEAD header;
+    BYTE life;
+
+    static constexpr uint8_t kHead = 0xF3;
+    static constexpr uint8_t kSub = 0x20;
+    static constexpr bool kHasSub = true;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_SUMMON_LIFE_SEND) == 5, "PMSG_SUMMON_LIFE_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_SUMMON_LIFE_SEND, header) == 0,
+              "PMSG_SUMMON_LIFE_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_SUMMON_LIFE_SEND, life) == 4,
+              "PMSG_SUMMON_LIFE_SEND.life: offset no coincide con el IR");
+
+// Protocol.h
+// Opcode 0xF3:0x22 (server_to_client) -- Protocol.cpp
+#pragma pack(push, 8)
+struct PMSG_TIME_VIEW_SEND
+{
+    PSBMSG_HEAD header;
+    WORD time;
+
+    static constexpr uint8_t kHead = 0xF3;
+    static constexpr uint8_t kSub = 0x22;
+    static constexpr bool kHasSub = true;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_TIME_VIEW_SEND) == 6, "PMSG_TIME_VIEW_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_TIME_VIEW_SEND, header) == 0,
+              "PMSG_TIME_VIEW_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_TIME_VIEW_SEND, time) == 4,
+              "PMSG_TIME_VIEW_SEND.time: offset no coincide con el IR");
+
+// Protocol.h
+// Opcode 0xF3:0x30 (server_to_client) -- DSProtocol.cpp
+// También se manda como 0x00 (DSProtocol.cpp)
+// También se manda como 0x01 (DSProtocol.cpp)
+// También se manda como 0x02 (DSProtocol.cpp)
+// También se manda como 0x03 (DSProtocol.cpp)
+// También se manda como 0x04 (DSProtocol.cpp)
+#pragma pack(push, 8)
+struct PMSG_OPTION_DATA_SEND
+{
+#pragma pack(1)
+    PSBMSG_HEAD header;
+    BYTE SkillKey[10];
+    BYTE GameOption;
+    BYTE QKey;
+    BYTE WKey;
+    BYTE EKey;
+    BYTE ChatWindow;
+
+    static constexpr uint8_t kHead = 0xF3;
+    static constexpr uint8_t kSub = 0x30;
+    static constexpr bool kHasSub = true;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_OPTION_DATA_SEND) == 19, "PMSG_OPTION_DATA_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_OPTION_DATA_SEND, header) == 0,
+              "PMSG_OPTION_DATA_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_OPTION_DATA_SEND, SkillKey) == 4,
+              "PMSG_OPTION_DATA_SEND.SkillKey: offset no coincide con el IR");
+static_assert(offsetof(PMSG_OPTION_DATA_SEND, GameOption) == 14,
+              "PMSG_OPTION_DATA_SEND.GameOption: offset no coincide con el IR");
+static_assert(offsetof(PMSG_OPTION_DATA_SEND, QKey) == 15,
+              "PMSG_OPTION_DATA_SEND.QKey: offset no coincide con el IR");
+static_assert(offsetof(PMSG_OPTION_DATA_SEND, WKey) == 16,
+              "PMSG_OPTION_DATA_SEND.WKey: offset no coincide con el IR");
+static_assert(offsetof(PMSG_OPTION_DATA_SEND, EKey) == 17,
+              "PMSG_OPTION_DATA_SEND.EKey: offset no coincide con el IR");
+static_assert(offsetof(PMSG_OPTION_DATA_SEND, ChatWindow) == 18,
+              "PMSG_OPTION_DATA_SEND.ChatWindow: offset no coincide con el IR");
+
+// Protocol.h
+// Opcode 0xF3:0x40 (server_to_client) -- Protocol.cpp
+#pragma pack(push, 8)
+struct PMSG_SERVER_COMMAND_SEND
+{
+    PSBMSG_HEAD header;
+    BYTE type;
+    BYTE x;
+    BYTE y;
+
+    static constexpr uint8_t kHead = 0xF3;
+    static constexpr uint8_t kSub = 0x40;
+    static constexpr bool kHasSub = true;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_SERVER_COMMAND_SEND) == 7, "PMSG_SERVER_COMMAND_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_SERVER_COMMAND_SEND, header) == 0,
+              "PMSG_SERVER_COMMAND_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_SERVER_COMMAND_SEND, type) == 4,
+              "PMSG_SERVER_COMMAND_SEND.type: offset no coincide con el IR");
+static_assert(offsetof(PMSG_SERVER_COMMAND_SEND, x) == 5,
+              "PMSG_SERVER_COMMAND_SEND.x: offset no coincide con el IR");
+static_assert(offsetof(PMSG_SERVER_COMMAND_SEND, y) == 6,
+              "PMSG_SERVER_COMMAND_SEND.y: offset no coincide con el IR");
+
+// Protocol.h
+// Relleno de alineación en el wire: @46(+2). El servidor manda el struct
+// entero (memcpy/sizeof), así que esos bytes VIAJAN: no se pueden omitir.
+// Opcode 0xF3:0xE0 (server_to_client) -- Protocol.cpp
+#pragma pack(push, 8)
+struct PMSG_NEW_CHARACTER_INFO_SEND
+{
+    PSBMSG_HEAD header;
+    WORD Level;
+    WORD LevelUpPoint;
+    DWORD Experience;
+    DWORD NextExperience;
+    WORD Strength;
+    WORD Dexterity;
+    WORD Vitality;
+    WORD Energy;
+    WORD Leadership;
+    WORD Life;
+    WORD MaxLife;
+    WORD Mana;
+    WORD MaxMana;
+    WORD BP;
+    WORD MaxBP;
+    WORD FruitAddPoint;
+    WORD MaxFruitAddPoint;
+    WORD FruitSubPoint;
+    WORD MaxFruitSubPoint;
+    DWORD ViewReset;
+    DWORD ViewPoint;
+    DWORD ViewCurHP;
+    DWORD ViewMaxHP;
+    DWORD ViewCurMP;
+    DWORD ViewMaxMP;
+    DWORD ViewCurBP;
+    DWORD ViewMaxBP;
+    DWORD ViewStrength;
+    DWORD ViewDexterity;
+    DWORD ViewVitality;
+    DWORD ViewEnergy;
+    DWORD ViewLeadership;
+
+    static constexpr uint8_t kHead = 0xF3;
+    static constexpr uint8_t kSub = 0xE0;
+    static constexpr bool kHasSub = true;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_NEW_CHARACTER_INFO_SEND) == 100, "PMSG_NEW_CHARACTER_INFO_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_INFO_SEND, header) == 0,
+              "PMSG_NEW_CHARACTER_INFO_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_INFO_SEND, Level) == 4,
+              "PMSG_NEW_CHARACTER_INFO_SEND.Level: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_INFO_SEND, LevelUpPoint) == 6,
+              "PMSG_NEW_CHARACTER_INFO_SEND.LevelUpPoint: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_INFO_SEND, Experience) == 8,
+              "PMSG_NEW_CHARACTER_INFO_SEND.Experience: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_INFO_SEND, NextExperience) == 12,
+              "PMSG_NEW_CHARACTER_INFO_SEND.NextExperience: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_INFO_SEND, Strength) == 16,
+              "PMSG_NEW_CHARACTER_INFO_SEND.Strength: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_INFO_SEND, Dexterity) == 18,
+              "PMSG_NEW_CHARACTER_INFO_SEND.Dexterity: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_INFO_SEND, Vitality) == 20,
+              "PMSG_NEW_CHARACTER_INFO_SEND.Vitality: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_INFO_SEND, Energy) == 22,
+              "PMSG_NEW_CHARACTER_INFO_SEND.Energy: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_INFO_SEND, Leadership) == 24,
+              "PMSG_NEW_CHARACTER_INFO_SEND.Leadership: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_INFO_SEND, Life) == 26,
+              "PMSG_NEW_CHARACTER_INFO_SEND.Life: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_INFO_SEND, MaxLife) == 28,
+              "PMSG_NEW_CHARACTER_INFO_SEND.MaxLife: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_INFO_SEND, Mana) == 30,
+              "PMSG_NEW_CHARACTER_INFO_SEND.Mana: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_INFO_SEND, MaxMana) == 32,
+              "PMSG_NEW_CHARACTER_INFO_SEND.MaxMana: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_INFO_SEND, BP) == 34,
+              "PMSG_NEW_CHARACTER_INFO_SEND.BP: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_INFO_SEND, MaxBP) == 36,
+              "PMSG_NEW_CHARACTER_INFO_SEND.MaxBP: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_INFO_SEND, FruitAddPoint) == 38,
+              "PMSG_NEW_CHARACTER_INFO_SEND.FruitAddPoint: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_INFO_SEND, MaxFruitAddPoint) == 40,
+              "PMSG_NEW_CHARACTER_INFO_SEND.MaxFruitAddPoint: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_INFO_SEND, FruitSubPoint) == 42,
+              "PMSG_NEW_CHARACTER_INFO_SEND.FruitSubPoint: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_INFO_SEND, MaxFruitSubPoint) == 44,
+              "PMSG_NEW_CHARACTER_INFO_SEND.MaxFruitSubPoint: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_INFO_SEND, ViewReset) == 48,
+              "PMSG_NEW_CHARACTER_INFO_SEND.ViewReset: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_INFO_SEND, ViewPoint) == 52,
+              "PMSG_NEW_CHARACTER_INFO_SEND.ViewPoint: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_INFO_SEND, ViewCurHP) == 56,
+              "PMSG_NEW_CHARACTER_INFO_SEND.ViewCurHP: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_INFO_SEND, ViewMaxHP) == 60,
+              "PMSG_NEW_CHARACTER_INFO_SEND.ViewMaxHP: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_INFO_SEND, ViewCurMP) == 64,
+              "PMSG_NEW_CHARACTER_INFO_SEND.ViewCurMP: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_INFO_SEND, ViewMaxMP) == 68,
+              "PMSG_NEW_CHARACTER_INFO_SEND.ViewMaxMP: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_INFO_SEND, ViewCurBP) == 72,
+              "PMSG_NEW_CHARACTER_INFO_SEND.ViewCurBP: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_INFO_SEND, ViewMaxBP) == 76,
+              "PMSG_NEW_CHARACTER_INFO_SEND.ViewMaxBP: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_INFO_SEND, ViewStrength) == 80,
+              "PMSG_NEW_CHARACTER_INFO_SEND.ViewStrength: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_INFO_SEND, ViewDexterity) == 84,
+              "PMSG_NEW_CHARACTER_INFO_SEND.ViewDexterity: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_INFO_SEND, ViewVitality) == 88,
+              "PMSG_NEW_CHARACTER_INFO_SEND.ViewVitality: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_INFO_SEND, ViewEnergy) == 92,
+              "PMSG_NEW_CHARACTER_INFO_SEND.ViewEnergy: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_INFO_SEND, ViewLeadership) == 96,
+              "PMSG_NEW_CHARACTER_INFO_SEND.ViewLeadership: offset no coincide con el IR");
+
+// Protocol.h
+// Opcode 0xF3:0xE1 (server_to_client) -- Protocol.cpp
+#pragma pack(push, 8)
+struct PMSG_NEW_CHARACTER_CALC_SEND
+{
+    PSBMSG_HEAD header;
+    DWORD ViewCurHP;
+    DWORD ViewMaxHP;
+    DWORD ViewCurMP;
+    DWORD ViewMaxMP;
+    DWORD ViewCurBP;
+    DWORD ViewMaxBP;
+    DWORD ViewAddStrength;
+    DWORD ViewAddDexterity;
+    DWORD ViewAddVitality;
+    DWORD ViewAddEnergy;
+    DWORD ViewAddLeadership;
+    DWORD ViewPhysiDamageMin;
+    DWORD ViewPhysiDamageMax;
+    DWORD ViewMagicDamageMin;
+    DWORD ViewMagicDamageMax;
+    DWORD ViewCurseDamageMin;
+    DWORD ViewCurseDamageMax;
+    DWORD ViewMulPhysiDamage;
+    DWORD ViewDivPhysiDamage;
+    DWORD ViewMulMagicDamage;
+    DWORD ViewDivMagicDamage;
+    DWORD ViewMulCurseDamage;
+    DWORD ViewDivCurseDamage;
+    DWORD ViewMagicDamageRate;
+    DWORD ViewCurseDamageRate;
+    DWORD ViewPhysiSpeed;
+    DWORD ViewMagicSpeed;
+    DWORD ViewAttackSuccessRate;
+    DWORD ViewAttackSuccessRatePvP;
+    DWORD ViewDefense;
+    DWORD ViewDefenseSuccessRate;
+    DWORD ViewDefenseSuccessRatePvP;
+    DWORD ViewDamageMultiplier;
+    DWORD ViewRFDamageMultiplierA;
+    DWORD ViewRFDamageMultiplierB;
+    DWORD ViewRFDamageMultiplierC;
+    DWORD ViewDarkSpiritAttackDamageMin;
+    DWORD ViewDarkSpiritAttackDamageMax;
+    DWORD ViewDarkSpiritAttackSpeed;
+    DWORD ViewDarkSpiritAttackSuccessRate;
+
+    static constexpr uint8_t kHead = 0xF3;
+    static constexpr uint8_t kSub = 0xE1;
+    static constexpr bool kHasSub = true;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_NEW_CHARACTER_CALC_SEND) == 164, "PMSG_NEW_CHARACTER_CALC_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_CALC_SEND, header) == 0,
+              "PMSG_NEW_CHARACTER_CALC_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_CALC_SEND, ViewCurHP) == 4,
+              "PMSG_NEW_CHARACTER_CALC_SEND.ViewCurHP: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_CALC_SEND, ViewMaxHP) == 8,
+              "PMSG_NEW_CHARACTER_CALC_SEND.ViewMaxHP: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_CALC_SEND, ViewCurMP) == 12,
+              "PMSG_NEW_CHARACTER_CALC_SEND.ViewCurMP: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_CALC_SEND, ViewMaxMP) == 16,
+              "PMSG_NEW_CHARACTER_CALC_SEND.ViewMaxMP: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_CALC_SEND, ViewCurBP) == 20,
+              "PMSG_NEW_CHARACTER_CALC_SEND.ViewCurBP: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_CALC_SEND, ViewMaxBP) == 24,
+              "PMSG_NEW_CHARACTER_CALC_SEND.ViewMaxBP: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_CALC_SEND, ViewAddStrength) == 28,
+              "PMSG_NEW_CHARACTER_CALC_SEND.ViewAddStrength: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_CALC_SEND, ViewAddDexterity) == 32,
+              "PMSG_NEW_CHARACTER_CALC_SEND.ViewAddDexterity: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_CALC_SEND, ViewAddVitality) == 36,
+              "PMSG_NEW_CHARACTER_CALC_SEND.ViewAddVitality: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_CALC_SEND, ViewAddEnergy) == 40,
+              "PMSG_NEW_CHARACTER_CALC_SEND.ViewAddEnergy: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_CALC_SEND, ViewAddLeadership) == 44,
+              "PMSG_NEW_CHARACTER_CALC_SEND.ViewAddLeadership: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_CALC_SEND, ViewPhysiDamageMin) == 48,
+              "PMSG_NEW_CHARACTER_CALC_SEND.ViewPhysiDamageMin: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_CALC_SEND, ViewPhysiDamageMax) == 52,
+              "PMSG_NEW_CHARACTER_CALC_SEND.ViewPhysiDamageMax: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_CALC_SEND, ViewMagicDamageMin) == 56,
+              "PMSG_NEW_CHARACTER_CALC_SEND.ViewMagicDamageMin: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_CALC_SEND, ViewMagicDamageMax) == 60,
+              "PMSG_NEW_CHARACTER_CALC_SEND.ViewMagicDamageMax: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_CALC_SEND, ViewCurseDamageMin) == 64,
+              "PMSG_NEW_CHARACTER_CALC_SEND.ViewCurseDamageMin: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_CALC_SEND, ViewCurseDamageMax) == 68,
+              "PMSG_NEW_CHARACTER_CALC_SEND.ViewCurseDamageMax: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_CALC_SEND, ViewMulPhysiDamage) == 72,
+              "PMSG_NEW_CHARACTER_CALC_SEND.ViewMulPhysiDamage: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_CALC_SEND, ViewDivPhysiDamage) == 76,
+              "PMSG_NEW_CHARACTER_CALC_SEND.ViewDivPhysiDamage: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_CALC_SEND, ViewMulMagicDamage) == 80,
+              "PMSG_NEW_CHARACTER_CALC_SEND.ViewMulMagicDamage: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_CALC_SEND, ViewDivMagicDamage) == 84,
+              "PMSG_NEW_CHARACTER_CALC_SEND.ViewDivMagicDamage: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_CALC_SEND, ViewMulCurseDamage) == 88,
+              "PMSG_NEW_CHARACTER_CALC_SEND.ViewMulCurseDamage: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_CALC_SEND, ViewDivCurseDamage) == 92,
+              "PMSG_NEW_CHARACTER_CALC_SEND.ViewDivCurseDamage: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_CALC_SEND, ViewMagicDamageRate) == 96,
+              "PMSG_NEW_CHARACTER_CALC_SEND.ViewMagicDamageRate: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_CALC_SEND, ViewCurseDamageRate) == 100,
+              "PMSG_NEW_CHARACTER_CALC_SEND.ViewCurseDamageRate: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_CALC_SEND, ViewPhysiSpeed) == 104,
+              "PMSG_NEW_CHARACTER_CALC_SEND.ViewPhysiSpeed: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_CALC_SEND, ViewMagicSpeed) == 108,
+              "PMSG_NEW_CHARACTER_CALC_SEND.ViewMagicSpeed: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_CALC_SEND, ViewAttackSuccessRate) == 112,
+              "PMSG_NEW_CHARACTER_CALC_SEND.ViewAttackSuccessRate: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_CALC_SEND, ViewAttackSuccessRatePvP) == 116,
+              "PMSG_NEW_CHARACTER_CALC_SEND.ViewAttackSuccessRatePvP: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_CALC_SEND, ViewDefense) == 120,
+              "PMSG_NEW_CHARACTER_CALC_SEND.ViewDefense: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_CALC_SEND, ViewDefenseSuccessRate) == 124,
+              "PMSG_NEW_CHARACTER_CALC_SEND.ViewDefenseSuccessRate: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_CALC_SEND, ViewDefenseSuccessRatePvP) == 128,
+              "PMSG_NEW_CHARACTER_CALC_SEND.ViewDefenseSuccessRatePvP: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_CALC_SEND, ViewDamageMultiplier) == 132,
+              "PMSG_NEW_CHARACTER_CALC_SEND.ViewDamageMultiplier: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_CALC_SEND, ViewRFDamageMultiplierA) == 136,
+              "PMSG_NEW_CHARACTER_CALC_SEND.ViewRFDamageMultiplierA: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_CALC_SEND, ViewRFDamageMultiplierB) == 140,
+              "PMSG_NEW_CHARACTER_CALC_SEND.ViewRFDamageMultiplierB: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_CALC_SEND, ViewRFDamageMultiplierC) == 144,
+              "PMSG_NEW_CHARACTER_CALC_SEND.ViewRFDamageMultiplierC: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_CALC_SEND, ViewDarkSpiritAttackDamageMin) == 148,
+              "PMSG_NEW_CHARACTER_CALC_SEND.ViewDarkSpiritAttackDamageMin: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_CALC_SEND, ViewDarkSpiritAttackDamageMax) == 152,
+              "PMSG_NEW_CHARACTER_CALC_SEND.ViewDarkSpiritAttackDamageMax: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_CALC_SEND, ViewDarkSpiritAttackSpeed) == 156,
+              "PMSG_NEW_CHARACTER_CALC_SEND.ViewDarkSpiritAttackSpeed: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_CHARACTER_CALC_SEND, ViewDarkSpiritAttackSuccessRate) == 160,
+              "PMSG_NEW_CHARACTER_CALC_SEND.ViewDarkSpiritAttackSuccessRate: offset no coincide con el IR");
+
+// Protocol.h
+// Opcode 0xF3:0xE2 (server_to_client) -- Protocol.cpp
+#pragma pack(push, 8)
+struct PMSG_NEW_HEALTH_BAR_SEND
+{
+    PSWMSG_HEAD header;
+    BYTE count;
+
+    static constexpr uint8_t kHead = 0xF3;
+    static constexpr uint8_t kSub = 0xE2;
+    static constexpr bool kHasSub = true;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_NEW_HEALTH_BAR_SEND) == 6, "PMSG_NEW_HEALTH_BAR_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_HEALTH_BAR_SEND, header) == 0,
+              "PMSG_NEW_HEALTH_BAR_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_HEALTH_BAR_SEND, count) == 5,
+              "PMSG_NEW_HEALTH_BAR_SEND.count: offset no coincide con el IR");
+
+// Protocol.h
+#pragma pack(push, 8)
+struct PMSG_NEW_HEALTH_BAR
+{
+    WORD index;
+    BYTE type;
+    BYTE rate;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_NEW_HEALTH_BAR) == 4, "PMSG_NEW_HEALTH_BAR: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_HEALTH_BAR, index) == 0,
+              "PMSG_NEW_HEALTH_BAR.index: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_HEALTH_BAR, type) == 2,
+              "PMSG_NEW_HEALTH_BAR.type: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_HEALTH_BAR, rate) == 3,
+              "PMSG_NEW_HEALTH_BAR.rate: offset no coincide con el IR");
+
+// Protocol.h
+#pragma pack(push, 8)
+struct PMSG_NEW_GENS_BATTLE_INFO_SEND
+{
+    PSBMSG_HEAD header;
+    BYTE GensBattleMapCount;
+    BYTE GensMoveIndexCount;
+    BYTE GensBattleMap[120];
+    BYTE GensMoveIndex[120];
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_NEW_GENS_BATTLE_INFO_SEND) == 246, "PMSG_NEW_GENS_BATTLE_INFO_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_GENS_BATTLE_INFO_SEND, header) == 0,
+              "PMSG_NEW_GENS_BATTLE_INFO_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_GENS_BATTLE_INFO_SEND, GensBattleMapCount) == 4,
+              "PMSG_NEW_GENS_BATTLE_INFO_SEND.GensBattleMapCount: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_GENS_BATTLE_INFO_SEND, GensMoveIndexCount) == 5,
+              "PMSG_NEW_GENS_BATTLE_INFO_SEND.GensMoveIndexCount: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_GENS_BATTLE_INFO_SEND, GensBattleMap) == 6,
+              "PMSG_NEW_GENS_BATTLE_INFO_SEND.GensBattleMap: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_GENS_BATTLE_INFO_SEND, GensMoveIndex) == 126,
+              "PMSG_NEW_GENS_BATTLE_INFO_SEND.GensMoveIndex: offset no coincide con el IR");
+
+// Protocol.h
+// Opcode 0xF3:0xE4 (server_to_client) -- Protocol.cpp
+#pragma pack(push, 8)
+struct PMSG_NEW_MESSAGE_SEND
+{
+    PSBMSG_HEAD header;
+    BYTE type;
+    BYTE color;
+    char message[128];
+
+    static constexpr uint8_t kHead = 0xF3;
+    static constexpr uint8_t kSub = 0xE4;
+    static constexpr bool kHasSub = true;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_NEW_MESSAGE_SEND) == 134, "PMSG_NEW_MESSAGE_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_MESSAGE_SEND, header) == 0,
+              "PMSG_NEW_MESSAGE_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_MESSAGE_SEND, type) == 4,
+              "PMSG_NEW_MESSAGE_SEND.type: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_MESSAGE_SEND, color) == 5,
+              "PMSG_NEW_MESSAGE_SEND.color: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NEW_MESSAGE_SEND, message) == 6,
+              "PMSG_NEW_MESSAGE_SEND.message: offset no coincide con el IR");
+
+// Protocol.h
+// Opcode 0xF3:0xE8 (server_to_client) -- Protocol.cpp
+#pragma pack(push, 8)
+struct PMSG_WINDOW_NAME_SEND
+{
+    PSBMSG_HEAD header;
+    char title[64];
+
+    static constexpr uint8_t kHead = 0xF3;
+    static constexpr uint8_t kSub = 0xE8;
+    static constexpr bool kHasSub = true;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_WINDOW_NAME_SEND) == 68, "PMSG_WINDOW_NAME_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_WINDOW_NAME_SEND, header) == 0,
+              "PMSG_WINDOW_NAME_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_WINDOW_NAME_SEND, title) == 4,
+              "PMSG_WINDOW_NAME_SEND.title: offset no coincide con el IR");
+
+// Quest.h
+// Opcode 0xA2 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_QUEST_STATE_RECV
+{
+    PBMSG_HEAD header;
+    BYTE QuestIndex;
+    BYTE QuestState;
+
+    static constexpr uint8_t kHead = 0xA2;
+    static constexpr bool kHasSub = false;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_QUEST_STATE_RECV) == 5, "PMSG_QUEST_STATE_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_QUEST_STATE_RECV, header) == 0,
+              "PMSG_QUEST_STATE_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_QUEST_STATE_RECV, QuestIndex) == 3,
+              "PMSG_QUEST_STATE_RECV.QuestIndex: offset no coincide con el IR");
+static_assert(offsetof(PMSG_QUEST_STATE_RECV, QuestState) == 4,
+              "PMSG_QUEST_STATE_RECV.QuestState: offset no coincide con el IR");
+
+// Quest.h
+// Opcode 0xA0 (server_to_client) -- Quest.cpp
+#pragma pack(push, 8)
+struct PMSG_QUEST_INFO_SEND
+{
+    PBMSG_HEAD header;
+    BYTE count;
+    BYTE QuestInfo[50];
+
+    static constexpr uint8_t kHead = 0xA0;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_QUEST_INFO_SEND) == 54, "PMSG_QUEST_INFO_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_QUEST_INFO_SEND, header) == 0,
+              "PMSG_QUEST_INFO_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_QUEST_INFO_SEND, count) == 3,
+              "PMSG_QUEST_INFO_SEND.count: offset no coincide con el IR");
+static_assert(offsetof(PMSG_QUEST_INFO_SEND, QuestInfo) == 4,
+              "PMSG_QUEST_INFO_SEND.QuestInfo: offset no coincide con el IR");
+
+// Quest.h
+// Opcode 0xA1 (server_to_client) -- Quest.cpp
+#pragma pack(push, 8)
+struct PMSG_QUEST_STATE_SEND
+{
+    PBMSG_HEAD header;
+    BYTE QuestIndex;
+    BYTE QuestState;
+
+    static constexpr uint8_t kHead = 0xA1;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_QUEST_STATE_SEND) == 5, "PMSG_QUEST_STATE_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_QUEST_STATE_SEND, header) == 0,
+              "PMSG_QUEST_STATE_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_QUEST_STATE_SEND, QuestIndex) == 3,
+              "PMSG_QUEST_STATE_SEND.QuestIndex: offset no coincide con el IR");
+static_assert(offsetof(PMSG_QUEST_STATE_SEND, QuestState) == 4,
+              "PMSG_QUEST_STATE_SEND.QuestState: offset no coincide con el IR");
+
+// Quest.h
+// Opcode 0xA2 (server_to_client) -- Quest.cpp
+#pragma pack(push, 8)
+struct PMSG_QUEST_RESULT_SEND
+{
+    PBMSG_HEAD header;
+    BYTE QuestIndex;
+    BYTE QuestResult;
+    BYTE QuestState;
+
+    static constexpr uint8_t kHead = 0xA2;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_QUEST_RESULT_SEND) == 6, "PMSG_QUEST_RESULT_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_QUEST_RESULT_SEND, header) == 0,
+              "PMSG_QUEST_RESULT_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_QUEST_RESULT_SEND, QuestIndex) == 3,
+              "PMSG_QUEST_RESULT_SEND.QuestIndex: offset no coincide con el IR");
+static_assert(offsetof(PMSG_QUEST_RESULT_SEND, QuestResult) == 4,
+              "PMSG_QUEST_RESULT_SEND.QuestResult: offset no coincide con el IR");
+static_assert(offsetof(PMSG_QUEST_RESULT_SEND, QuestState) == 5,
+              "PMSG_QUEST_RESULT_SEND.QuestState: offset no coincide con el IR");
+
+// Quest.h
+// Relleno de alineación en el wire: @7(+1). El servidor manda el struct
+// entero (memcpy/sizeof), así que esos bytes VIAJAN: no se pueden omitir.
+// Opcode 0xA3 (server_to_client) -- Quest.cpp
+#pragma pack(push, 8)
+struct PMSG_QUEST_REWARD_SEND
+{
+    PBMSG_HEAD header;
+    BYTE index[2];
+    BYTE QuestReward;
+    BYTE QuestAmount;
+    DWORD ViewPoint;
+
+    static constexpr uint8_t kHead = 0xA3;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_QUEST_REWARD_SEND) == 12, "PMSG_QUEST_REWARD_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_QUEST_REWARD_SEND, header) == 0,
+              "PMSG_QUEST_REWARD_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_QUEST_REWARD_SEND, index) == 3,
+              "PMSG_QUEST_REWARD_SEND.index: offset no coincide con el IR");
+static_assert(offsetof(PMSG_QUEST_REWARD_SEND, QuestReward) == 5,
+              "PMSG_QUEST_REWARD_SEND.QuestReward: offset no coincide con el IR");
+static_assert(offsetof(PMSG_QUEST_REWARD_SEND, QuestAmount) == 6,
+              "PMSG_QUEST_REWARD_SEND.QuestAmount: offset no coincide con el IR");
+static_assert(offsetof(PMSG_QUEST_REWARD_SEND, ViewPoint) == 8,
+              "PMSG_QUEST_REWARD_SEND.ViewPoint: offset no coincide con el IR");
+
+// QuestObjective.h
+#pragma pack(push, 8)
+struct QUEST_KILL_COUNT
+{
+    int MonsterClass;
+    int KillCount;
+};
+#pragma pack(pop)
+static_assert(sizeof(QUEST_KILL_COUNT) == 8, "QUEST_KILL_COUNT: sizeof no coincide con el IR");
+static_assert(offsetof(QUEST_KILL_COUNT, MonsterClass) == 0,
+              "QUEST_KILL_COUNT.MonsterClass: offset no coincide con el IR");
+static_assert(offsetof(QUEST_KILL_COUNT, KillCount) == 4,
+              "QUEST_KILL_COUNT.KillCount: offset no coincide con el IR");
+
+// Shop.h
+// Opcode 0x31 (server_to_client) -- ChaosBox.cpp
+#pragma pack(push, 8)
+struct PMSG_SHOP_ITEM_LIST_SEND
+{
+    PWMSG_HEAD header;
+    BYTE type;
+    BYTE count;
+
+    static constexpr uint8_t kHead = 0x31;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_SHOP_ITEM_LIST_SEND) == 6, "PMSG_SHOP_ITEM_LIST_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_SHOP_ITEM_LIST_SEND, header) == 0,
+              "PMSG_SHOP_ITEM_LIST_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_SHOP_ITEM_LIST_SEND, type) == 4,
+              "PMSG_SHOP_ITEM_LIST_SEND.type: offset no coincide con el IR");
+static_assert(offsetof(PMSG_SHOP_ITEM_LIST_SEND, count) == 5,
+              "PMSG_SHOP_ITEM_LIST_SEND.count: offset no coincide con el IR");
+
+// Shop.h
+#pragma pack(push, 8)
+struct PMSG_SHOP_ITEM_LIST
+{
+    BYTE slot;
+    BYTE ItemInfo[5];
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_SHOP_ITEM_LIST) == 6, "PMSG_SHOP_ITEM_LIST: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_SHOP_ITEM_LIST, slot) == 0,
+              "PMSG_SHOP_ITEM_LIST.slot: offset no coincide con el IR");
+static_assert(offsetof(PMSG_SHOP_ITEM_LIST, ItemInfo) == 1,
+              "PMSG_SHOP_ITEM_LIST.ItemInfo: offset no coincide con el IR");
+
+// Shop.h
+#pragma pack(push, 8)
+struct PMSG_PC_POINT_PRICE_LIST_SEND
+{
+    PSWMSG_HEAD header;
+    BYTE count;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_PC_POINT_PRICE_LIST_SEND) == 6, "PMSG_PC_POINT_PRICE_LIST_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_PC_POINT_PRICE_LIST_SEND, header) == 0,
+              "PMSG_PC_POINT_PRICE_LIST_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PC_POINT_PRICE_LIST_SEND, count) == 5,
+              "PMSG_PC_POINT_PRICE_LIST_SEND.count: offset no coincide con el IR");
+
+// Shop.h
+#pragma pack(push, 8)
+struct PMSG_PC_POINT_PRICE_LIST
+{
+    DWORD ItemIndex;
+    DWORD ItemLevel;
+    DWORD ItemDur;
+    DWORD ItemNewOption;
+    DWORD ItemPrice;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_PC_POINT_PRICE_LIST) == 20, "PMSG_PC_POINT_PRICE_LIST: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_PC_POINT_PRICE_LIST, ItemIndex) == 0,
+              "PMSG_PC_POINT_PRICE_LIST.ItemIndex: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PC_POINT_PRICE_LIST, ItemLevel) == 4,
+              "PMSG_PC_POINT_PRICE_LIST.ItemLevel: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PC_POINT_PRICE_LIST, ItemDur) == 8,
+              "PMSG_PC_POINT_PRICE_LIST.ItemDur: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PC_POINT_PRICE_LIST, ItemNewOption) == 12,
+              "PMSG_PC_POINT_PRICE_LIST.ItemNewOption: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PC_POINT_PRICE_LIST, ItemPrice) == 16,
+              "PMSG_PC_POINT_PRICE_LIST.ItemPrice: offset no coincide con el IR");
+
+// Shop.h
+#pragma pack(push, 8)
+struct PMSG_SHOP_PRICE_LIST_SEND
+{
+    PSWMSG_HEAD header;
+    BYTE count;
+    BYTE type;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_SHOP_PRICE_LIST_SEND) == 7, "PMSG_SHOP_PRICE_LIST_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_SHOP_PRICE_LIST_SEND, header) == 0,
+              "PMSG_SHOP_PRICE_LIST_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_SHOP_PRICE_LIST_SEND, count) == 5,
+              "PMSG_SHOP_PRICE_LIST_SEND.count: offset no coincide con el IR");
+static_assert(offsetof(PMSG_SHOP_PRICE_LIST_SEND, type) == 6,
+              "PMSG_SHOP_PRICE_LIST_SEND.type: offset no coincide con el IR");
+
+// Shop.h
+#pragma pack(push, 8)
+struct PMSG_SHOP_PRICE
+{
+    DWORD ItemIndex;
+    DWORD ItemLevel;
+    DWORD ItemDur;
+    DWORD ItemNewOption;
+    DWORD ItemPrice;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_SHOP_PRICE) == 20, "PMSG_SHOP_PRICE: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_SHOP_PRICE, ItemIndex) == 0,
+              "PMSG_SHOP_PRICE.ItemIndex: offset no coincide con el IR");
+static_assert(offsetof(PMSG_SHOP_PRICE, ItemLevel) == 4,
+              "PMSG_SHOP_PRICE.ItemLevel: offset no coincide con el IR");
+static_assert(offsetof(PMSG_SHOP_PRICE, ItemDur) == 8,
+              "PMSG_SHOP_PRICE.ItemDur: offset no coincide con el IR");
+static_assert(offsetof(PMSG_SHOP_PRICE, ItemNewOption) == 12,
+              "PMSG_SHOP_PRICE.ItemNewOption: offset no coincide con el IR");
+static_assert(offsetof(PMSG_SHOP_PRICE, ItemPrice) == 16,
+              "PMSG_SHOP_PRICE.ItemPrice: offset no coincide con el IR");
+
+// SkillManager.h
+// Opcode 0x1D (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_MULTI_SKILL_ATTACK_RECV
+{
+    PBMSG_HEAD header;
+    BYTE skill;
+    BYTE x;
+    BYTE y;
+    BYTE serial;
+    BYTE count;
+
+    static constexpr uint8_t kHead = 0x1D;
+    static constexpr bool kHasSub = false;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_MULTI_SKILL_ATTACK_RECV) == 8, "PMSG_MULTI_SKILL_ATTACK_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_MULTI_SKILL_ATTACK_RECV, header) == 0,
+              "PMSG_MULTI_SKILL_ATTACK_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_MULTI_SKILL_ATTACK_RECV, skill) == 3,
+              "PMSG_MULTI_SKILL_ATTACK_RECV.skill: offset no coincide con el IR");
+static_assert(offsetof(PMSG_MULTI_SKILL_ATTACK_RECV, x) == 4,
+              "PMSG_MULTI_SKILL_ATTACK_RECV.x: offset no coincide con el IR");
+static_assert(offsetof(PMSG_MULTI_SKILL_ATTACK_RECV, y) == 5,
+              "PMSG_MULTI_SKILL_ATTACK_RECV.y: offset no coincide con el IR");
+static_assert(offsetof(PMSG_MULTI_SKILL_ATTACK_RECV, serial) == 6,
+              "PMSG_MULTI_SKILL_ATTACK_RECV.serial: offset no coincide con el IR");
+static_assert(offsetof(PMSG_MULTI_SKILL_ATTACK_RECV, count) == 7,
+              "PMSG_MULTI_SKILL_ATTACK_RECV.count: offset no coincide con el IR");
+
+// SkillManager.h
+#pragma pack(push, 8)
+struct PMSG_MULTI_SKILL_ATTACK
+{
+    BYTE index[2];
+    BYTE MagicKey;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_MULTI_SKILL_ATTACK) == 3, "PMSG_MULTI_SKILL_ATTACK: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_MULTI_SKILL_ATTACK, index) == 0,
+              "PMSG_MULTI_SKILL_ATTACK.index: offset no coincide con el IR");
+static_assert(offsetof(PMSG_MULTI_SKILL_ATTACK, MagicKey) == 2,
+              "PMSG_MULTI_SKILL_ATTACK.MagicKey: offset no coincide con el IR");
+
+// SkillManager.h
+// Opcode 0x19 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_SKILL_ATTACK_RECV
+{
+    PBMSG_HEAD header;
+    BYTE skill;
+    BYTE index[2];
+    BYTE dis;
+
+    static constexpr uint8_t kHead = 0x19;
+    static constexpr bool kHasSub = false;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_SKILL_ATTACK_RECV) == 7, "PMSG_SKILL_ATTACK_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_SKILL_ATTACK_RECV, header) == 0,
+              "PMSG_SKILL_ATTACK_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_SKILL_ATTACK_RECV, skill) == 3,
+              "PMSG_SKILL_ATTACK_RECV.skill: offset no coincide con el IR");
+static_assert(offsetof(PMSG_SKILL_ATTACK_RECV, index) == 4,
+              "PMSG_SKILL_ATTACK_RECV.index: offset no coincide con el IR");
+static_assert(offsetof(PMSG_SKILL_ATTACK_RECV, dis) == 6,
+              "PMSG_SKILL_ATTACK_RECV.dis: offset no coincide con el IR");
+
+// SkillManager.h
+// Opcode 0x1B (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_SKILL_CANCEL_RECV
+{
+    PBMSG_HEAD header;
+    BYTE skill;
+    BYTE index[2];
+
+    static constexpr uint8_t kHead = 0x1B;
+    static constexpr bool kHasSub = false;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_SKILL_CANCEL_RECV) == 6, "PMSG_SKILL_CANCEL_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_SKILL_CANCEL_RECV, header) == 0,
+              "PMSG_SKILL_CANCEL_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_SKILL_CANCEL_RECV, skill) == 3,
+              "PMSG_SKILL_CANCEL_RECV.skill: offset no coincide con el IR");
+static_assert(offsetof(PMSG_SKILL_CANCEL_RECV, index) == 4,
+              "PMSG_SKILL_CANCEL_RECV.index: offset no coincide con el IR");
+
+// SkillManager.h
+// Opcode 0x1E (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_DURATION_SKILL_ATTACK_RECV
+{
+    PBMSG_HEAD header;
+    BYTE skill;
+    BYTE x;
+    BYTE y;
+    BYTE dir;
+    BYTE dis;
+    BYTE angle;
+    BYTE index[2];
+    BYTE MagicKey;
+
+    static constexpr uint8_t kHead = 0x1E;
+    static constexpr bool kHasSub = false;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_DURATION_SKILL_ATTACK_RECV) == 12, "PMSG_DURATION_SKILL_ATTACK_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_DURATION_SKILL_ATTACK_RECV, header) == 0,
+              "PMSG_DURATION_SKILL_ATTACK_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_DURATION_SKILL_ATTACK_RECV, skill) == 3,
+              "PMSG_DURATION_SKILL_ATTACK_RECV.skill: offset no coincide con el IR");
+static_assert(offsetof(PMSG_DURATION_SKILL_ATTACK_RECV, x) == 4,
+              "PMSG_DURATION_SKILL_ATTACK_RECV.x: offset no coincide con el IR");
+static_assert(offsetof(PMSG_DURATION_SKILL_ATTACK_RECV, y) == 5,
+              "PMSG_DURATION_SKILL_ATTACK_RECV.y: offset no coincide con el IR");
+static_assert(offsetof(PMSG_DURATION_SKILL_ATTACK_RECV, dir) == 6,
+              "PMSG_DURATION_SKILL_ATTACK_RECV.dir: offset no coincide con el IR");
+static_assert(offsetof(PMSG_DURATION_SKILL_ATTACK_RECV, dis) == 7,
+              "PMSG_DURATION_SKILL_ATTACK_RECV.dis: offset no coincide con el IR");
+static_assert(offsetof(PMSG_DURATION_SKILL_ATTACK_RECV, angle) == 8,
+              "PMSG_DURATION_SKILL_ATTACK_RECV.angle: offset no coincide con el IR");
+static_assert(offsetof(PMSG_DURATION_SKILL_ATTACK_RECV, index) == 9,
+              "PMSG_DURATION_SKILL_ATTACK_RECV.index: offset no coincide con el IR");
+static_assert(offsetof(PMSG_DURATION_SKILL_ATTACK_RECV, MagicKey) == 11,
+              "PMSG_DURATION_SKILL_ATTACK_RECV.MagicKey: offset no coincide con el IR");
+
+// SkillManager.h
+// Opcode 0xB0 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_SKILL_TELEPORT_ALLY_RECV
+{
+#pragma pack(1)
+    PBMSG_HEAD header;
+    WORD index;
+    BYTE x;
+    BYTE y;
+
+    static constexpr uint8_t kHead = 0xB0;
+    static constexpr bool kHasSub = false;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_SKILL_TELEPORT_ALLY_RECV) == 7, "PMSG_SKILL_TELEPORT_ALLY_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_SKILL_TELEPORT_ALLY_RECV, header) == 0,
+              "PMSG_SKILL_TELEPORT_ALLY_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_SKILL_TELEPORT_ALLY_RECV, index) == 3,
+              "PMSG_SKILL_TELEPORT_ALLY_RECV.index: offset no coincide con el IR");
+static_assert(offsetof(PMSG_SKILL_TELEPORT_ALLY_RECV, x) == 5,
+              "PMSG_SKILL_TELEPORT_ALLY_RECV.x: offset no coincide con el IR");
+static_assert(offsetof(PMSG_SKILL_TELEPORT_ALLY_RECV, y) == 6,
+              "PMSG_SKILL_TELEPORT_ALLY_RECV.y: offset no coincide con el IR");
+
+// SkillManager.h
+// Opcode 0x19 (server_to_client) -- SkillManager.cpp
+#pragma pack(push, 8)
+struct PMSG_SKILL_ATTACK_SEND
+{
+    PBMSG_HEAD header;
+    BYTE skill;
+    BYTE index[2];
+    BYTE target[2];
+
+    static constexpr uint8_t kHead = 0x19;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = true;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_SKILL_ATTACK_SEND) == 8, "PMSG_SKILL_ATTACK_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_SKILL_ATTACK_SEND, header) == 0,
+              "PMSG_SKILL_ATTACK_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_SKILL_ATTACK_SEND, skill) == 3,
+              "PMSG_SKILL_ATTACK_SEND.skill: offset no coincide con el IR");
+static_assert(offsetof(PMSG_SKILL_ATTACK_SEND, index) == 4,
+              "PMSG_SKILL_ATTACK_SEND.index: offset no coincide con el IR");
+static_assert(offsetof(PMSG_SKILL_ATTACK_SEND, target) == 6,
+              "PMSG_SKILL_ATTACK_SEND.target: offset no coincide con el IR");
+
+// SkillManager.h
+// Opcode 0x1B (server_to_client) -- SkillManager.cpp
+#pragma pack(push, 8)
+struct PMSG_SKILL_CANCEL_SEND
+{
+    PBMSG_HEAD header;
+    BYTE skill;
+    BYTE index[2];
+
+    static constexpr uint8_t kHead = 0x1B;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_SKILL_CANCEL_SEND) == 6, "PMSG_SKILL_CANCEL_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_SKILL_CANCEL_SEND, header) == 0,
+              "PMSG_SKILL_CANCEL_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_SKILL_CANCEL_SEND, skill) == 3,
+              "PMSG_SKILL_CANCEL_SEND.skill: offset no coincide con el IR");
+static_assert(offsetof(PMSG_SKILL_CANCEL_SEND, index) == 4,
+              "PMSG_SKILL_CANCEL_SEND.index: offset no coincide con el IR");
+
+// SkillManager.h
+// Opcode 0x1E (server_to_client) -- SkillManager.cpp
+#pragma pack(push, 8)
+struct PMSG_DURATION_SKILL_ATTACK_SEND
+{
+    PBMSG_HEAD header;
+    BYTE skill;
+    BYTE index[2];
+    BYTE x;
+    BYTE y;
+    BYTE dir;
+
+    static constexpr uint8_t kHead = 0x1E;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = true;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_DURATION_SKILL_ATTACK_SEND) == 9, "PMSG_DURATION_SKILL_ATTACK_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_DURATION_SKILL_ATTACK_SEND, header) == 0,
+              "PMSG_DURATION_SKILL_ATTACK_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_DURATION_SKILL_ATTACK_SEND, skill) == 3,
+              "PMSG_DURATION_SKILL_ATTACK_SEND.skill: offset no coincide con el IR");
+static_assert(offsetof(PMSG_DURATION_SKILL_ATTACK_SEND, index) == 4,
+              "PMSG_DURATION_SKILL_ATTACK_SEND.index: offset no coincide con el IR");
+static_assert(offsetof(PMSG_DURATION_SKILL_ATTACK_SEND, x) == 6,
+              "PMSG_DURATION_SKILL_ATTACK_SEND.x: offset no coincide con el IR");
+static_assert(offsetof(PMSG_DURATION_SKILL_ATTACK_SEND, y) == 7,
+              "PMSG_DURATION_SKILL_ATTACK_SEND.y: offset no coincide con el IR");
+static_assert(offsetof(PMSG_DURATION_SKILL_ATTACK_SEND, dir) == 8,
+              "PMSG_DURATION_SKILL_ATTACK_SEND.dir: offset no coincide con el IR");
+
+// SkillManager.h
+// Opcode 0xBA (server_to_client) -- User.cpp
+#pragma pack(push, 8)
+struct PMSG_SKILL_NOVA_SEND
+{
+    PBMSG_HEAD header;
+    BYTE index[2];
+    BYTE type;
+    BYTE count;
+
+    static constexpr uint8_t kHead = 0xBA;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_SKILL_NOVA_SEND) == 7, "PMSG_SKILL_NOVA_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_SKILL_NOVA_SEND, header) == 0,
+              "PMSG_SKILL_NOVA_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_SKILL_NOVA_SEND, index) == 3,
+              "PMSG_SKILL_NOVA_SEND.index: offset no coincide con el IR");
+static_assert(offsetof(PMSG_SKILL_NOVA_SEND, type) == 5,
+              "PMSG_SKILL_NOVA_SEND.type: offset no coincide con el IR");
+static_assert(offsetof(PMSG_SKILL_NOVA_SEND, count) == 6,
+              "PMSG_SKILL_NOVA_SEND.count: offset no coincide con el IR");
+
+// SkillManager.h
+// Opcode 0xF3:0x11 (server_to_client) -- SkillManager.cpp
+#pragma pack(push, 8)
+struct PMSG_SKILL_LIST_SEND
+{
+    PSBMSG_HEAD header;
+    BYTE count;
+
+    static constexpr uint8_t kHead = 0xF3;
+    static constexpr uint8_t kSub = 0x11;
+    static constexpr bool kHasSub = true;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_SKILL_LIST_SEND) == 5, "PMSG_SKILL_LIST_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_SKILL_LIST_SEND, header) == 0,
+              "PMSG_SKILL_LIST_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_SKILL_LIST_SEND, count) == 4,
+              "PMSG_SKILL_LIST_SEND.count: offset no coincide con el IR");
+
+// SkillManager.h
+#pragma pack(push, 8)
+struct PMSG_SKILL_LIST
+{
+#pragma pack(1)
+    char slot;
+    BYTE skill[2];
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_SKILL_LIST) == 3, "PMSG_SKILL_LIST: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_SKILL_LIST, slot) == 0,
+              "PMSG_SKILL_LIST.slot: offset no coincide con el IR");
+static_assert(offsetof(PMSG_SKILL_LIST, skill) == 1,
+              "PMSG_SKILL_LIST.skill: offset no coincide con el IR");
+
+// Trade.h
+// Opcode 0x36 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_TRADE_REQUEST_RECV
+{
+    PBMSG_HEAD header;
+    BYTE index[2];
+
+    static constexpr uint8_t kHead = 0x36;
+    static constexpr bool kHasSub = false;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_TRADE_REQUEST_RECV) == 5, "PMSG_TRADE_REQUEST_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_TRADE_REQUEST_RECV, header) == 0,
+              "PMSG_TRADE_REQUEST_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_TRADE_REQUEST_RECV, index) == 3,
+              "PMSG_TRADE_REQUEST_RECV.index: offset no coincide con el IR");
+
+// Trade.h
+// Opcode 0x37 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_TRADE_RESPONSE_RECV
+{
+    PBMSG_HEAD header;
+    BYTE response;
+    char name[10];
+    WORD level;
+    DWORD GuildNumber;
+
+    static constexpr uint8_t kHead = 0x37;
+    static constexpr bool kHasSub = false;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_TRADE_RESPONSE_RECV) == 20, "PMSG_TRADE_RESPONSE_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_TRADE_RESPONSE_RECV, header) == 0,
+              "PMSG_TRADE_RESPONSE_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_TRADE_RESPONSE_RECV, response) == 3,
+              "PMSG_TRADE_RESPONSE_RECV.response: offset no coincide con el IR");
+static_assert(offsetof(PMSG_TRADE_RESPONSE_RECV, name) == 4,
+              "PMSG_TRADE_RESPONSE_RECV.name: offset no coincide con el IR");
+static_assert(offsetof(PMSG_TRADE_RESPONSE_RECV, level) == 14,
+              "PMSG_TRADE_RESPONSE_RECV.level: offset no coincide con el IR");
+static_assert(offsetof(PMSG_TRADE_RESPONSE_RECV, GuildNumber) == 16,
+              "PMSG_TRADE_RESPONSE_RECV.GuildNumber: offset no coincide con el IR");
+
+// Trade.h
+// Relleno de alineación en el wire: @3(+1). El servidor manda el struct
+// entero (memcpy/sizeof), así que esos bytes VIAJAN: no se pueden omitir.
+// Opcode 0x3A (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_TRADE_MONEY_RECV
+{
+    PBMSG_HEAD header;
+    DWORD money;
+
+    static constexpr uint8_t kHead = 0x3A;
+    static constexpr bool kHasSub = false;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_TRADE_MONEY_RECV) == 8, "PMSG_TRADE_MONEY_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_TRADE_MONEY_RECV, header) == 0,
+              "PMSG_TRADE_MONEY_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_TRADE_MONEY_RECV, money) == 4,
+              "PMSG_TRADE_MONEY_RECV.money: offset no coincide con el IR");
+
+// Trade.h
+// Opcode 0x3C (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_TRADE_OK_BUTTON_RECV
+{
+    PBMSG_HEAD header;
+    BYTE flag;
+
+    static constexpr uint8_t kHead = 0x3C;
+    static constexpr bool kHasSub = false;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_TRADE_OK_BUTTON_RECV) == 4, "PMSG_TRADE_OK_BUTTON_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_TRADE_OK_BUTTON_RECV, header) == 0,
+              "PMSG_TRADE_OK_BUTTON_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_TRADE_OK_BUTTON_RECV, flag) == 3,
+              "PMSG_TRADE_OK_BUTTON_RECV.flag: offset no coincide con el IR");
+
+// Trade.h
+// Opcode 0x36 (server_to_client) -- Trade.cpp
+#pragma pack(push, 8)
+struct PMSG_TRADE_REQUEST_SEND
+{
+    PBMSG_HEAD header;
+    char name[10];
+
+    static constexpr uint8_t kHead = 0x36;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = true;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_TRADE_REQUEST_SEND) == 13, "PMSG_TRADE_REQUEST_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_TRADE_REQUEST_SEND, header) == 0,
+              "PMSG_TRADE_REQUEST_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_TRADE_REQUEST_SEND, name) == 3,
+              "PMSG_TRADE_REQUEST_SEND.name: offset no coincide con el IR");
+
+// Trade.h
+// Opcode 0x37 (server_to_client) -- Trade.cpp
+#pragma pack(push, 8)
+struct PMSG_TRADE_RESPONSE_SEND
+{
+    PBMSG_HEAD header;
+    BYTE response;
+    char name[10];
+    WORD level;
+    DWORD GuildNumber;
+
+    static constexpr uint8_t kHead = 0x37;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_TRADE_RESPONSE_SEND) == 20, "PMSG_TRADE_RESPONSE_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_TRADE_RESPONSE_SEND, header) == 0,
+              "PMSG_TRADE_RESPONSE_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_TRADE_RESPONSE_SEND, response) == 3,
+              "PMSG_TRADE_RESPONSE_SEND.response: offset no coincide con el IR");
+static_assert(offsetof(PMSG_TRADE_RESPONSE_SEND, name) == 4,
+              "PMSG_TRADE_RESPONSE_SEND.name: offset no coincide con el IR");
+static_assert(offsetof(PMSG_TRADE_RESPONSE_SEND, level) == 14,
+              "PMSG_TRADE_RESPONSE_SEND.level: offset no coincide con el IR");
+static_assert(offsetof(PMSG_TRADE_RESPONSE_SEND, GuildNumber) == 16,
+              "PMSG_TRADE_RESPONSE_SEND.GuildNumber: offset no coincide con el IR");
+
+// Trade.h
+// Opcode 0x38 (server_to_client) -- Trade.cpp
+#pragma pack(push, 8)
+struct PMSG_TRADE_ITEM_DEL_SEND
+{
+    PBMSG_HEAD header;
+    BYTE slot;
+
+    static constexpr uint8_t kHead = 0x38;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_TRADE_ITEM_DEL_SEND) == 4, "PMSG_TRADE_ITEM_DEL_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_TRADE_ITEM_DEL_SEND, header) == 0,
+              "PMSG_TRADE_ITEM_DEL_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_TRADE_ITEM_DEL_SEND, slot) == 3,
+              "PMSG_TRADE_ITEM_DEL_SEND.slot: offset no coincide con el IR");
+
+// Trade.h
+// Opcode 0x39 (server_to_client) -- Trade.cpp
+#pragma pack(push, 8)
+struct PMSG_TRADE_ITEM_ADD_SEND
+{
+    PBMSG_HEAD header;
+    BYTE slot;
+    BYTE ItemInfo[5];
+
+    static constexpr uint8_t kHead = 0x39;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_TRADE_ITEM_ADD_SEND) == 9, "PMSG_TRADE_ITEM_ADD_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_TRADE_ITEM_ADD_SEND, header) == 0,
+              "PMSG_TRADE_ITEM_ADD_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_TRADE_ITEM_ADD_SEND, slot) == 3,
+              "PMSG_TRADE_ITEM_ADD_SEND.slot: offset no coincide con el IR");
+static_assert(offsetof(PMSG_TRADE_ITEM_ADD_SEND, ItemInfo) == 4,
+              "PMSG_TRADE_ITEM_ADD_SEND.ItemInfo: offset no coincide con el IR");
+
+// Trade.h
+// Relleno de alineación en el wire: @3(+1). El servidor manda el struct
+// entero (memcpy/sizeof), así que esos bytes VIAJAN: no se pueden omitir.
+// Opcode 0x3B (server_to_client) -- Trade.cpp
+#pragma pack(push, 8)
+struct PMSG_TRADE_MONEY_SEND
+{
+    PBMSG_HEAD header;
+    DWORD money;
+
+    static constexpr uint8_t kHead = 0x3B;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_TRADE_MONEY_SEND) == 8, "PMSG_TRADE_MONEY_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_TRADE_MONEY_SEND, header) == 0,
+              "PMSG_TRADE_MONEY_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_TRADE_MONEY_SEND, money) == 4,
+              "PMSG_TRADE_MONEY_SEND.money: offset no coincide con el IR");
+
+// Trade.h
+// Opcode 0x3C (server_to_client) -- Trade.cpp
+#pragma pack(push, 8)
+struct PMSG_TRADE_OK_BUTTON_SEND
+{
+    PBMSG_HEAD header;
+    BYTE flag;
+
+    static constexpr uint8_t kHead = 0x3C;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_TRADE_OK_BUTTON_SEND) == 4, "PMSG_TRADE_OK_BUTTON_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_TRADE_OK_BUTTON_SEND, header) == 0,
+              "PMSG_TRADE_OK_BUTTON_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_TRADE_OK_BUTTON_SEND, flag) == 3,
+              "PMSG_TRADE_OK_BUTTON_SEND.flag: offset no coincide con el IR");
+
+// Trade.h
+// Opcode 0x3A (server_to_client) -- Trade.cpp
+// También se manda como 0x3D (Trade.cpp)
+#pragma pack(push, 8)
+struct PMSG_TRADE_RESULT_SEND
+{
+    PBMSG_HEAD header;
+    BYTE result;
+
+    static constexpr uint8_t kHead = 0x3A;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_TRADE_RESULT_SEND) == 4, "PMSG_TRADE_RESULT_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_TRADE_RESULT_SEND, header) == 0,
+              "PMSG_TRADE_RESULT_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_TRADE_RESULT_SEND, result) == 3,
+              "PMSG_TRADE_RESULT_SEND.result: offset no coincide con el IR");
+
+// Viewport.h
+// Opcode 0x14 (server_to_client) -- Viewport.cpp
+#pragma pack(push, 8)
+struct PMSG_VIEWPORT_DESTROY_SEND
+{
+    PBMSG_HEAD header;
+    BYTE count;
+
+    static constexpr uint8_t kHead = 0x14;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_VIEWPORT_DESTROY_SEND) == 4, "PMSG_VIEWPORT_DESTROY_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_VIEWPORT_DESTROY_SEND, header) == 0,
+              "PMSG_VIEWPORT_DESTROY_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_VIEWPORT_DESTROY_SEND, count) == 3,
+              "PMSG_VIEWPORT_DESTROY_SEND.count: offset no coincide con el IR");
+
+// Viewport.h
+// Opcode 0x21 (server_to_client) -- Viewport.cpp
+#pragma pack(push, 8)
+struct PMSG_VIEWPORT_DESTROY_ITEM_SEND
+{
+    PWMSG_HEAD header;
+    BYTE count;
+
+    static constexpr uint8_t kHead = 0x21;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_VIEWPORT_DESTROY_ITEM_SEND) == 5, "PMSG_VIEWPORT_DESTROY_ITEM_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_VIEWPORT_DESTROY_ITEM_SEND, header) == 0,
+              "PMSG_VIEWPORT_DESTROY_ITEM_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_VIEWPORT_DESTROY_ITEM_SEND, count) == 4,
+              "PMSG_VIEWPORT_DESTROY_ITEM_SEND.count: offset no coincide con el IR");
+
+// Viewport.h
+#pragma pack(push, 8)
+struct PMSG_VIEWPORT_DESTROY
+{
+    BYTE index[2];
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_VIEWPORT_DESTROY) == 2, "PMSG_VIEWPORT_DESTROY: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_VIEWPORT_DESTROY, index) == 0,
+              "PMSG_VIEWPORT_DESTROY.index: offset no coincide con el IR");
+
+// Viewport.h
+// Opcode 0x12 (server_to_client) -- Viewport.cpp
+// También se manda como 0x13 (Viewport.cpp)
+// También se manda como 0x1F (Viewport.cpp)
+// También se manda como 0x20 (Viewport.cpp)
+// También se manda como 0x45 (Viewport.cpp)
+// También se manda como 0x5A (Viewport.cpp)
+// También se manda como 0x5B (Viewport.cpp)
+// También se manda como 0x13 (Viewport.cpp)
+// También se manda como 0x1F (Viewport.cpp)
+// También se manda como 0x45 (Viewport.cpp)
+// También se manda como 0x5A (Viewport.cpp)
+// También se manda como 0x5B (Viewport.cpp)
+#pragma pack(push, 8)
+struct PMSG_VIEWPORT_SEND
+{
+    PWMSG_HEAD header;
+    BYTE count;
+
+    static constexpr uint8_t kHead = 0x12;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_VIEWPORT_SEND) == 5, "PMSG_VIEWPORT_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_VIEWPORT_SEND, header) == 0,
+              "PMSG_VIEWPORT_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_VIEWPORT_SEND, count) == 4,
+              "PMSG_VIEWPORT_SEND.count: offset no coincide con el IR");
+
+// Viewport.h
+// Relleno de alineación en el wire: @17(+1), @33(+1). El servidor manda el struct
+// entero (memcpy/sizeof), así que esos bytes VIAJAN: no se pueden omitir.
+#pragma pack(push, 8)
+struct PMSG_VIEWPORT_PLAYER
+{
+    BYTE index[2];
+    BYTE x;
+    BYTE y;
+    BYTE CharSet[13];
+    WORD count;
+    char name[10];
+    BYTE tx;
+    BYTE ty;
+    BYTE DirAndPkLevel;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_VIEWPORT_PLAYER) == 34, "PMSG_VIEWPORT_PLAYER: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_VIEWPORT_PLAYER, index) == 0,
+              "PMSG_VIEWPORT_PLAYER.index: offset no coincide con el IR");
+static_assert(offsetof(PMSG_VIEWPORT_PLAYER, x) == 2,
+              "PMSG_VIEWPORT_PLAYER.x: offset no coincide con el IR");
+static_assert(offsetof(PMSG_VIEWPORT_PLAYER, y) == 3,
+              "PMSG_VIEWPORT_PLAYER.y: offset no coincide con el IR");
+static_assert(offsetof(PMSG_VIEWPORT_PLAYER, CharSet) == 4,
+              "PMSG_VIEWPORT_PLAYER.CharSet: offset no coincide con el IR");
+static_assert(offsetof(PMSG_VIEWPORT_PLAYER, count) == 18,
+              "PMSG_VIEWPORT_PLAYER.count: offset no coincide con el IR");
+static_assert(offsetof(PMSG_VIEWPORT_PLAYER, name) == 20,
+              "PMSG_VIEWPORT_PLAYER.name: offset no coincide con el IR");
+static_assert(offsetof(PMSG_VIEWPORT_PLAYER, tx) == 30,
+              "PMSG_VIEWPORT_PLAYER.tx: offset no coincide con el IR");
+static_assert(offsetof(PMSG_VIEWPORT_PLAYER, ty) == 31,
+              "PMSG_VIEWPORT_PLAYER.ty: offset no coincide con el IR");
+static_assert(offsetof(PMSG_VIEWPORT_PLAYER, DirAndPkLevel) == 32,
+              "PMSG_VIEWPORT_PLAYER.DirAndPkLevel: offset no coincide con el IR");
+
+// Viewport.h
+// Relleno de alineación en el wire: @11(+1). El servidor manda el struct
+// entero (memcpy/sizeof), así que esos bytes VIAJAN: no se pueden omitir.
+#pragma pack(push, 8)
+struct PMSG_VIEWPORT_MONSTER
+{
+    BYTE index[2];
+    BYTE type[2];
+    WORD count;
+    BYTE x;
+    BYTE y;
+    BYTE tx;
+    BYTE ty;
+    BYTE DirAndPkLevel;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_VIEWPORT_MONSTER) == 12, "PMSG_VIEWPORT_MONSTER: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_VIEWPORT_MONSTER, index) == 0,
+              "PMSG_VIEWPORT_MONSTER.index: offset no coincide con el IR");
+static_assert(offsetof(PMSG_VIEWPORT_MONSTER, type) == 2,
+              "PMSG_VIEWPORT_MONSTER.type: offset no coincide con el IR");
+static_assert(offsetof(PMSG_VIEWPORT_MONSTER, count) == 4,
+              "PMSG_VIEWPORT_MONSTER.count: offset no coincide con el IR");
+static_assert(offsetof(PMSG_VIEWPORT_MONSTER, x) == 6,
+              "PMSG_VIEWPORT_MONSTER.x: offset no coincide con el IR");
+static_assert(offsetof(PMSG_VIEWPORT_MONSTER, y) == 7,
+              "PMSG_VIEWPORT_MONSTER.y: offset no coincide con el IR");
+static_assert(offsetof(PMSG_VIEWPORT_MONSTER, tx) == 8,
+              "PMSG_VIEWPORT_MONSTER.tx: offset no coincide con el IR");
+static_assert(offsetof(PMSG_VIEWPORT_MONSTER, ty) == 9,
+              "PMSG_VIEWPORT_MONSTER.ty: offset no coincide con el IR");
+static_assert(offsetof(PMSG_VIEWPORT_MONSTER, DirAndPkLevel) == 10,
+              "PMSG_VIEWPORT_MONSTER.DirAndPkLevel: offset no coincide con el IR");
+
+// Viewport.h
+// Relleno de alineación en el wire: @21(+1). El servidor manda el struct
+// entero (memcpy/sizeof), así que esos bytes VIAJAN: no se pueden omitir.
+#pragma pack(push, 8)
+struct PMSG_VIEWPORT_SUMMON
+{
+    BYTE index[2];
+    BYTE type[2];
+    WORD count;
+    BYTE x;
+    BYTE y;
+    BYTE tx;
+    BYTE ty;
+    BYTE DirAndPkLevel;
+    char name[10];
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_VIEWPORT_SUMMON) == 22, "PMSG_VIEWPORT_SUMMON: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_VIEWPORT_SUMMON, index) == 0,
+              "PMSG_VIEWPORT_SUMMON.index: offset no coincide con el IR");
+static_assert(offsetof(PMSG_VIEWPORT_SUMMON, type) == 2,
+              "PMSG_VIEWPORT_SUMMON.type: offset no coincide con el IR");
+static_assert(offsetof(PMSG_VIEWPORT_SUMMON, count) == 4,
+              "PMSG_VIEWPORT_SUMMON.count: offset no coincide con el IR");
+static_assert(offsetof(PMSG_VIEWPORT_SUMMON, x) == 6,
+              "PMSG_VIEWPORT_SUMMON.x: offset no coincide con el IR");
+static_assert(offsetof(PMSG_VIEWPORT_SUMMON, y) == 7,
+              "PMSG_VIEWPORT_SUMMON.y: offset no coincide con el IR");
+static_assert(offsetof(PMSG_VIEWPORT_SUMMON, tx) == 8,
+              "PMSG_VIEWPORT_SUMMON.tx: offset no coincide con el IR");
+static_assert(offsetof(PMSG_VIEWPORT_SUMMON, ty) == 9,
+              "PMSG_VIEWPORT_SUMMON.ty: offset no coincide con el IR");
+static_assert(offsetof(PMSG_VIEWPORT_SUMMON, DirAndPkLevel) == 10,
+              "PMSG_VIEWPORT_SUMMON.DirAndPkLevel: offset no coincide con el IR");
+static_assert(offsetof(PMSG_VIEWPORT_SUMMON, name) == 11,
+              "PMSG_VIEWPORT_SUMMON.name: offset no coincide con el IR");
+
+// Viewport.h
+#pragma pack(push, 8)
+struct PMSG_VIEWPORT_ITEM
+{
+    BYTE index[2];
+    BYTE x;
+    BYTE y;
+    BYTE ItemInfo[5];
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_VIEWPORT_ITEM) == 9, "PMSG_VIEWPORT_ITEM: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_VIEWPORT_ITEM, index) == 0,
+              "PMSG_VIEWPORT_ITEM.index: offset no coincide con el IR");
+static_assert(offsetof(PMSG_VIEWPORT_ITEM, x) == 2,
+              "PMSG_VIEWPORT_ITEM.x: offset no coincide con el IR");
+static_assert(offsetof(PMSG_VIEWPORT_ITEM, y) == 3,
+              "PMSG_VIEWPORT_ITEM.y: offset no coincide con el IR");
+static_assert(offsetof(PMSG_VIEWPORT_ITEM, ItemInfo) == 4,
+              "PMSG_VIEWPORT_ITEM.ItemInfo: offset no coincide con el IR");
+
+// Viewport.h
+#pragma pack(push, 8)
+struct PMSG_VIEWPORT_CHANGE
+{
+    BYTE index[2];
+    BYTE x;
+    BYTE y;
+    BYTE skin[2];
+    WORD count;
+    char name[10];
+    BYTE tx;
+    BYTE ty;
+    BYTE DirAndPkLevel;
+    BYTE CharSet[13];
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_VIEWPORT_CHANGE) == 34, "PMSG_VIEWPORT_CHANGE: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_VIEWPORT_CHANGE, index) == 0,
+              "PMSG_VIEWPORT_CHANGE.index: offset no coincide con el IR");
+static_assert(offsetof(PMSG_VIEWPORT_CHANGE, x) == 2,
+              "PMSG_VIEWPORT_CHANGE.x: offset no coincide con el IR");
+static_assert(offsetof(PMSG_VIEWPORT_CHANGE, y) == 3,
+              "PMSG_VIEWPORT_CHANGE.y: offset no coincide con el IR");
+static_assert(offsetof(PMSG_VIEWPORT_CHANGE, skin) == 4,
+              "PMSG_VIEWPORT_CHANGE.skin: offset no coincide con el IR");
+static_assert(offsetof(PMSG_VIEWPORT_CHANGE, count) == 6,
+              "PMSG_VIEWPORT_CHANGE.count: offset no coincide con el IR");
+static_assert(offsetof(PMSG_VIEWPORT_CHANGE, name) == 8,
+              "PMSG_VIEWPORT_CHANGE.name: offset no coincide con el IR");
+static_assert(offsetof(PMSG_VIEWPORT_CHANGE, tx) == 18,
+              "PMSG_VIEWPORT_CHANGE.tx: offset no coincide con el IR");
+static_assert(offsetof(PMSG_VIEWPORT_CHANGE, ty) == 19,
+              "PMSG_VIEWPORT_CHANGE.ty: offset no coincide con el IR");
+static_assert(offsetof(PMSG_VIEWPORT_CHANGE, DirAndPkLevel) == 20,
+              "PMSG_VIEWPORT_CHANGE.DirAndPkLevel: offset no coincide con el IR");
+static_assert(offsetof(PMSG_VIEWPORT_CHANGE, CharSet) == 21,
+              "PMSG_VIEWPORT_CHANGE.CharSet: offset no coincide con el IR");
+
+// Viewport.h
+#pragma pack(push, 8)
+struct PMSG_VIEWPORT_GUILD
+{
+    BYTE index[2];
+    char name[8];
+    BYTE Mark[32];
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_VIEWPORT_GUILD) == 42, "PMSG_VIEWPORT_GUILD: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_VIEWPORT_GUILD, index) == 0,
+              "PMSG_VIEWPORT_GUILD.index: offset no coincide con el IR");
+static_assert(offsetof(PMSG_VIEWPORT_GUILD, name) == 2,
+              "PMSG_VIEWPORT_GUILD.name: offset no coincide con el IR");
+static_assert(offsetof(PMSG_VIEWPORT_GUILD, Mark) == 10,
+              "PMSG_VIEWPORT_GUILD.Mark: offset no coincide con el IR");
+
+// Viewport.h
+#pragma pack(push, 8)
+struct PMSG_VIEWPORT_GUILD_MEMBER
+{
+    BYTE index[2];
+    BYTE number[2];
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_VIEWPORT_GUILD_MEMBER) == 4, "PMSG_VIEWPORT_GUILD_MEMBER: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_VIEWPORT_GUILD_MEMBER, index) == 0,
+              "PMSG_VIEWPORT_GUILD_MEMBER.index: offset no coincide con el IR");
+static_assert(offsetof(PMSG_VIEWPORT_GUILD_MEMBER, number) == 2,
+              "PMSG_VIEWPORT_GUILD_MEMBER.number: offset no coincide con el IR");
+
+// Viewport.h
+// Opcode 0x5D (server_to_client) -- Viewport.cpp
+#pragma pack(push, 8)
+struct PMSG_GUILD_VIEWPORT_DELETE_SEND
+{
+    PBMSG_HEAD header;
+    BYTE index[2];
+
+    static constexpr uint8_t kHead = 0x5D;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_GUILD_VIEWPORT_DELETE_SEND) == 5, "PMSG_GUILD_VIEWPORT_DELETE_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_GUILD_VIEWPORT_DELETE_SEND, header) == 0,
+              "PMSG_GUILD_VIEWPORT_DELETE_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_GUILD_VIEWPORT_DELETE_SEND, index) == 3,
+              "PMSG_GUILD_VIEWPORT_DELETE_SEND.index: offset no coincide con el IR");
+
+// Warehouse.h
+// Opcode 0x81 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_WAREHOUSE_MONEY_RECV
+{
+    PBMSG_HEAD header;
+    BYTE type;
+    DWORD money;
+
+    static constexpr uint8_t kHead = 0x81;
+    static constexpr bool kHasSub = false;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_WAREHOUSE_MONEY_RECV) == 8, "PMSG_WAREHOUSE_MONEY_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_WAREHOUSE_MONEY_RECV, header) == 0,
+              "PMSG_WAREHOUSE_MONEY_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_WAREHOUSE_MONEY_RECV, type) == 3,
+              "PMSG_WAREHOUSE_MONEY_RECV.type: offset no coincide con el IR");
+static_assert(offsetof(PMSG_WAREHOUSE_MONEY_RECV, money) == 4,
+              "PMSG_WAREHOUSE_MONEY_RECV.money: offset no coincide con el IR");
+
+// Warehouse.h
+// Opcode 0x83 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_WAREHOUSE_PASSWORD_RECV
+{
+    PBMSG_HEAD header;
+    BYTE type;
+    WORD password;
+    char PersonalCode[10];
+
+    static constexpr uint8_t kHead = 0x83;
+    static constexpr bool kHasSub = false;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_WAREHOUSE_PASSWORD_RECV) == 16, "PMSG_WAREHOUSE_PASSWORD_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_WAREHOUSE_PASSWORD_RECV, header) == 0,
+              "PMSG_WAREHOUSE_PASSWORD_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_WAREHOUSE_PASSWORD_RECV, type) == 3,
+              "PMSG_WAREHOUSE_PASSWORD_RECV.type: offset no coincide con el IR");
+static_assert(offsetof(PMSG_WAREHOUSE_PASSWORD_RECV, password) == 4,
+              "PMSG_WAREHOUSE_PASSWORD_RECV.password: offset no coincide con el IR");
+static_assert(offsetof(PMSG_WAREHOUSE_PASSWORD_RECV, PersonalCode) == 6,
+              "PMSG_WAREHOUSE_PASSWORD_RECV.PersonalCode: offset no coincide con el IR");
+
+// Warehouse.h
+// Opcode 0x81 (server_to_client) -- Warehouse.cpp
+#pragma pack(push, 8)
+struct PMSG_WAREHOUSE_MONEY_SEND
+{
+    PBMSG_HEAD header;
+    BYTE result;
+    DWORD WarehouseMoney;
+    DWORD InventoryMoney;
+
+    static constexpr uint8_t kHead = 0x81;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_WAREHOUSE_MONEY_SEND) == 12, "PMSG_WAREHOUSE_MONEY_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_WAREHOUSE_MONEY_SEND, header) == 0,
+              "PMSG_WAREHOUSE_MONEY_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_WAREHOUSE_MONEY_SEND, result) == 3,
+              "PMSG_WAREHOUSE_MONEY_SEND.result: offset no coincide con el IR");
+static_assert(offsetof(PMSG_WAREHOUSE_MONEY_SEND, WarehouseMoney) == 4,
+              "PMSG_WAREHOUSE_MONEY_SEND.WarehouseMoney: offset no coincide con el IR");
+static_assert(offsetof(PMSG_WAREHOUSE_MONEY_SEND, InventoryMoney) == 8,
+              "PMSG_WAREHOUSE_MONEY_SEND.InventoryMoney: offset no coincide con el IR");
+
+// Warehouse.h
+// Opcode 0x83 (server_to_client) -- Warehouse.cpp
+#pragma pack(push, 8)
+struct PMSG_WAREHOUSE_STATE_SEND
+{
+    PBMSG_HEAD header;
+    BYTE state;
+
+    static constexpr uint8_t kHead = 0x83;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_WAREHOUSE_STATE_SEND) == 4, "PMSG_WAREHOUSE_STATE_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_WAREHOUSE_STATE_SEND, header) == 0,
+              "PMSG_WAREHOUSE_STATE_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_WAREHOUSE_STATE_SEND, state) == 3,
+              "PMSG_WAREHOUSE_STATE_SEND.state: offset no coincide con el IR");
+
+// ConnectServerProtocol.h
+// Opcode 0xF4:0x02 (client_to_server) -- ConnectServerProtocol.cpp (ConnectServerProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_SERVER_LIST_RECV
+{
+    PSBMSG_HEAD header;
+
+    static constexpr uint8_t kHead = 0xF4;
+    static constexpr uint8_t kSub = 0x02;
+    static constexpr bool kHasSub = true;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_SERVER_LIST_RECV) == 4, "PMSG_SERVER_LIST_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_SERVER_LIST_RECV, header) == 0,
+              "PMSG_SERVER_LIST_RECV.header: offset no coincide con el IR");
+
+// ConnectServerProtocol.h
+// Opcode 0xF4:0x03 (client_to_server) -- ConnectServerProtocol.cpp (ConnectServerProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_SERVER_INFO_RECV
+{
+    PSBMSG_HEAD header;
+    BYTE ServerCode;
+
+    static constexpr uint8_t kHead = 0xF4;
+    static constexpr uint8_t kSub = 0x03;
+    static constexpr bool kHasSub = true;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_SERVER_INFO_RECV) == 5, "PMSG_SERVER_INFO_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_SERVER_INFO_RECV, header) == 0,
+              "PMSG_SERVER_INFO_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_SERVER_INFO_RECV, ServerCode) == 4,
+              "PMSG_SERVER_INFO_RECV.ServerCode: offset no coincide con el IR");
+
+// ConnectServerProtocol.h
+// Opcode 0x00 (server_to_client) -- ConnectServerProtocol.cpp
+#pragma pack(push, 8)
+struct PMSG_SERVER_INIT_SEND
+{
+    PBMSG_HEAD header;
+    BYTE result;
+
+    static constexpr uint8_t kHead = 0x00;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_SERVER_INIT_SEND) == 4, "PMSG_SERVER_INIT_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_SERVER_INIT_SEND, header) == 0,
+              "PMSG_SERVER_INIT_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_SERVER_INIT_SEND, result) == 3,
+              "PMSG_SERVER_INIT_SEND.result: offset no coincide con el IR");
+
+// ConnectServerProtocol.h
+// Opcode 0xF4:0x02 (server_to_client) -- ConnectServerProtocol.cpp
+#pragma pack(push, 8)
+struct PMSG_SERVER_LIST_SEND
+{
+    PSWMSG_HEAD header;
+    BYTE count;
+
+    static constexpr uint8_t kHead = 0xF4;
+    static constexpr uint8_t kSub = 0x02;
+    static constexpr bool kHasSub = true;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_SERVER_LIST_SEND) == 6, "PMSG_SERVER_LIST_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_SERVER_LIST_SEND, header) == 0,
+              "PMSG_SERVER_LIST_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_SERVER_LIST_SEND, count) == 5,
+              "PMSG_SERVER_LIST_SEND.count: offset no coincide con el IR");
+
+// ConnectServerProtocol.h
+// Opcode 0xF4:0x03 (server_to_client) -- ConnectServerProtocol.cpp
+#pragma pack(push, 8)
+struct PMSG_SERVER_INFO_SEND
+{
+    PSBMSG_HEAD header;
+    char ServerAddress[16];
+    WORD ServerPort;
+
+    static constexpr uint8_t kHead = 0xF4;
+    static constexpr uint8_t kSub = 0x03;
+    static constexpr bool kHasSub = true;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_SERVER_INFO_SEND) == 22, "PMSG_SERVER_INFO_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_SERVER_INFO_SEND, header) == 0,
+              "PMSG_SERVER_INFO_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_SERVER_INFO_SEND, ServerAddress) == 4,
+              "PMSG_SERVER_INFO_SEND.ServerAddress: offset no coincide con el IR");
+static_assert(offsetof(PMSG_SERVER_INFO_SEND, ServerPort) == 20,
+              "PMSG_SERVER_INFO_SEND.ServerPort: offset no coincide con el IR");
+
+// ConnectServerProtocol.h
+#pragma pack(push, 8)
+struct PMSG_SERVER_LIST
+{
+    WORD ServerCode;
+    BYTE UserTotal;
+    BYTE type;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_SERVER_LIST) == 4, "PMSG_SERVER_LIST: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_SERVER_LIST, ServerCode) == 0,
+              "PMSG_SERVER_LIST.ServerCode: offset no coincide con el IR");
+static_assert(offsetof(PMSG_SERVER_LIST, UserTotal) == 2,
+              "PMSG_SERVER_LIST.UserTotal: offset no coincide con el IR");
+static_assert(offsetof(PMSG_SERVER_LIST, type) == 3,
+              "PMSG_SERVER_LIST.type: offset no coincide con el IR");
+
+// ConnectServerProtocol.h
+// Opcode 0xF3:0xEA (server_to_client) -- ConnectServerProtocol.cpp
+#pragma pack(push, 8)
+struct PMSG_SERVER_NAME_LIST_SEND
+{
+    PSWMSG_HEAD header;
+    BYTE count;
+
+    static constexpr uint8_t kHead = 0xF3;
+    static constexpr uint8_t kSub = 0xEA;
+    static constexpr bool kHasSub = true;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_SERVER_NAME_LIST_SEND) == 6, "PMSG_SERVER_NAME_LIST_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_SERVER_NAME_LIST_SEND, header) == 0,
+              "PMSG_SERVER_NAME_LIST_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_SERVER_NAME_LIST_SEND, count) == 5,
+              "PMSG_SERVER_NAME_LIST_SEND.count: offset no coincide con el IR");
+
+// ConnectServerProtocol.h
+#pragma pack(push, 8)
+struct PMSG_SERVER_NAME
+{
+    WORD index;
+    char Name[32];
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_SERVER_NAME) == 34, "PMSG_SERVER_NAME: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_SERVER_NAME, index) == 0,
+              "PMSG_SERVER_NAME.index: offset no coincide con el IR");
+static_assert(offsetof(PMSG_SERVER_NAME, Name) == 2,
+              "PMSG_SERVER_NAME.Name: offset no coincide con el IR");
+
+// Attack.h
+// Opcode 0xD9 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_ATTACK_RECV
+{
+    PBMSG_HEAD header;
+    BYTE index[2];
+    BYTE action;
+    BYTE dir;
+
+    static constexpr uint8_t kHead = 0xD9;
+    static constexpr bool kHasSub = false;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_ATTACK_RECV) == 7, "PMSG_ATTACK_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_ATTACK_RECV, header) == 0,
+              "PMSG_ATTACK_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ATTACK_RECV, index) == 3,
+              "PMSG_ATTACK_RECV.index: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ATTACK_RECV, action) == 5,
+              "PMSG_ATTACK_RECV.action: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ATTACK_RECV, dir) == 6,
+              "PMSG_ATTACK_RECV.dir: offset no coincide con el IR");
+
+// BloodCastle.h
+// Opcode 0x9A (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_BLOOD_CASTLE_ENTER_RECV
+{
+    PBMSG_HEAD header;
+    BYTE level;
+    BYTE slot;
+
+    static constexpr uint8_t kHead = 0x9A;
+    static constexpr bool kHasSub = false;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_BLOOD_CASTLE_ENTER_RECV) == 5, "PMSG_BLOOD_CASTLE_ENTER_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_BLOOD_CASTLE_ENTER_RECV, header) == 0,
+              "PMSG_BLOOD_CASTLE_ENTER_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_BLOOD_CASTLE_ENTER_RECV, level) == 3,
+              "PMSG_BLOOD_CASTLE_ENTER_RECV.level: offset no coincide con el IR");
+static_assert(offsetof(PMSG_BLOOD_CASTLE_ENTER_RECV, slot) == 4,
+              "PMSG_BLOOD_CASTLE_ENTER_RECV.slot: offset no coincide con el IR");
+
+// BloodCastle.h
+// Opcode 0x93 (server_to_client) -- BloodCastle.cpp
+#pragma pack(push, 8)
+struct PMSG_BLOOD_CASTLE_SCORE_SEND
+{
+#pragma pack(1)
+    PBMSG_HEAD header;
+    BYTE type;
+    BYTE flag;
+    char name[10];
+    WORD none;
+    DWORD Score;
+    DWORD RewardExperience;
+    DWORD RewardMoney;
+
+    static constexpr uint8_t kHead = 0x93;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_BLOOD_CASTLE_SCORE_SEND) == 29, "PMSG_BLOOD_CASTLE_SCORE_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_BLOOD_CASTLE_SCORE_SEND, header) == 0,
+              "PMSG_BLOOD_CASTLE_SCORE_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_BLOOD_CASTLE_SCORE_SEND, type) == 3,
+              "PMSG_BLOOD_CASTLE_SCORE_SEND.type: offset no coincide con el IR");
+static_assert(offsetof(PMSG_BLOOD_CASTLE_SCORE_SEND, flag) == 4,
+              "PMSG_BLOOD_CASTLE_SCORE_SEND.flag: offset no coincide con el IR");
+static_assert(offsetof(PMSG_BLOOD_CASTLE_SCORE_SEND, name) == 5,
+              "PMSG_BLOOD_CASTLE_SCORE_SEND.name: offset no coincide con el IR");
+static_assert(offsetof(PMSG_BLOOD_CASTLE_SCORE_SEND, none) == 15,
+              "PMSG_BLOOD_CASTLE_SCORE_SEND.none: offset no coincide con el IR");
+static_assert(offsetof(PMSG_BLOOD_CASTLE_SCORE_SEND, Score) == 17,
+              "PMSG_BLOOD_CASTLE_SCORE_SEND.Score: offset no coincide con el IR");
+static_assert(offsetof(PMSG_BLOOD_CASTLE_SCORE_SEND, RewardExperience) == 21,
+              "PMSG_BLOOD_CASTLE_SCORE_SEND.RewardExperience: offset no coincide con el IR");
+static_assert(offsetof(PMSG_BLOOD_CASTLE_SCORE_SEND, RewardMoney) == 25,
+              "PMSG_BLOOD_CASTLE_SCORE_SEND.RewardMoney: offset no coincide con el IR");
+
+// BloodCastle.h
+// Opcode 0x9A (server_to_client) -- BloodCastle.cpp
+#pragma pack(push, 8)
+struct PMSG_BLOOD_CASTLE_ENTER_SEND
+{
+    PBMSG_HEAD header;
+    BYTE result;
+
+    static constexpr uint8_t kHead = 0x9A;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_BLOOD_CASTLE_ENTER_SEND) == 4, "PMSG_BLOOD_CASTLE_ENTER_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_BLOOD_CASTLE_ENTER_SEND, header) == 0,
+              "PMSG_BLOOD_CASTLE_ENTER_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_BLOOD_CASTLE_ENTER_SEND, result) == 3,
+              "PMSG_BLOOD_CASTLE_ENTER_SEND.result: offset no coincide con el IR");
+
+// BloodCastle.h
+// Relleno de alineación en el wire: @13(+1). El servidor manda el struct
+// entero (memcpy/sizeof), así que esos bytes VIAJAN: no se pueden omitir.
+// Opcode 0x9B (server_to_client) -- BloodCastle.cpp
+#pragma pack(push, 8)
+struct PMSG_BLOOD_CASTLE_STATE_SEND
+{
+    PBMSG_HEAD header;
+    BYTE state;
+    WORD time;
+    WORD MaxMonster;
+    WORD CurMonster;
+    WORD EventItemOwner;
+    BYTE EventItemLevel;
+
+    static constexpr uint8_t kHead = 0x9B;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_BLOOD_CASTLE_STATE_SEND) == 14, "PMSG_BLOOD_CASTLE_STATE_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_BLOOD_CASTLE_STATE_SEND, header) == 0,
+              "PMSG_BLOOD_CASTLE_STATE_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_BLOOD_CASTLE_STATE_SEND, state) == 3,
+              "PMSG_BLOOD_CASTLE_STATE_SEND.state: offset no coincide con el IR");
+static_assert(offsetof(PMSG_BLOOD_CASTLE_STATE_SEND, time) == 4,
+              "PMSG_BLOOD_CASTLE_STATE_SEND.time: offset no coincide con el IR");
+static_assert(offsetof(PMSG_BLOOD_CASTLE_STATE_SEND, MaxMonster) == 6,
+              "PMSG_BLOOD_CASTLE_STATE_SEND.MaxMonster: offset no coincide con el IR");
+static_assert(offsetof(PMSG_BLOOD_CASTLE_STATE_SEND, CurMonster) == 8,
+              "PMSG_BLOOD_CASTLE_STATE_SEND.CurMonster: offset no coincide con el IR");
+static_assert(offsetof(PMSG_BLOOD_CASTLE_STATE_SEND, EventItemOwner) == 10,
+              "PMSG_BLOOD_CASTLE_STATE_SEND.EventItemOwner: offset no coincide con el IR");
+static_assert(offsetof(PMSG_BLOOD_CASTLE_STATE_SEND, EventItemLevel) == 12,
+              "PMSG_BLOOD_CASTLE_STATE_SEND.EventItemLevel: offset no coincide con el IR");
+
+// ChaosBox.h
+// Opcode 0x86 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_CHAOS_MIX_RECV
+{
+    PBMSG_HEAD header;
+    BYTE type;
+    BYTE info;
+
+    static constexpr uint8_t kHead = 0x86;
+    static constexpr bool kHasSub = false;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_CHAOS_MIX_RECV) == 5, "PMSG_CHAOS_MIX_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_CHAOS_MIX_RECV, header) == 0,
+              "PMSG_CHAOS_MIX_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHAOS_MIX_RECV, type) == 3,
+              "PMSG_CHAOS_MIX_RECV.type: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHAOS_MIX_RECV, info) == 4,
+              "PMSG_CHAOS_MIX_RECV.info: offset no coincide con el IR");
+
+// ChaosBox.h
+// Relleno de alineación en el wire: @3(+1). El servidor manda el struct
+// entero (memcpy/sizeof), así que esos bytes VIAJAN: no se pueden omitir.
+// Opcode 0x88 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_CHAOS_MIX_RATE_RECV
+{
+    PBMSG_HEAD header;
+    DWORD type;
+
+    static constexpr uint8_t kHead = 0x88;
+    static constexpr bool kHasSub = false;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_CHAOS_MIX_RATE_RECV) == 8, "PMSG_CHAOS_MIX_RATE_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_CHAOS_MIX_RATE_RECV, header) == 0,
+              "PMSG_CHAOS_MIX_RATE_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHAOS_MIX_RATE_RECV, type) == 4,
+              "PMSG_CHAOS_MIX_RATE_RECV.type: offset no coincide con el IR");
+
+// ChaosBox.h
+// Opcode 0x86 (server_to_client) -- ChaosBox.cpp
+#pragma pack(push, 8)
+struct PMSG_CHAOS_MIX_SEND
+{
+    PBMSG_HEAD header;
+    BYTE result;
+    BYTE ItemInfo[5];
+
+    static constexpr uint8_t kHead = 0x86;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_CHAOS_MIX_SEND) == 9, "PMSG_CHAOS_MIX_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_CHAOS_MIX_SEND, header) == 0,
+              "PMSG_CHAOS_MIX_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHAOS_MIX_SEND, result) == 3,
+              "PMSG_CHAOS_MIX_SEND.result: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHAOS_MIX_SEND, ItemInfo) == 4,
+              "PMSG_CHAOS_MIX_SEND.ItemInfo: offset no coincide con el IR");
+
+// ChaosBox.h
+// Relleno de alineación en el wire: @3(+1). El servidor manda el struct
+// entero (memcpy/sizeof), así que esos bytes VIAJAN: no se pueden omitir.
+// Opcode 0x88 (server_to_client) -- ChaosBox.cpp
+#pragma pack(push, 8)
+struct PMSG_CHAOS_MIX_RATE_SEND
+{
+    PBMSG_HEAD header;
+    int rate;
+    int money;
+
+    static constexpr uint8_t kHead = 0x88;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_CHAOS_MIX_RATE_SEND) == 12, "PMSG_CHAOS_MIX_RATE_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_CHAOS_MIX_RATE_SEND, header) == 0,
+              "PMSG_CHAOS_MIX_RATE_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHAOS_MIX_RATE_SEND, rate) == 4,
+              "PMSG_CHAOS_MIX_RATE_SEND.rate: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHAOS_MIX_RATE_SEND, money) == 8,
+              "PMSG_CHAOS_MIX_RATE_SEND.money: offset no coincide con el IR");
+
+// ChaosCastle.h
+// Opcode 0xAF:0x01 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_CHAOS_CASTLE_ENTER_RECV
+{
+    PSBMSG_HEAD header;
+    BYTE level;
+    BYTE slot;
+
+    static constexpr uint8_t kHead = 0xAF;
+    static constexpr uint8_t kSub = 0x01;
+    static constexpr bool kHasSub = true;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_CHAOS_CASTLE_ENTER_RECV) == 6, "PMSG_CHAOS_CASTLE_ENTER_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_CHAOS_CASTLE_ENTER_RECV, header) == 0,
+              "PMSG_CHAOS_CASTLE_ENTER_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHAOS_CASTLE_ENTER_RECV, level) == 4,
+              "PMSG_CHAOS_CASTLE_ENTER_RECV.level: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHAOS_CASTLE_ENTER_RECV, slot) == 5,
+              "PMSG_CHAOS_CASTLE_ENTER_RECV.slot: offset no coincide con el IR");
+
+// ChaosCastle.h
+// Opcode 0xAF:0x02 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_CHAOS_CASTLE_POSITION_RECV
+{
+    PSBMSG_HEAD header;
+    BYTE x;
+    BYTE y;
+
+    static constexpr uint8_t kHead = 0xAF;
+    static constexpr uint8_t kSub = 0x02;
+    static constexpr bool kHasSub = true;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_CHAOS_CASTLE_POSITION_RECV) == 6, "PMSG_CHAOS_CASTLE_POSITION_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_CHAOS_CASTLE_POSITION_RECV, header) == 0,
+              "PMSG_CHAOS_CASTLE_POSITION_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHAOS_CASTLE_POSITION_RECV, x) == 4,
+              "PMSG_CHAOS_CASTLE_POSITION_RECV.x: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHAOS_CASTLE_POSITION_RECV, y) == 5,
+              "PMSG_CHAOS_CASTLE_POSITION_RECV.y: offset no coincide con el IR");
+
+// ChaosCastle.h
+// Opcode 0x93 (server_to_client) -- ChaosCastle.cpp
+#pragma pack(push, 8)
+struct PMSG_CHAOS_CASTLE_SCORE_SEND
+{
+#pragma pack(1)
+    PBMSG_HEAD header;
+    BYTE type;
+    BYTE flag;
+    char name[10];
+    WORD none;
+    DWORD MonsterKillCount;
+    DWORD RewardExperience;
+    DWORD UserKillCount;
+
+    static constexpr uint8_t kHead = 0x93;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_CHAOS_CASTLE_SCORE_SEND) == 29, "PMSG_CHAOS_CASTLE_SCORE_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_CHAOS_CASTLE_SCORE_SEND, header) == 0,
+              "PMSG_CHAOS_CASTLE_SCORE_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHAOS_CASTLE_SCORE_SEND, type) == 3,
+              "PMSG_CHAOS_CASTLE_SCORE_SEND.type: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHAOS_CASTLE_SCORE_SEND, flag) == 4,
+              "PMSG_CHAOS_CASTLE_SCORE_SEND.flag: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHAOS_CASTLE_SCORE_SEND, name) == 5,
+              "PMSG_CHAOS_CASTLE_SCORE_SEND.name: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHAOS_CASTLE_SCORE_SEND, none) == 15,
+              "PMSG_CHAOS_CASTLE_SCORE_SEND.none: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHAOS_CASTLE_SCORE_SEND, MonsterKillCount) == 17,
+              "PMSG_CHAOS_CASTLE_SCORE_SEND.MonsterKillCount: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHAOS_CASTLE_SCORE_SEND, RewardExperience) == 21,
+              "PMSG_CHAOS_CASTLE_SCORE_SEND.RewardExperience: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHAOS_CASTLE_SCORE_SEND, UserKillCount) == 25,
+              "PMSG_CHAOS_CASTLE_SCORE_SEND.UserKillCount: offset no coincide con el IR");
+
+// ChaosCastle.h
+// Relleno de alineación en el wire: @13(+1). El servidor manda el struct
+// entero (memcpy/sizeof), así que esos bytes VIAJAN: no se pueden omitir.
+// Opcode 0x9B (server_to_client) -- ChaosCastle.cpp
+#pragma pack(push, 8)
+struct PMSG_CHAOS_CASTLE_STATE_SEND
+{
+    PBMSG_HEAD header;
+    BYTE state;
+    WORD time;
+    WORD MaxMonster;
+    WORD CurMonster;
+    WORD EventItemOwner;
+    BYTE EventItemLevel;
+
+    static constexpr uint8_t kHead = 0x9B;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_CHAOS_CASTLE_STATE_SEND) == 14, "PMSG_CHAOS_CASTLE_STATE_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_CHAOS_CASTLE_STATE_SEND, header) == 0,
+              "PMSG_CHAOS_CASTLE_STATE_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHAOS_CASTLE_STATE_SEND, state) == 3,
+              "PMSG_CHAOS_CASTLE_STATE_SEND.state: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHAOS_CASTLE_STATE_SEND, time) == 4,
+              "PMSG_CHAOS_CASTLE_STATE_SEND.time: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHAOS_CASTLE_STATE_SEND, MaxMonster) == 6,
+              "PMSG_CHAOS_CASTLE_STATE_SEND.MaxMonster: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHAOS_CASTLE_STATE_SEND, CurMonster) == 8,
+              "PMSG_CHAOS_CASTLE_STATE_SEND.CurMonster: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHAOS_CASTLE_STATE_SEND, EventItemOwner) == 10,
+              "PMSG_CHAOS_CASTLE_STATE_SEND.EventItemOwner: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHAOS_CASTLE_STATE_SEND, EventItemLevel) == 12,
+              "PMSG_CHAOS_CASTLE_STATE_SEND.EventItemLevel: offset no coincide con el IR");
+
+// ChaosCastle.h
+// Opcode 0xAF:0x01 (server_to_client) -- ChaosCastle.cpp
+#pragma pack(push, 8)
+struct PMSG_CHAOS_CASTLE_ENTER_SEND
+{
+    PSBMSG_HEAD header;
+    BYTE result;
+
+    static constexpr uint8_t kHead = 0xAF;
+    static constexpr uint8_t kSub = 0x01;
+    static constexpr bool kHasSub = true;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_CHAOS_CASTLE_ENTER_SEND) == 5, "PMSG_CHAOS_CASTLE_ENTER_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_CHAOS_CASTLE_ENTER_SEND, header) == 0,
+              "PMSG_CHAOS_CASTLE_ENTER_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CHAOS_CASTLE_ENTER_SEND, result) == 4,
+              "PMSG_CHAOS_CASTLE_ENTER_SEND.result: offset no coincide con el IR");
+
+// ConnectionManager.h
+// Opcode 0xF3:0x09 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_HARDWARE_ID_INFO_RECV
+{
+    PSBMSG_HEAD header;
+    char HardwareId[45];
+
+    static constexpr uint8_t kHead = 0xF3;
+    static constexpr uint8_t kSub = 0x09;
+    static constexpr bool kHasSub = true;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_HARDWARE_ID_INFO_RECV) == 49, "PMSG_HARDWARE_ID_INFO_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_HARDWARE_ID_INFO_RECV, header) == 0,
+              "PMSG_HARDWARE_ID_INFO_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_HARDWARE_ID_INFO_RECV, HardwareId) == 4,
+              "PMSG_HARDWARE_ID_INFO_RECV.HardwareId: offset no coincide con el IR");
+
+// CustomAttack.h
+// Opcode 0xF3:0xEB (server_to_client) -- CustomAttack.cpp
+#pragma pack(push, 8)
+struct PMSG_CUSTOM_ATTACK_SEND
+{
+    PSBMSG_HEAD header;
+    int Started;
+
+    static constexpr uint8_t kHead = 0xF3;
+    static constexpr uint8_t kSub = 0xEB;
+    static constexpr bool kHasSub = true;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_CUSTOM_ATTACK_SEND) == 8, "PMSG_CUSTOM_ATTACK_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_CUSTOM_ATTACK_SEND, header) == 0,
+              "PMSG_CUSTOM_ATTACK_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_CUSTOM_ATTACK_SEND, Started) == 4,
+              "PMSG_CUSTOM_ATTACK_SEND.Started: offset no coincide con el IR");
+
+// DarkSpirit.h
+// Opcode 0xA7 (server_to_client) -- DarkSpirit.cpp
+#pragma pack(push, 8)
+struct PMSG_DARK_SPIRIT_MODE_SEND
+{
+    PBMSG_HEAD header;
+    BYTE type;
+    BYTE mode;
+    BYTE index[2];
+
+    static constexpr uint8_t kHead = 0xA7;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_DARK_SPIRIT_MODE_SEND) == 7, "PMSG_DARK_SPIRIT_MODE_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_DARK_SPIRIT_MODE_SEND, header) == 0,
+              "PMSG_DARK_SPIRIT_MODE_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_DARK_SPIRIT_MODE_SEND, type) == 3,
+              "PMSG_DARK_SPIRIT_MODE_SEND.type: offset no coincide con el IR");
+static_assert(offsetof(PMSG_DARK_SPIRIT_MODE_SEND, mode) == 4,
+              "PMSG_DARK_SPIRIT_MODE_SEND.mode: offset no coincide con el IR");
+static_assert(offsetof(PMSG_DARK_SPIRIT_MODE_SEND, index) == 5,
+              "PMSG_DARK_SPIRIT_MODE_SEND.index: offset no coincide con el IR");
+
+// DarkSpirit.h
+// Opcode 0xA8 (server_to_client) -- DarkSpirit.cpp
+#pragma pack(push, 8)
+struct PMSG_DARK_SPIRIT_ATTACK_SEND
+{
+    PBMSG_HEAD header;
+    BYTE type;
+    BYTE action;
+    BYTE index[2];
+    BYTE target[2];
+
+    static constexpr uint8_t kHead = 0xA8;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_DARK_SPIRIT_ATTACK_SEND) == 9, "PMSG_DARK_SPIRIT_ATTACK_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_DARK_SPIRIT_ATTACK_SEND, header) == 0,
+              "PMSG_DARK_SPIRIT_ATTACK_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_DARK_SPIRIT_ATTACK_SEND, type) == 3,
+              "PMSG_DARK_SPIRIT_ATTACK_SEND.type: offset no coincide con el IR");
+static_assert(offsetof(PMSG_DARK_SPIRIT_ATTACK_SEND, action) == 4,
+              "PMSG_DARK_SPIRIT_ATTACK_SEND.action: offset no coincide con el IR");
+static_assert(offsetof(PMSG_DARK_SPIRIT_ATTACK_SEND, index) == 5,
+              "PMSG_DARK_SPIRIT_ATTACK_SEND.index: offset no coincide con el IR");
+static_assert(offsetof(PMSG_DARK_SPIRIT_ATTACK_SEND, target) == 7,
+              "PMSG_DARK_SPIRIT_ATTACK_SEND.target: offset no coincide con el IR");
+
+// DevilSquare.h
+// Opcode 0x90 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_DEVIL_SQUARE_ENTER_RECV
+{
+    PBMSG_HEAD header;
+    BYTE level;
+    BYTE slot;
+
+    static constexpr uint8_t kHead = 0x90;
+    static constexpr bool kHasSub = false;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_DEVIL_SQUARE_ENTER_RECV) == 5, "PMSG_DEVIL_SQUARE_ENTER_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_DEVIL_SQUARE_ENTER_RECV, header) == 0,
+              "PMSG_DEVIL_SQUARE_ENTER_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_DEVIL_SQUARE_ENTER_RECV, level) == 3,
+              "PMSG_DEVIL_SQUARE_ENTER_RECV.level: offset no coincide con el IR");
+static_assert(offsetof(PMSG_DEVIL_SQUARE_ENTER_RECV, slot) == 4,
+              "PMSG_DEVIL_SQUARE_ENTER_RECV.slot: offset no coincide con el IR");
+
+// DevilSquare.h
+// Opcode 0x90 (server_to_client) -- DevilSquare.cpp
+#pragma pack(push, 8)
+struct PMSG_DEVIL_SQUARE_ENTER_SEND
+{
+    PBMSG_HEAD header;
+    BYTE result;
+
+    static constexpr uint8_t kHead = 0x90;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_DEVIL_SQUARE_ENTER_SEND) == 4, "PMSG_DEVIL_SQUARE_ENTER_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_DEVIL_SQUARE_ENTER_SEND, header) == 0,
+              "PMSG_DEVIL_SQUARE_ENTER_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_DEVIL_SQUARE_ENTER_SEND, result) == 3,
+              "PMSG_DEVIL_SQUARE_ENTER_SEND.result: offset no coincide con el IR");
+
+// DevilSquare.h
+// Opcode 0x93 (server_to_client) -- DevilSquare.cpp
+#pragma pack(push, 8)
+struct PMSG_DEVIL_SQUARE_SCORE_SEND
+{
+    PBMSG_HEAD header;
+    BYTE rank;
+    BYTE count;
+
+    static constexpr uint8_t kHead = 0x93;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_DEVIL_SQUARE_SCORE_SEND) == 5, "PMSG_DEVIL_SQUARE_SCORE_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_DEVIL_SQUARE_SCORE_SEND, header) == 0,
+              "PMSG_DEVIL_SQUARE_SCORE_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_DEVIL_SQUARE_SCORE_SEND, rank) == 3,
+              "PMSG_DEVIL_SQUARE_SCORE_SEND.rank: offset no coincide con el IR");
+static_assert(offsetof(PMSG_DEVIL_SQUARE_SCORE_SEND, count) == 4,
+              "PMSG_DEVIL_SQUARE_SCORE_SEND.count: offset no coincide con el IR");
+
+// Duel.h
+// Opcode 0xAA (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_DUEL_START_RECV
+{
+    PBMSG_HEAD header;
+    BYTE index[2];
+    char name[10];
+
+    static constexpr uint8_t kHead = 0xAA;
+    static constexpr bool kHasSub = false;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_DUEL_START_RECV) == 15, "PMSG_DUEL_START_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_DUEL_START_RECV, header) == 0,
+              "PMSG_DUEL_START_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_DUEL_START_RECV, index) == 3,
+              "PMSG_DUEL_START_RECV.index: offset no coincide con el IR");
+static_assert(offsetof(PMSG_DUEL_START_RECV, name) == 5,
+              "PMSG_DUEL_START_RECV.name: offset no coincide con el IR");
+
+// Duel.h
+// Opcode 0xAC (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_DUEL_OK_RECV
+{
+    PBMSG_HEAD header;
+    BYTE flag;
+    BYTE index[2];
+    char name[10];
+
+    static constexpr uint8_t kHead = 0xAC;
+    static constexpr bool kHasSub = false;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_DUEL_OK_RECV) == 16, "PMSG_DUEL_OK_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_DUEL_OK_RECV, header) == 0,
+              "PMSG_DUEL_OK_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_DUEL_OK_RECV, flag) == 3,
+              "PMSG_DUEL_OK_RECV.flag: offset no coincide con el IR");
+static_assert(offsetof(PMSG_DUEL_OK_RECV, index) == 4,
+              "PMSG_DUEL_OK_RECV.index: offset no coincide con el IR");
+static_assert(offsetof(PMSG_DUEL_OK_RECV, name) == 6,
+              "PMSG_DUEL_OK_RECV.name: offset no coincide con el IR");
+
+// Duel.h
+// Opcode 0xAA (server_to_client) -- Duel.cpp
+#pragma pack(push, 8)
+struct PMSG_DUEL_START_SEND
+{
+    PBMSG_HEAD header;
+    BYTE result;
+    BYTE index[2];
+    char name[10];
+
+    static constexpr uint8_t kHead = 0xAA;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_DUEL_START_SEND) == 16, "PMSG_DUEL_START_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_DUEL_START_SEND, header) == 0,
+              "PMSG_DUEL_START_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_DUEL_START_SEND, result) == 3,
+              "PMSG_DUEL_START_SEND.result: offset no coincide con el IR");
+static_assert(offsetof(PMSG_DUEL_START_SEND, index) == 4,
+              "PMSG_DUEL_START_SEND.index: offset no coincide con el IR");
+static_assert(offsetof(PMSG_DUEL_START_SEND, name) == 6,
+              "PMSG_DUEL_START_SEND.name: offset no coincide con el IR");
+
+// Duel.h
+// Opcode 0xAC (server_to_client) -- Duel.cpp
+#pragma pack(push, 8)
+struct PMSG_DUEL_OK_SEND
+{
+    PBMSG_HEAD header;
+    BYTE index[2];
+    char name[10];
+
+    static constexpr uint8_t kHead = 0xAC;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_DUEL_OK_SEND) == 15, "PMSG_DUEL_OK_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_DUEL_OK_SEND, header) == 0,
+              "PMSG_DUEL_OK_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_DUEL_OK_SEND, index) == 3,
+              "PMSG_DUEL_OK_SEND.index: offset no coincide con el IR");
+static_assert(offsetof(PMSG_DUEL_OK_SEND, name) == 5,
+              "PMSG_DUEL_OK_SEND.name: offset no coincide con el IR");
+
+// Duel.h
+// Opcode 0xAB (server_to_client) -- Duel.cpp
+#pragma pack(push, 8)
+struct PMSG_DUEL_END_SEND
+{
+    PBMSG_HEAD header;
+    BYTE index[2];
+    char name[10];
+
+    static constexpr uint8_t kHead = 0xAB;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_DUEL_END_SEND) == 15, "PMSG_DUEL_END_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_DUEL_END_SEND, header) == 0,
+              "PMSG_DUEL_END_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_DUEL_END_SEND, index) == 3,
+              "PMSG_DUEL_END_SEND.index: offset no coincide con el IR");
+static_assert(offsetof(PMSG_DUEL_END_SEND, name) == 5,
+              "PMSG_DUEL_END_SEND.name: offset no coincide con el IR");
+
+// Duel.h
+// Opcode 0xAD (server_to_client) -- Duel.cpp
+#pragma pack(push, 8)
+struct PMSG_DUEL_SCORE_SEND
+{
+    PBMSG_HEAD header;
+    BYTE index1[2];
+    BYTE index2[2];
+    BYTE score[2];
+
+    static constexpr uint8_t kHead = 0xAD;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_DUEL_SCORE_SEND) == 9, "PMSG_DUEL_SCORE_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_DUEL_SCORE_SEND, header) == 0,
+              "PMSG_DUEL_SCORE_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_DUEL_SCORE_SEND, index1) == 3,
+              "PMSG_DUEL_SCORE_SEND.index1: offset no coincide con el IR");
+static_assert(offsetof(PMSG_DUEL_SCORE_SEND, index2) == 5,
+              "PMSG_DUEL_SCORE_SEND.index2: offset no coincide con el IR");
+static_assert(offsetof(PMSG_DUEL_SCORE_SEND, score) == 7,
+              "PMSG_DUEL_SCORE_SEND.score: offset no coincide con el IR");
+
+// EffectManager.h
+// Opcode 0x07 (server_to_client) -- EffectManager.cpp
+#pragma pack(push, 8)
+struct PMSG_EFFECT_STATE_SEND
+{
+    PBMSG_HEAD header;
+    BYTE state;
+    WORD effect;
+    BYTE index[2];
+
+    static constexpr uint8_t kHead = 0x07;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_EFFECT_STATE_SEND) == 8, "PMSG_EFFECT_STATE_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_EFFECT_STATE_SEND, header) == 0,
+              "PMSG_EFFECT_STATE_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_EFFECT_STATE_SEND, state) == 3,
+              "PMSG_EFFECT_STATE_SEND.state: offset no coincide con el IR");
+static_assert(offsetof(PMSG_EFFECT_STATE_SEND, effect) == 4,
+              "PMSG_EFFECT_STATE_SEND.effect: offset no coincide con el IR");
+static_assert(offsetof(PMSG_EFFECT_STATE_SEND, index) == 6,
+              "PMSG_EFFECT_STATE_SEND.index: offset no coincide con el IR");
+
+// Friend.h
+// Opcode 0xC1 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_FRIEND_REQUEST_RECV
+{
+    PBMSG_HEAD header;
+    char Name[10];
+
+    static constexpr uint8_t kHead = 0xC1;
+    static constexpr bool kHasSub = false;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_FRIEND_REQUEST_RECV) == 13, "PMSG_FRIEND_REQUEST_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_REQUEST_RECV, header) == 0,
+              "PMSG_FRIEND_REQUEST_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_REQUEST_RECV, Name) == 3,
+              "PMSG_FRIEND_REQUEST_RECV.Name: offset no coincide con el IR");
+
+// Friend.h
+// Opcode 0xC2 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_FRIEND_RESULT_RECV
+{
+    PBMSG_HEAD header;
+    BYTE result;
+    char Name[10];
+
+    static constexpr uint8_t kHead = 0xC2;
+    static constexpr bool kHasSub = false;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_FRIEND_RESULT_RECV) == 14, "PMSG_FRIEND_RESULT_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_RESULT_RECV, header) == 0,
+              "PMSG_FRIEND_RESULT_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_RESULT_RECV, result) == 3,
+              "PMSG_FRIEND_RESULT_RECV.result: offset no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_RESULT_RECV, Name) == 4,
+              "PMSG_FRIEND_RESULT_RECV.Name: offset no coincide con el IR");
+
+// Friend.h
+// Opcode 0xC3 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_FRIEND_DELETE_RECV
+{
+    PBMSG_HEAD header;
+    char Name[10];
+
+    static constexpr uint8_t kHead = 0xC3;
+    static constexpr bool kHasSub = false;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_FRIEND_DELETE_RECV) == 13, "PMSG_FRIEND_DELETE_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_DELETE_RECV, header) == 0,
+              "PMSG_FRIEND_DELETE_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_DELETE_RECV, Name) == 3,
+              "PMSG_FRIEND_DELETE_RECV.Name: offset no coincide con el IR");
+
+// Friend.h
+// Relleno de alineación en el wire: @1054(+2). El servidor manda el struct
+// entero (memcpy/sizeof), así que esos bytes VIAJAN: no se pueden omitir.
+// Opcode 0xC5 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_FRIEND_MAIL_RECV
+{
+    PWMSG_HEAD header;
+    DWORD window;
+    char Name[10];
+    char Title[32];
+    BYTE action;
+    BYTE direction;
+    WORD mailsize;
+    char Mail[1000];
+
+    static constexpr uint8_t kHead = 0xC5;
+    static constexpr bool kHasSub = false;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_FRIEND_MAIL_RECV) == 1056, "PMSG_FRIEND_MAIL_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_MAIL_RECV, header) == 0,
+              "PMSG_FRIEND_MAIL_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_MAIL_RECV, window) == 4,
+              "PMSG_FRIEND_MAIL_RECV.window: offset no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_MAIL_RECV, Name) == 8,
+              "PMSG_FRIEND_MAIL_RECV.Name: offset no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_MAIL_RECV, Title) == 18,
+              "PMSG_FRIEND_MAIL_RECV.Title: offset no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_MAIL_RECV, action) == 50,
+              "PMSG_FRIEND_MAIL_RECV.action: offset no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_MAIL_RECV, direction) == 51,
+              "PMSG_FRIEND_MAIL_RECV.direction: offset no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_MAIL_RECV, mailsize) == 52,
+              "PMSG_FRIEND_MAIL_RECV.mailsize: offset no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_MAIL_RECV, Mail) == 54,
+              "PMSG_FRIEND_MAIL_RECV.Mail: offset no coincide con el IR");
+
+// Friend.h
+// Relleno de alineación en el wire: @3(+1). El servidor manda el struct
+// entero (memcpy/sizeof), así que esos bytes VIAJAN: no se pueden omitir.
+// Opcode 0xC7 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_FRIEND_MAIL_READ_RECV
+{
+    PBMSG_HEAD header;
+    WORD index;
+
+    static constexpr uint8_t kHead = 0xC7;
+    static constexpr bool kHasSub = false;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_FRIEND_MAIL_READ_RECV) == 6, "PMSG_FRIEND_MAIL_READ_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_MAIL_READ_RECV, header) == 0,
+              "PMSG_FRIEND_MAIL_READ_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_MAIL_READ_RECV, index) == 4,
+              "PMSG_FRIEND_MAIL_READ_RECV.index: offset no coincide con el IR");
+
+// Friend.h
+// Relleno de alineación en el wire: @3(+1). El servidor manda el struct
+// entero (memcpy/sizeof), así que esos bytes VIAJAN: no se pueden omitir.
+// Opcode 0xC8 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_FRIEND_MAIL_DELETE_RECV
+{
+    PBMSG_HEAD header;
+    WORD index;
+
+    static constexpr uint8_t kHead = 0xC8;
+    static constexpr bool kHasSub = false;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_FRIEND_MAIL_DELETE_RECV) == 6, "PMSG_FRIEND_MAIL_DELETE_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_MAIL_DELETE_RECV, header) == 0,
+              "PMSG_FRIEND_MAIL_DELETE_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_MAIL_DELETE_RECV, index) == 4,
+              "PMSG_FRIEND_MAIL_DELETE_RECV.index: offset no coincide con el IR");
+
+// Friend.h
+// Opcode 0xC0 (server_to_client) -- Friend.cpp
+#pragma pack(push, 8)
+struct PMSG_FRIEND_LIST_SEND
+{
+    PWMSG_HEAD header;
+    BYTE MailCount;
+    BYTE MailTotal;
+    BYTE count;
+
+    static constexpr uint8_t kHead = 0xC0;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_FRIEND_LIST_SEND) == 7, "PMSG_FRIEND_LIST_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_LIST_SEND, header) == 0,
+              "PMSG_FRIEND_LIST_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_LIST_SEND, MailCount) == 4,
+              "PMSG_FRIEND_LIST_SEND.MailCount: offset no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_LIST_SEND, MailTotal) == 5,
+              "PMSG_FRIEND_LIST_SEND.MailTotal: offset no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_LIST_SEND, count) == 6,
+              "PMSG_FRIEND_LIST_SEND.count: offset no coincide con el IR");
+
+// Friend.h
+// Opcode 0xC1 (server_to_client) -- Friend.cpp
+#pragma pack(push, 8)
+struct PMSG_FRIEND_REQUEST_SEND
+{
+    PBMSG_HEAD header;
+    BYTE result;
+    char Name[10];
+    BYTE server;
+
+    static constexpr uint8_t kHead = 0xC1;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_FRIEND_REQUEST_SEND) == 15, "PMSG_FRIEND_REQUEST_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_REQUEST_SEND, header) == 0,
+              "PMSG_FRIEND_REQUEST_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_REQUEST_SEND, result) == 3,
+              "PMSG_FRIEND_REQUEST_SEND.result: offset no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_REQUEST_SEND, Name) == 4,
+              "PMSG_FRIEND_REQUEST_SEND.Name: offset no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_REQUEST_SEND, server) == 14,
+              "PMSG_FRIEND_REQUEST_SEND.server: offset no coincide con el IR");
+
+// Friend.h
+// Opcode 0xC2 (server_to_client) -- Friend.cpp
+#pragma pack(push, 8)
+struct PMSG_FRIEND_RESULT_SEND
+{
+    PBMSG_HEAD header;
+    char Name[10];
+
+    static constexpr uint8_t kHead = 0xC2;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_FRIEND_RESULT_SEND) == 13, "PMSG_FRIEND_RESULT_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_RESULT_SEND, header) == 0,
+              "PMSG_FRIEND_RESULT_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_RESULT_SEND, Name) == 3,
+              "PMSG_FRIEND_RESULT_SEND.Name: offset no coincide con el IR");
+
+// Friend.h
+// Opcode 0xC3 (server_to_client) -- Friend.cpp
+#pragma pack(push, 8)
+struct PMSG_FRIEND_DELETE_SEND
+{
+    PBMSG_HEAD header;
+    BYTE result;
+    char Name[10];
+
+    static constexpr uint8_t kHead = 0xC3;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_FRIEND_DELETE_SEND) == 14, "PMSG_FRIEND_DELETE_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_DELETE_SEND, header) == 0,
+              "PMSG_FRIEND_DELETE_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_DELETE_SEND, result) == 3,
+              "PMSG_FRIEND_DELETE_SEND.result: offset no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_DELETE_SEND, Name) == 4,
+              "PMSG_FRIEND_DELETE_SEND.Name: offset no coincide con el IR");
+
+// Friend.h
+// Opcode 0xC4 (server_to_client) -- Friend.cpp
+// También se manda como 0xB0:0x04 (Friend.cpp)
+// También se manda como 0xB0:0x00 (Friend.cpp)
+// También se manda como 0xB0:0x01 (Friend.cpp)
+// También se manda como 0xB0:0x02 (Friend.cpp)
+// También se manda como 0xB0:0x03 (Friend.cpp)
+// También se manda como 0xB0:0x04 (Friend.cpp)
+#pragma pack(push, 8)
+struct PMSG_FRIEND_STATE_SEND
+{
+    PBMSG_HEAD header;
+    char Name[10];
+    BYTE server;
+
+    static constexpr uint8_t kHead = 0xC4;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_FRIEND_STATE_SEND) == 14, "PMSG_FRIEND_STATE_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_STATE_SEND, header) == 0,
+              "PMSG_FRIEND_STATE_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_STATE_SEND, Name) == 3,
+              "PMSG_FRIEND_STATE_SEND.Name: offset no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_STATE_SEND, server) == 13,
+              "PMSG_FRIEND_STATE_SEND.server: offset no coincide con el IR");
+
+// Friend.h
+// Opcode 0xC5 (server_to_client) -- Friend.cpp
+#pragma pack(push, 8)
+struct PMSG_FRIEND_MAIL_RESULT_SEND
+{
+    PBMSG_HEAD header;
+    BYTE result;
+    DWORD window;
+
+    static constexpr uint8_t kHead = 0xC5;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_FRIEND_MAIL_RESULT_SEND) == 8, "PMSG_FRIEND_MAIL_RESULT_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_MAIL_RESULT_SEND, header) == 0,
+              "PMSG_FRIEND_MAIL_RESULT_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_MAIL_RESULT_SEND, result) == 3,
+              "PMSG_FRIEND_MAIL_RESULT_SEND.result: offset no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_MAIL_RESULT_SEND, window) == 4,
+              "PMSG_FRIEND_MAIL_RESULT_SEND.window: offset no coincide con el IR");
+
+// Friend.h
+// Relleno de alineación en el wire: @3(+1), @79(+1). El servidor manda el struct
+// entero (memcpy/sizeof), así que esos bytes VIAJAN: no se pueden omitir.
+// Opcode 0xC6 (server_to_client) -- Friend.cpp
+#pragma pack(push, 8)
+struct PMSG_FRIEND_MAIL_SEND
+{
+    PBMSG_HEAD header;
+    WORD index;
+    char Name[10];
+    char Date[30];
+    char Title[32];
+    BYTE read;
+
+    static constexpr uint8_t kHead = 0xC6;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = true;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_FRIEND_MAIL_SEND) == 80, "PMSG_FRIEND_MAIL_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_MAIL_SEND, header) == 0,
+              "PMSG_FRIEND_MAIL_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_MAIL_SEND, index) == 4,
+              "PMSG_FRIEND_MAIL_SEND.index: offset no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_MAIL_SEND, Name) == 6,
+              "PMSG_FRIEND_MAIL_SEND.Name: offset no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_MAIL_SEND, Date) == 16,
+              "PMSG_FRIEND_MAIL_SEND.Date: offset no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_MAIL_SEND, Title) == 46,
+              "PMSG_FRIEND_MAIL_SEND.Title: offset no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_MAIL_SEND, read) == 78,
+              "PMSG_FRIEND_MAIL_SEND.read: offset no coincide con el IR");
+
+// Friend.h
+// Relleno de alineación en el wire: @1023(+1). El servidor manda el struct
+// entero (memcpy/sizeof), así que esos bytes VIAJAN: no se pueden omitir.
+// Opcode 0xC7 (server_to_client) -- Friend.cpp
+#pragma pack(push, 8)
+struct PMSG_FRIEND_MAIL_READ_SEND
+{
+    PWMSG_HEAD header;
+    WORD index;
+    WORD mailsize;
+    BYTE CharSet[13];
+    BYTE action;
+    BYTE direction;
+    char Mail[1000];
+
+    static constexpr uint8_t kHead = 0xC7;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = true;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_FRIEND_MAIL_READ_SEND) == 1024, "PMSG_FRIEND_MAIL_READ_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_MAIL_READ_SEND, header) == 0,
+              "PMSG_FRIEND_MAIL_READ_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_MAIL_READ_SEND, index) == 4,
+              "PMSG_FRIEND_MAIL_READ_SEND.index: offset no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_MAIL_READ_SEND, mailsize) == 6,
+              "PMSG_FRIEND_MAIL_READ_SEND.mailsize: offset no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_MAIL_READ_SEND, CharSet) == 8,
+              "PMSG_FRIEND_MAIL_READ_SEND.CharSet: offset no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_MAIL_READ_SEND, action) == 21,
+              "PMSG_FRIEND_MAIL_READ_SEND.action: offset no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_MAIL_READ_SEND, direction) == 22,
+              "PMSG_FRIEND_MAIL_READ_SEND.direction: offset no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_MAIL_READ_SEND, Mail) == 23,
+              "PMSG_FRIEND_MAIL_READ_SEND.Mail: offset no coincide con el IR");
+
+// Friend.h
+// Opcode 0xC8 (server_to_client) -- Friend.cpp
+#pragma pack(push, 8)
+struct PMSG_FRIEND_MAIL_DELETE_SEND
+{
+    PBMSG_HEAD header;
+    BYTE result;
+    WORD index;
+
+    static constexpr uint8_t kHead = 0xC8;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_FRIEND_MAIL_DELETE_SEND) == 6, "PMSG_FRIEND_MAIL_DELETE_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_MAIL_DELETE_SEND, header) == 0,
+              "PMSG_FRIEND_MAIL_DELETE_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_MAIL_DELETE_SEND, result) == 3,
+              "PMSG_FRIEND_MAIL_DELETE_SEND.result: offset no coincide con el IR");
+static_assert(offsetof(PMSG_FRIEND_MAIL_DELETE_SEND, index) == 4,
+              "PMSG_FRIEND_MAIL_DELETE_SEND.index: offset no coincide con el IR");
+
+// Fruit.h
+// Opcode 0x2C (server_to_client) -- Fruit.cpp
+#pragma pack(push, 8)
+struct PMSG_FRUIT_RESULT_SEND
+{
+    PBMSG_HEAD header;
+    BYTE result;
+
+    static constexpr uint8_t kHead = 0x2C;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_FRUIT_RESULT_SEND) == 4, "PMSG_FRUIT_RESULT_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_FRUIT_RESULT_SEND, header) == 0,
+              "PMSG_FRUIT_RESULT_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_FRUIT_RESULT_SEND, result) == 3,
+              "PMSG_FRUIT_RESULT_SEND.result: offset no coincide con el IR");
+
+// GoldenArcher.h
+// Opcode 0x95 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_GOLDEN_ARCHER_COUNT_RECV
+{
+    PBMSG_HEAD header;
+    BYTE type;
+    BYTE slot;
+
+    static constexpr uint8_t kHead = 0x95;
+    static constexpr bool kHasSub = false;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_GOLDEN_ARCHER_COUNT_RECV) == 5, "PMSG_GOLDEN_ARCHER_COUNT_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_GOLDEN_ARCHER_COUNT_RECV, header) == 0,
+              "PMSG_GOLDEN_ARCHER_COUNT_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_GOLDEN_ARCHER_COUNT_RECV, type) == 3,
+              "PMSG_GOLDEN_ARCHER_COUNT_RECV.type: offset no coincide con el IR");
+static_assert(offsetof(PMSG_GOLDEN_ARCHER_COUNT_RECV, slot) == 4,
+              "PMSG_GOLDEN_ARCHER_COUNT_RECV.slot: offset no coincide con el IR");
+
+// GoldenArcher.h
+// Relleno de alineación en el wire: @14(+2). El servidor manda el struct
+// entero (memcpy/sizeof), así que esos bytes VIAJAN: no se pueden omitir.
+// Opcode 0x94 (server_to_client) -- GoldenArcher.cpp
+// También se manda como 0x94:0x30 (GoldenArcher.cpp)
+#pragma pack(push, 8)
+struct PMSG_GOLDEN_ARCHER_COUNT_SEND
+{
+    PBMSG_HEAD header;
+    BYTE type;
+    DWORD count;
+    WORD code[3];
+
+    static constexpr uint8_t kHead = 0x94;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_GOLDEN_ARCHER_COUNT_SEND) == 16, "PMSG_GOLDEN_ARCHER_COUNT_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_GOLDEN_ARCHER_COUNT_SEND, header) == 0,
+              "PMSG_GOLDEN_ARCHER_COUNT_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_GOLDEN_ARCHER_COUNT_SEND, type) == 3,
+              "PMSG_GOLDEN_ARCHER_COUNT_SEND.type: offset no coincide con el IR");
+static_assert(offsetof(PMSG_GOLDEN_ARCHER_COUNT_SEND, count) == 4,
+              "PMSG_GOLDEN_ARCHER_COUNT_SEND.count: offset no coincide con el IR");
+static_assert(offsetof(PMSG_GOLDEN_ARCHER_COUNT_SEND, code) == 8,
+              "PMSG_GOLDEN_ARCHER_COUNT_SEND.code: offset no coincide con el IR");
+
+// Guild.h
+// Opcode 0x50 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_GUILD_REQUEST_RECV
+{
+    PBMSG_HEAD header;
+    BYTE index[2];
+
+    static constexpr uint8_t kHead = 0x50;
+    static constexpr bool kHasSub = false;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_GUILD_REQUEST_RECV) == 5, "PMSG_GUILD_REQUEST_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_GUILD_REQUEST_RECV, header) == 0,
+              "PMSG_GUILD_REQUEST_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_GUILD_REQUEST_RECV, index) == 3,
+              "PMSG_GUILD_REQUEST_RECV.index: offset no coincide con el IR");
+
+// Guild.h
+// Opcode 0x51 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_GUILD_RESULT_RECV
+{
+    PBMSG_HEAD header;
+    BYTE result;
+    BYTE index[2];
+
+    static constexpr uint8_t kHead = 0x51;
+    static constexpr bool kHasSub = false;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_GUILD_RESULT_RECV) == 6, "PMSG_GUILD_RESULT_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_GUILD_RESULT_RECV, header) == 0,
+              "PMSG_GUILD_RESULT_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_GUILD_RESULT_RECV, result) == 3,
+              "PMSG_GUILD_RESULT_RECV.result: offset no coincide con el IR");
+static_assert(offsetof(PMSG_GUILD_RESULT_RECV, index) == 4,
+              "PMSG_GUILD_RESULT_RECV.index: offset no coincide con el IR");
+
+// Guild.h
+// Opcode 0x53 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_GUILD_DELETE_RECV
+{
+    PBMSG_HEAD header;
+    char name[10];
+    char PersonalCode[10];
+
+    static constexpr uint8_t kHead = 0x53;
+    static constexpr bool kHasSub = false;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_GUILD_DELETE_RECV) == 23, "PMSG_GUILD_DELETE_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_GUILD_DELETE_RECV, header) == 0,
+              "PMSG_GUILD_DELETE_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_GUILD_DELETE_RECV, name) == 3,
+              "PMSG_GUILD_DELETE_RECV.name: offset no coincide con el IR");
+static_assert(offsetof(PMSG_GUILD_DELETE_RECV, PersonalCode) == 13,
+              "PMSG_GUILD_DELETE_RECV.PersonalCode: offset no coincide con el IR");
+
+// Guild.h
+// Opcode 0x54 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_GUILD_MASTER_OPEN_RECV
+{
+    PBMSG_HEAD header;
+    BYTE result;
+
+    static constexpr uint8_t kHead = 0x54;
+    static constexpr bool kHasSub = false;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_GUILD_MASTER_OPEN_RECV) == 4, "PMSG_GUILD_MASTER_OPEN_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_GUILD_MASTER_OPEN_RECV, header) == 0,
+              "PMSG_GUILD_MASTER_OPEN_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_GUILD_MASTER_OPEN_RECV, result) == 3,
+              "PMSG_GUILD_MASTER_OPEN_RECV.result: offset no coincide con el IR");
+
+// Guild.h
+// Opcode 0x55 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_GUILD_CREATE_RECV
+{
+    PBMSG_HEAD header;
+    char GuildName[8];
+    BYTE Mark[32];
+
+    static constexpr uint8_t kHead = 0x55;
+    static constexpr bool kHasSub = false;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_GUILD_CREATE_RECV) == 43, "PMSG_GUILD_CREATE_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_GUILD_CREATE_RECV, header) == 0,
+              "PMSG_GUILD_CREATE_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_GUILD_CREATE_RECV, GuildName) == 3,
+              "PMSG_GUILD_CREATE_RECV.GuildName: offset no coincide con el IR");
+static_assert(offsetof(PMSG_GUILD_CREATE_RECV, Mark) == 11,
+              "PMSG_GUILD_CREATE_RECV.Mark: offset no coincide con el IR");
+
+// Guild.h
+// Opcode 0x61 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_GUILD_WAR_REQUEST_RESULT_RECV
+{
+    PBMSG_HEAD header;
+    BYTE result;
+
+    static constexpr uint8_t kHead = 0x61;
+    static constexpr bool kHasSub = false;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_GUILD_WAR_REQUEST_RESULT_RECV) == 4, "PMSG_GUILD_WAR_REQUEST_RESULT_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_GUILD_WAR_REQUEST_RESULT_RECV, header) == 0,
+              "PMSG_GUILD_WAR_REQUEST_RESULT_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_GUILD_WAR_REQUEST_RESULT_RECV, result) == 3,
+              "PMSG_GUILD_WAR_REQUEST_RESULT_RECV.result: offset no coincide con el IR");
+
+// Guild.h
+// Opcode 0x50 (server_to_client) -- Guild.cpp
+#pragma pack(push, 8)
+struct PMSG_GUILD_REQUEST_SEND
+{
+    PBMSG_HEAD header;
+    BYTE index[2];
+
+    static constexpr uint8_t kHead = 0x50;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_GUILD_REQUEST_SEND) == 5, "PMSG_GUILD_REQUEST_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_GUILD_REQUEST_SEND, header) == 0,
+              "PMSG_GUILD_REQUEST_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_GUILD_REQUEST_SEND, index) == 3,
+              "PMSG_GUILD_REQUEST_SEND.index: offset no coincide con el IR");
+
+// Guild.h
+// Opcode 0x51 (server_to_client) -- Guild.cpp
+#pragma pack(push, 8)
+struct PMSG_GUILD_RESULT_SEND
+{
+    PBMSG_HEAD header;
+    BYTE result;
+
+    static constexpr uint8_t kHead = 0x51;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_GUILD_RESULT_SEND) == 4, "PMSG_GUILD_RESULT_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_GUILD_RESULT_SEND, header) == 0,
+              "PMSG_GUILD_RESULT_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_GUILD_RESULT_SEND, result) == 3,
+              "PMSG_GUILD_RESULT_SEND.result: offset no coincide con el IR");
+
+// Guild.h
+// Relleno de alineación en el wire: @6(+2), @13(+3). El servidor manda el struct
+// entero (memcpy/sizeof), así que esos bytes VIAJAN: no se pueden omitir.
+// Opcode 0x52 (server_to_client) -- Guild.cpp
+// También se manda como 0xA0:0x01 (Guild.cpp)
+// También se manda como 0xA0:0x00 (Guild.cpp)
+#pragma pack(push, 8)
+struct PMSG_GUILD_LIST_SEND
+{
+    PWMSG_HEAD header;
+    BYTE result;
+    BYTE count;
+    DWORD TotalScore;
+    BYTE score;
+
+    static constexpr uint8_t kHead = 0x52;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_GUILD_LIST_SEND) == 16, "PMSG_GUILD_LIST_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_GUILD_LIST_SEND, header) == 0,
+              "PMSG_GUILD_LIST_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_GUILD_LIST_SEND, result) == 4,
+              "PMSG_GUILD_LIST_SEND.result: offset no coincide con el IR");
+static_assert(offsetof(PMSG_GUILD_LIST_SEND, count) == 5,
+              "PMSG_GUILD_LIST_SEND.count: offset no coincide con el IR");
+static_assert(offsetof(PMSG_GUILD_LIST_SEND, TotalScore) == 8,
+              "PMSG_GUILD_LIST_SEND.TotalScore: offset no coincide con el IR");
+static_assert(offsetof(PMSG_GUILD_LIST_SEND, score) == 12,
+              "PMSG_GUILD_LIST_SEND.score: offset no coincide con el IR");
+
+// Guild.h
+// Opcode 0x53 (server_to_client) -- Guild.cpp
+#pragma pack(push, 8)
+struct PMSG_GUILD_DELETE_SEND
+{
+    PBMSG_HEAD header;
+    BYTE result;
+
+    static constexpr uint8_t kHead = 0x53;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_GUILD_DELETE_SEND) == 4, "PMSG_GUILD_DELETE_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_GUILD_DELETE_SEND, header) == 0,
+              "PMSG_GUILD_DELETE_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_GUILD_DELETE_SEND, result) == 3,
+              "PMSG_GUILD_DELETE_SEND.result: offset no coincide con el IR");
+
+// Guild.h
+// Opcode 0x56 (server_to_client) -- Guild.cpp
+#pragma pack(push, 8)
+struct PMSG_GUILD_CREATE_RESULT_SEND
+{
+    PBMSG_HEAD header;
+    BYTE result;
+
+    static constexpr uint8_t kHead = 0x56;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_GUILD_CREATE_RESULT_SEND) == 4, "PMSG_GUILD_CREATE_RESULT_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_GUILD_CREATE_RESULT_SEND, header) == 0,
+              "PMSG_GUILD_CREATE_RESULT_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_GUILD_CREATE_RESULT_SEND, result) == 3,
+              "PMSG_GUILD_CREATE_RESULT_SEND.result: offset no coincide con el IR");
+
+// Guild.h
+// Opcode 0x60 (server_to_client) -- Guild.cpp
+#pragma pack(push, 8)
+struct PMSG_GUILD_WAR_REQUEST_RESULT_SEND
+{
+    PBMSG_HEAD header;
+    BYTE result;
+
+    static constexpr uint8_t kHead = 0x60;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_GUILD_WAR_REQUEST_RESULT_SEND) == 4, "PMSG_GUILD_WAR_REQUEST_RESULT_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_GUILD_WAR_REQUEST_RESULT_SEND, header) == 0,
+              "PMSG_GUILD_WAR_REQUEST_RESULT_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_GUILD_WAR_REQUEST_RESULT_SEND, result) == 3,
+              "PMSG_GUILD_WAR_REQUEST_RESULT_SEND.result: offset no coincide con el IR");
+
+// Guild.h
+// Opcode 0x61 (server_to_client) -- Guild.cpp
+#pragma pack(push, 8)
+struct PMSG_GUILD_WAR_REQUEST_SEND
+{
+    PBMSG_HEAD header;
+    char GuildName[8];
+    BYTE type;
+
+    static constexpr uint8_t kHead = 0x61;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_GUILD_WAR_REQUEST_SEND) == 12, "PMSG_GUILD_WAR_REQUEST_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_GUILD_WAR_REQUEST_SEND, header) == 0,
+              "PMSG_GUILD_WAR_REQUEST_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_GUILD_WAR_REQUEST_SEND, GuildName) == 3,
+              "PMSG_GUILD_WAR_REQUEST_SEND.GuildName: offset no coincide con el IR");
+static_assert(offsetof(PMSG_GUILD_WAR_REQUEST_SEND, type) == 11,
+              "PMSG_GUILD_WAR_REQUEST_SEND.type: offset no coincide con el IR");
+
+// Guild.h
+// Opcode 0x62 (server_to_client) -- Guild.cpp
+#pragma pack(push, 8)
+struct PMSG_GUILD_WAR_START_SEND
+{
+    PBMSG_HEAD header;
+    char GuildName[8];
+    BYTE type;
+    BYTE team;
+
+    static constexpr uint8_t kHead = 0x62;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_GUILD_WAR_START_SEND) == 13, "PMSG_GUILD_WAR_START_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_GUILD_WAR_START_SEND, header) == 0,
+              "PMSG_GUILD_WAR_START_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_GUILD_WAR_START_SEND, GuildName) == 3,
+              "PMSG_GUILD_WAR_START_SEND.GuildName: offset no coincide con el IR");
+static_assert(offsetof(PMSG_GUILD_WAR_START_SEND, type) == 11,
+              "PMSG_GUILD_WAR_START_SEND.type: offset no coincide con el IR");
+static_assert(offsetof(PMSG_GUILD_WAR_START_SEND, team) == 12,
+              "PMSG_GUILD_WAR_START_SEND.team: offset no coincide con el IR");
+
+// Guild.h
+// Opcode 0x63 (server_to_client) -- Guild.cpp
+#pragma pack(push, 8)
+struct PMSG_GUILD_WAR_END_SEND
+{
+    PBMSG_HEAD header;
+    BYTE result;
+    char GuildName[8];
+
+    static constexpr uint8_t kHead = 0x63;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_GUILD_WAR_END_SEND) == 12, "PMSG_GUILD_WAR_END_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_GUILD_WAR_END_SEND, header) == 0,
+              "PMSG_GUILD_WAR_END_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_GUILD_WAR_END_SEND, result) == 3,
+              "PMSG_GUILD_WAR_END_SEND.result: offset no coincide con el IR");
+static_assert(offsetof(PMSG_GUILD_WAR_END_SEND, GuildName) == 4,
+              "PMSG_GUILD_WAR_END_SEND.GuildName: offset no coincide con el IR");
+
+// Guild.h
+// Opcode 0x64 (server_to_client) -- Guild.cpp
+#pragma pack(push, 8)
+struct PMSG_GUILD_WAR_SCORE_SEND
+{
+    PBMSG_HEAD header;
+    BYTE score[2];
+    BYTE type;
+
+    static constexpr uint8_t kHead = 0x64;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_GUILD_WAR_SCORE_SEND) == 6, "PMSG_GUILD_WAR_SCORE_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_GUILD_WAR_SCORE_SEND, header) == 0,
+              "PMSG_GUILD_WAR_SCORE_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_GUILD_WAR_SCORE_SEND, score) == 3,
+              "PMSG_GUILD_WAR_SCORE_SEND.score: offset no coincide con el IR");
+static_assert(offsetof(PMSG_GUILD_WAR_SCORE_SEND, type) == 5,
+              "PMSG_GUILD_WAR_SCORE_SEND.type: offset no coincide con el IR");
+
+// ItemManager.h
+// Opcode 0x22 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_ITEM_GET_RECV
+{
+    PBMSG_HEAD header;
+    BYTE index[2];
+
+    static constexpr uint8_t kHead = 0x22;
+    static constexpr bool kHasSub = false;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_ITEM_GET_RECV) == 5, "PMSG_ITEM_GET_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_GET_RECV, header) == 0,
+              "PMSG_ITEM_GET_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_GET_RECV, index) == 3,
+              "PMSG_ITEM_GET_RECV.index: offset no coincide con el IR");
+
+// ItemManager.h
+// Opcode 0x23 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_ITEM_DROP_RECV
+{
+    PBMSG_HEAD header;
+    BYTE x;
+    BYTE y;
+    BYTE slot;
+
+    static constexpr uint8_t kHead = 0x23;
+    static constexpr bool kHasSub = false;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_ITEM_DROP_RECV) == 6, "PMSG_ITEM_DROP_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_DROP_RECV, header) == 0,
+              "PMSG_ITEM_DROP_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_DROP_RECV, x) == 3,
+              "PMSG_ITEM_DROP_RECV.x: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_DROP_RECV, y) == 4,
+              "PMSG_ITEM_DROP_RECV.y: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_DROP_RECV, slot) == 5,
+              "PMSG_ITEM_DROP_RECV.slot: offset no coincide con el IR");
+
+// ItemManager.h
+// Opcode 0x24 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_ITEM_MOVE_RECV
+{
+    PBMSG_HEAD header;
+    BYTE SourceFlag;
+    BYTE SourceSlot;
+    BYTE ItemInfo[5];
+    BYTE TargetFlag;
+    BYTE TargetSlot;
+
+    static constexpr uint8_t kHead = 0x24;
+    static constexpr bool kHasSub = false;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_ITEM_MOVE_RECV) == 12, "PMSG_ITEM_MOVE_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_MOVE_RECV, header) == 0,
+              "PMSG_ITEM_MOVE_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_MOVE_RECV, SourceFlag) == 3,
+              "PMSG_ITEM_MOVE_RECV.SourceFlag: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_MOVE_RECV, SourceSlot) == 4,
+              "PMSG_ITEM_MOVE_RECV.SourceSlot: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_MOVE_RECV, ItemInfo) == 5,
+              "PMSG_ITEM_MOVE_RECV.ItemInfo: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_MOVE_RECV, TargetFlag) == 10,
+              "PMSG_ITEM_MOVE_RECV.TargetFlag: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_MOVE_RECV, TargetSlot) == 11,
+              "PMSG_ITEM_MOVE_RECV.TargetSlot: offset no coincide con el IR");
+
+// ItemManager.h
+// Opcode 0x26 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_ITEM_USE_RECV
+{
+    PBMSG_HEAD header;
+    BYTE SourceSlot;
+    BYTE TargetSlot;
+    BYTE type;
+
+    static constexpr uint8_t kHead = 0x26;
+    static constexpr bool kHasSub = false;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_ITEM_USE_RECV) == 6, "PMSG_ITEM_USE_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_USE_RECV, header) == 0,
+              "PMSG_ITEM_USE_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_USE_RECV, SourceSlot) == 3,
+              "PMSG_ITEM_USE_RECV.SourceSlot: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_USE_RECV, TargetSlot) == 4,
+              "PMSG_ITEM_USE_RECV.TargetSlot: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_USE_RECV, type) == 5,
+              "PMSG_ITEM_USE_RECV.type: offset no coincide con el IR");
+
+// ItemManager.h
+// Opcode 0x32 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_ITEM_BUY_RECV
+{
+    PBMSG_HEAD header;
+    BYTE slot;
+
+    static constexpr uint8_t kHead = 0x32;
+    static constexpr bool kHasSub = false;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_ITEM_BUY_RECV) == 4, "PMSG_ITEM_BUY_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_BUY_RECV, header) == 0,
+              "PMSG_ITEM_BUY_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_BUY_RECV, slot) == 3,
+              "PMSG_ITEM_BUY_RECV.slot: offset no coincide con el IR");
+
+// ItemManager.h
+// Opcode 0x33 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_ITEM_SELL_RECV
+{
+    PBMSG_HEAD header;
+    BYTE slot;
+
+    static constexpr uint8_t kHead = 0x33;
+    static constexpr bool kHasSub = false;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_ITEM_SELL_RECV) == 4, "PMSG_ITEM_SELL_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_SELL_RECV, header) == 0,
+              "PMSG_ITEM_SELL_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_SELL_RECV, slot) == 3,
+              "PMSG_ITEM_SELL_RECV.slot: offset no coincide con el IR");
+
+// ItemManager.h
+// Opcode 0x34 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_ITEM_REPAIR_RECV
+{
+    PBMSG_HEAD header;
+    BYTE slot;
+    BYTE type;
+
+    static constexpr uint8_t kHead = 0x34;
+    static constexpr bool kHasSub = false;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_ITEM_REPAIR_RECV) == 5, "PMSG_ITEM_REPAIR_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_REPAIR_RECV, header) == 0,
+              "PMSG_ITEM_REPAIR_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_REPAIR_RECV, slot) == 3,
+              "PMSG_ITEM_REPAIR_RECV.slot: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_REPAIR_RECV, type) == 4,
+              "PMSG_ITEM_REPAIR_RECV.type: offset no coincide con el IR");
+
+// ItemManager.h
+// Relleno de alineación en el wire: @9(+3). El servidor manda el struct
+// entero (memcpy/sizeof), así que esos bytes VIAJAN: no se pueden omitir.
+// Opcode 0x22 (server_to_client) -- ItemManager.cpp
+#pragma pack(push, 8)
+struct PMSG_ITEM_GET_SEND
+{
+    PBMSG_HEAD header;
+    BYTE result;
+    BYTE ItemInfo[5];
+    DWORD ViewIndex;
+
+    static constexpr uint8_t kHead = 0x22;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = true;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_ITEM_GET_SEND) == 16, "PMSG_ITEM_GET_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_GET_SEND, header) == 0,
+              "PMSG_ITEM_GET_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_GET_SEND, result) == 3,
+              "PMSG_ITEM_GET_SEND.result: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_GET_SEND, ItemInfo) == 4,
+              "PMSG_ITEM_GET_SEND.ItemInfo: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_GET_SEND, ViewIndex) == 12,
+              "PMSG_ITEM_GET_SEND.ViewIndex: offset no coincide con el IR");
+
+// ItemManager.h
+// Opcode 0x23 (server_to_client) -- BloodCastle.cpp
+#pragma pack(push, 8)
+struct PMSG_ITEM_DROP_SEND
+{
+    PBMSG_HEAD header;
+    BYTE result;
+    BYTE slot;
+
+    static constexpr uint8_t kHead = 0x23;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_ITEM_DROP_SEND) == 5, "PMSG_ITEM_DROP_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_DROP_SEND, header) == 0,
+              "PMSG_ITEM_DROP_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_DROP_SEND, result) == 3,
+              "PMSG_ITEM_DROP_SEND.result: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_DROP_SEND, slot) == 4,
+              "PMSG_ITEM_DROP_SEND.slot: offset no coincide con el IR");
+
+// ItemManager.h
+// Opcode 0x24 (server_to_client) -- ItemManager.cpp
+#pragma pack(push, 8)
+struct PMSG_ITEM_MOVE_SEND
+{
+    PBMSG_HEAD header;
+    BYTE result;
+    BYTE slot;
+    BYTE ItemInfo[5];
+
+    static constexpr uint8_t kHead = 0x24;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = true;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_ITEM_MOVE_SEND) == 10, "PMSG_ITEM_MOVE_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_MOVE_SEND, header) == 0,
+              "PMSG_ITEM_MOVE_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_MOVE_SEND, result) == 3,
+              "PMSG_ITEM_MOVE_SEND.result: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_MOVE_SEND, slot) == 4,
+              "PMSG_ITEM_MOVE_SEND.slot: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_MOVE_SEND, ItemInfo) == 5,
+              "PMSG_ITEM_MOVE_SEND.ItemInfo: offset no coincide con el IR");
+
+// ItemManager.h
+// Opcode 0x25 (server_to_client) -- ItemManager.cpp
+#pragma pack(push, 8)
+struct PMSG_ITEM_CHANGE_SEND
+{
+    PBMSG_HEAD header;
+    BYTE index[2];
+    BYTE ItemInfo[5];
+
+    static constexpr uint8_t kHead = 0x25;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_ITEM_CHANGE_SEND) == 10, "PMSG_ITEM_CHANGE_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_CHANGE_SEND, header) == 0,
+              "PMSG_ITEM_CHANGE_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_CHANGE_SEND, index) == 3,
+              "PMSG_ITEM_CHANGE_SEND.index: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_CHANGE_SEND, ItemInfo) == 5,
+              "PMSG_ITEM_CHANGE_SEND.ItemInfo: offset no coincide con el IR");
+
+// ItemManager.h
+// Opcode 0x28 (server_to_client) -- ItemManager.cpp
+#pragma pack(push, 8)
+struct PMSG_ITEM_DELETE_SEND
+{
+    PBMSG_HEAD header;
+    BYTE slot;
+    BYTE flag;
+
+    static constexpr uint8_t kHead = 0x28;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_ITEM_DELETE_SEND) == 5, "PMSG_ITEM_DELETE_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_DELETE_SEND, header) == 0,
+              "PMSG_ITEM_DELETE_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_DELETE_SEND, slot) == 3,
+              "PMSG_ITEM_DELETE_SEND.slot: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_DELETE_SEND, flag) == 4,
+              "PMSG_ITEM_DELETE_SEND.flag: offset no coincide con el IR");
+
+// ItemManager.h
+// Opcode 0x2A (server_to_client) -- ItemManager.cpp
+#pragma pack(push, 8)
+struct PMSG_ITEM_DUR_SEND
+{
+    PBMSG_HEAD header;
+    BYTE slot;
+    BYTE dur;
+    BYTE flag;
+
+    static constexpr uint8_t kHead = 0x2A;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_ITEM_DUR_SEND) == 6, "PMSG_ITEM_DUR_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_DUR_SEND, header) == 0,
+              "PMSG_ITEM_DUR_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_DUR_SEND, slot) == 3,
+              "PMSG_ITEM_DUR_SEND.slot: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_DUR_SEND, dur) == 4,
+              "PMSG_ITEM_DUR_SEND.dur: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_DUR_SEND, flag) == 5,
+              "PMSG_ITEM_DUR_SEND.flag: offset no coincide con el IR");
+
+// ItemManager.h
+// Opcode 0x32 (server_to_client) -- ItemManager.cpp
+#pragma pack(push, 8)
+struct PMSG_ITEM_BUY_SEND
+{
+    PBMSG_HEAD header;
+    BYTE result;
+    BYTE ItemInfo[5];
+
+    static constexpr uint8_t kHead = 0x32;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_ITEM_BUY_SEND) == 9, "PMSG_ITEM_BUY_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_BUY_SEND, header) == 0,
+              "PMSG_ITEM_BUY_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_BUY_SEND, result) == 3,
+              "PMSG_ITEM_BUY_SEND.result: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_BUY_SEND, ItemInfo) == 4,
+              "PMSG_ITEM_BUY_SEND.ItemInfo: offset no coincide con el IR");
+
+// ItemManager.h
+// Opcode 0x33 (server_to_client) -- ItemManager.cpp
+#pragma pack(push, 8)
+struct PMSG_ITEM_SELL_SEND
+{
+    PBMSG_HEAD header;
+    BYTE result;
+    DWORD money;
+
+    static constexpr uint8_t kHead = 0x33;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_ITEM_SELL_SEND) == 8, "PMSG_ITEM_SELL_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_SELL_SEND, header) == 0,
+              "PMSG_ITEM_SELL_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_SELL_SEND, result) == 3,
+              "PMSG_ITEM_SELL_SEND.result: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_SELL_SEND, money) == 4,
+              "PMSG_ITEM_SELL_SEND.money: offset no coincide con el IR");
+
+// ItemManager.h
+// Relleno de alineación en el wire: @3(+1). El servidor manda el struct
+// entero (memcpy/sizeof), así que esos bytes VIAJAN: no se pueden omitir.
+// Opcode 0x34 (server_to_client) -- CustomAttack.cpp
+#pragma pack(push, 8)
+struct PMSG_ITEM_REPAIR_SEND
+{
+    PBMSG_HEAD header;
+    DWORD money;
+
+    static constexpr uint8_t kHead = 0x34;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_ITEM_REPAIR_SEND) == 8, "PMSG_ITEM_REPAIR_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_REPAIR_SEND, header) == 0,
+              "PMSG_ITEM_REPAIR_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_REPAIR_SEND, money) == 4,
+              "PMSG_ITEM_REPAIR_SEND.money: offset no coincide con el IR");
+
+// ItemManager.h
+// Opcode 0xF3:0x10 (server_to_client) -- ItemManager.cpp
+#pragma pack(push, 8)
+struct PMSG_ITEM_LIST_SEND
+{
+    PSWMSG_HEAD header;
+    BYTE count;
+
+    static constexpr uint8_t kHead = 0xF3;
+    static constexpr uint8_t kSub = 0x10;
+    static constexpr bool kHasSub = true;
+    static constexpr bool kEncrypted = true;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_ITEM_LIST_SEND) == 6, "PMSG_ITEM_LIST_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_LIST_SEND, header) == 0,
+              "PMSG_ITEM_LIST_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_LIST_SEND, count) == 5,
+              "PMSG_ITEM_LIST_SEND.count: offset no coincide con el IR");
+
+// ItemManager.h
+// Opcode 0xF3:0x13 (server_to_client) -- ItemManager.cpp
+#pragma pack(push, 8)
+struct PMSG_ITEM_EQUIPMENT_SEND
+{
+    PSBMSG_HEAD header;
+    BYTE index[2];
+    BYTE CharSet[13];
+
+    static constexpr uint8_t kHead = 0xF3;
+    static constexpr uint8_t kSub = 0x13;
+    static constexpr bool kHasSub = true;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_ITEM_EQUIPMENT_SEND) == 19, "PMSG_ITEM_EQUIPMENT_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_EQUIPMENT_SEND, header) == 0,
+              "PMSG_ITEM_EQUIPMENT_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_EQUIPMENT_SEND, index) == 4,
+              "PMSG_ITEM_EQUIPMENT_SEND.index: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_EQUIPMENT_SEND, CharSet) == 6,
+              "PMSG_ITEM_EQUIPMENT_SEND.CharSet: offset no coincide con el IR");
+
+// ItemManager.h
+// Opcode 0xF3:0x14 (server_to_client) -- ItemManager.cpp
+#pragma pack(push, 8)
+struct PMSG_ITEM_MODIFY_SEND
+{
+    PSBMSG_HEAD header;
+    BYTE slot;
+    BYTE ItemInfo[5];
+
+    static constexpr uint8_t kHead = 0xF3;
+    static constexpr uint8_t kSub = 0x14;
+    static constexpr bool kHasSub = true;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_ITEM_MODIFY_SEND) == 10, "PMSG_ITEM_MODIFY_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_MODIFY_SEND, header) == 0,
+              "PMSG_ITEM_MODIFY_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_MODIFY_SEND, slot) == 4,
+              "PMSG_ITEM_MODIFY_SEND.slot: offset no coincide con el IR");
+static_assert(offsetof(PMSG_ITEM_MODIFY_SEND, ItemInfo) == 5,
+              "PMSG_ITEM_MODIFY_SEND.ItemInfo: offset no coincide con el IR");
+
+// Move.h
+// Opcode 0x1C (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_TELEPORT_RECV
+{
+    PBMSG_HEAD header;
+    BYTE gate;
+    BYTE x;
+    BYTE y;
+
+    static constexpr uint8_t kHead = 0x1C;
+    static constexpr bool kHasSub = false;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_TELEPORT_RECV) == 6, "PMSG_TELEPORT_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_TELEPORT_RECV, header) == 0,
+              "PMSG_TELEPORT_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_TELEPORT_RECV, gate) == 3,
+              "PMSG_TELEPORT_RECV.gate: offset no coincide con el IR");
+static_assert(offsetof(PMSG_TELEPORT_RECV, x) == 4,
+              "PMSG_TELEPORT_RECV.x: offset no coincide con el IR");
+static_assert(offsetof(PMSG_TELEPORT_RECV, y) == 5,
+              "PMSG_TELEPORT_RECV.y: offset no coincide con el IR");
+
+// Move.h
+// Relleno de alineación en el wire: @10(+2). El servidor manda el struct
+// entero (memcpy/sizeof), así que esos bytes VIAJAN: no se pueden omitir.
+#pragma pack(push, 8)
+struct PMSG_TELEPORT_MOVE_RECV
+{
+    PBMSG_HEAD header;
+    BYTE type;
+    DWORD reserved;
+    WORD number;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_TELEPORT_MOVE_RECV) == 12, "PMSG_TELEPORT_MOVE_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_TELEPORT_MOVE_RECV, header) == 0,
+              "PMSG_TELEPORT_MOVE_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_TELEPORT_MOVE_RECV, type) == 3,
+              "PMSG_TELEPORT_MOVE_RECV.type: offset no coincide con el IR");
+static_assert(offsetof(PMSG_TELEPORT_MOVE_RECV, reserved) == 4,
+              "PMSG_TELEPORT_MOVE_RECV.reserved: offset no coincide con el IR");
+static_assert(offsetof(PMSG_TELEPORT_MOVE_RECV, number) == 8,
+              "PMSG_TELEPORT_MOVE_RECV.number: offset no coincide con el IR");
+
+// Move.h
+// Opcode 0x1C (server_to_client) -- Move.cpp
+#pragma pack(push, 8)
+struct PMSG_TELEPORT_SEND
+{
+    PBMSG_HEAD header;
+    BYTE gate;
+    BYTE map;
+    BYTE x;
+    BYTE y;
+    BYTE dir;
+
+    static constexpr uint8_t kHead = 0x1C;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = true;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_TELEPORT_SEND) == 8, "PMSG_TELEPORT_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_TELEPORT_SEND, header) == 0,
+              "PMSG_TELEPORT_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_TELEPORT_SEND, gate) == 3,
+              "PMSG_TELEPORT_SEND.gate: offset no coincide con el IR");
+static_assert(offsetof(PMSG_TELEPORT_SEND, map) == 4,
+              "PMSG_TELEPORT_SEND.map: offset no coincide con el IR");
+static_assert(offsetof(PMSG_TELEPORT_SEND, x) == 5,
+              "PMSG_TELEPORT_SEND.x: offset no coincide con el IR");
+static_assert(offsetof(PMSG_TELEPORT_SEND, y) == 6,
+              "PMSG_TELEPORT_SEND.y: offset no coincide con el IR");
+static_assert(offsetof(PMSG_TELEPORT_SEND, dir) == 7,
+              "PMSG_TELEPORT_SEND.dir: offset no coincide con el IR");
+
+// Notice.h
+// Relleno de alineación en el wire: @269(+3). El servidor manda el struct
+// entero (memcpy/sizeof), así que esos bytes VIAJAN: no se pueden omitir.
+// Opcode 0x0D (server_to_client) -- Notice.cpp
+#pragma pack(push, 8)
+struct PMSG_NOTICE_SEND
+{
+    PBMSG_HEAD header;
+    BYTE type;
+    BYTE count;
+    BYTE opacity;
+    WORD delay;
+    DWORD color;
+    BYTE speed;
+    char message[256];
+
+    static constexpr uint8_t kHead = 0x0D;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_NOTICE_SEND) == 272, "PMSG_NOTICE_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_NOTICE_SEND, header) == 0,
+              "PMSG_NOTICE_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NOTICE_SEND, type) == 3,
+              "PMSG_NOTICE_SEND.type: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NOTICE_SEND, count) == 4,
+              "PMSG_NOTICE_SEND.count: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NOTICE_SEND, opacity) == 5,
+              "PMSG_NOTICE_SEND.opacity: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NOTICE_SEND, delay) == 6,
+              "PMSG_NOTICE_SEND.delay: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NOTICE_SEND, color) == 8,
+              "PMSG_NOTICE_SEND.color: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NOTICE_SEND, speed) == 12,
+              "PMSG_NOTICE_SEND.speed: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NOTICE_SEND, message) == 13,
+              "PMSG_NOTICE_SEND.message: offset no coincide con el IR");
+
+// NpcTalk.h
+// Opcode 0x30 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_NPC_TALK_RECV
+{
+    PBMSG_HEAD header;
+    BYTE index[2];
+
+    static constexpr uint8_t kHead = 0x30;
+    static constexpr bool kHasSub = false;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_NPC_TALK_RECV) == 5, "PMSG_NPC_TALK_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_NPC_TALK_RECV, header) == 0,
+              "PMSG_NPC_TALK_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NPC_TALK_RECV, index) == 3,
+              "PMSG_NPC_TALK_RECV.index: offset no coincide con el IR");
+
+// NpcTalk.h
+// Opcode 0x30 (server_to_client) -- BloodCastle.cpp
+// También se manda como 0x05:0x00 (Warehouse.cpp)
+// También se manda como 0x05:0x30 (Warehouse.cpp)
+#pragma pack(push, 8)
+struct PMSG_NPC_TALK_SEND
+{
+    PBMSG_HEAD header;
+    BYTE result;
+
+    static constexpr uint8_t kHead = 0x30;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = true;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_NPC_TALK_SEND) == 4, "PMSG_NPC_TALK_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_NPC_TALK_SEND, header) == 0,
+              "PMSG_NPC_TALK_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_NPC_TALK_SEND, result) == 3,
+              "PMSG_NPC_TALK_SEND.result: offset no coincide con el IR");
+
+// Party.h
+// Opcode 0x40 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_PARTY_REQUEST_RECV
+{
+    PBMSG_HEAD header;
+    BYTE index[2];
+
+    static constexpr uint8_t kHead = 0x40;
+    static constexpr bool kHasSub = false;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_PARTY_REQUEST_RECV) == 5, "PMSG_PARTY_REQUEST_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_PARTY_REQUEST_RECV, header) == 0,
+              "PMSG_PARTY_REQUEST_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PARTY_REQUEST_RECV, index) == 3,
+              "PMSG_PARTY_REQUEST_RECV.index: offset no coincide con el IR");
+
+// Party.h
+// Opcode 0x41 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_PARTY_REQUEST_RESULT_RECV
+{
+    PBMSG_HEAD header;
+    BYTE result;
+    BYTE index[2];
+
+    static constexpr uint8_t kHead = 0x41;
+    static constexpr bool kHasSub = false;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_PARTY_REQUEST_RESULT_RECV) == 6, "PMSG_PARTY_REQUEST_RESULT_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_PARTY_REQUEST_RESULT_RECV, header) == 0,
+              "PMSG_PARTY_REQUEST_RESULT_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PARTY_REQUEST_RESULT_RECV, result) == 3,
+              "PMSG_PARTY_REQUEST_RESULT_RECV.result: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PARTY_REQUEST_RESULT_RECV, index) == 4,
+              "PMSG_PARTY_REQUEST_RESULT_RECV.index: offset no coincide con el IR");
+
+// Party.h
+// Opcode 0x43 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_PARTY_DEL_MEMBER_RECV
+{
+    PBMSG_HEAD header;
+    BYTE number;
+
+    static constexpr uint8_t kHead = 0x43;
+    static constexpr bool kHasSub = false;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_PARTY_DEL_MEMBER_RECV) == 4, "PMSG_PARTY_DEL_MEMBER_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_PARTY_DEL_MEMBER_RECV, header) == 0,
+              "PMSG_PARTY_DEL_MEMBER_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PARTY_DEL_MEMBER_RECV, number) == 3,
+              "PMSG_PARTY_DEL_MEMBER_RECV.number: offset no coincide con el IR");
+
+// Party.h
+// Opcode 0x40 (server_to_client) -- Party.cpp
+#pragma pack(push, 8)
+struct PMSG_PARTY_REQUEST_SEND
+{
+    PBMSG_HEAD header;
+    BYTE index[2];
+
+    static constexpr uint8_t kHead = 0x40;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_PARTY_REQUEST_SEND) == 5, "PMSG_PARTY_REQUEST_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_PARTY_REQUEST_SEND, header) == 0,
+              "PMSG_PARTY_REQUEST_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PARTY_REQUEST_SEND, index) == 3,
+              "PMSG_PARTY_REQUEST_SEND.index: offset no coincide con el IR");
+
+// Party.h
+// Opcode 0x41 (server_to_client) -- Party.cpp
+#pragma pack(push, 8)
+struct PMSG_PARTY_RESULT_SEND
+{
+    PBMSG_HEAD header;
+    BYTE result;
+
+    static constexpr uint8_t kHead = 0x41;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_PARTY_RESULT_SEND) == 4, "PMSG_PARTY_RESULT_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_PARTY_RESULT_SEND, header) == 0,
+              "PMSG_PARTY_RESULT_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PARTY_RESULT_SEND, result) == 3,
+              "PMSG_PARTY_RESULT_SEND.result: offset no coincide con el IR");
+
+// Party.h
+// Opcode 0x42 (server_to_client) -- Party.cpp
+#pragma pack(push, 8)
+struct PMSG_PARTY_LIST_SEND
+{
+    PBMSG_HEAD header;
+    BYTE result;
+    BYTE count;
+
+    static constexpr uint8_t kHead = 0x42;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_PARTY_LIST_SEND) == 5, "PMSG_PARTY_LIST_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_PARTY_LIST_SEND, header) == 0,
+              "PMSG_PARTY_LIST_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PARTY_LIST_SEND, result) == 3,
+              "PMSG_PARTY_LIST_SEND.result: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PARTY_LIST_SEND, count) == 4,
+              "PMSG_PARTY_LIST_SEND.count: offset no coincide con el IR");
+
+// Party.h
+// Opcode 0x44 (server_to_client) -- Party.cpp
+#pragma pack(push, 8)
+struct PMSG_PARTY_LIFE_SEND
+{
+    PBMSG_HEAD header;
+    BYTE count;
+
+    static constexpr uint8_t kHead = 0x44;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_PARTY_LIFE_SEND) == 4, "PMSG_PARTY_LIFE_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_PARTY_LIFE_SEND, header) == 0,
+              "PMSG_PARTY_LIFE_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PARTY_LIFE_SEND, count) == 3,
+              "PMSG_PARTY_LIFE_SEND.count: offset no coincide con el IR");
+
+// PersonalShop.h
+// Opcode 0x3F:0x01 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_PSHOP_SET_ITEM_PRICE_RECV
+{
+    PSBMSG_HEAD header;
+    BYTE slot;
+    BYTE price[4];
+
+    static constexpr uint8_t kHead = 0x3F;
+    static constexpr uint8_t kSub = 0x01;
+    static constexpr bool kHasSub = true;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_PSHOP_SET_ITEM_PRICE_RECV) == 9, "PMSG_PSHOP_SET_ITEM_PRICE_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_SET_ITEM_PRICE_RECV, header) == 0,
+              "PMSG_PSHOP_SET_ITEM_PRICE_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_SET_ITEM_PRICE_RECV, slot) == 4,
+              "PMSG_PSHOP_SET_ITEM_PRICE_RECV.slot: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_SET_ITEM_PRICE_RECV, price) == 5,
+              "PMSG_PSHOP_SET_ITEM_PRICE_RECV.price: offset no coincide con el IR");
+
+// PersonalShop.h
+// Opcode 0x3F:0x02 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_PSHOP_OPEN_RECV
+{
+    PSBMSG_HEAD header;
+    char text[36];
+
+    static constexpr uint8_t kHead = 0x3F;
+    static constexpr uint8_t kSub = 0x02;
+    static constexpr bool kHasSub = true;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_PSHOP_OPEN_RECV) == 40, "PMSG_PSHOP_OPEN_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_OPEN_RECV, header) == 0,
+              "PMSG_PSHOP_OPEN_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_OPEN_RECV, text) == 4,
+              "PMSG_PSHOP_OPEN_RECV.text: offset no coincide con el IR");
+
+// PersonalShop.h
+// Opcode 0x3F:0x05 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_PSHOP_ITEM_LIST_RECV
+{
+    PSBMSG_HEAD header;
+    BYTE index[2];
+    char name[10];
+
+    static constexpr uint8_t kHead = 0x3F;
+    static constexpr uint8_t kSub = 0x05;
+    static constexpr bool kHasSub = true;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_PSHOP_ITEM_LIST_RECV) == 16, "PMSG_PSHOP_ITEM_LIST_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_ITEM_LIST_RECV, header) == 0,
+              "PMSG_PSHOP_ITEM_LIST_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_ITEM_LIST_RECV, index) == 4,
+              "PMSG_PSHOP_ITEM_LIST_RECV.index: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_ITEM_LIST_RECV, name) == 6,
+              "PMSG_PSHOP_ITEM_LIST_RECV.name: offset no coincide con el IR");
+
+// PersonalShop.h
+// Opcode 0x3F:0x06 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_PSHOP_BUY_ITEM_RECV
+{
+    PSBMSG_HEAD header;
+    BYTE index[2];
+    char name[10];
+    BYTE slot;
+
+    static constexpr uint8_t kHead = 0x3F;
+    static constexpr uint8_t kSub = 0x06;
+    static constexpr bool kHasSub = true;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_PSHOP_BUY_ITEM_RECV) == 17, "PMSG_PSHOP_BUY_ITEM_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_BUY_ITEM_RECV, header) == 0,
+              "PMSG_PSHOP_BUY_ITEM_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_BUY_ITEM_RECV, index) == 4,
+              "PMSG_PSHOP_BUY_ITEM_RECV.index: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_BUY_ITEM_RECV, name) == 6,
+              "PMSG_PSHOP_BUY_ITEM_RECV.name: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_BUY_ITEM_RECV, slot) == 16,
+              "PMSG_PSHOP_BUY_ITEM_RECV.slot: offset no coincide con el IR");
+
+// PersonalShop.h
+// Opcode 0x3F:0x07 (client_to_server) -- Protocol.cpp (ProtocolCore)
+#pragma pack(push, 8)
+struct PMSG_PSHOP_LEAVE_RECV
+{
+    PSBMSG_HEAD header;
+    BYTE index[2];
+    char name[10];
+
+    static constexpr uint8_t kHead = 0x3F;
+    static constexpr uint8_t kSub = 0x07;
+    static constexpr bool kHasSub = true;
+    static constexpr Direction kDirection = Direction::ClientToServer;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_PSHOP_LEAVE_RECV) == 16, "PMSG_PSHOP_LEAVE_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_LEAVE_RECV, header) == 0,
+              "PMSG_PSHOP_LEAVE_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_LEAVE_RECV, index) == 4,
+              "PMSG_PSHOP_LEAVE_RECV.index: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_LEAVE_RECV, name) == 6,
+              "PMSG_PSHOP_LEAVE_RECV.name: offset no coincide con el IR");
+
+// PersonalShop.h
+// Relleno de alineación en el wire: @10(+2). El servidor manda el struct
+// entero (memcpy/sizeof), así que esos bytes VIAJAN: no se pueden omitir.
+#pragma pack(push, 8)
+struct PMSG_PSHOP_SEARCH_RECV
+{
+    PSBMSG_HEAD header;
+    DWORD count;
+    WORD ItemIndex;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_PSHOP_SEARCH_RECV) == 12, "PMSG_PSHOP_SEARCH_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_SEARCH_RECV, header) == 0,
+              "PMSG_PSHOP_SEARCH_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_SEARCH_RECV, count) == 4,
+              "PMSG_PSHOP_SEARCH_RECV.count: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_SEARCH_RECV, ItemIndex) == 8,
+              "PMSG_PSHOP_SEARCH_RECV.ItemIndex: offset no coincide con el IR");
+
+// PersonalShop.h
+// Relleno de alineación en el wire: @9(+3). El servidor manda el struct
+// entero (memcpy/sizeof), así que esos bytes VIAJAN: no se pueden omitir.
+#pragma pack(push, 8)
+struct PMSG_PSHOP_SEARCH_LOG_RECV
+{
+    PSBMSG_HEAD header;
+    DWORD index;
+    BYTE type;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_PSHOP_SEARCH_LOG_RECV) == 12, "PMSG_PSHOP_SEARCH_LOG_RECV: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_SEARCH_LOG_RECV, header) == 0,
+              "PMSG_PSHOP_SEARCH_LOG_RECV.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_SEARCH_LOG_RECV, index) == 4,
+              "PMSG_PSHOP_SEARCH_LOG_RECV.index: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_SEARCH_LOG_RECV, type) == 8,
+              "PMSG_PSHOP_SEARCH_LOG_RECV.type: offset no coincide con el IR");
+
+// PersonalShop.h
+// Opcode 0x3F:0x00 (server_to_client) -- PersonalShop.cpp
+#pragma pack(push, 8)
+struct PMSG_PSHOP_VIEWPORT_SEND
+{
+    PSWMSG_HEAD header;
+    BYTE count;
+
+    static constexpr uint8_t kHead = 0x3F;
+    static constexpr uint8_t kSub = 0x00;
+    static constexpr bool kHasSub = true;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_PSHOP_VIEWPORT_SEND) == 6, "PMSG_PSHOP_VIEWPORT_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_VIEWPORT_SEND, header) == 0,
+              "PMSG_PSHOP_VIEWPORT_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_VIEWPORT_SEND, count) == 5,
+              "PMSG_PSHOP_VIEWPORT_SEND.count: offset no coincide con el IR");
+
+// PersonalShop.h
+// Opcode 0x3F:0x01 (server_to_client) -- PersonalShop.cpp
+#pragma pack(push, 8)
+struct PMSG_PSHOP_SET_ITEM_PRICE_SEND
+{
+    PSBMSG_HEAD header;
+    BYTE result;
+    BYTE slot;
+
+    static constexpr uint8_t kHead = 0x3F;
+    static constexpr uint8_t kSub = 0x01;
+    static constexpr bool kHasSub = true;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_PSHOP_SET_ITEM_PRICE_SEND) == 6, "PMSG_PSHOP_SET_ITEM_PRICE_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_SET_ITEM_PRICE_SEND, header) == 0,
+              "PMSG_PSHOP_SET_ITEM_PRICE_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_SET_ITEM_PRICE_SEND, result) == 4,
+              "PMSG_PSHOP_SET_ITEM_PRICE_SEND.result: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_SET_ITEM_PRICE_SEND, slot) == 5,
+              "PMSG_PSHOP_SET_ITEM_PRICE_SEND.slot: offset no coincide con el IR");
+
+// PersonalShop.h
+// Opcode 0x3F:0x02 (server_to_client) -- PersonalShop.cpp
+#pragma pack(push, 8)
+struct PMSG_PSHOP_OPEN_SEND
+{
+    PSBMSG_HEAD header;
+    BYTE result;
+
+    static constexpr uint8_t kHead = 0x3F;
+    static constexpr uint8_t kSub = 0x02;
+    static constexpr bool kHasSub = true;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_PSHOP_OPEN_SEND) == 5, "PMSG_PSHOP_OPEN_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_OPEN_SEND, header) == 0,
+              "PMSG_PSHOP_OPEN_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_OPEN_SEND, result) == 4,
+              "PMSG_PSHOP_OPEN_SEND.result: offset no coincide con el IR");
+
+// PersonalShop.h
+// Opcode 0x3F:0x03 (server_to_client) -- PersonalShop.cpp
+#pragma pack(push, 8)
+struct PMSG_PSHOP_CLOSE_SEND
+{
+    PSBMSG_HEAD header;
+    BYTE result;
+    BYTE index[2];
+
+    static constexpr uint8_t kHead = 0x3F;
+    static constexpr uint8_t kSub = 0x03;
+    static constexpr bool kHasSub = true;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_PSHOP_CLOSE_SEND) == 7, "PMSG_PSHOP_CLOSE_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_CLOSE_SEND, header) == 0,
+              "PMSG_PSHOP_CLOSE_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_CLOSE_SEND, result) == 4,
+              "PMSG_PSHOP_CLOSE_SEND.result: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_CLOSE_SEND, index) == 5,
+              "PMSG_PSHOP_CLOSE_SEND.index: offset no coincide con el IR");
+
+// PersonalShop.h
+// Opcode 0x3F (server_to_client) -- PersonalShop.cpp
+#pragma pack(push, 8)
+struct PMSG_PSHOP_ITEM_LIST_SEND
+{
+    PSWMSG_HEAD header;
+    BYTE result;
+    BYTE index[2];
+    char name[10];
+    char text[36];
+    BYTE count;
+
+    static constexpr uint8_t kHead = 0x3F;
+    static constexpr bool kHasSub = false;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_PSHOP_ITEM_LIST_SEND) == 55, "PMSG_PSHOP_ITEM_LIST_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_ITEM_LIST_SEND, header) == 0,
+              "PMSG_PSHOP_ITEM_LIST_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_ITEM_LIST_SEND, result) == 5,
+              "PMSG_PSHOP_ITEM_LIST_SEND.result: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_ITEM_LIST_SEND, index) == 6,
+              "PMSG_PSHOP_ITEM_LIST_SEND.index: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_ITEM_LIST_SEND, name) == 8,
+              "PMSG_PSHOP_ITEM_LIST_SEND.name: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_ITEM_LIST_SEND, text) == 18,
+              "PMSG_PSHOP_ITEM_LIST_SEND.text: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_ITEM_LIST_SEND, count) == 54,
+              "PMSG_PSHOP_ITEM_LIST_SEND.count: offset no coincide con el IR");
+
+// PersonalShop.h
+// Opcode 0x3F:0x06 (server_to_client) -- PersonalShop.cpp
+#pragma pack(push, 8)
+struct PMSG_PSHOP_BUY_ITEM_SEND
+{
+    PSBMSG_HEAD header;
+    BYTE result;
+    BYTE index[2];
+    BYTE ItemInfo[5];
+    BYTE slot;
+
+    static constexpr uint8_t kHead = 0x3F;
+    static constexpr uint8_t kSub = 0x06;
+    static constexpr bool kHasSub = true;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_PSHOP_BUY_ITEM_SEND) == 13, "PMSG_PSHOP_BUY_ITEM_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_BUY_ITEM_SEND, header) == 0,
+              "PMSG_PSHOP_BUY_ITEM_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_BUY_ITEM_SEND, result) == 4,
+              "PMSG_PSHOP_BUY_ITEM_SEND.result: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_BUY_ITEM_SEND, index) == 5,
+              "PMSG_PSHOP_BUY_ITEM_SEND.index: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_BUY_ITEM_SEND, ItemInfo) == 7,
+              "PMSG_PSHOP_BUY_ITEM_SEND.ItemInfo: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_BUY_ITEM_SEND, slot) == 12,
+              "PMSG_PSHOP_BUY_ITEM_SEND.slot: offset no coincide con el IR");
+
+// PersonalShop.h
+// Opcode 0x3F:0x08 (server_to_client) -- PersonalShop.cpp
+#pragma pack(push, 8)
+struct PMSG_PSHOP_SELL_ITEM_SEND
+{
+    PSBMSG_HEAD header;
+    BYTE slot;
+    char name[10];
+
+    static constexpr uint8_t kHead = 0x3F;
+    static constexpr uint8_t kSub = 0x08;
+    static constexpr bool kHasSub = true;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_PSHOP_SELL_ITEM_SEND) == 15, "PMSG_PSHOP_SELL_ITEM_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_SELL_ITEM_SEND, header) == 0,
+              "PMSG_PSHOP_SELL_ITEM_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_SELL_ITEM_SEND, slot) == 4,
+              "PMSG_PSHOP_SELL_ITEM_SEND.slot: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_SELL_ITEM_SEND, name) == 5,
+              "PMSG_PSHOP_SELL_ITEM_SEND.name: offset no coincide con el IR");
+
+// PersonalShop.h
+// Opcode 0x3F:0x10 (server_to_client) -- PersonalShop.cpp
+#pragma pack(push, 8)
+struct PMSG_PSHOP_TEXT_CHANGE_SEND
+{
+    PSBMSG_HEAD header;
+    BYTE index[2];
+    char text[36];
+    char name[10];
+
+    static constexpr uint8_t kHead = 0x3F;
+    static constexpr uint8_t kSub = 0x10;
+    static constexpr bool kHasSub = true;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_PSHOP_TEXT_CHANGE_SEND) == 52, "PMSG_PSHOP_TEXT_CHANGE_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_TEXT_CHANGE_SEND, header) == 0,
+              "PMSG_PSHOP_TEXT_CHANGE_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_TEXT_CHANGE_SEND, index) == 4,
+              "PMSG_PSHOP_TEXT_CHANGE_SEND.index: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_TEXT_CHANGE_SEND, text) == 6,
+              "PMSG_PSHOP_TEXT_CHANGE_SEND.text: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_TEXT_CHANGE_SEND, name) == 42,
+              "PMSG_PSHOP_TEXT_CHANGE_SEND.name: offset no coincide con el IR");
+
+// PersonalShop.h
+// Opcode 0x3F:0x12 (server_to_client) -- PersonalShop.cpp
+#pragma pack(push, 8)
+struct PMSG_PSHOP_LEAVE_SEND
+{
+    PSBMSG_HEAD header;
+    BYTE index[2];
+
+    static constexpr uint8_t kHead = 0x3F;
+    static constexpr uint8_t kSub = 0x12;
+    static constexpr bool kHasSub = true;
+    static constexpr bool kEncrypted = false;
+    static constexpr Direction kDirection = Direction::ServerToClient;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_PSHOP_LEAVE_SEND) == 6, "PMSG_PSHOP_LEAVE_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_LEAVE_SEND, header) == 0,
+              "PMSG_PSHOP_LEAVE_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_LEAVE_SEND, index) == 4,
+              "PMSG_PSHOP_LEAVE_SEND.index: offset no coincide con el IR");
+
+// PersonalShop.h
+#pragma pack(push, 8)
+struct PMSG_PSHOP_SEARCH_SEND
+{
+#pragma pack(1)
+    PSWMSG_HEAD header;
+    DWORD count;
+    BYTE flag;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_PSHOP_SEARCH_SEND) == 10, "PMSG_PSHOP_SEARCH_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_SEARCH_SEND, header) == 0,
+              "PMSG_PSHOP_SEARCH_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_SEARCH_SEND, count) == 5,
+              "PMSG_PSHOP_SEARCH_SEND.count: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_SEARCH_SEND, flag) == 9,
+              "PMSG_PSHOP_SEARCH_SEND.flag: offset no coincide con el IR");
+
+// PersonalShop.h
+#pragma pack(push, 8)
+struct PMSG_PSHOP_ITEM_VALUE_SEND
+{
+    PSWMSG_HEAD header;
+    BYTE MoneyCommisionRate;
+    BYTE JewelCommisionRate;
+    BYTE count;
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_PSHOP_ITEM_VALUE_SEND) == 8, "PMSG_PSHOP_ITEM_VALUE_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_ITEM_VALUE_SEND, header) == 0,
+              "PMSG_PSHOP_ITEM_VALUE_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_ITEM_VALUE_SEND, MoneyCommisionRate) == 5,
+              "PMSG_PSHOP_ITEM_VALUE_SEND.MoneyCommisionRate: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_ITEM_VALUE_SEND, JewelCommisionRate) == 6,
+              "PMSG_PSHOP_ITEM_VALUE_SEND.JewelCommisionRate: offset no coincide con el IR");
+static_assert(offsetof(PMSG_PSHOP_ITEM_VALUE_SEND, count) == 7,
+              "PMSG_PSHOP_ITEM_VALUE_SEND.count: offset no coincide con el IR");
+
+// Quest.h
+// Relleno de alineación en el wire: @5(+3). El servidor manda el struct
+// entero (memcpy/sizeof), así que esos bytes VIAJAN: no se pueden omitir.
+#pragma pack(push, 8)
+struct PMSG_QUEST_KILL_COUNT_SEND
+{
+    PBMSG_HEAD header;
+    BYTE QuestResult;
+    BYTE QuestIndex;
+    QUEST_KILL_COUNT QuestKillCount[5];
+};
+#pragma pack(pop)
+static_assert(sizeof(PMSG_QUEST_KILL_COUNT_SEND) == 48, "PMSG_QUEST_KILL_COUNT_SEND: sizeof no coincide con el IR");
+static_assert(offsetof(PMSG_QUEST_KILL_COUNT_SEND, header) == 0,
+              "PMSG_QUEST_KILL_COUNT_SEND.header: offset no coincide con el IR");
+static_assert(offsetof(PMSG_QUEST_KILL_COUNT_SEND, QuestResult) == 3,
+              "PMSG_QUEST_KILL_COUNT_SEND.QuestResult: offset no coincide con el IR");
+static_assert(offsetof(PMSG_QUEST_KILL_COUNT_SEND, QuestIndex) == 4,
+              "PMSG_QUEST_KILL_COUNT_SEND.QuestIndex: offset no coincide con el IR");
+static_assert(offsetof(PMSG_QUEST_KILL_COUNT_SEND, QuestKillCount) == 8,
+              "PMSG_QUEST_KILL_COUNT_SEND.QuestKillCount: offset no coincide con el IR");
+
+
+}  // namespace Mu099B

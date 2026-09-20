@@ -1,0 +1,182 @@
+@using MuServer.AdminPanel.Repositories
+
+@* Tabla HTML nativa en vez de MudDataGrid a propósito: un personaje tiene 108-120 slots, y
+   MudDataGrid en modo de edición por celda instancia un componente MudBlazor completo (con su
+   propio JS interop) por cada celda editable -- para 100+ filas x 8 columnas eso son varios
+   cientos de componentes vivos al mismo tiempo, y en la práctica se volvía tan pesado que el
+   circuito de Blazor Server se quedaba sin responder al SignalR keepalive y el panel entero se
+   colgaba en el "cargando" sin ningún error visible (el server terminaba de calcular todo, pero el
+   navegador nunca llegaba a aplicar el render). <input> nativos con @@bind no tienen ese costo.
+
+   Por eso el botón de "buscar item" es un <button> nativo que llama a OnPickItem (un callback que le
+   pasa el padre) en vez de tener acá su propio <MudIconButton>/IDialogService/parámetro Catalog: quien
+   abre el diálogo de búsqueda es Characters.razor (un solo MudDialog para las dos grillas, montado una
+   sola vez), no esta grilla -- así ningún componente ni parámetro "pesado" se multiplica por fila. *@
+<div class="mb-2">
+    <input @bind="_filter" @bind:event="oninput" placeholder="Filtrar por slot, índice o nombre..."
+           class="item-slot-filter" />
+</div>
+<div style="max-height: 50vh; overflow-y: auto;">
+    <table class="item-slot-table">
+        <thead>
+            <tr>
+                <th>Slot</th>
+                <th>Ubicación</th>
+                <th>Índice</th>
+                <th>Nombre</th>
+                <th>Nivel (+)</th>
+                <th>Durab.</th>
+                <th>Suerte</th>
+                <th>Habil.</th>
+                <th>Opción</th>
+                <th>Excel.</th>
+                <th>Set</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var row in FilteredRows)
+            {
+                <tr>
+                    <td>@row.Slot</td>
+                    <td>@row.Label</td>
+                    <td>
+                        <div class="item-slot-index-cell">
+                            <input type="number" @bind="row.Index" class="item-slot-num" />
+                            <button type="button" class="item-slot-btn" title="Buscar item"
+                                    @onclick="@(() => OnPickItem(row))">🔍</button>
+                        </div>
+                    </td>
+                    <td class="item-slot-name">@ResolveName(row.Index)</td>
+                    <td><input type="number" @bind="row.Level" min="0" max="15" class="item-slot-num" /></td>
+                    <td><input type="number" @bind="row.Durability" min="0" max="255" class="item-slot-num" /></td>
+                    <td><input type="number" @bind="row.Luck" min="0" max="1" class="item-slot-num" /></td>
+                    <td><input type="number" @bind="row.Skill" min="0" max="1" class="item-slot-num" /></td>
+                    <td><input type="number" @bind="row.OptionLevel" min="0" class="item-slot-num" /></td>
+                    <td><input type="number" @bind="row.Excellent" min="0" class="item-slot-num" /></td>
+                    <td><input type="number" @bind="row.SetItem" min="0" class="item-slot-num" /></td>
+                    <td>
+                        <button type="button" class="item-slot-btn" title="Vaciar slot" disabled="@(row.Index < 0)"
+                                @onclick="@(() => Clear(row))">✕</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<style>
+    .item-slot-filter {
+        width: 100%;
+        max-width: 400px;
+        padding: 6px 10px;
+        border-radius: 4px;
+        border: 1px solid var(--mud-palette-lines-inputs, #999);
+        background: transparent;
+        color: inherit;
+    }
+
+    .item-slot-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.8rem;
+    }
+
+    .item-slot-table th {
+        text-align: left;
+        padding: 4px 8px;
+        position: sticky;
+        top: 0;
+        background: var(--mud-palette-background, #1e1e2d);
+        z-index: 1;
+    }
+
+    .item-slot-table td {
+        padding: 2px 8px;
+        border-top: 1px solid var(--mud-palette-lines-default, #333);
+    }
+
+    .item-slot-name {
+        white-space: nowrap;
+        max-width: 220px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .item-slot-num {
+        width: 64px;
+        background: transparent;
+        color: inherit;
+        border: 1px solid var(--mud-palette-lines-inputs, #666);
+        border-radius: 4px;
+        padding: 2px 4px;
+    }
+
+    .item-slot-index-cell {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+    }
+
+    .item-slot-btn {
+        background: transparent;
+        color: inherit;
+        border: 1px solid var(--mud-palette-lines-inputs, #666);
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.75rem;
+        line-height: 1;
+        padding: 3px 6px;
+    }
+
+    .item-slot-btn:hover {
+        background: var(--mud-palette-action-default-hover, rgba(255, 255, 255, 0.1));
+    }
+
+    .item-slot-btn:disabled {
+        opacity: 0.4;
+        cursor: default;
+    }
+</style>
+
+@code {
+    [Parameter, EditorRequired]
+    public required List<ItemSlotRow> Rows { get; set; }
+
+    [Parameter, EditorRequired]
+    public required Func<int, string> ResolveName { get; set; }
+
+    [Parameter, EditorRequired]
+    public required Func<ItemSlotRow, Task> OnPickItem { get; set; }
+
+    private string _filter = string.Empty;
+
+    private IEnumerable<ItemSlotRow> FilteredRows
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(_filter))
+            {
+                return Rows;
+            }
+
+            return Rows.Where(r =>
+                r.Slot.ToString().Contains(_filter, StringComparison.OrdinalIgnoreCase) ||
+                r.Label.Contains(_filter, StringComparison.OrdinalIgnoreCase) ||
+                r.Index.ToString().Contains(_filter, StringComparison.OrdinalIgnoreCase) ||
+                ResolveName(r.Index).Contains(_filter, StringComparison.OrdinalIgnoreCase));
+        }
+    }
+
+    private void Clear(ItemSlotRow row)
+    {
+        row.Index = -1;
+        row.Level = 0;
+        row.Durability = 0;
+        row.Luck = 0;
+        row.Skill = 0;
+        row.OptionLevel = 0;
+        row.Excellent = 0;
+        row.SetItem = 0;
+    }
+}

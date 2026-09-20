@@ -1,0 +1,61 @@
+@using MuServer.GameServer.World
+
+<MudDialog>
+    <DialogContent>
+        <MudTextField T="string" @bind-Value="_search" Label="Buscar por nombre o índice" Variant="Variant.Outlined"
+                      Immediate="true" AutoFocus="true" Margin="Margin.Dense" Class="mb-2"
+                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" />
+
+        <MudList T="int" Dense="true" Style="max-height: 55vh; overflow-y: auto;" Gutters="false">
+            @foreach (var item in Filtered)
+            {
+                <MudListItem T="int" Value="item.Index" OnClick="@(() => Select(item.Index))" Class="px-2">
+                    <div class="d-flex justify-space-between" style="width: 100%">
+                        <span>@item.Name</span>
+                        <span class="mud-text-secondary">#@item.Index</span>
+                    </div>
+                </MudListItem>
+            }
+        </MudList>
+
+        @if (!Filtered.Any())
+        {
+            <MudText Typo="Typo.body2" Class="pa-2 mud-text-secondary">Sin resultados para "@_search".</MudText>
+        }
+        else if (Filtered.Count() >= ResultLimit)
+        {
+            <MudText Typo="Typo.caption" Class="pa-2 mud-text-secondary">Mostrando los primeros @ResultLimit -- afiná la búsqueda.</MudText>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="ClearSlot" Color="Color.Error">Vaciar slot</MudButton>
+        <MudButton OnClick="Cancel">Cancelar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private const int ResultLimit = 60;
+
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter]
+    public IReadOnlyList<ItemBalance> Catalog { get; set; } = [];
+
+    private string _search = string.Empty;
+
+    private IEnumerable<ItemBalance> Filtered =>
+        (string.IsNullOrWhiteSpace(_search)
+            ? Catalog
+            : Catalog.Where(i =>
+                i.Name.Contains(_search, StringComparison.OrdinalIgnoreCase) ||
+                i.Index.ToString() == _search))
+        .OrderBy(i => i.Name, StringComparer.OrdinalIgnoreCase)
+        .Take(ResultLimit);
+
+    private void Select(int index) => MudDialog.Close(DialogResult.Ok(index));
+
+    private void ClearSlot() => MudDialog.Close(DialogResult.Ok(-1));
+
+    private void Cancel() => MudDialog.Cancel();
+}

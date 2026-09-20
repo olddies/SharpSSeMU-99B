@@ -1,0 +1,176 @@
+@page "/config"
+@using MuServer.AdminPanel.Config
+@using MuServer.AdminPanel.Repositories
+@inject GameDataPaths DataPaths
+@inject ISnackbar Snackbar
+
+<PageTitle>Configuración</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-1">Configuración</MudText>
+<MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">
+    Los archivos Data/GameServerInfo - *.dat completos, tal cual los lee el GameServer al arrancar.
+    Los grupos y el orden salen de los comentarios del propio archivo, así que lo que ves acá es
+    exactamente lo que hay adentro -- nada está filtrado ni renombrado.
+</MudText>
+<MudAlert Severity="Severity.Warning" Class="mb-4" Dense="true">
+    El GameServer lee estos archivos <b>una sola vez, al arrancar</b>: cualquier cambio recién aplica
+    cuando lo reinicias. Ojo también con que muchos campos pertenecen a sistemas que todavía no están
+    portados (PK, comercio, guild, resets...): se guardan bien, pero no van a hacer nada hasta que ese
+    sistema exista.
+</MudAlert>
+
+<MudSelect T="string" Value="_selectedFile" ValueChanged="OnFileChangedAsync" Label="Archivo"
+           Variant="Variant.Outlined" Dense="true" Class="mb-4" Style="max-width: 420px;">
+    @foreach (var file in ConfigFiles)
+    {
+        <MudSelectItem Value="file">@file</MudSelectItem>
+    }
+</MudSelect>
+
+@if (_doc is null)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+else if (_doc.Groups.Count == 0)
+{
+    <MudAlert Severity="Severity.Info">Este archivo no tiene claves para editar.</MudAlert>
+}
+else
+{
+    <MudTextField T="string" @bind-Value="_filter" Label="Buscar clave" Variant="Variant.Outlined"
+                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                  Immediate="true" Clearable="true" Margin="Margin.Dense" Class="mb-4" Style="max-width: 420px;" />
+
+    @if (!VisibleGroups.Any())
+    {
+        <MudAlert Severity="Severity.Info">
+            Ninguna clave de este archivo coincide con "@_filter".
+        </MudAlert>
+    }
+
+    @foreach (var group in VisibleGroups)
+    {
+        <MudPaper Class="pa-4 mb-4" Elevation="0">
+            <MudText Typo="Typo.subtitle1" Class="mb-3">@group.Title</MudText>
+            <MudGrid Spacing="2">
+                @foreach (var entry in VisibleEntries(group))
+                {
+                    <MudItem xs="12" sm="6" md="4" lg="3">
+                        @if (entry.IsNumeric)
+                        {
+                            <MudNumericField T="int" Value="@ToInt(entry.Value)"
+                                             ValueChanged="@(v => entry.Value = v.ToString())"
+                                             Label="@entry.Key" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                        }
+                        else
+                        {
+                            <MudTextField T="string" @bind-Value="entry.Value" Label="@entry.Key"
+                                          Variant="Variant.Outlined" Margin="Margin.Dense" />
+                        }
+                    </MudItem>
+                }
+            </MudGrid>
+        </MudPaper>
+    }
+
+    <div class="d-flex gap-2 mt-2 mb-8">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
+                   OnClick="SaveAsync" Disabled="@_saving">
+            Guardar (@DirtyCount cambio@(DirtyCount == 1 ? "" : "s"))
+        </MudButton>
+        <MudButton Variant="Variant.Outlined" OnClick="ReloadAsync" Disabled="@_saving">
+            Descartar cambios
+        </MudButton>
+    </div>
+}
+
+@code {
+    private static readonly string[] ConfigFiles =
+    [
+        "GameServerInfo - Common.dat",
+        "GameServerInfo - Character.dat",
+        "GameServerInfo - ChaosMix.dat",
+        "GameServerInfo - Command.dat",
+        "GameServerInfo - Custom.dat",
+        "GameServerInfo - Event.dat",
+        "GameServerInfo - Item.dat",
+        "GameServerInfo - Skill.dat",
+    ];
+
+    private string _selectedFile = ConfigFiles[0];
+    private IniDocument? _doc;
+    private string? _filter;
+    private bool _saving;
+    private bool _backedUp;
+
+    private string Path => DataPaths.Combine(_selectedFile);
+
+    private int DirtyCount => _doc?.Groups.SelectMany(g => g.Entries).Count(e => e.IsDirty) ?? 0;
+
+    private IEnumerable<IniGroup> VisibleGroups =>
+        _doc!.Groups.Where(g => VisibleEntries(g).Any());
+
+    private IEnumerable<IniEntry> VisibleEntries(IniGroup group) =>
+        string.IsNullOrWhiteSpace(_filter)
+            ? group.Entries
+            : group.Entries.Where(e => e.Key.Contains(_filter, StringComparison.OrdinalIgnoreCase));
+
+    private static int ToInt(string value) => int.TryParse(value.Trim(), out var n) ? n : 0;
+
+    protected override Task OnInitializedAsync() => ReloadAsync();
+
+    private Task OnFileChangedAsync(string file)
+    {
+        _selectedFile = file;
+        _backedUp = false;
+        // El filtro es de la búsqueda anterior: dejarlo puesto al cambiar de archivo da una página
+        // vacía sin explicación (las claves de un archivo no suelen existir en el otro).
+        _filter = null;
+        return ReloadAsync();
+    }
+
+    private Task ReloadAsync()
+    {
+        _doc = IniDocument.Load(Path);
+        return Task.CompletedTask;
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_doc is null)
+        {
+            return;
+        }
+
+        _saving = true;
+        try
+        {
+            if (!_backedUp)
+            {
+                var backupPath = Path + ".bak";
+                if (!File.Exists(backupPath))
+                {
+                    File.Copy(Path, backupPath);
+                }
+                _backedUp = true;
+            }
+
+            var changed = DirtyCount;
+            _doc.ApplyGroupEdits();
+            _doc.Save(Path);
+            Snackbar.Add($"Guardado: {changed} valor(es) en {_selectedFile}.", Severity.Success);
+
+            // Se recarga para que OriginalValue vuelva a ser lo que hay en disco (si no, lo recién
+            // guardado seguiría contando como "cambio pendiente").
+            await ReloadAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"No se pudo guardar: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+}

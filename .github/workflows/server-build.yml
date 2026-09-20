@@ -1,0 +1,28 @@
+name: Server build
+
+on:
+  push:
+    branches: [main]
+    paths: ["SharpSSeMU/**", ".github/workflows/server-build.yml"]
+  pull_request:
+    paths: ["SharpSSeMU/**", ".github/workflows/server-build.yml"]
+
+jobs:
+  build:
+    name: Build (.NET 10)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore SharpSSeMU/SharpSSeMU.sln
+
+      - name: Build
+        run: dotnet build SharpSSeMU/SharpSSeMU.sln --no-restore -c Release
+
+      # The end-to-end tests need the original game package (not distributed), so
+      # they are run locally -- see docs/BUILDING.md.

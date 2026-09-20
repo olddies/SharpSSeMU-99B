@@ -1,0 +1,515 @@
+@page "/characters"
+@using MuServer.AdminPanel.Config
+@using MuServer.AdminPanel.Components.Shared
+@using MuServer.AdminPanel.Repositories
+@using MuServer.DataServer.Db
+@using MuServer.GameServer.World
+@inject CharacterEditRepository Repo
+@inject GameDataPaths DataPaths
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<PageTitle>Personajes</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-1">Personajes</MudText>
+<MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">
+    Edita stats, inventario y baúl directo en la base de datos que usa DataServer. Si el personaje
+    está conectado ahora mismo, el GameServer tiene su propia copia en memoria y no se va a enterar
+    de este cambio hasta que se desconecte y vuelva a entrar -- para probar un cambio, hacelo con el
+    personaje desconectado, o vas a ver cómo el próximo autosave lo pisa con lo que tenía en memoria.
+</MudText>
+
+@if (_characters is null)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+else
+{
+    <MudTextField T="string" Value="_search" ValueChanged="OnSearchChanged" Label="Buscar por nombre o cuenta"
+                  Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Style="max-width:400px" Immediate="true"
+                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" />
+
+    <MudTable Items="@FilteredCharacters" Dense="true" Hover="true" FixedHeader="true" Height="35vh"
+              T="CharacterSummary" OnRowClick="OnRowClickAsync">
+        <HeaderContent>
+            <MudTh>Nombre</MudTh>
+            <MudTh>Cuenta</MudTh>
+            <MudTh>Clase</MudTh>
+            <MudTh>Nivel</MudTh>
+            <MudTh>Zen</MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Nombre">@context.Name</MudTd>
+            <MudTd DataLabel="Cuenta">@context.Account</MudTd>
+            <MudTd DataLabel="Clase">@context.ClassName</MudTd>
+            <MudTd DataLabel="Nivel">@context.Level</MudTd>
+            <MudTd DataLabel="Zen">@context.Money.ToString("N0")</MudTd>
+            <MudTd>
+                @if (_selected?.Name == context.Name)
+                {
+                    <MudIcon Icon="@Icons.Material.Filled.ArrowBack" Color="Color.Primary" />
+                }
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@if (_loading)
+{
+    <MudProgressCircular Indeterminate="true" Class="mt-4" />
+}
+
+@if (_row is not null && _selected is not null)
+{
+    <ErrorBoundary>
+        <ChildContent>
+    <MudPaper Class="pa-4 mt-4" Elevation="1">
+        <MudText Typo="Typo.h5" Class="mb-2">
+            @_selected.Name
+            <span class="mud-text-secondary ml-2" style="font-size: 0.75rem;">(@_selected.Account)</span>
+        </MudText>
+
+        <MudTabs Elevation="0" Rounded="true" Class="mt-2">
+            <MudTabPanel Text="Stats">
+                <MudText Typo="Typo.subtitle2" Class="mb-2">Identidad</MudText>
+                <MudGrid>
+                    <MudItem xs="6" sm="3">
+                        <MudSelect T="int" @bind-Value="_compactClass" Label="Clase" Variant="Variant.Outlined" Margin="Margin.Dense">
+                            <MudSelectItem Value="0">Dark Wizard</MudSelectItem>
+                            <MudSelectItem Value="1">Dark Knight</MudSelectItem>
+                            <MudSelectItem Value="2">Fairy Elf</MudSelectItem>
+                            <MudSelectItem Value="3">Magic Gladiator</MudSelectItem>
+                            <MudSelectItem Value="4">Dark Lord</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="6" sm="3">
+                        <MudSelect T="int" @bind-Value="_changeUp" Label="Evolución (ChangeUp)" Variant="Variant.Outlined" Margin="Margin.Dense">
+                            <MudSelectItem Value="0">1ra (base)</MudSelectItem>
+                            <MudSelectItem Value="1">2da</MudSelectItem>
+                            <MudSelectItem Value="2">3ra</MudSelectItem>
+                            <MudSelectItem Value="3">4ta</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="6" sm="3">
+                        <MudNumericField T="int" @bind-Value="_clevel" Label="Nivel" Variant="Variant.Outlined" Margin="Margin.Dense" Min="1" Max="65535" />
+                    </MudItem>
+                    <MudItem xs="6" sm="3">
+                        <MudNumericField T="int" @bind-Value="_levelUpPoint" Label="Puntos de nivel" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+                    </MudItem>
+                    <MudItem xs="6" sm="3">
+                        <MudNumericField T="long" @bind-Value="_experience" Label="Experiencia" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+                    </MudItem>
+                    <MudItem xs="6" sm="3">
+                        <MudNumericField T="long" @bind-Value="_money" Label="Zen" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" Max="4294967295" />
+                    </MudItem>
+                </MudGrid>
+
+                <MudText Typo="Typo.subtitle2" Class="mt-4 mb-2">Atributos</MudText>
+                <MudGrid>
+                    <MudItem xs="6" sm="2">
+                        <MudNumericField T="int" @bind-Value="_strength" Label="Fuerza" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+                    </MudItem>
+                    <MudItem xs="6" sm="2">
+                        <MudNumericField T="int" @bind-Value="_dexterity" Label="Agilidad" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+                    </MudItem>
+                    <MudItem xs="6" sm="2">
+                        <MudNumericField T="int" @bind-Value="_vitality" Label="Vitalidad" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+                    </MudItem>
+                    <MudItem xs="6" sm="2">
+                        <MudNumericField T="int" @bind-Value="_energy" Label="Energía" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+                    </MudItem>
+                    <MudItem xs="6" sm="2">
+                        <MudNumericField T="int" @bind-Value="_leadership" Label="Mando" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+                    </MudItem>
+                </MudGrid>
+
+                <MudText Typo="Typo.subtitle2" Class="mt-4 mb-2">Vida / Maná / BP</MudText>
+                <MudGrid>
+                    <MudItem xs="6" sm="2">
+                        <MudNumericField T="float" @bind-Value="_life" Label="Vida" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+                    </MudItem>
+                    <MudItem xs="6" sm="2">
+                        <MudNumericField T="float" @bind-Value="_maxLife" Label="Vida máx." Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+                    </MudItem>
+                    <MudItem xs="6" sm="2">
+                        <MudNumericField T="float" @bind-Value="_mana" Label="Maná" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+                    </MudItem>
+                    <MudItem xs="6" sm="2">
+                        <MudNumericField T="float" @bind-Value="_maxMana" Label="Maná máx." Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+                    </MudItem>
+                    <MudItem xs="6" sm="2">
+                        <MudNumericField T="float" @bind-Value="_bp" Label="BP" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+                    </MudItem>
+                    <MudItem xs="6" sm="2">
+                        <MudNumericField T="float" @bind-Value="_maxBp" Label="BP máx." Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+                    </MudItem>
+                </MudGrid>
+
+                <MudText Typo="Typo.subtitle2" Class="mt-4 mb-2">Posición</MudText>
+                <MudGrid>
+                    <MudItem xs="6" sm="2">
+                        <MudNumericField T="int" @bind-Value="_mapNumber" Label="Mapa" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+                    </MudItem>
+                    <MudItem xs="6" sm="2">
+                        <MudNumericField T="int" @bind-Value="_mapPosX" Label="X" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" Max="255" />
+                    </MudItem>
+                    <MudItem xs="6" sm="2">
+                        <MudNumericField T="int" @bind-Value="_mapPosY" Label="Y" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" Max="255" />
+                    </MudItem>
+                    <MudItem xs="6" sm="2">
+                        <MudNumericField T="int" @bind-Value="_mapDir" Label="Dirección" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" Max="7" />
+                    </MudItem>
+                </MudGrid>
+
+                <MudText Typo="Typo.subtitle2" Class="mt-4 mb-2">PK y frutas</MudText>
+                <MudGrid>
+                    <MudItem xs="6" sm="2">
+                        <MudNumericField T="int" @bind-Value="_pkCount" Label="PK Count" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+                    </MudItem>
+                    <MudItem xs="6" sm="2">
+                        <MudNumericField T="int" @bind-Value="_pkLevel" Label="PK Level (3=normal)" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+                    </MudItem>
+                    <MudItem xs="6" sm="2">
+                        <MudNumericField T="int" @bind-Value="_pkTime" Label="PK Time" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+                    </MudItem>
+                    <MudItem xs="6" sm="2">
+                        <MudNumericField T="int" @bind-Value="_fruitAddPoint" Label="Puntos fruta +" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+                    </MudItem>
+                    <MudItem xs="6" sm="2">
+                        <MudNumericField T="int" @bind-Value="_fruitSubPoint" Label="Puntos fruta -" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+                    </MudItem>
+                </MudGrid>
+
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-4"
+                           StartIcon="@Icons.Material.Filled.Save" OnClick="SaveStatsAsync" Disabled="@_saving">
+                    Guardar stats
+                </MudButton>
+            </MudTabPanel>
+
+            <MudTabPanel Text="@($"Inventario ({_inventory?.Count(i => i.Index >= 0) ?? 0}/{_inventory?.Count ?? 0})")">
+                @if (_inventory is not null)
+                {
+                    <ItemSlotGrid Rows="_inventory" ResolveName="ResolveItemName" OnPickItem="OpenPickerAsync" />
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-4"
+                               StartIcon="@Icons.Material.Filled.Save" OnClick="SaveInventoryAsync" Disabled="@_saving">
+                        Guardar inventario
+                    </MudButton>
+                }
+            </MudTabPanel>
+
+            <MudTabPanel Text="@($"Baúl -- cuenta ({_warehouse?.Count(i => i.Index >= 0) ?? 0}/{_warehouse?.Count ?? 0})")">
+                <MudText Typo="Typo.body2" Class="mud-text-secondary mb-2">
+                    El baúl es de la CUENTA, no del personaje: lo comparten los 5 personajes de
+                    @_selected.Account.
+                </MudText>
+                <MudGrid Class="mb-2">
+                    <MudItem xs="6" sm="3">
+                        <MudNumericField T="long" @bind-Value="_warehouseMoney" Label="Zen en el baúl" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" Max="4294967295" />
+                    </MudItem>
+                    <MudItem xs="6" sm="3">
+                        <MudNumericField T="int" @bind-Value="_warehousePassword" Label="Contraseña (0 = sin clave)" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" Max="9999" />
+                    </MudItem>
+                </MudGrid>
+                @if (_warehouse is not null)
+                {
+                    <ItemSlotGrid Rows="_warehouse" ResolveName="ResolveItemName" OnPickItem="OpenPickerAsync" />
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-4"
+                               StartIcon="@Icons.Material.Filled.Save" OnClick="SaveWarehouseAsync" Disabled="@_saving">
+                        Guardar baúl
+                    </MudButton>
+                }
+            </MudTabPanel>
+        </MudTabs>
+    </MudPaper>
+        </ChildContent>
+        <ErrorContent Context="ex">
+            <MudAlert Severity="Severity.Error" Class="mt-4">
+                Error renderizando el editor: @ex.GetType().Name -- @ex.Message
+                <pre style="white-space:pre-wrap;font-size:0.7rem;">@ex.StackTrace</pre>
+            </MudAlert>
+        </ErrorContent>
+    </ErrorBoundary>
+}
+
+@code {
+    private List<CharacterSummary>? _characters;
+    private string _search = string.Empty;
+    private CharacterSummary? _selected;
+    private CharacterFullRow? _row;
+    private bool _loading;
+    private bool _saving;
+    private ItemBalanceTable? _itemBalance;
+
+    // Stats
+    private int _compactClass, _changeUp, _clevel, _levelUpPoint, _mapNumber, _mapPosX, _mapPosY, _mapDir,
+        _pkCount, _pkLevel, _pkTime, _fruitAddPoint, _fruitSubPoint, _strength, _dexterity, _vitality, _energy, _leadership;
+    private long _experience, _money;
+    private float _life, _maxLife, _mana, _maxMana, _bp, _maxBp;
+
+    // Inventario / baúl
+    private List<ItemSlotRow>? _inventory;
+    private List<ItemSlotRow>? _warehouse;
+    private long _warehouseMoney;
+    private int _warehousePassword;
+
+    private IEnumerable<CharacterSummary> FilteredCharacters => _characters is null
+        ? Enumerable.Empty<CharacterSummary>()
+        : string.IsNullOrWhiteSpace(_search)
+            ? _characters
+            : _characters.Where(c =>
+                c.Name.Contains(_search, StringComparison.OrdinalIgnoreCase) ||
+                c.Account.Contains(_search, StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+    {
+        var itemBalance = new ItemBalanceTable();
+        itemBalance.Load(DataPaths.Combine("Item", "Item.txt"));
+        _itemBalance = itemBalance;
+
+        _characters = await Repo.ListCharactersAsync(CancellationToken.None);
+    }
+
+    private void OnSearchChanged(string value) => _search = value;
+
+    private string ResolveItemName(int wireIndex)
+    {
+        if (wireIndex < 0) return "(vacío)";
+        return _itemBalance?.Get(wireIndex)?.Name ?? "(desconocido)";
+    }
+
+    private async Task OpenPickerAsync(ItemSlotRow row)
+    {
+        var catalog = _itemBalance?.All.ToList() ?? [];
+        var parameters = new DialogParameters<ItemPickerDialog> { { x => x.Catalog, catalog } };
+        var dialogRef = await DialogService.ShowAsync<ItemPickerDialog>("Elegir item", parameters);
+        var result = await dialogRef.Result;
+
+        if (result is { Canceled: false } && result.Data is int selectedIndex)
+        {
+            row.Index = selectedIndex;
+        }
+    }
+
+    private Task OnRowClickAsync(MudBlazor.TableRowClickEventArgs<CharacterSummary> e) =>
+        e.Item is null ? Task.CompletedTask : SelectAsync(e.Item);
+
+    private async Task SelectAsync(CharacterSummary character)
+    {
+        _loading = true;
+        _selected = character;
+        _row = null;
+        StateHasChanged();
+
+        try
+        {
+            var row = await Repo.GetCharacterAsync(character.Account, character.Name, CancellationToken.None);
+            if (row is null)
+            {
+                Snackbar.Add("No se pudo cargar el personaje (¿lo borraron?).", Severity.Error);
+                return;
+            }
+
+            _row = row;
+            _compactClass = character.CompactClass;
+            _changeUp = character.ChangeUp;
+            _clevel = row.CLevel;
+            _levelUpPoint = row.LevelUpPoint;
+            _experience = row.Experience;
+            _money = row.Money;
+            _strength = row.Strength;
+            _dexterity = row.Dexterity;
+            _vitality = row.Vitality;
+            _energy = row.Energy;
+            _leadership = row.Leadership;
+            _life = row.Life;
+            _maxLife = row.MaxLife;
+            _mana = row.Mana;
+            _maxMana = row.MaxMana;
+            _bp = row.BP;
+            _maxBp = row.MaxBP;
+            _mapNumber = row.MapNumber;
+            _mapPosX = row.MapPosX;
+            _mapPosY = row.MapPosY;
+            _mapDir = row.MapDir;
+            _pkCount = row.PkCount;
+            _pkLevel = row.PkLevel;
+            _pkTime = row.PkTime;
+            _fruitAddPoint = row.FruitAddPoint;
+            _fruitSubPoint = row.FruitSubPoint;
+
+            _inventory = BuildItemSlotRows(row.Inventory, Item.InventorySize, SlotLabel);
+
+            var warehouse = await Repo.GetWarehouseAsync(character.Account, CancellationToken.None);
+            if (warehouse is not null)
+            {
+                _warehouse = BuildItemSlotRows(warehouse.Items, 120, i => $"Baúl {i + 1}");
+                _warehouseMoney = warehouse.Money;
+                _warehousePassword = warehouse.Password;
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"No se pudo cargar el personaje: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+            // Explícito y no sólo confiando en el auto-render de Blazor tras el EventCallback: un
+            // bug real de esta misma página (corregido junto con este) llamaba a este método desde
+            // un lambda "fire-and-forget" (Action, no Func<Task>) que Blazor nunca esperaba -- el
+            // servidor terminaba de cargar todo bien pero el cliente jamás se enteraba, así que el
+            // panel se quedaba colgado en "cargando" sin ningún error visible. Ver OnRowClickAsync.
+            StateHasChanged();
+        }
+    }
+
+    private static string SlotLabel(int slot) => slot switch
+    {
+        Item.SlotWeapon1 => "Arma (mano izq.)",
+        Item.SlotWeapon2 => "Arma (mano der.)",
+        Item.SlotHelm => "Casco",
+        Item.SlotArmor => "Armadura",
+        Item.SlotPants => "Pantalón",
+        Item.SlotGloves => "Guantes",
+        Item.SlotBoots => "Botas",
+        Item.SlotWing => "Alas",
+        Item.SlotHelper => "Ayudante",
+        Item.SlotAmulet => "Amuleto",
+        Item.SlotRing1 => "Anillo 1",
+        Item.SlotRing2 => "Anillo 2",
+        _ => $"Inventario {slot - Item.InventoryWearSize + 1}",
+    };
+
+    private static List<ItemSlotRow> BuildItemSlotRows(byte[] blob, int slotCount, Func<int, string> label)
+    {
+        var rows = new List<ItemSlotRow>(slotCount);
+        for (int i = 0; i < slotCount; i++)
+        {
+            int offset = i * Item.DbByteSize;
+            var item = offset + Item.DbByteSize <= blob.Length
+                ? Item.FromDbBytes(blob.AsSpan(offset, Item.DbByteSize))
+                : Item.Empty();
+            rows.Add(ItemSlotRow.FromItem(i, label(i), item));
+        }
+        return rows;
+    }
+
+    private static byte[] EncodeItemSlotRows(List<ItemSlotRow> rows, int slotCount)
+    {
+        var blob = new byte[slotCount * Item.DbByteSize];
+        foreach (var row in rows)
+        {
+            row.ToItem().ToDbBytes(blob.AsSpan(row.Slot * Item.DbByteSize, Item.DbByteSize));
+        }
+        return blob;
+    }
+
+    private async Task SaveStatsAsync()
+    {
+        if (_row is null || _selected is null) return;
+
+        _saving = true;
+        try
+        {
+            var updated = _row with
+            {
+                Class = (short)((_compactClass * 16) + _changeUp),
+                CLevel = _clevel,
+                LevelUpPoint = _levelUpPoint,
+                Experience = _experience,
+                Strength = _strength,
+                Dexterity = _dexterity,
+                Vitality = _vitality,
+                Energy = _energy,
+                Leadership = _leadership,
+                Money = Math.Clamp(_money, 0, uint.MaxValue),
+                Life = _life,
+                MaxLife = _maxLife,
+                Mana = _mana,
+                MaxMana = _maxMana,
+                BP = _bp,
+                MaxBP = _maxBp,
+                MapNumber = _mapNumber,
+                MapPosX = _mapPosX,
+                MapPosY = _mapPosY,
+                MapDir = _mapDir,
+                PkCount = _pkCount,
+                PkLevel = _pkLevel,
+                PkTime = _pkTime,
+                FruitAddPoint = _fruitAddPoint,
+                FruitSubPoint = _fruitSubPoint,
+            };
+
+            await Repo.SaveCharacterAsync(_selected.Account, _selected.Name, updated, CancellationToken.None);
+            _row = updated;
+
+            // Refleja el cambio de nivel/zen en la lista de arriba sin recargarla entera.
+            var idx = _characters!.FindIndex(c => c.Name == _selected.Name);
+            if (idx >= 0)
+            {
+                _characters[idx] = _characters[idx] with
+                {
+                    RawClass = (byte)updated.Class,
+                    Level = updated.CLevel,
+                    Money = updated.Money,
+                };
+            }
+
+            Snackbar.Add("Stats guardados.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"No se pudo guardar: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task SaveInventoryAsync()
+    {
+        if (_inventory is null || _selected is null || _row is null) return;
+
+        _saving = true;
+        try
+        {
+            var bytes = EncodeItemSlotRows(_inventory, Item.InventorySize);
+            await Repo.SaveInventoryAsync(_selected.Account, _selected.Name, bytes, CancellationToken.None);
+            _row = _row with { Inventory = bytes };
+            Snackbar.Add("Inventario guardado.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"No se pudo guardar: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task SaveWarehouseAsync()
+    {
+        if (_warehouse is null || _selected is null) return;
+
+        _saving = true;
+        try
+        {
+            var bytes = EncodeItemSlotRows(_warehouse, 120);
+            var money = (uint)Math.Clamp(_warehouseMoney, 0, uint.MaxValue);
+            var password = (ushort)Math.Clamp(_warehousePassword, 0, ushort.MaxValue);
+            await Repo.SaveWarehouseAsync(_selected.Account, bytes, money, password, CancellationToken.None);
+            Snackbar.Add("Baúl guardado.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"No se pudo guardar: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+}

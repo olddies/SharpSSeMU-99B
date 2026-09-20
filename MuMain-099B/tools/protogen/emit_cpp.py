@@ -1,0 +1,167 @@
+#!/usr/bin/env python3
+"""Genera el header C++ del protocolo 0.99B a partir del IR.
+
+Emite un único header con:
+
+* los structs del wire con su layout EXACTO (regiones ``#pragma pack``
+  incluidas, tal como quedan en MSVC x86);
+* un ``static_assert`` de ``sizeof`` y de ``offsetof`` por miembro, así el
+  compilador rechaza cualquier deriva entre el header generado y el IR;
+* el opcode, la dirección y el transporte de cada paquete como miembros
+  ``static constexpr`` del propio struct (no son miembros de datos, no tocan el
+  layout), para que el sitio de uso no tenga que repetir el head a mano.
+
+Los arrays ``char`` representan **bytes del wire**, no texto del cliente. El
+cliente trabaja en UTF-16 en memoria; convertir es responsabilidad de la capa
+que llena o lee estos structs, no de la definición.
+
+Uso:
+    python emit_cpp.py --ir protocol_099b.json --out Protocol099B.generated.h
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+from pathlib import Path
+
+PRELUDE = """// Generado por tools/protogen/emit_cpp.py -- NO EDITAR A MANO.
+//
+// Formato de wire del servidor SSeMU 0.99B (2.1.7), derivado de
+// Source/Source/Emulator 0.99 (2.1.7)/GameServer/*.h. Para regenerarlo:
+//
+//     python tools/protogen/parse_protocol.py --gameserver-dir <...> --out protocol_099b.json
+//     python tools/protogen/annotate_opcodes.py --ir protocol_099b.json --gameserver-dir <...>
+//     python tools/protogen/emit_cpp.py --ir protocol_099b.json --out <este archivo>
+//
+// Los static_assert de abajo no son decorativos: si el layout derivado se
+// desviara del que arma MSVC, esto no compila. Ver tools/protogen/README.md.
+
+#pragma once
+
+#include <cstddef>
+#include <cstdint>
+
+namespace Mu099B
+{
+
+using BYTE = unsigned char;
+using WORD = unsigned short;
+using DWORD = unsigned long;
+using QWORD = unsigned long long;
+using UINT = unsigned int;
+
+/// De qué lado nace el paquete.
+enum class Direction
+{
+    ServerToClient,
+    ClientToServer,
+};
+
+"""
+
+EPILOGUE = """
+}  // namespace Mu099B
+"""
+
+
+def emit_struct(name: str, s: dict) -> str:
+    lines: list[str] = []
+    members = [m for m in s["members"] if not m.get("padding")]
+    pads = [m for m in s["members"] if m.get("padding")]
+
+    lines.append(f"// {s['file']}")
+    if pads:
+        detalle = ", ".join(f"@{m['offset']}(+{m['size']})" for m in pads)
+        lines.append(f"// Relleno de alineación en el wire: {detalle}. El servidor manda el struct")
+        lines.append("// entero (memcpy/sizeof), así que esos bytes VIAJAN: no se pueden omitir.")
+
+    op = s.get("opcode")
+    if op:
+        head = f"0x{op['head']:02X}"
+        sub = f":0x{op['sub']:02X}" if op["sub"] is not None else ""
+        lines.append(f"// Opcode {head}{sub} ({op['direction']}) -- {op['source']}")
+        for alias in op.get("aliases", []):
+            asub = f":0x{alias['sub']:02X}" if alias["sub"] is not None else ""
+            lines.append(f"// También se manda como 0x{alias['head']:02X}{asub} ({alias['source']})")
+
+    pack = s["pack"]
+    lines.append(f"#pragma pack(push, {pack})")
+    lines.append(f"struct {name}")
+    lines.append("{")
+    for m in members:
+        if m.get("pack", pack) != pack:
+            pack = m["pack"]
+            lines.append(f"#pragma pack({pack})")
+        dims = "".join(f"[{d}]" for d in m.get("dims") or [])
+        lines.append(f"    {m['type']} {m['name']}{dims};")
+
+    if op:
+        lines.append("")
+        lines.append(f"    static constexpr uint8_t kHead = 0x{op['head']:02X};")
+        if op["sub"] is not None:
+            lines.append(f"    static constexpr uint8_t kSub = 0x{op['sub']:02X};")
+        lines.append(f"    static constexpr bool kHasSub = {'true' if op['sub'] is not None else 'false'};")
+        if op["encrypted"] is not None:
+            lines.append(f"    static constexpr bool kEncrypted = {'true' if op['encrypted'] else 'false'};")
+        lines.append(f"    static constexpr Direction kDirection = Direction::"
+                     f"{'ServerToClient' if op['direction'] == 'server_to_client' else 'ClientToServer'};")
+
+    lines.append("};")
+    lines.append("#pragma pack(pop)")
+    lines.append(f'static_assert(sizeof({name}) == {s["size"]}, "{name}: sizeof no coincide con el IR");')
+    for m in members:
+        lines.append(f'static_assert(offsetof({name}, {m["name"]}) == {m["offset"]},')
+        lines.append(f'              "{name}.{m["name"]}: offset no coincide con el IR");')
+    lines.append("")
+    return "\n".join(lines)
+
+
+def order_structs(structs: dict[str, dict]) -> list[str]:
+    """Dependencias antes que dependientes."""
+    emitted: set[str] = set()
+    order: list[str] = []
+    remaining = dict(structs)
+    while remaining:
+        progressed = False
+        for name, s in list(remaining.items()):
+            deps = {m["type"] for m in s["members"] if m.get("kind") == "struct"}
+            if deps - emitted:
+                continue
+            order.append(name)
+            emitted.add(name)
+            del remaining[name]
+            progressed = True
+        if not progressed:
+            raise SystemExit(f"error: dependencia cíclica entre {sorted(remaining)}")
+    return order
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--ir", required=True, type=Path)
+    ap.add_argument("--out", required=True, type=Path)
+    args = ap.parse_args()
+
+    ir = json.loads(args.ir.read_text(encoding="utf-8"))
+    structs = ir["structs"]
+
+    parts = [PRELUDE]
+    for name in order_structs(structs):
+        parts.append(emit_struct(name, structs[name]))
+    parts.append(EPILOGUE)
+
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    args.out.write_text("\n".join(parts), encoding="utf-8")
+
+    with_op = sum(1 for s in structs.values() if "opcode" in s)
+    padded = sum(1 for s in structs.values()
+                 if any(m.get("padding") for m in s["members"]))
+    print(f"emitido {args.out}")
+    print(f"  {len(structs)} structs ({with_op} con opcode, {padded} con relleno en el wire)")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

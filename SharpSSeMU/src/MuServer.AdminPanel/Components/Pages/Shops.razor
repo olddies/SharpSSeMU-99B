@@ -1,0 +1,275 @@
+@page "/shops"
+@using MuServer.AdminPanel.Config
+@using MuServer.AdminPanel.Repositories
+@inject GameDataPaths DataPaths
+@inject ISnackbar Snackbar
+
+<PageTitle>Tiendas</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-1">Tiendas</MudText>
+<MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">
+    Data/ShopManager.txt (dónde está parado cada NPC) y Data/Shop/*.txt (qué vende cada uno). El
+    nombre de cada item sale de Item.txt, así que si no aparece ninguno es porque ese índice no existe
+    en el archivo de items.
+</MudText>
+
+@if (_npcs is null)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+else
+{
+    <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" Class="pt-2">
+        <MudTabPanel Text="Items por tienda" Icon="@Icons.Material.Filled.Storefront">
+            <MudSelect T="ShopNpcRow" Value="_selectedNpc" ValueChanged="OnNpcChanged" Label="Tienda"
+                       Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Style="max-width: 460px;"
+                       ToStringFunc="@(n => n is null ? "" : $"{n.NpcIndex} -- {n.ShopPath}")">
+                @foreach (var npc in _npcs)
+                {
+                    <MudSelectItem Value="npc">@($"{npc.NpcIndex} -- {npc.ShopPath}")</MudSelectItem>
+                }
+            </MudSelect>
+
+            @if (_shopLoadError is not null)
+            {
+                <MudAlert Severity="Severity.Warning">@_shopLoadError</MudAlert>
+            }
+            else if (_shopItems is not null)
+            {
+                <MudPaper Class="pa-2" Elevation="0">
+                    <MudDataGrid Items="@_shopItems" T="ShopItemRow" EditMode="DataGridEditMode.Cell" ReadOnly="false"
+                                 Bordered="false" Dense="true" FixedHeader="true" Height="55vh" SortMode="SortMode.Multiple">
+                        <Columns>
+                            <PropertyColumn Property="x => x.Section" Title="Sección" />
+                            <PropertyColumn Property="x => x.Sub" Title="Índice" />
+                            <TemplateColumn Title="Item" Editable="false" Sortable="false">
+                                <CellTemplate>
+                                    @ItemName(context.Item)
+                                </CellTemplate>
+                            </TemplateColumn>
+                            <PropertyColumn Property="x => x.Level" Title="Nivel" />
+                            <PropertyColumn Property="x => x.Durability" Title="Durabilidad" />
+                            <PropertyColumn Property="x => x.Skill" Title="Skill" />
+                            <PropertyColumn Property="x => x.Luck" Title="Suerte" />
+                            <PropertyColumn Property="x => x.Additional" Title="Adicional" />
+                            <PropertyColumn Property="x => x.Excellent" Title="Excelente" />
+                            <PropertyColumn Property="x => x.SetOption" Title="Set" />
+                            <TemplateColumn Title="" Editable="false" Sortable="false">
+                                <CellTemplate>
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
+                                                   OnClick="@(() => RemoveItem(context.Item))" />
+                                </CellTemplate>
+                            </TemplateColumn>
+                        </Columns>
+                    </MudDataGrid>
+                </MudPaper>
+
+                <div class="d-flex gap-2 mt-4 align-center flex-wrap">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
+                               OnClick="SaveShop" Disabled="@_saving">
+                        Guardar items de la tienda
+                    </MudButton>
+                    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Add" OnClick="AddItem">
+                        Agregar item
+                    </MudButton>
+                    <MudButton Variant="Variant.Outlined" OnClick="@(() => LoadShopItems(_selectedNpc))" Disabled="@_saving">
+                        Descartar cambios
+                    </MudButton>
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                        @_shopItems.Count item(s) a la venta
+                    </MudText>
+                </div>
+            }
+        </MudTabPanel>
+
+        <MudTabPanel Text="Ubicación de los NPC" Icon="@Icons.Material.Filled.PinDrop">
+            <MudPaper Class="pa-2" Elevation="0">
+                <MudDataGrid Items="@_npcs" T="ShopNpcRow" EditMode="DataGridEditMode.Cell" ReadOnly="false"
+                             Bordered="false" Dense="true" FixedHeader="true" Height="55vh" SortMode="SortMode.Multiple">
+                    <Columns>
+                        <PropertyColumn Property="x => x.NpcIndex" Title="NPC" Editable="false" />
+                        <PropertyColumn Property="x => x.ShopPath" Title="Archivo de tienda" Editable="false" />
+                        <PropertyColumn Property="x => x.MapNumber" Title="Mapa" />
+                        <PropertyColumn Property="x => x.LocationX" Title="X" />
+                        <PropertyColumn Property="x => x.LocationY" Title="Y" />
+                        <PropertyColumn Property="x => x.Direction" Title="Dirección" />
+                    </Columns>
+                </MudDataGrid>
+            </MudPaper>
+
+            <div class="d-flex gap-2 mt-4">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
+                           OnClick="SaveManager" Disabled="@_saving">
+                    Guardar en ShopManager.txt
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" OnClick="LoadManager" Disabled="@_saving">
+                    Descartar cambios
+                </MudButton>
+            </div>
+        </MudTabPanel>
+    </MudTabs>
+
+    <MudText Typo="Typo.caption" Class="mud-text-secondary mt-4 d-block">
+        Se guarda un respaldo (.bak) de cada archivo la primera vez que grabás en esta sesión.
+    </MudText>
+}
+
+@code {
+    private string? _managerHeader;
+    private List<ShopNpcRow>? _npcs;
+
+    private ShopNpcRow? _selectedNpc;
+    private string? _shopHeader;
+    private List<ShopItemRow>? _shopItems;
+    private string? _shopLoadError;
+
+    private Dictionary<int, string> _itemNames = new();
+    private readonly HashSet<string> _backedUp = new();
+    private bool _saving;
+
+    private string ManagerPath => DataPaths.Combine("ShopManager.txt");
+
+    private string ShopPathFor(ShopNpcRow npc) => DataPaths.Combine("Shop", npc.ShopPath + ".txt");
+
+    protected override void OnInitialized()
+    {
+        LoadItemNames();
+        LoadManager();
+
+        if (_npcs is { Count: > 0 })
+        {
+            OnNpcChanged(_npcs[0]);
+        }
+    }
+
+    /// <summary>Índice combinado (sección*512+sub, igual que Item.GetItem) -> nombre, para poder
+    /// mostrar "Jewel of Bless" en vez de "14,013".</summary>
+    private void LoadItemNames()
+    {
+        try
+        {
+            var (_, rowsBySection) = ItemFileRepository.Load(DataPaths.Combine("Item", "Item.txt"));
+            _itemNames = rowsBySection.Values
+                .SelectMany(rows => rows)
+                .ToDictionary(r => r.Index, r => r.Name);
+        }
+        catch (Exception)
+        {
+            // Sin Item.txt la página sigue sirviendo, sólo que sin nombres de item.
+            _itemNames = new Dictionary<int, string>();
+        }
+    }
+
+    private string ItemName(ShopItemRow row) =>
+        _itemNames.TryGetValue(row.Sub + row.Section * 512, out var name) ? name : "(desconocido)";
+
+    private void LoadManager()
+    {
+        var (header, rows) = ShopFileRepository.LoadManager(ManagerPath);
+        _managerHeader = header;
+        _npcs = rows;
+    }
+
+    private void OnNpcChanged(ShopNpcRow npc)
+    {
+        _selectedNpc = npc;
+        LoadShopItems(npc);
+    }
+
+    private void LoadShopItems(ShopNpcRow? npc)
+    {
+        _shopLoadError = null;
+        _shopItems = null;
+
+        if (npc is null)
+        {
+            return;
+        }
+
+        var path = ShopPathFor(npc);
+
+        if (!File.Exists(path))
+        {
+            _shopLoadError = $"No se encontró Data/Shop/{npc.ShopPath}.txt -- este NPC apunta a un archivo que no existe.";
+            return;
+        }
+
+        var (header, rows) = ShopFileRepository.LoadShop(path);
+        _shopHeader = header;
+        _shopItems = rows;
+    }
+
+    private void AddItem()
+    {
+        _shopItems?.Add(new ShopItemRow { Section = 14, Sub = 0, Durability = 1 });
+    }
+
+    private void RemoveItem(ShopItemRow row)
+    {
+        _shopItems?.Remove(row);
+    }
+
+    private void Backup(string path)
+    {
+        if (_backedUp.Contains(path))
+        {
+            return;
+        }
+
+        var backupPath = path + ".bak";
+        if (!File.Exists(backupPath))
+        {
+            File.Copy(path, backupPath);
+        }
+        _backedUp.Add(path);
+    }
+
+    private void SaveShop()
+    {
+        if (_shopItems is null || _shopHeader is null || _selectedNpc is null)
+        {
+            return;
+        }
+
+        _saving = true;
+        try
+        {
+            var path = ShopPathFor(_selectedNpc);
+            Backup(path);
+            ShopFileRepository.SaveShop(path, _shopHeader, _shopItems);
+            Snackbar.Add($"Guardado: {_shopItems.Count} item(s) en {_selectedNpc.ShopPath}.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"No se pudo guardar: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private void SaveManager()
+    {
+        if (_npcs is null || _managerHeader is null)
+        {
+            return;
+        }
+
+        _saving = true;
+        try
+        {
+            Backup(ManagerPath);
+            ShopFileRepository.SaveManager(ManagerPath, _managerHeader, _npcs);
+            Snackbar.Add($"Guardado: {_npcs.Count} NPC(s) de tienda.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"No se pudo guardar: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+}

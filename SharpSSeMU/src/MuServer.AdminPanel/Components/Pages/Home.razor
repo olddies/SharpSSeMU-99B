@@ -1,0 +1,79 @@
+@page "/"
+@using MuServer.AdminPanel.Repositories
+@inject ServerStatusRepository StatusRepository
+@implements IDisposable
+
+<PageTitle>Panel -- SSeMU 0.99B</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Panel</MudText>
+
+<MudGrid>
+    <MudItem xs="12" sm="4">
+        <MudPaper Class="pa-4" Elevation="0" Style="border:1px solid var(--mud-palette-lines-default)">
+            <MudText Typo="Typo.overline" Class="mud-text-secondary">Estado</MudText>
+            @if (_status is null)
+            {
+                <MudText Typo="Typo.h6" Color="Color.Default">Sin conexión</MudText>
+                <MudText Typo="Typo.body2" Class="mud-text-secondary">No se encontró Data/status.json -- ¿está corriendo el GameServer?</MudText>
+            }
+            else if (_status.IsStale)
+            {
+                <MudText Typo="Typo.h6" Color="Color.Warning">Sin actualizar</MudText>
+                <MudText Typo="Typo.body2" Class="mud-text-secondary">Última señal hace @((int)(DateTime.UtcNow - _status.UpdatedAtUtc).TotalSeconds)s</MudText>
+            }
+            else
+            {
+                <MudText Typo="Typo.h6" Color="Color.Success">@_status.ServerName -- en línea</MudText>
+                <MudText Typo="Typo.body2" Class="mud-text-secondary">Activo hace @FormatUptime(_status.Uptime)</MudText>
+            }
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" sm="4">
+        <MudPaper Class="pa-4" Elevation="0" Style="border:1px solid var(--mud-palette-lines-default)">
+            <MudText Typo="Typo.overline" Class="mud-text-secondary">Jugadores conectados</MudText>
+            <MudText Typo="Typo.h4">@(_status?.PlayerCount.ToString() ?? "--") <MudText Typo="Typo.body2" Class="mud-text-secondary" Style="display:inline">/ @(_status?.MaxPlayers.ToString() ?? "--")</MudText></MudText>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" sm="4">
+        <MudPaper Class="pa-4" Elevation="0" Style="border:1px solid var(--mud-palette-lines-default)">
+            <MudText Typo="Typo.overline" Class="mud-text-secondary">Actualizado</MudText>
+            <MudText Typo="Typo.h6">@(_status is null ? "--" : _status.UpdatedAtUtc.ToLocalTime().ToString("HH:mm:ss"))</MudText>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+<MudText Typo="Typo.body2" Class="mud-text-secondary mt-6">
+    Todo lo que se edita acá se lee y se escribe directo sobre los archivos reales de Data/, sin capa
+    de base de datos intermedia: lo que ves es lo que hay en el archivo, y lo que guardás es lo que el
+    GameServer va a leer. Los comentarios y el formato de cada archivo se conservan intactos, y se deja
+    un .bak la primera vez que grabás.
+</MudText>
+<MudText Typo="Typo.body2" Class="mud-text-secondary mt-2">
+    <b>Ojo:</b> el GameServer lee esos archivos una sola vez, al arrancar -- los cambios de
+    configuración recién aplican cuando lo reinicias. Lo único que actúa sobre el servidor en vivo son
+    "Cuentas conectadas" (lectura) y "Mensaje global" (llega en un par de segundos).
+</MudText>
+
+@code {
+    private ServerStatusInfo? _status;
+    private Timer? _timer;
+
+    protected override void OnInitialized()
+    {
+        _status = StatusRepository.Read();
+        _timer = new Timer(_ => InvokeAsync(Refresh), null, TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(3));
+    }
+
+    private void Refresh()
+    {
+        _status = StatusRepository.Read();
+        StateHasChanged();
+    }
+
+    private static string FormatUptime(TimeSpan span) =>
+        span.TotalHours >= 1 ? $"{(int)span.TotalHours}h {span.Minutes}m" : $"{span.Minutes}m {span.Seconds}s";
+
+    public void Dispose() => _timer?.Dispose();
+}

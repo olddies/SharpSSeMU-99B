@@ -1,0 +1,191 @@
+@page "/events"
+@using MuServer.AdminPanel.Config
+@using MuServer.AdminPanel.Repositories
+@inject GameDataPaths DataPaths
+@inject ISnackbar Snackbar
+
+<PageTitle>Eventos</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-1">Eventos</MudText>
+<MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">
+    Data/Event/*.dat -- horarios, duraciones y recompensas de Devil Square, Blood Castle, Chaos Castle,
+    Kalima, invasiones y bonus. Cada archivo trae varias tablas numeradas; los nombres de columna que
+    ves salen de los comentarios del propio archivo.
+</MudText>
+<MudAlert Severity="Severity.Warning" Class="mb-4" Dense="true">
+    Ojo: de estos eventos el servidor sólo tiene portados <b>Devil Square</b> y <b>Blood Castle</b>. Los
+    demás archivos se editan y se guardan bien, pero todavía no hay sistema de juego atrás que los use.
+</MudAlert>
+
+@if (_files.Count == 0)
+{
+    <MudAlert Severity="Severity.Warning">No se encontró la carpeta Data/Event.</MudAlert>
+}
+else
+{
+    <MudSelect T="string" Value="_selectedFile" ValueChanged="OnFileChanged" Label="Archivo"
+               Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Style="max-width: 420px;">
+        @foreach (var file in _files)
+        {
+            <MudSelectItem Value="file">@file.Replace(".dat", "")</MudSelectItem>
+        }
+    </MudSelect>
+
+    @if (_sections is null)
+    {
+        <MudProgressCircular Indeterminate="true" />
+    }
+    else
+    {
+        @foreach (var section in _sections)
+        {
+            <MudPaper Class="pa-3 mb-4" Elevation="0">
+                <div class="d-flex align-center gap-2 mb-3">
+                    <MudText Typo="Typo.subtitle1">@SectionTitle(section)</MudText>
+                    <MudChip T="string" Size="Size.Small" Class="ma-0">@section.Rows.Count fila(s)</MudChip>
+                </div>
+
+                @if (section.ColumnTitles.Length == 0)
+                {
+                    <MudAlert Severity="Severity.Info" Dense="true">
+                        No se pudieron deducir los nombres de columna de esta sección; se deja tal cual está en el archivo.
+                    </MudAlert>
+                }
+                else
+                {
+                    <MudSimpleTable Dense="true" Hover="true" Bordered="false" Style="overflow-x:auto">
+                        <thead>
+                            <tr>
+                                @foreach (var title in section.ColumnTitles)
+                                {
+                                    <th>@title</th>
+                                }
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var row in section.Rows)
+                            {
+                                <tr>
+                                    @for (int i = 0; i < section.ColumnTitles.Length; i++)
+                                    {
+                                        var index = i;
+                                        <td>
+                                            <MudTextField T="string" Value="@row[index]"
+                                                          ValueChanged="@(v => row[index] = v ?? string.Empty)"
+                                                          Margin="Margin.Dense" Variant="Variant.Text"
+                                                          Style="max-width:110px" />
+                                        </td>
+                                    }
+                                    <td>
+                                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
+                                                       OnClick="@(() => section.Rows.Remove(row))" />
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </MudSimpleTable>
+
+                    <MudButton Variant="Variant.Outlined" Size="Size.Small" StartIcon="@Icons.Material.Filled.Add"
+                               Class="mt-2" OnClick="@(() => AddRow(section))">
+                        Agregar fila
+                    </MudButton>
+                }
+            </MudPaper>
+        }
+
+        <div class="d-flex gap-2 mt-2 mb-8">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
+                       OnClick="Save" Disabled="@_saving">
+                Guardar @_selectedFile
+            </MudButton>
+            <MudButton Variant="Variant.Outlined" OnClick="@(() => LoadFile(_selectedFile))" Disabled="@_saving">
+                Descartar cambios
+            </MudButton>
+        </div>
+    }
+}
+
+@code {
+    private List<string> _files = [];
+    private string _selectedFile = string.Empty;
+    private string? _header;
+    private List<TableSection>? _sections;
+    private readonly HashSet<string> _backedUp = new();
+    private bool _saving;
+
+    private string EventDirectory => DataPaths.Combine("Event");
+
+    private string PathFor(string file) => System.IO.Path.Combine(EventDirectory, file);
+
+    protected override void OnInitialized()
+    {
+        _files = SectionedTableRepository.ListFiles(EventDirectory).ToList();
+
+        if (_files.Count > 0)
+        {
+            OnFileChanged(_files[0]);
+        }
+    }
+
+    /// <summary>Le pone un nombre legible a la sección usando su primera columna, que en estos
+    /// archivos casi siempre dice de qué se trata la tabla.</summary>
+    private static string SectionTitle(TableSection section) =>
+        section.ColumnTitles.Length > 0
+            ? $"Sección {section.Number} -- {string.Join(", ", section.ColumnTitles.Take(3))}…"
+            : $"Sección {section.Number}";
+
+    private void OnFileChanged(string file)
+    {
+        _selectedFile = file;
+        LoadFile(file);
+    }
+
+    private void LoadFile(string file)
+    {
+        var (header, sections) = SectionedTableRepository.Load(PathFor(file));
+        _header = header;
+        _sections = sections;
+    }
+
+    private static void AddRow(TableSection section)
+    {
+        var values = new string[section.ColumnTitles.Length];
+        Array.Fill(values, "0");
+        section.Rows.Add(new FlatRow { Values = values });
+    }
+
+    private void Save()
+    {
+        if (_sections is null || _header is null)
+        {
+            return;
+        }
+
+        _saving = true;
+        try
+        {
+            var path = PathFor(_selectedFile);
+
+            if (_backedUp.Add(path))
+            {
+                var backupPath = path + ".bak";
+                if (!File.Exists(backupPath))
+                {
+                    File.Copy(path, backupPath);
+                }
+            }
+
+            SectionedTableRepository.Save(path, _header, _sections);
+            Snackbar.Add($"Guardado: {_sections.Sum(s => s.Rows.Count)} fila(s) en {_selectedFile}.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"No se pudo guardar: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+}

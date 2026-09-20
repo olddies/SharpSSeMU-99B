@@ -1,0 +1,76 @@
+@page "/online-players"
+@using MuServer.AdminPanel.Repositories
+@inject ServerStatusRepository StatusRepository
+@implements IDisposable
+
+<PageTitle>Cuentas conectadas</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-1">Cuentas conectadas</MudText>
+<MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">
+    Lectura en vivo de Data/status.json (el GameServer lo reescribe cada 3s) -- de sólo lectura, acá
+    no se edita nada del personaje.
+</MudText>
+
+@if (_status is null)
+{
+    <MudAlert Severity="Severity.Warning">
+        No se encontró Data/status.json -- ¿está corriendo el GameServer?
+    </MudAlert>
+}
+else if (_status.IsStale)
+{
+    <MudAlert Severity="Severity.Warning">
+        El GameServer no actualiza su estado hace @((int)(DateTime.UtcNow - _status.UpdatedAtUtc).TotalSeconds)s -- la lista de abajo puede estar desactualizada.
+    </MudAlert>
+}
+else if (_status.Players.Count == 0)
+{
+    <MudAlert Severity="Severity.Info">No hay nadie conectado ahora mismo.</MudAlert>
+}
+else
+{
+    <MudSimpleTable Dense="true" Hover="true" Bordered="false" Striped="true">
+        <thead>
+            <tr>
+                <th>Cuenta</th>
+                <th>Personaje</th>
+                <th>Clase</th>
+                <th>Nivel</th>
+                <th>Reset</th>
+                <th>Mapa (código)</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var p in _status.Players.OrderBy(p => p.Name))
+            {
+                <tr>
+                    <td>@p.Account</td>
+                    <td>@p.Name</td>
+                    <td>@p.ClassName</td>
+                    <td>@p.Level</td>
+                    <td>@p.Reset</td>
+                    <td>@p.Map</td>
+                </tr>
+            }
+        </tbody>
+    </MudSimpleTable>
+}
+
+@code {
+    private ServerStatusInfo? _status;
+    private Timer? _timer;
+
+    protected override void OnInitialized()
+    {
+        _status = StatusRepository.Read();
+        _timer = new Timer(_ => InvokeAsync(Refresh), null, TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(3));
+    }
+
+    private void Refresh()
+    {
+        _status = StatusRepository.Read();
+        StateHasChanged();
+    }
+
+    public void Dispose() => _timer?.Dispose();
+}

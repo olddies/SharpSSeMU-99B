@@ -1,0 +1,186 @@
+@page "/tables"
+@page "/tables/{TableId}"
+@using MuServer.AdminPanel.Config
+@using MuServer.AdminPanel.Repositories
+@inject GameDataPaths DataPaths
+@inject ISnackbar Snackbar
+@inject NavigationManager Nav
+
+<PageTitle>@(_definition?.Title ?? "Tablas")</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-1">@(_definition?.Title ?? "Tablas de datos")</MudText>
+
+<MudSelect T="string" Value="@_definition?.Id" ValueChanged="OnTableChanged" Label="Tabla"
+           Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Style="max-width: 420px;">
+    @foreach (var table in FlatTableCatalog.Tables)
+    {
+        <MudSelectItem Value="table.Id">@table.Title</MudSelectItem>
+    }
+</MudSelect>
+
+@if (_definition is null)
+{
+    <MudAlert Severity="Severity.Info">Elegí una tabla para editarla.</MudAlert>
+}
+else
+{
+    <MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">@_definition.Description</MudText>
+
+    @if (_rows is null)
+    {
+        <MudProgressCircular Indeterminate="true" />
+    }
+    else if (_rows.Count == 0)
+    {
+        <MudAlert Severity="Severity.Info" Class="mb-4">
+            Este archivo no tiene filas. Podés agregar una con el botón de abajo.
+        </MudAlert>
+        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Add" OnClick="AddRow">
+            Agregar fila
+        </MudButton>
+    }
+    else
+    {
+        <MudPaper Class="pa-2" Elevation="0">
+            <MudDataGrid Items="@_rows" T="FlatRow" Bordered="false" Dense="true" FixedHeader="true"
+                         Height="62vh" SortMode="SortMode.None" QuickFilter="@QuickFilter">
+                <ToolBarContent>
+                    <MudTextField T="string" @bind-Value="_search" Placeholder="Buscar en la tabla"
+                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                                  Immediate="true" Clearable="true" Margin="Margin.Dense" Class="mt-0" />
+                </ToolBarContent>
+                <Columns>
+                    @for (int i = 0; i < _definition.Columns.Length; i++)
+                    {
+                        var index = i;
+                        var column = _definition.Columns[index];
+
+                        <TemplateColumn Title="@column.Title" Sortable="false">
+                            <CellTemplate>
+                                <MudTextField T="string" Value="@context.Item[index]"
+                                              ValueChanged="@(v => context.Item[index] = v ?? string.Empty)"
+                                              Margin="Margin.Dense" Variant="Variant.Text"
+                                              Style="@(column.Kind == FlatColumnKind.QuotedText ? "min-width:220px" : "max-width:90px")" />
+                            </CellTemplate>
+                        </TemplateColumn>
+                    }
+                    <TemplateColumn Title="" Sortable="false">
+                        <CellTemplate>
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
+                                           OnClick="@(() => _rows!.Remove(context.Item))" />
+                        </CellTemplate>
+                    </TemplateColumn>
+                </Columns>
+            </MudDataGrid>
+        </MudPaper>
+
+        <div class="d-flex gap-2 mt-4 mb-8 flex-wrap align-center">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
+                       OnClick="Save" Disabled="@_saving">
+                Guardar
+            </MudButton>
+            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Add" OnClick="AddRow">
+                Agregar fila
+            </MudButton>
+            <MudButton Variant="Variant.Outlined" OnClick="Reload" Disabled="@_saving">
+                Descartar cambios
+            </MudButton>
+            <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                @_rows.Count fila(s) -- se guarda un respaldo (.bak) la primera vez que grabás en esta sesión.
+            </MudText>
+        </div>
+    }
+}
+
+@code {
+    [Parameter]
+    public string? TableId { get; set; }
+
+    private FlatTableDefinition? _definition;
+    private FlatTable? _table;
+    private List<FlatRow>? _rows;
+    private string? _search;
+    private bool _saving;
+    private readonly HashSet<string> _backedUp = new();
+
+    private string Path => DataPaths.Combine(_definition!.PathParts);
+
+    private Func<FlatRow, bool> QuickFilter => row =>
+        string.IsNullOrWhiteSpace(_search)
+        || row.Values.Any(v => v.Contains(_search, StringComparison.OrdinalIgnoreCase));
+
+    protected override void OnParametersSet()
+    {
+        var definition = FlatTableCatalog.ById(TableId ?? string.Empty) ?? FlatTableCatalog.Tables[0];
+
+        if (_definition?.Id != definition.Id)
+        {
+            _definition = definition;
+            _search = null;
+            Reload();
+        }
+    }
+
+    private void OnTableChanged(string id)
+    {
+        // Se navega en vez de recargar en el lugar para que la URL identifique la tabla abierta.
+        Nav.NavigateTo($"/tables/{id}");
+    }
+
+    private void Reload()
+    {
+        if (_definition is null)
+        {
+            return;
+        }
+
+        _table = FlatTableRepository.Load(Path, _definition.Columns);
+        _rows = _table.Rows;
+    }
+
+    private void AddRow()
+    {
+        if (_definition is null || _rows is null)
+        {
+            return;
+        }
+
+        var values = new string[_definition.Columns.Length];
+        Array.Fill(values, "0");
+        _rows.Add(new FlatRow { Values = values });
+    }
+
+    private void Save()
+    {
+        if (_definition is null || _rows is null || _table is null)
+        {
+            return;
+        }
+
+        _saving = true;
+        try
+        {
+            var path = Path;
+
+            if (_backedUp.Add(path))
+            {
+                var backupPath = path + ".bak";
+                if (!File.Exists(backupPath))
+                {
+                    File.Copy(path, backupPath);
+                }
+            }
+
+            FlatTableRepository.Save(path, _table, _definition.Columns);
+            Snackbar.Add($"Guardado: {_rows.Count} fila(s) en {_definition.Title}.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"No se pudo guardar: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+}

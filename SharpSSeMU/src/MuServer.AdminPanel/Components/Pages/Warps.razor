@@ -1,0 +1,102 @@
+@page "/warps"
+@using MuServer.AdminPanel.Config
+@using MuServer.AdminPanel.Repositories
+@inject GameDataPaths DataPaths
+@inject ISnackbar Snackbar
+
+<PageTitle>Teletransportes</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-1">Teletransportes</MudText>
+<MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">
+    Data/Move/Move.txt -- lo que el cliente muestra en la ventana de movimiento y lo que el
+    servidor de verdad acepta son el mismo archivo, así que un cambio acá aplica a los dos lados
+    sin desincronizarlos.
+</MudText>
+
+@if (_rows is null)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+else
+{
+    <MudPaper Class="pa-2" Elevation="0">
+        <MudDataGrid Items="@_rows" T="MoveRow" EditMode="DataGridEditMode.Cell" ReadOnly="false"
+                     Bordered="false" Dense="true" FixedHeader="true" Height="70vh"
+                     Filterable="true" SortMode="SortMode.Multiple">
+            <Columns>
+                <PropertyColumn Property="x => x.Index" Title="Índice" Editable="false" />
+                <PropertyColumn Property="x => x.Name" Title="Nombre" />
+                <PropertyColumn Property="x => x.RequireMoney" Title="Zen" Format="N0" />
+                <PropertyColumn Property="x => x.MinLevel" Title="Nivel mín." />
+                <PropertyColumn Property="x => x.MaxLevel" Title="Nivel máx." />
+                <PropertyColumn Property="x => x.GateNumber" Title="Puerta" />
+            </Columns>
+        </MudDataGrid>
+    </MudPaper>
+
+    <div class="d-flex gap-2 mt-4">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
+                   OnClick="SaveAsync" Disabled="@_saving">
+            Guardar en Move.txt
+        </MudButton>
+        <MudButton Variant="Variant.Outlined" OnClick="ReloadAsync" Disabled="@_saving">
+            Descartar cambios
+        </MudButton>
+    </div>
+    <MudText Typo="Typo.caption" Class="mud-text-secondary mt-2">
+        Se guarda un respaldo (Move.txt.bak) la primera vez que grabás en esta sesión.
+    </MudText>
+}
+
+@code {
+    private string? _header;
+    private List<MoveRow>? _rows;
+    private bool _saving;
+    private bool _backedUp;
+
+    protected override Task OnInitializedAsync() => ReloadAsync();
+
+    private Task ReloadAsync()
+    {
+        var path = DataPaths.Combine("Move", "Move.txt");
+        var (header, rows) = MoveFileRepository.Load(path);
+        _header = header;
+        _rows = rows;
+        return Task.CompletedTask;
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_rows is null || _header is null)
+        {
+            return;
+        }
+
+        _saving = true;
+        try
+        {
+            var path = DataPaths.Combine("Move", "Move.txt");
+
+            if (!_backedUp)
+            {
+                var backupPath = path + ".bak";
+                if (!File.Exists(backupPath))
+                {
+                    File.Copy(path, backupPath);
+                }
+                _backedUp = true;
+            }
+
+            MoveFileRepository.Save(path, _header, _rows);
+            Snackbar.Add($"Guardado: {_rows.Count} teletransportes.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"No se pudo guardar: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+}

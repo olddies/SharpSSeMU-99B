@@ -1,0 +1,19 @@
+# Normalise line endings; keep Windows scripts CRLF.
+* text=auto
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+*.sh  text eol=lf
+*.py  text eol=lf
+
+# Server data/config files come from the original Windows package and are read
+# as text by the game server; leave them exactly as authored.
+*.dat -text
+
+# Binary
+*.png binary
+*.jpg binary
+*.ozj binary
+*.ozt binary
+*.bmd binary
+*.dll binary
+*.exe binary

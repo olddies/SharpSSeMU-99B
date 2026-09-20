@@ -1,0 +1,125 @@
+@page "/login"
+@layout BareLayout
+@using MuServer.AdminPanel.Auth
+@inject AdminPassword AdminPassword
+@attribute [AllowAnonymous]
+
+@* Sin @rendermode a propósito: esta página se sirve como HTML estático y el formulario hace un POST
+   normal a /login. Un circuito de Blazor no puede escribir la cookie de sesión (los headers ya se
+   mandaron cuando arranca), así que el login tiene que ser un POST de toda la vida. *@
+
+<PageTitle>Entrar</PageTitle>
+
+<div class="login-wrap">
+    <div class="login-card">
+        <h1>SSeMU <span>0.99B</span></h1>
+        <p class="sub">Panel de administración</p>
+
+        @if (Failed)
+        {
+            <div class="alert">Contraseña incorrecta.</div>
+        }
+
+        @if (AdminPassword.IsGenerated)
+        {
+            <div class="note">
+                No hay contraseña configurada: se generó una al arrancar y está impresa en la consola
+                del panel. Para fijar una permanente, agregá <code>Admin:Password</code> en
+                appsettings.json.
+            </div>
+        }
+
+        <form method="post" action="/auth/login">
+            <AntiforgeryToken />
+            <input type="hidden" name="returnUrl" value="@ReturnUrl" />
+            <label for="password">Contraseña</label>
+            <input id="password" name="password" type="password" autofocus autocomplete="current-password" />
+            <button type="submit">Entrar</button>
+        </form>
+    </div>
+</div>
+
+<style>
+    .login-wrap {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #0b0e14;
+        font-family: Inter, system-ui, sans-serif;
+    }
+
+    .login-card {
+        width: 340px;
+        padding: 32px;
+        border-radius: 14px;
+        background: #141822;
+        border: 1px solid #232838;
+        color: #e6e8ee;
+    }
+
+    .login-card h1 { margin: 0; font-size: 1.4rem; }
+    .login-card h1 span { color: #8b5cf6; }
+    .login-card .sub { margin: 4px 0 24px; color: #8b93a7; font-size: .85rem; }
+
+    .login-card label { display: block; font-size: .8rem; color: #8b93a7; margin-bottom: 6px; }
+
+    .login-card input[type=password] {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 10px 12px;
+        border-radius: 8px;
+        border: 1px solid #2c3245;
+        background: #0f131c;
+        color: #e6e8ee;
+        font-size: .95rem;
+    }
+
+    .login-card input[type=password]:focus { outline: none; border-color: #8b5cf6; }
+
+    .login-card button {
+        width: 100%;
+        margin-top: 16px;
+        padding: 10px;
+        border: 0;
+        border-radius: 8px;
+        background: #8b5cf6;
+        color: #fff;
+        font-size: .95rem;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .login-card button:hover { background: #7c4ef0; }
+
+    .alert {
+        margin-bottom: 16px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        background: #3b1620;
+        border: 1px solid #6b2233;
+        color: #ffb4c0;
+        font-size: .85rem;
+    }
+
+    .note {
+        margin-bottom: 16px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        background: #1a2030;
+        border: 1px solid #2c3245;
+        color: #9aa3b8;
+        font-size: .78rem;
+        line-height: 1.5;
+    }
+
+    .note code { color: #22d3ee; }
+</style>
+
+@code {
+    [SupplyParameterFromQuery(Name = "error")]
+    public bool Failed { get; set; }
+
+    [SupplyParameterFromQuery(Name = "returnUrl")]
+    public string? ReturnUrl { get; set; }
+}
