@@ -1,0 +1,109 @@
+; SharpSSeMU-99B -- GameServer configuration: Item
+; Item rules: options, durability, luck, excellent, socket and drop behaviour.
+;
+; Format: Key = Value. The GameServer reads this file once, at start-up.
+; Keys are the names the server code looks up; do not rename them.
+
+[GameServerInfo]
+
+;==================================================
+; Transformation settings
+;==================================================
+TransformationRing1 = 2
+TransformationRing2 = 7
+TransformationRing3 = 14
+TransformationRing4 = 8
+TransformationRing5 = 9
+TransformationRing6 = 41
+
+;==================================================
+; Dinorant settings
+;==================================================
+DinorantIncDamageConstA = 10
+DinorantDecDamageConstA = 10
+DinorantDecDamageConstB = 10
+
+;==================================================
+; Dark settings
+;==================================================
+DarkHorseDecDamageConstA = 10
+DarkHorseDecDamageConstB = 3
+
+;==================================================
+; DW settings
+;==================================================
+DWApplePotionRate = 3
+DWSmallLifePotionRate = 5
+DWMidleLifePotionRate = 10
+DWLargeLifePotionRate = 30
+DWSmallManaPotionRate = 20
+DWMidleManaPotionRate = 30
+DWLargeManaPotionRate = 90
+
+;==================================================
+; DK settings
+;==================================================
+DKApplePotionRate = 3
+DKSmallLifePotionRate = 5
+DKMidleLifePotionRate = 10
+DKLargeLifePotionRate = 30
+DKSmallManaPotionRate = 20
+DKMidleManaPotionRate = 30
+DKLargeManaPotionRate = 90
+
+;==================================================
+; FE settings
+;==================================================
+FEApplePotionRate = 3
+FESmallLifePotionRate = 5
+FEMidleLifePotionRate = 10
+FELargeLifePotionRate = 45
+FESmallManaPotionRate = 20
+FEMidleManaPotionRate = 30
+FELargeManaPotionRate = 90
+
+;==================================================
+; MG settings
+;==================================================
+MGApplePotionRate = 3
+MGSmallLifePotionRate = 5
+MGMidleLifePotionRate = 10
+MGLargeLifePotionRate = 45
+MGSmallManaPotionRate = 20
+MGMidleManaPotionRate = 30
+MGLargeManaPotionRate = 90
+
+;==================================================
+; DL settings
+;==================================================
+DLApplePotionRate = 3
+DLSmallLifePotionRate = 5
+DLMidleLifePotionRate = 10
+DLLargeLifePotionRate = 30
+DLSmallManaPotionRate = 20
+DLMidleManaPotionRate = 30
+DLLargeManaPotionRate = 90
+
+;==================================================
+; Ale settings
+;==================================================
+AleIncSpeed = 20
+AleIncSpeedTime = 80
+
+;==================================================
+; Olive settings
+;==================================================
+OliveOfLoveIncSpeed = 20
+OliveOfLoveIncSpeedTime = 180
+
+;==================================================
+; Remedy settings
+;==================================================
+RemedyOfLoveIncDamage = 40
+RemedyOfLoveIncDamageTime = 90
+
+;==================================================
+; General settings
+;==================================================
+SatanIncDamageConstA = 10
+AngelDecDamageConstA = 10

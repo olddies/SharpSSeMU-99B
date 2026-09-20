@@ -1,0 +1,297 @@
+; SharpSSeMU-99B -- GameServer configuration: Character
+; Character stat formulas and per-class balance constants.
+;
+; Format: Key = Value. The GameServer reads this file once, at start-up.
+; Keys are the names the server code looks up; do not rename them.
+
+[GameServerInfo]
+
+;==================================================
+; General settings
+;==================================================
+GeneralDamageRatePvP = 100
+GeneralDamageRatePvM = 100
+
+;==================================================
+; Reflect settings
+;==================================================
+ReflectDamageRatePvP = 100
+ReflectDamageRatePvM = 100
+
+;==================================================
+; DW settings
+;==================================================
+DWDamageRatePvP = 100
+DWDamageRatePvM = 100
+DWDamageRateToDW = 100
+DWDamageRateToDK = 100
+DWDamageRateToFE = 100
+DWDamageRateToMG = 100
+DWDamageRateToDL = 100
+DWReflectDamageRateToDW = 100
+DWReflectDamageRateToDK = 100
+DWReflectDamageRateToFE = 100
+DWReflectDamageRateToMG = 100
+DWReflectDamageRateToDL = 100
+DWDamageStuckRate = 10
+DWComboDamageConstA = 2
+DWComboDamageConstB = 1
+DWComboDamageConstC = 100
+DWPhysiDamageMinConstA = 6
+DWPhysiDamageMaxConstA = 4
+DWMagicDamageMinConstA = 9
+DWMagicDamageMaxConstA = 4
+DWAttackSuccessRateConstA = 5
+DWAttackSuccessRateConstB = 3
+DWAttackSuccessRateConstC = 2
+DWAttackSuccessRateConstD = 4
+DWAttackSuccessRatePvPConstA = 3
+DWAttackSuccessRatePvPConstB = 1
+DWAttackSuccessRatePvPConstC = 4
+DWAttackSuccessRatePvPConstD = 1
+DWPhysiSpeedConstA = 20
+DWMagicSpeedConstA = 10
+DWDefenseSuccessRateConstA = 3
+DWDefenseSuccessRatePvPConstA = 2
+DWDefenseSuccessRatePvPConstB = 1
+DWDefenseSuccessRatePvPConstC = 4
+DWDefenseConstA = 4
+
+;==================================================
+; DK settings
+;==================================================
+DKDamageRatePvP = 100
+DKDamageRatePvM = 100
+DKDamageRateToDW = 100
+DKDamageRateToDK = 100
+DKDamageRateToFE = 100
+DKDamageRateToMG = 100
+DKDamageRateToDL = 100
+DKReflectDamageRateToDW = 100
+DKReflectDamageRateToDK = 100
+DKReflectDamageRateToFE = 100
+DKReflectDamageRateToMG = 100
+DKReflectDamageRateToDL = 100
+DKDamageStuckRate = 10
+DKDamageMultiplierConstA = 10
+DKDamageMultiplierMaxRate = 500
+DKComboDamageConstA = 2
+DKComboDamageConstB = 1
+DKComboDamageConstC = 100
+DKPhysiDamageMinConstA = 8
+DKPhysiDamageMaxConstA = 4
+DKMagicDamageMinConstA = 9
+DKMagicDamageMaxConstA = 4
+DKAttackSuccessRateConstA = 5
+DKAttackSuccessRateConstB = 3
+DKAttackSuccessRateConstC = 2
+DKAttackSuccessRateConstD = 4
+DKAttackSuccessRatePvPConstA = 3
+DKAttackSuccessRatePvPConstB = 1
+DKAttackSuccessRatePvPConstC = 45
+DKAttackSuccessRatePvPConstD = 10
+DKPhysiSpeedConstA = 15
+DKMagicSpeedConstA = 20
+DKDefenseSuccessRateConstA = 3
+DKDefenseSuccessRatePvPConstA = 2
+DKDefenseSuccessRatePvPConstB = 1
+DKDefenseSuccessRatePvPConstC = 2
+DKDefenseConstA = 3
+
+;==================================================
+; FE settings
+;==================================================
+FEDamageRatePvP = 100
+FEDamageRatePvM = 100
+FEDamageRateToDW = 100
+FEDamageRateToDK = 100
+FEDamageRateToFE = 100
+FEDamageRateToMG = 100
+FEDamageRateToDL = 100
+FEReflectDamageRateToDW = 100
+FEReflectDamageRateToDK = 100
+FEReflectDamageRateToFE = 100
+FEReflectDamageRateToMG = 100
+FEReflectDamageRateToDL = 100
+FEDamageStuckRate = 10
+FEComboDamageConstA = 2
+FEComboDamageConstB = 1
+FEComboDamageConstC = 100
+FEPhysiDamageMinConstA = 7
+FEPhysiDamageMaxConstA = 4
+FEPhysiDamageMinBowConstA = 14
+FEPhysiDamageMinBowConstB = 7
+FEPhysiDamageMaxBowConstA = 8
+FEPhysiDamageMaxBowConstB = 4
+FEMagicDamageMinConstA = 9
+FEMagicDamageMaxConstA = 4
+FEAttackSuccessRateConstA = 5
+FEAttackSuccessRateConstB = 3
+FEAttackSuccessRateConstC = 2
+FEAttackSuccessRateConstD = 4
+FEAttackSuccessRatePvPConstA = 3
+FEAttackSuccessRatePvPConstB = 1
+FEAttackSuccessRatePvPConstC = 6
+FEAttackSuccessRatePvPConstD = 10
+FEPhysiSpeedConstA = 50
+FEMagicSpeedConstA = 50
+FEDefenseSuccessRateConstA = 4
+FEDefenseSuccessRatePvPConstA = 2
+FEDefenseSuccessRatePvPConstB = 1
+FEDefenseSuccessRatePvPConstC = 10
+FEDefenseConstA = 10
+
+;==================================================
+; MG settings
+;==================================================
+MGDamageRatePvP = 100
+MGDamageRatePvM = 100
+MGDamageRateToDW = 100
+MGDamageRateToDK = 100
+MGDamageRateToFE = 100
+MGDamageRateToMG = 100
+MGDamageRateToDL = 100
+MGReflectDamageRateToDW = 100
+MGReflectDamageRateToDK = 100
+MGReflectDamageRateToFE = 100
+MGReflectDamageRateToMG = 100
+MGReflectDamageRateToDL = 100
+MGDamageStuckRate = 10
+MGComboDamageConstA = 2
+MGComboDamageConstB = 1
+MGComboDamageConstC = 100
+MGPhysiDamageMinConstA = 6
+MGPhysiDamageMinConstB = 12
+MGPhysiDamageMaxConstA = 4
+MGPhysiDamageMaxConstB = 8
+MGMagicDamageMinConstA = 9
+MGMagicDamageMaxConstA = 4
+MGAttackSuccessRateConstA = 5
+MGAttackSuccessRateConstB = 3
+MGAttackSuccessRateConstC = 2
+MGAttackSuccessRateConstD = 4
+MGAttackSuccessRatePvPConstA = 3
+MGAttackSuccessRatePvPConstB = 1
+MGAttackSuccessRatePvPConstC = 35
+MGAttackSuccessRatePvPConstD = 10
+MGPhysiSpeedConstA = 15
+MGMagicSpeedConstA = 20
+MGDefenseSuccessRateConstA = 3
+MGDefenseSuccessRatePvPConstA = 2
+MGDefenseSuccessRatePvPConstB = 1
+MGDefenseSuccessRatePvPConstC = 4
+MGDefenseConstA = 4
+
+;==================================================
+; DL settings
+;==================================================
+DLDamageRatePvP = 100
+DLDamageRatePvM = 100
+DLDamageRateToDW = 100
+DLDamageRateToDK = 100
+DLDamageRateToFE = 100
+DLDamageRateToMG = 100
+DLDamageRateToDL = 100
+DLReflectDamageRateToDW = 100
+DLReflectDamageRateToDK = 100
+DLReflectDamageRateToFE = 100
+DLReflectDamageRateToMG = 100
+DLReflectDamageRateToDL = 100
+DLDamageStuckRate = 10
+DLDamageMultiplierConstA = 20
+DLDamageMultiplierMaxRate = 500
+DLComboDamageConstA = 2
+DLComboDamageConstB = 1
+DLComboDamageConstC = 100
+DLSkillDamageConstA = 25
+DLSkillDamageConstB = 50
+DLPhysiDamageMinConstA = 7
+DLPhysiDamageMinConstB = 14
+DLPhysiDamageMaxConstA = 5
+DLPhysiDamageMaxConstB = 10
+DLMagicDamageMinConstA = 9
+DLMagicDamageMaxConstA = 4
+DLAttackSuccessRateConstA = 5
+DLAttackSuccessRateConstB = 6
+DLAttackSuccessRateConstC = 2
+DLAttackSuccessRateConstD = 4
+DLAttackSuccessRateConstE = 10
+DLAttackSuccessRatePvPConstA = 3
+DLAttackSuccessRatePvPConstB = 1
+DLAttackSuccessRatePvPConstC = 4
+DLAttackSuccessRatePvPConstD = 1
+DLPhysiSpeedConstA = 10
+DLMagicSpeedConstA = 10
+DLDefenseSuccessRateConstA = 7
+DLDefenseSuccessRatePvPConstA = 2
+DLDefenseSuccessRatePvPConstB = 1
+DLDefenseSuccessRatePvPConstC = 2
+DLDefenseConstA = 7
+
+;==================================================
+; Damage settings
+;==================================================
+DamageStuckOnPetUniria = 0
+DamageStuckOnPetDinorant = 0
+DamageStuckOnPetDarkHorse = 0
+
+;==================================================
+; Dark settings
+;==================================================
+DarkSpiritRangeAttackRate = 30
+DarkSpiritCriticalDamageRate = 30
+DarkSpiritExcellentDamageRate = 0
+DarkSpiritAttackDamageMinConstA = 180
+DarkSpiritAttackDamageMinConstB = 15
+DarkSpiritAttackDamageMinConstC = 8
+DarkSpiritAttackDamageMaxConstA = 200
+DarkSpiritAttackDamageMaxConstB = 15
+DarkSpiritAttackDamageMaxConstC = 4
+DarkSpiritAttackSpeedConstA = 20
+DarkSpiritAttackSpeedConstB = 4
+DarkSpiritAttackSpeedConstC = 5
+DarkSpiritAttackSpeedConstD = 50
+DarkSpiritAttackSuccessRateConstA = 1000
+DarkSpiritAttackSuccessRateConstB = 16
+DarkSpiritAttackSuccessRateConstC = 1
+
+;==================================================
+; Earthquake settings
+;==================================================
+EarthquakeDamageConstA = 10
+EarthquakeDamageConstB = 5
+EarthquakeDamageConstC = 10
+
+;==================================================
+; Electric settings
+;==================================================
+ElectricSparkDamageConstA = 10
+ElectricSparkDamageConstB = 250
+
+;==================================================
+; Nova settings
+;==================================================
+NovaDamageConstA = 20
+NovaDamageConstB = 5
+NovaDamageConstC = 2
+
+;==================================================
+; General settings
+;==================================================
+DuelDamageRate = 60
+ChaosCastleDamageRate = 50
+DWHPRecoveryRate = 0
+DKHPRecoveryRate = 0
+FEHPRecoveryRate = 0
+MGHPRecoveryRate = 0
+DLHPRecoveryRate = 0
+DWMPRecoveryRate = 4
+DKMPRecoveryRate = 4
+FEMPRecoveryRate = 4
+MGMPRecoveryRate = 4
+DLMPRecoveryRate = 4
+DWBPRecoveryRate = 3
+DKBPRecoveryRate = 5
+FEBPRecoveryRate = 3
+MGBPRecoveryRate = 3
+DLBPRecoveryRate = 3

@@ -1,0 +1,96 @@
+; SharpSSeMU-99B -- GameServer configuration: Skill
+; Skill rules: damage, mana costs, cooldown and combo behaviour.
+;
+; Format: Key = Value. The GameServer reads this file once, at start-up.
+; Keys are the names the server code looks up; do not rename them.
+
+[GameServerInfo]
+
+;==================================================
+; Mana settings
+;==================================================
+ManaShieldConstA = 10
+ManaShieldConstB = 50
+ManaShieldConstC = 200
+ManaShieldRateDW = 100
+ManaShieldRateDK = 100
+ManaShieldRateFE = 100
+ManaShieldRateMG = 100
+ManaShieldRateDL = 100
+ManaShieldTimeConstA = 60
+ManaShieldTimeConstB = 40
+ManaShieldMaxRate = 50
+
+;==================================================
+; Heal settings
+;==================================================
+HealConstA = 5
+HealConstB = 5
+
+;==================================================
+; Greater settings
+;==================================================
+GreaterDefenseConstA = 2
+GreaterDefenseConstB = 8
+GreaterDefenseRateDW = 100
+GreaterDefenseRateDK = 100
+GreaterDefenseRateFE = 100
+GreaterDefenseRateMG = 100
+GreaterDefenseRateDL = 100
+GreaterDefenseTimeConstA = 60
+GreaterDamageConstA = 3
+GreaterDamageConstB = 7
+GreaterDamageRateDW = 100
+GreaterDamageRateDK = 100
+GreaterDamageRateFE = 100
+GreaterDamageRateMG = 100
+GreaterDamageRateDL = 100
+GreaterDamageTimeConstA = 60
+GreaterLifeConstA = 12
+GreaterLifeConstB = 100
+GreaterLifeConstC = 20
+GreaterLifeRateDW = 100
+GreaterLifeRateDK = 100
+GreaterLifeRateFE = 100
+GreaterLifeRateMG = 100
+GreaterLifeRateDL = 100
+GreaterLifeTimeConstA = 60
+GreaterLifeTimeConstB = 10
+GreaterLifeMaxRate = 100
+GreaterCriticalDamageConstA = 25
+GreaterCriticalDamageConstB = 30
+GreaterCriticalDamageTimeConstA = 60
+GreaterCriticalDamageTimeConstB = 10
+
+;==================================================
+; Summon settings
+;==================================================
+SummonMonster1 = 26
+SummonMonster2 = 32
+SummonMonster3 = 21
+SummonMonster4 = 20
+SummonMonster5 = 10
+SummonMonster6 = 150
+SummonMonster7 = 151
+
+;==================================================
+; Fire settings
+;==================================================
+FireSlashConstA = 10
+FireSlashConstB = 50
+FireSlashTimeConstA = 10
+FireSlashMaxRate = 30
+
+;==================================================
+; Infinity settings
+;==================================================
+InfinityArrowSwitch_AL0 = 0
+InfinityArrowSwitch_AL1 = 0
+InfinityArrowSwitch_AL2 = 0
+InfinityArrowSwitch_AL3 = 0
+
+;==================================================
+; General settings
+;==================================================
+MagicDamageImmunityTimeConstA = 10
+PhysiDamageImmunityTimeConstA = 10

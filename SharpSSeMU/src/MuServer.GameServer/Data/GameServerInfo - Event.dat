@@ -1,0 +1,48 @@
+; SharpSSeMU-99B -- GameServer configuration: Event
+; Event settings (Devil Square, Blood Castle, invasions...).
+;
+; Format: Key = Value. The GameServer reads this file once, at start-up.
+; Keys are the names the server code looks up; do not rename them.
+
+[GameServerInfo]
+
+;==================================================
+; Blood settings
+;==================================================
+BloodCastleEvent = 1
+BloodCastleMaxUser = 10
+BloodCastleMaxEntryCount_AL0 = 0
+BloodCastleMaxEntryCount_AL1 = 0
+BloodCastleMaxEntryCount_AL2 = 0
+BloodCastleMaxEntryCount_AL3 = 0
+BloodCastleNPCWithoutEntrance = 0
+
+;==================================================
+; Chaos settings
+;==================================================
+ChaosCastleEvent = 1
+ChaosCastleMinUser = 1
+ChaosCastleBlowUserRate = 50
+ChaosCastleMoneyRate = 80
+ChaosCastleMaxEntryCount_AL0 = 0
+ChaosCastleMaxEntryCount_AL1 = 0
+ChaosCastleMaxEntryCount_AL2 = 0
+ChaosCastleMaxEntryCount_AL3 = 0
+
+;==================================================
+; Devil settings
+;==================================================
+DevilSquareEvent = 1
+DevilSquareMaxUser = 15
+DevilSquareMaxEntryCount_AL0 = 0
+DevilSquareMaxEntryCount_AL1 = 0
+DevilSquareMaxEntryCount_AL2 = 0
+DevilSquareMaxEntryCount_AL3 = 0
+DevilSquareNPCWithoutEntrance = 0
+
+;==================================================
+; General settings
+;==================================================
+BonusManagerSwitch = 1
+DropEventSwitch = 1
+InvasionManagerSwitch = 1

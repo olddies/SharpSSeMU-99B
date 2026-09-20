@@ -1,0 +1,335 @@
+; SharpSSeMU-99B -- GameServer configuration: Common
+; Core server settings: identity, network, logging, rates, drops, jewels and limits.
+;
+; Format: Key = Value. The GameServer reads this file once, at start-up.
+; Keys are the names the server code looks up; do not rename them.
+
+[GameServerInfo]
+
+;==================================================
+; Server settings
+;==================================================
+ServerName = SSeMU GameServer_0
+ServerCode = 0
+ServerLock = 0
+ServerPort = 55900
+ServerVersion = 1.02.00
+ServerSerial = SharpSSeMU99B-v1
+ServerMaxUserNumber = 300
+ServerEncDecKey1 = 0
+ServerEncDecKey2 = 0
+
+;==================================================
+; Data settings
+;==================================================
+DataServerAddress = 127.0.0.1
+DataServerPort = 55960
+
+;==================================================
+; Join settings
+;==================================================
+JoinServerAddress = 127.0.0.1
+JoinServerPort = 55970
+
+;==================================================
+; Connect settings
+;==================================================
+ConnectServerAddress = 127.0.0.1
+ConnectServerPort = 55557
+ConnectMemberCheck = 0
+
+;==================================================
+; Max settings
+;==================================================
+MaxConnectionIdle = 60
+MaxConnectionPerIP = 10
+MaxConnectionPerHID = 10
+MaxPacketPerSecond = 0
+MaxTimeConnectionVerify = 5
+MaxItemOption = 7
+MaxLevel = 400
+MaxPetLevel = 50
+MaxLevelUp = 1
+MaxLevelUpEvent = 1
+MaxStatPoint_AL0 = 65000
+MaxStatPoint_AL1 = 65000
+MaxStatPoint_AL2 = 65000
+MaxStatPoint_AL3 = 65000
+
+;==================================================
+; Write settings
+;==================================================
+WriteChatLog = 1
+WriteCommandLog = 1
+WriteTradeLog = 1
+WriteConnectLog = 1
+WriteHackLog = 1
+WriteChaosMixLog = 1
+WriteScriptLog = 1
+
+;==================================================
+; Check settings
+;==================================================
+CheckSpeedHack = 0
+CheckSpeedHackTolerance = 0
+CheckSpeedHackAction = 0
+CheckLatencyHack = 0
+CheckLatencyHackTolerance = 0
+CheckLatencyHackAction = 0
+CheckAutoPotionHack = 0
+CheckAutoPotionHackTolerance = 0
+CheckAutoPotionHackAction = 0
+CheckAutoComboHack = 0
+CheckAutoComboHackTolerance = 0
+CheckAutoComboHackAction = 0
+CheckMoveHack = 0
+CheckMoveHackMaxDelay = 0
+CheckMoveHackMaxCount = 0
+CheckMoveHackAction = 0
+
+;==================================================
+; Personal settings
+;==================================================
+PersonalCodeCheck = 0
+PersonalShopSwitch = 1
+
+;==================================================
+; Monster settings
+;==================================================
+MonsterMaxLifeRate = 100
+MonsterDefenseRate = 100
+MonsterDefenseSuccessRateRate = 100
+MonsterPhysiDamageRate = 100
+MonsterAttackSuccessRateRate = 100
+MonsterHealthBarSwitch = 1
+MonsterGetTopHitDamageUserMaxTime = 30
+
+;==================================================
+; PK settings
+;==================================================
+PKLimitFree = 0
+PKLimitShop = 0
+PKLimitMove = 0
+PKLimitMoveSummon = 1
+PKLimitEventEntry = 1
+PKDeathAnnounce = 0
+PKDownPlusTimePoint = 1
+PKDownPlusKillPoint = 2
+PKDownRequirePoint1 = 21600
+PKDownRequirePoint2 = 43200
+PKDownRequirePoint3 = 86400
+PKDownRequirePoint4 = 3600
+PKItemDropRatePvP1 = 25
+PKItemDropRatePvP2 = 50
+PKItemDropRatePvP3 = 90
+PKItemDropRatePvM1 = 20
+PKItemDropRatePvM2 = 40
+PKItemDropRatePvM3 = 80
+PKItemDropMaxLevel = 9
+PKItemDropPet = 0
+PKItemDropWing = 0
+PKItemDropExc = 0
+PKItemDropSet = 0
+
+;==================================================
+; Trade settings
+;==================================================
+TradeSwitch = 1
+TradeItemBlock = 1
+TradeItemBlockExc = 0
+TradeItemBlockSet = 0
+TradeItemBlockSell = 0
+
+;==================================================
+; Duel settings
+;==================================================
+DuelSwitch = 1
+DuelAnnounceSwitch = 0
+DuelMaxScore = 10
+DuelMaxTime = 20
+
+;==================================================
+; Guild settings
+;==================================================
+GuildCreateSwitch = 1
+GuildDeleteSwitch = 1
+GuildCreateMinLevel_AL0 = 150
+GuildCreateMinLevel_AL1 = 150
+GuildCreateMinLevel_AL2 = 150
+GuildCreateMinLevel_AL3 = 150
+GuildCreateMinReset_AL0 = 0
+GuildCreateMinReset_AL1 = 0
+GuildCreateMinReset_AL2 = 0
+GuildCreateMinReset_AL3 = 0
+
+;==================================================
+; Experience settings
+;==================================================
+ExperienceMultiplierConstA = 10
+ExperienceMultiplierConstB = 1000
+
+;==================================================
+; Pet settings
+;==================================================
+PetExperienceMultiplierConstA = 100
+PetExperienceRateDivisor = 10
+PetDurabilityRate = 100
+
+;==================================================
+; Add settings
+;==================================================
+AddExperienceRate_AL0 = 10000
+AddExperienceRate_AL1 = 10000
+AddExperienceRate_AL2 = 10000
+AddExperienceRate_AL3 = 10000
+AddEventExperienceRate_AL0 = 1
+AddEventExperienceRate_AL1 = 1
+AddEventExperienceRate_AL2 = 1
+AddEventExperienceRate_AL3 = 1
+AddLuckSuccessRate1_AL0 = 25
+AddLuckSuccessRate1_AL1 = 25
+AddLuckSuccessRate1_AL2 = 25
+AddLuckSuccessRate1_AL3 = 25
+AddLuckSuccessRate2_AL0 = 20
+AddLuckSuccessRate2_AL1 = 20
+AddLuckSuccessRate2_AL2 = 20
+AddLuckSuccessRate2_AL3 = 20
+
+;==================================================
+; Item settings
+;==================================================
+ItemDropTime = 30
+ItemDropRate_AL0 = 300
+ItemDropRate_AL1 = 300
+ItemDropRate_AL2 = 300
+ItemDropRate_AL3 = 300
+
+;==================================================
+; Money settings
+;==================================================
+MoneyDropTime = 30
+MoneyAmountDropRate_AL0 = 100
+MoneyAmountDropRate_AL1 = 100
+MoneyAmountDropRate_AL2 = 100
+MoneyAmountDropRate_AL3 = 100
+
+;==================================================
+; DW settings
+;==================================================
+DWLevelUpPoint_AL0 = 50
+DWLevelUpPoint_AL1 = 50
+DWLevelUpPoint_AL2 = 50
+DWLevelUpPoint_AL3 = 50
+
+;==================================================
+; DK settings
+;==================================================
+DKLevelUpPoint_AL0 = 50
+DKLevelUpPoint_AL1 = 50
+DKLevelUpPoint_AL2 = 50
+DKLevelUpPoint_AL3 = 50
+
+;==================================================
+; FE settings
+;==================================================
+FELevelUpPoint_AL0 = 50
+FELevelUpPoint_AL1 = 50
+FELevelUpPoint_AL2 = 50
+FELevelUpPoint_AL3 = 50
+
+;==================================================
+; MG settings
+;==================================================
+MGLevelUpPoint_AL0 = 7
+MGLevelUpPoint_AL1 = 7
+MGLevelUpPoint_AL2 = 7
+MGLevelUpPoint_AL3 = 7
+MGCreateLevel_AL0 = 220
+MGCreateLevel_AL1 = 220
+MGCreateLevel_AL2 = 220
+MGCreateLevel_AL3 = 220
+
+;==================================================
+; DL settings
+;==================================================
+DLLevelUpPoint_AL0 = 7
+DLLevelUpPoint_AL1 = 7
+DLLevelUpPoint_AL2 = 7
+DLLevelUpPoint_AL3 = 7
+DLCreateLevel_AL0 = 250
+DLCreateLevel_AL1 = 250
+DLCreateLevel_AL2 = 250
+DLCreateLevel_AL3 = 250
+
+;==================================================
+; Plus settings
+;==================================================
+PlusStatPoint = 1
+PlusStatMinLevel = 220
+
+;==================================================
+; Character settings
+;==================================================
+CharacterCreateSwitch = 1
+CharacterDeleteSwitch = 1
+CharacterDeleteMaxLevel = 220
+
+;==================================================
+; Party settings
+;==================================================
+PartyReconnectTime = 300
+PartyMoneyDistribute = 0
+PartyDisableKillBetweenMembers = 0
+PartyGeneralExperience1 = 100
+PartyGeneralExperience2 = 80
+PartyGeneralExperience3 = 60
+PartyGeneralExperience4 = 50
+PartyGeneralExperience5 = 45
+PartySpecialExperience1 = 100
+PartySpecialExperience2 = 80
+PartySpecialExperience3 = 75
+PartySpecialExperience4 = 65
+PartySpecialExperience5 = 60
+PartyMaxGapLevel = 130
+
+;==================================================
+; Soul settings
+;==================================================
+SoulSuccessRate_AL0 = 50
+SoulSuccessRate_AL1 = 50
+SoulSuccessRate_AL2 = 50
+SoulSuccessRate_AL3 = 50
+
+;==================================================
+; Life settings
+;==================================================
+LifeSuccessRate_AL0 = 50
+LifeSuccessRate_AL1 = 50
+LifeSuccessRate_AL2 = 50
+LifeSuccessRate_AL3 = 50
+
+;==================================================
+; Fruit settings
+;==================================================
+FruitAddPointMin = 1
+FruitAddPointMax = 3
+FruitAddPointSuccessRate_AL0 = -1
+FruitAddPointSuccessRate_AL1 = -1
+FruitAddPointSuccessRate_AL2 = -1
+FruitAddPointSuccessRate_AL3 = -1
+
+;==================================================
+; General settings
+;==================================================
+CustomerLicenseId = 0
+ChaosMixPlusItemAnnounce = 0
+TeleportAttackCheck = 0
+EffectOverwriteMode = 0
+NonPK = 0
+WeaponDurabilityRate = 100
+ArmorDurabilityRate = 100
+WingDurabilityRate = 100
+GuardianDurabilityRate = 100
+PendantDurabilityRate = 100
+RingDurabilityRate = 100
+QuestMonsterItemDropParty = 1
