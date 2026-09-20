@@ -2,7 +2,7 @@ using MudBlazor;
 
 namespace MuServer.AdminPanel;
 
-/// <summary>Paleta oscura del panel -- lo que reemplaza al Bootstrap por defecto de OpenMU.</summary>
+/// <summary>Dark palette of the panel -- what replaces OpenMU's default Bootstrap.</summary>
 public static class AdminTheme
 {
     public static readonly MudTheme Theme = new()

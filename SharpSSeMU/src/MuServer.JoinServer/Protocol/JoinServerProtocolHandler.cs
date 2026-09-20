@@ -84,7 +84,7 @@ public sealed class JoinServerProtocolHandler
 
     private async Task OnConnectAccountAsync(GameServerLink link, ConnectAccountRecv msg, CancellationToken ct)
     {
-        // result: 1=ok por defecto en el original hasta que algo falla explícitamente.
+        // result: 1=ok by default in the original until something explicitly fails.
         byte result = 1;
 
         if (!AccountUtil.CheckTextSyntax(msg.Account))
@@ -122,9 +122,9 @@ public sealed class JoinServerProtocolHandler
 
         if (_md5Encryption)
         {
-            // El modo MD5 del original usa un esquema de "key index" propio (MD5_KEYVAL) sobre el
-            // hash de la contraseña, no MD5 estándar puro. No está portado todavía — se deja la
-            // conexión en modo texto plano (MD5Encryption=0) como único modo soportado por ahora.
+            // The original's MD5 mode uses a "key index" scheme of its own (MD5_KEYVAL) over the password hash,
+            // not plain standard MD5. It is not ported yet — the connection is left in plain-text mode
+            // (MD5Encryption=0) as the only supported mode for now.
             Log.Add(LogColor.Red, "MD5Encryption=1 is not supported yet in this port; use MD5Encryption=0.");
             await link.SendAsync(JoinServerPacketBuilder.ConnectAccountSend(msg.Index, msg.Account, "", 2, 0, 0, ""), ct);
             return;
@@ -243,8 +243,8 @@ public sealed class JoinServerProtocolHandler
         }
     }
 
-    /// <summary>Puerto de CAccountManager::DisconnectProc: corre cada 1s (TIMER_1000 del original),
-    /// expira cuentas cuyo "movimiento entre servidores" quedó colgado más de 30s.</summary>
+    /// <summary>Port of CAccountManager::DisconnectProc: runs every 1s (the original's TIMER_1000), expires
+    /// accounts whose "movement between servers" got stuck for more than 30s.</summary>
     public async Task RunStaleMapMoveSweepAsync(CancellationToken ct)
     {
         foreach (var session in _sessions.SweepStaleMapMoves())

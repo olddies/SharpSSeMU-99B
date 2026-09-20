@@ -2,22 +2,18 @@ using System.Collections.Concurrent;
 
 namespace MuServer.GameServer.World;
 
-/// <summary>
-/// Puerto simplificado de CMapItem (MapItem.h:11-30) -- un item tirado en el piso de un mapa.
-/// A diferencia de jugadores/monstruos (registrados en un índice GLOBAL, ver
-/// <see cref="MonsterRegistry"/>), los items de piso se indexan POR MAPA (<see cref="Index"/> es la
-/// posición dentro del array de 300 slots de <em>ese</em> mapa, <c>gMap[map].m_Item[300]</c> en el
-/// original, ver Map.h:12,159-171) -- el protocolo real (PMSG_VIEWPORT_ITEM.index, ver
-/// WorldPacketBuilder.ViewportItemAppear) también asume esta indexación por mapa, así que replicarla
-/// tal cual evita tener que traducir índices en el paquete.
-///
-/// Simplificaciones respecto al original (documentadas en detalle en el README): sin el estado
-/// "m_Give" de dos fases para evitar doble-pickup en el mismo tick (acá <see cref="Live"/> se pone en
-/// false inmediatamente al recoger, y el barrido de <see cref="GroundItemRegistry.Sweep"/> libera el
-/// slot en el tick siguiente iguel que el original, pero sin la ventana de carrera intermedia -- en la
-/// práctica cada pickup ya se procesa en el hilo único del protocolo, así que la condición de carrera
-/// que <c>m_Give</c> prevenía en el original multihilo no puede pasar acá).
-/// </summary>
+/// <summary> Simplified port of CMapItem (MapItem.h:11-30) -- an item lying on the ground of a map. Unlike
+/// players/monsters (registered in a GLOBAL index, see <see cref="MonsterRegistry"/>), ground items are indexed
+/// PER MAP (<see cref="Index"/> is the position within the 300-slot array of <em>that</em> map,
+/// <c>gMap[map].m_Item[300]</c> in the original, see Map.h:12,159-171) -- the real protocol
+/// (PMSG_VIEWPORT_ITEM.index, see WorldPacketBuilder.ViewportItemAppear) also assumes this per-map indexing, so
+/// replicating it as is avoids having to translate indices in the packet. Simplifications relative to the
+/// original (documented in detail in the README): without the two-phase "m_Give" state to avoid a double-pickup
+/// in the same tick (here <see cref="Live"/> is set to false immediately on pickup, and the <see
+/// cref="GroundItemRegistry.Sweep"/> sweep frees the slot on the next tick just like the original, but without
+/// the intermediate race window -- in practice each pickup is already processed on the protocol's single
+/// thread, so the race condition that <c>m_Give</c> prevented in the multi-threaded original cannot happen
+/// here). </summary>
 public sealed class GroundItem
 {
     public required int Index { get; init; }
@@ -26,49 +22,46 @@ public sealed class GroundItem
     public byte Y { get; set; }
     public required Item Item { get; init; }
 
-    /// <summary>Puerto del caso especial "dinero tirado en el piso" (CMap::MoneyItemDrop,
-    /// Map.cpp:256-290): el original reusa <c>CItem</c> con <c>m_Index=GET_ITEM(14,15)</c> y guarda
-    /// el monto en <c>m_BuyMoney</c> -- acá se separa en un campo dedicado para no forzar el "monto"
-    /// dentro de <see cref="Item"/> (que no tiene un campo de cantidad dinámica). null = item normal,
-    /// no-null = este slot es dinero (<see cref="Item"/> igual se deja con Index=GetItem(14,15) para
-    /// que el resto del código que compara por índice funcione igual que el original).</summary>
+    /// <summary>Port of the special case "money dropped on the ground" (CMap::MoneyItemDrop, Map.cpp:256-290):
+    /// the original reuses <c>CItem</c> with <c>m_Index=GET_ITEM(14,15)</c> and stores the amount in
+    /// <c>m_BuyMoney</c> -- here it is separated into a dedicated field so as not to force the "amount" inside
+    /// <see cref="Item"/> (which has no dynamic quantity field). null = normal item, non-null = this slot is
+    /// money (<see cref="Item"/> is still left with Index=GetItem(14,15) so that the rest of the code that
+    /// compares by index works the same as the original).</summary>
     public uint? MoneyAmount { get; init; }
 
     /// <summary>Puerto de m_Live -- true mientras el slot tiene un item real tirado.</summary>
     public bool Live { get; set; } = true;
 
-    /// <summary>Puerto de la condición <c>m_State==OBJECT_CREATE</c> que prende el bit "recién
-    /// apareció" (0x80 en el byte alto del índice) en <see cref="WorldPacketBuilder.ViewportItemAppear"/>
-    /// -- solo se manda así la primera vez que un jugador lo ve (el barrido de viewport lo apaga
-    /// después de mandarlo una vez, ver <see cref="ViewportTicker"/>).</summary>
+    /// <summary>Port of the <c>m_State==OBJECT_CREATE</c> condition that turns on the "just appeared" bit (0x80
+    /// in the high byte of the index) in <see cref="WorldPacketBuilder.ViewportItemAppear"/> -- it is only sent
+    /// like that the first time a player sees it (the viewport sweep turns it off after sending it once, see
+    /// <see cref="ViewportTicker"/>).</summary>
     public bool JustDropped { get; set; } = true;
 
-    /// <summary>Puerto de m_Time -- momento en que el item desaparece solo (timeout), sin importar si
-    /// alguien lo recogió o no.</summary>
+    /// <summary>Port of m_Time -- moment when the item disappears on its own (timeout), regardless of whether
+    /// someone picked it up or not.</summary>
     public DateTime ExpireAt { get; set; }
 
-    /// <summary>Puerto de m_LootTime + m_UserIndex/m_LootUserIndex (MapItem.cpp:29-99): mientras
-    /// ahora &lt; LootLockUntil, solo <see cref="OwnerIndex"/> (o su grupo, ver
-    /// <see cref="OwnerPartyId"/>) puede recogerlo -- CItemManager::CGItemGetRecv, vía
-    /// CMap::CheckItemGive (Map.cpp:363-419).</summary>
+    /// <summary>Port of m_LootTime + m_UserIndex/m_LootUserIndex (MapItem.cpp:29-99): while now &lt;
+    /// LootLockUntil, only <see cref="OwnerIndex"/> (or their party, see <see cref="OwnerPartyId"/>) can pick
+    /// it up -- CItemManager::CGItemGetRecv, via CMap::CheckItemGive (Map.cpp:363-419).</summary>
     public DateTime LootLockUntil { get; set; }
 
-    /// <summary>-1 = sin dueño (nadie tiene prioridad de loot, cualquiera puede recogerlo apenas
-    /// aparece -- no hay caso real de esto en este puerto ya que todo drop viene de un jugador o
-    /// monstruo con un "dueño" identificable, pero se deja el sentinel por si acaso).</summary>
+    /// <summary>-1 = no owner (nobody has loot priority, anyone can pick it up as soon as it appears -- there
+    /// is no real case of this in this port since every drop comes from a player or monster with an
+    /// identifiable "owner", but the sentinel is left just in case).</summary>
     public int OwnerIndex { get; set; } = -1;
 
-    /// <summary>Grupo del dueño al momento del drop -- si el dueño estaba en un grupo, todo el grupo
-    /// comparte la prioridad de loot (CMap::CheckItemGive, Map.cpp:363-419, salvo items de quest,
-    /// <c>m_QuestItem</c>, no portado -- se ignora esa excepción acá).</summary>
+    /// <summary>Owner's party at the moment of the drop -- if the owner was in a party, the whole party shares
+    /// the loot priority (CMap::CheckItemGive, Map.cpp:363-419, except quest items, <c>m_QuestItem</c>, not
+    /// ported -- that exception is ignored here).</summary>
     public int? OwnerPartyId { get; set; }
 }
 
-/// <summary>
-/// Puerto simplificado de <c>gMap[map].m_Item[MAX_MAP_ITEM=300]</c> + el ring-buffer de asignación de
-/// slot de <c>CMap::MonsterItemDrop</c>/<c>ItemDrop</c>/<c>MoneyItemDrop</c> (Map.cpp:256-361) -- un
-/// array de 300 slots POR MAPA, reusados en orden cuando se liberan.
-/// </summary>
+/// <summary> Simplified port of <c>gMap[map].m_Item[MAX_MAP_ITEM=300]</c> + the slot-allocation ring buffer of
+/// <c>CMap::MonsterItemDrop</c>/<c>ItemDrop</c>/<c>MoneyItemDrop</c> (Map.cpp:256-361) -- an array of 300 slots
+/// PER MAP, reused in order as they are freed. </summary>
 public sealed class GroundItemRegistry
 {
     /// <summary>MAX_MAP_ITEM (Map.h:12).</summary>
@@ -105,10 +98,10 @@ public sealed class GroundItemRegistry
         return item is { Live: true } ? item : null;
     }
 
-    /// <summary>Puerto de CMap::MonsterItemDrop/ItemDrop/MoneyItemDrop (Map.cpp:256-361) -- busca el
-    /// próximo slot libre en el ring-buffer de este mapa a partir del cursor, ocupa el primero que
-    /// encuentre. Devuelve null si el mapa ya tiene los 300 slots ocupados (drop se descarta en
-    /// silencio, igual que el original).</summary>
+    /// <summary>Port of CMap::MonsterItemDrop/ItemDrop/MoneyItemDrop (Map.cpp:256-361) -- looks for the next
+    /// free slot in this map's ring buffer starting from the cursor, taking the first one it finds. Returns
+    /// null if the map already has all 300 slots occupied (the drop is silently discarded, like the
+    /// original).</summary>
     public GroundItem? Drop(int map, Item item, int x, int y, int ownerIndex, int? ownerPartyId, TimeSpan lifetime, TimeSpan lootLock)
     {
         lock (_dropLock)
@@ -147,9 +140,9 @@ public sealed class GroundItemRegistry
         }
     }
 
-    /// <summary>Puerto de CMap::MoneyItemDrop (Map.cpp:256-290): mismo mecanismo de slot que
-    /// <see cref="Drop"/> pero sin loot-lock (<c>m_LootTime=0</c> en el original -- cualquiera puede
-    /// levantarlo desde que aparece, no solo quien lo generó).</summary>
+    /// <summary>Port of CMap::MoneyItemDrop (Map.cpp:256-290): same slot mechanism as <see cref="Drop"/> but
+    /// without loot-lock (<c>m_LootTime=0</c> in the original -- anyone can pick it up from the moment it
+    /// appears, not only whoever generated it).</summary>
     public GroundItem? DropMoney(int map, int x, int y, uint amount, TimeSpan lifetime)
     {
         var moneyItem = new Item { Index = (short)Item.GetItem(14, 15) };
@@ -160,8 +153,8 @@ public sealed class GroundItemRegistry
             return null;
         }
 
-        // GroundItem.MoneyAmount es 'init'-only -- Drop() ya construyó el objeto, así que se arma de
-        // nuevo acá con el monto puesto (mismo slot, se pisa el que Drop() acaba de guardar).
+        // GroundItem.MoneyAmount is 'init'-only -- Drop() already built the object, so it is built again here
+        // with the amount set (same slot, it overwrites the one Drop() just stored).
         var withMoney = new GroundItem
         {
             Index = ground.Index, Map = ground.Map, X = ground.X, Y = ground.Y, Item = ground.Item,
@@ -181,14 +174,13 @@ public sealed class GroundItemRegistry
         }
     }
 
-    /// <summary>Puerto de CMap::ItemGive (Map.cpp:421-431) -- marca el item recogido/expirado. El
-    /// slot queda libre para <see cref="Drop"/> de inmediato (ver doc-comment de
-    /// <see cref="GroundItem"/> sobre por qué no hace falta la ventana de dos fases del original).</summary>
+    /// <summary>Port of CMap::ItemGive (Map.cpp:421-431) -- marks the item as picked up/expired. The slot is
+    /// left free for <see cref="Drop"/> immediately (see the doc-comment of <see cref="GroundItem"/> about why
+    /// the original's two-phase window is not needed).</summary>
     public void Remove(GroundItem item) => item.Live = false;
 
-    /// <summary>Puerto de CMap::StateSetDestroy (Map.cpp:433-474), simplificado a una sola pasada:
-    /// libera cualquier item cuyo timeout ya pasó. Llamado desde <see cref="ViewportTicker"/> en cada
-    /// tick.</summary>
+    /// <summary>Port of CMap::StateSetDestroy (Map.cpp:433-474), simplified to a single pass: frees any item
+    /// whose timeout has passed. Called from <see cref="ViewportTicker"/> on every tick.</summary>
     public IEnumerable<GroundItem> SweepExpired()
     {
         var now = DateTime.UtcNow;

@@ -3,10 +3,8 @@ using MuServer.Shared.Scripting;
 
 namespace MuServer.JoinServer.Data;
 
-/// <summary>
-/// Puerto de CAllowableIpList: whitelist de IPs desde las que se acepta que un GameServer
-/// se conecte al JoinServer (AllowableIpList.txt). Formato: "0" abre la sección, luego IPs entre
-/// comillas, "end" la cierra.
+/// <summary> Port of CAllowableIpList: whitelist of IPs from which a GameServer is accepted to connect to the
+/// JoinServer (AllowableIpList.txt). Format: "0" opens the section, then quoted IPs, "end" closes it.
 /// </summary>
 public sealed class AllowableIpStore
 {

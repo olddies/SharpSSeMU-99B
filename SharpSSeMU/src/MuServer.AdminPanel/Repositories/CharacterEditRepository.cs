@@ -3,9 +3,9 @@ using Npgsql;
 
 namespace MuServer.AdminPanel.Repositories;
 
-/// <summary>Una fila de la lista de personajes -- <c>RawClass</c> es el byte crudo de DB
-/// (compacto*16 + changeUp, mismo formato que <c>character.class</c> y <c>PlayerObject.Class</c>/
-/// <c>ChangeUp</c> ya usan en el GameServer, ver OnCharacterListFromDataServerAsync).</summary>
+/// <summary>A row of the character list -- <c>RawClass</c> is the raw DB byte (compact*16 + changeUp, same
+/// format that <c>character.class</c> and <c>PlayerObject.Class</c>/ <c>ChangeUp</c> already use in the
+/// GameServer, see OnCharacterListFromDataServerAsync).</summary>
 public sealed record CharacterSummary(string Account, string Name, byte RawClass, int Level, long Money)
 {
     public int CompactClass => RawClass / 16;
@@ -22,16 +22,13 @@ public sealed record CharacterSummary(string Account, string Name, byte RawClass
     };
 }
 
-/// <summary>
-/// Editor de personajes para el panel -- a diferencia del resto de los repositorios (que leen/escriben
-/// archivos de <c>Data/</c>), este habla directo con la misma base Postgres que usa DataServer, porque
-/// ahí es donde vive el personaje (no hay archivo de por medio). Reusa
-/// <see cref="NpgsqlCharacterDataRepository"/> (el mismo repositorio que ya usa el DataServer real en
-/// producción) para todo lo que ya tiene un método -- get/save de personaje completo, inventario,
-/// baúl -- y sólo agrega la consulta que le falta a esa interfaz (listar TODOS los personajes: la
-/// interfaz de producción sólo busca de a uno, por cuenta+nombre, porque eso es lo único que el
-/// DataServer real necesita en runtime).
-/// </summary>
+/// <summary> Character editor for the panel -- unlike the rest of the repositories (which read/write
+/// <c>Data/</c> files), this one talks directly to the same Postgres database DataServer uses, because that is
+/// where the character lives (there is no file in between). It reuses <see
+/// cref="NpgsqlCharacterDataRepository"/> (the same repository the real DataServer already uses in production)
+/// for everything that already has a method -- full character get/save, inventory, warehouse -- and only adds
+/// the query missing from that interface (listing ALL characters: the production interface only looks up one at
+/// a time, by account+name, because that is the only thing the real DataServer needs at runtime). </summary>
 public sealed class CharacterEditRepository(string connectionString)
 {
     private readonly ICharacterDataRepository _repo = new NpgsqlCharacterDataRepository(connectionString);

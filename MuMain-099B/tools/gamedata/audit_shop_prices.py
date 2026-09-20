@@ -142,8 +142,8 @@ def precio_del_servidor(seccion, sub, fila, nivel_item=0, durabilidad=1):
     valor = entero(fila.get("Value"))
     if valor > 0:
         precio = (valor * valor * 10) // 12
-        # La rama especial de las pociones de la sección 14 (sub 0-8), que
-        # escala por nivel y por cantidad y redondea en una sola etapa.
+        # The special branch for section 14 potions (sub 0-8), which scales by level and by quantity and rounds
+        # in a single stage.
         if seccion == 14 and 0 <= sub <= 8:
             if sub in (3, 6):
                 precio *= 2
@@ -197,8 +197,7 @@ def main():
             huerfanas.append(fila)
             continue
 
-        # BuyMoney se consulta antes que esta tabla, asi que una fila cuyo item
-        # lo traiga seteado no se usaria nunca.
+        # BuyMoney is consulted before this table, so a row whose item has it set would never be used.
         if entero(definicion.get("BuyMoney")):
             tapadas.append(fila)
             continue

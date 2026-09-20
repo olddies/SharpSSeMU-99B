@@ -1,13 +1,10 @@
 namespace MuServer.ConnectServer.Net;
 
-/// <summary>
-/// Puerto de CIpManager: cuenta conexiones simultáneas por IP para aplicar MaxConnectionPerIP.
-///
-/// Nota de compatibilidad: el original devuelve "rechazado" para una IP nueva cuando
-/// MaxConnectionPerIP=0 en el .ini (en vez de interpretarlo como "sin límite"). Es una rareza
-/// del código original; se replica igual aquí para no cambiar el comportamiento observado en
-/// producción. Si se prefiere "0 = sin límite", basta con cambiar la condición marcada abajo.
-/// </summary>
+/// | <summary> Port of CIpManager: counts simultaneous connections per IP to enforce MaxConnectionPerIP.
+/// Compatibility note: the original returns "rejected" for a new IP when MaxConnectionPerIP=0 in the .ini
+/// (instead of interpreting it as "no limit"). It is an oddity of the original code; it is replicated here
+/// anyway so as not to change the behaviour observed in production. If "0 = no limit" is preferred, it is
+/// enough to change the condition marked below. </summary>
 public sealed class IpConnectionTracker
 {
     private readonly Dictionary<string, int> _counts = new();

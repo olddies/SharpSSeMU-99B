@@ -2,14 +2,11 @@ using MuServer.GameServer.Config;
 
 namespace MuServer.GameServer.World;
 
-/// <summary>
-/// Los valores tal como viajan en <c>PMSG_CHAOS_MIX_RECV</c>/<c>_RATE_RECV</c> (<c>type</c>). Nombrados
-/// como en <c>ChaosBox.h</c> del emulador real -- <b>ojo</b>, hay una trampa de nombres ahí: la
-/// constante <c>CHAOS_MIX_WING1</c> (7) dispara la función <c>Wing2Mix(tipo=0)</c>, y
-/// <c>CHAOS_MIX_WING2</c> (11) dispara <c>Wing1Mix()</c> -- están cruzadas. Acá el valor del enum es
-/// el del WIRE (lo que manda el cliente), y el comentario de cada caso en el switch de abajo dice qué
-/// función del original ejecuta de verdad.
-/// </summary>
+/// <summary> The values as they travel in <c>PMSG_CHAOS_MIX_RECV</c>/<c>_RATE_RECV</c> (<c>type</c>). Named as
+/// in the real emulator's <c>ChaosBox.h</c> -- <b>watch out</b>, there is a naming trap there: the constant
+/// <c>CHAOS_MIX_WING1</c> (7) triggers the function <c>Wing2Mix(type=0)</c>, and <c>CHAOS_MIX_WING2</c> (11)
+/// triggers <c>Wing1Mix()</c> -- they are crossed. Here the enum value is the WIRE one (what the client sends),
+/// and the comment on each case in the switch below says which function of the original really runs. </summary>
 public enum ChaosMixType
 {
     None = 0,
@@ -22,48 +19,38 @@ public enum ChaosMixType
     Wing1 = 7,
     BloodCastle = 8,
     Wing2 = 11,
-    Wing3 = 24, // "Cape" en el original -- no estaba en el puerto anterior, se agrega acá.
+    Wing3 = 24, // "Cape" in the original -- it was not in the previous port, it is added here.
 }
 
-/// <param name="Item">El item nuevo o mejorado, si hubo éxito.</param>
-/// <param name="DeliverViaInventory">true si <see cref="Item"/> se entrega poniéndolo en un slot
-/// vacío del inventario (el original lo hace por <c>GDCreateItemSend</c>, un mensaje al DataServer,
-/// no por el mismo paquete de la mezcla); false si va embebido en la respuesta de combinar
-/// (<c>PMSG_CHAOS_MIX_SEND.ItemInfo</c>), que es como el original entrega la mejora de
-/// Plus Item Level -- ahí el item es el MISMO que pusiste, no uno nuevo.</param>
+/// <param name="Item">The new or upgraded item, if it succeeded.</param> <param name="DeliverViaInventory">true
+/// if <see cref="Item"/> is delivered by putting it in an empty inventory slot (the original does it through
+/// <c>GDCreateItemSend</c>, a message to the DataServer, not through the same mix packet); false if it goes
+/// embedded in the combine reply (<c>PMSG_CHAOS_MIX_SEND.ItemInfo</c>), which is how the original delivers the
+/// Plus Item Level upgrade -- there the item is the SAME one you put in, not a new one.</param>
 public sealed record ChaosMixResult(bool Success, byte ResultCode, Item? Item, bool DeliverViaInventory,
     int SuccessRate, int RequiredZen);
 
-/// <summary>
-/// Puerto de las fórmulas de combinaciones de <c>CChaosBox</c> (ChaosBox.cpp de
-/// <c>Source/Emulator 0.99 (2.1.7)/GameServer</c>, el árbol fuente real del emulador -- no una
-/// reconstrucción). La versión anterior de esta clase decía ser un puerto exacto y no lo era: la
-/// tasa de éxito salía de una fórmula inventada (`10 + Σ nivel×5`) en vez de la tabla de
-/// configuración real (<see cref="GameServerInfoChaosMix"/>, cargada desde hace tiempo pero nunca
-/// conectada a nada), el item de éxito salía de un array de 3 armas fijas en vez de la lista real
-/// de <c>Data/EventItemBag/Special/*.txt</c>, y el resultado de éxito se empaquetaba distinto según
-/// el tipo de mezcla y esta clase lo hacía siempre igual.
-///
-/// <para><b>Lo que SÍ es fiel:</b> las condiciones de ingredientes, las fórmulas de tasa y de zen
-/// requerido, y de qué tabla de configuración sale cada una -- verificado línea por línea contra el
-/// original, incluida la trampa de nombres Wing1/Wing2 de arriba.</para>
-///
-/// <para><b>Lo que NO es fiel, y por qué:</b> el item que sale en las mezclas que crean un item
-/// NUEVO (Chaos Item, Wing1/2/3, Fruit) se elige al azar entre los candidatos reales de
-/// <c>Data/EventItemBag/Special/*.txt</c> -- esos SÍ son los candidatos reales, verificados contra
-/// el archivo -- pero se ignora la puerta de <c>DropRate</c> del motor de bolsas de item
-/// (<c>ItemBagEx</c>): en los cuatro archivos que hacen falta para esto, ese campo viene en 0 de
-/// fábrica, lo que en el original haría que la bolsa NUNCA devuelva nada aun con la tirada de éxito
-/// ya ganada. Replicar ese comportamiento literal dejaría la Chaos Box "gana la tirada, no pasa
-/// nada" tal como viene el archivo -- casi seguro no es el comportamiento real de un servidor en
-/// producción (nadie shippea una máquina del caos que nunca entrega nada), y el motor completo de
-/// <c>ItemBagEx</c> (pesos por sección, filtro por clase, drop rate) es un sistema aparte, compartido
-/// con Devil Square/Blood Castle/drops de monstruo, que merece su propio puerto en vez de uno
-/// apurado como dependencia de esto.</para>
-///
-/// <para>Devil Square, Dinorant, Blood Castle y las dos mezclas de mascota siguen sin portar (como
-/// antes): requieren estado de eventos en vivo que este servidor no trackea todavía.</para>
-/// </summary>
+/// <summary> Port of the <c>CChaosBox</c> combination formulas (ChaosBox.cpp of <c>Source/Emulator 0.99
+/// (2.1.7)/GameServer</c>, the real source tree of the emulator -- not a reconstruction). The previous version
+/// of this class claimed to be an exact port and was not: the success rate came from an invented formula (`10 +
+/// Σ level×5`) instead of the real configuration table (<see cref="GameServerInfoChaosMix"/>, loaded for a long
+/// time but never connected to anything), the success item came from an array of 3 fixed weapons instead of the
+/// real list of <c>Data/EventItemBag/Special/*.txt</c>, and the success result was packed differently depending
+/// on the mix type and this class always did it the same way. <para><b>What IS faithful:</b> the ingredient
+/// conditions, the rate and required-zen formulas, and which configuration table each one comes from --
+/// verified line by line against the original, including the Wing1/Wing2 naming trap above.</para>
+/// <para><b>What is NOT faithful, and why:</b> the item that comes out in the mixes that create a NEW item
+/// (Chaos Item, Wing1/2/3, Fruit) is chosen at random among the real candidates of
+/// <c>Data/EventItemBag/Special/*.txt</c> -- those ARE the real candidates, verified against the file -- but
+/// the <c>DropRate</c> gate of the item bag engine (<c>ItemBagEx</c>) is ignored: in the four files needed for
+/// this, that field comes as 0 from the factory, which in the original would make the bag NEVER return anything
+/// even with the success roll already won. Replicating that behaviour literally would leave the Chaos Box as
+/// "win the roll, nothing happens" just as the file comes -- almost certainly not the real behaviour of a
+/// production server (nobody ships a chaos machine that never delivers anything), and the full <c>ItemBagEx</c>
+/// engine (per-section weights, class filter, drop rate) is a separate system, shared with Devil Square/Blood
+/// Castle/monster drops, that deserves its own port instead of a rushed one as a dependency of this.</para>
+/// <para>Devil Square, Dinorant, Blood Castle and the two pet mixes remain unported (as before): they require
+/// live event state that this server does not track yet.</para> </summary>
 public static class ChaosMixLogic
 {
     private static readonly int ItemChaos = Item.GetItem(12, 15);   // Jewel of Chaos
@@ -72,18 +59,17 @@ public static class ChaosMixLogic
     private static readonly int ItemCreation = Item.GetItem(14, 22); // Jewel of Creation
     private static readonly int ItemLife = Item.GetItem(14, 16);    // Jewel of Life
     private static readonly int ItemDinorant = Item.GetItem(13, 3);
-    private static readonly int ItemFeatherLevel0 = Item.GetItem(13, 14); // Loch's Feather / Crest of Monarch (Level distingue cuál)
+    private static readonly int ItemFeatherLevel0 = Item.GetItem(13, 14); // Loch's Feather / Crest of Monarch (Level tells which)
 
     private static readonly int[] ChaosWeapons = { Item.GetItem(2, 6), Item.GetItem(4, 6), Item.GetItem(5, 7) };
     private static readonly int[] Wing1Candidates = { Item.GetItem(12, 0), Item.GetItem(12, 1), Item.GetItem(12, 2) };
     private static readonly int[] Wing2Candidates = { Item.GetItem(12, 3), Item.GetItem(12, 4), Item.GetItem(12, 5), Item.GetItem(12, 6) };
     private static readonly int[] CapeCandidates = { Item.GetItem(13, 30) };
 
-    /// <param name="getBuyMoney">Precio de compra ACTUAL del item (el que ya calcula
-    /// <c>ComputeShopBuyPrice</c> para la tienda) -- lo pasa quien llama para no duplicar esa
-    /// fórmula acá.</param>
-    /// <param name="execute">true para combinar de verdad (0x86). false para sólo calcular la tasa
-    /// (0x88): misma fórmula, no cobra ni vacía la caja ni tira el dado.</param>
+    /// <param name="getBuyMoney">CURRENT purchase price of the item (the one <c>ComputeShopBuyPrice</c> already
+    /// computes for the shop) -- passed in by the caller so as not to duplicate that formula here.</param>
+    /// <param name="execute">true to really combine (0x86). false to only compute the rate (0x88): same
+    /// formula, it does not charge, nor empty the box, nor roll the dice.</param>
     public static ChaosMixResult CalculateAndExecuteMix(PlayerObject player, ChaosMixType mixType,
         GameServerInfoChaosMix rates, int[] addLuckSuccessRate2, Func<Item, int> getBuyMoney, bool execute = true)
     {
@@ -109,28 +95,27 @@ public static class ChaosMixLogic
             // CHAOS_MIX_FRUIT -> CChaosBox::FruitMix
             ChaosMixType.Fruit => MixFruit(player, items, rates, execute),
 
-            // CHAOS_MIX_WING1 (7) -> ¡OJO! en el original esto ejecuta Wing2Mix(tipo=0): Chaos +
-            // Loch's Feather (nivel 0) + un ala de 1ra generación -> ala de 2da (Spirits/Soul/
-            // Dragon/Darkness).
+            // CHAOS_MIX_WING1 (7) -> WATCH OUT! in the original this runs Wing2Mix(type=0): Chaos + Loch's
+            // Feather (level 0) + a 1st-generation wing -> 2nd-gen wing (Spirits/Soul/ Dragon/Darkness).
             ChaosMixType.Wing1 => MixWing2Family(player, items, rates, getBuyMoney, wingTier: 0, execute),
 
-            // CHAOS_MIX_WING2 (11) -> ¡OJO! esto ejecuta Wing1Mix(): Chaos + un arma del caos
-            // excelente -> ala de 1ra generación (Elf/Heaven/Satan).
+            // CHAOS_MIX_WING2 (11) -> WATCH OUT! this runs Wing1Mix(): Chaos + an excellent chaos weapon ->
+            // 1st-generation wing (Elf/Heaven/Satan).
             ChaosMixType.Wing2 => MixWing1(player, items, rates, getBuyMoney, execute),
 
-            // "Cape" en el original -- Wing2Mix(tipo=1): Chaos + Crest of Monarch (nivel 1 del
-            // mismo item que Loch's Feather) + un ala de 2da -> Cape of Lord.
+            // "Cape" in the original -- Wing2Mix(type=1): Chaos + Crest of Monarch (level 1 of the same item as
+            // Loch's Feather) + a 2nd-gen wing -> Cape of Lord.
             ChaosMixType.Wing3 => MixWing2Family(player, items, rates, getBuyMoney, wingTier: 1, execute),
 
             _ => new ChaosMixResult(false, 0, null, false, 0, 0), // DevilSquare/Dinorant/BloodCastle: no portado
         };
     }
 
-    /// <summary>Puerto de <c>CItem::OldValue()</c> (Item.cpp:925-951): la fórmula de tasa de la
-    /// Chaos Box usa estos precios "viejos" para cinco joyas puntuales, NO el precio actual de
-    /// <c>ItemValue.txt</c> -- son deliberadamente distintos (más bajos). Usar el precio actual acá
-    /// haría que cualquier combinación con un Chaos/Bless/Soul llegue al 100% de una sola vez, porque
-    /// esos precios subieron mucho desde que se escribió esta fórmula.</summary>
+    /// <summary>Port of <c>CItem::OldValue()</c> (Item.cpp:925-951): the Chaos Box rate formula uses these
+    /// "old" prices for five specific jewels, NOT the current price from <c>ItemValue.txt</c> -- they are
+    /// deliberately different (lower). Using the current price here would make any combination with a
+    /// Chaos/Bless/Soul reach 100% in one go, because those prices went up a lot since this formula was
+    /// written.</summary>
     private static int OldBuyMoney(Item item, Func<Item, int> getBuyMoney)
     {
         if (item.Index == ItemBless) return 100_000;
@@ -144,19 +129,19 @@ public static class ChaosMixLogic
     /// <summary>Puerto de <c>CItem::IsExcItem()</c> (Item.cpp:76-90).</summary>
     private static bool IsExcItem(Item item) => item.Index != ItemDinorant && item.NewOption != 0;
 
-    /// <summary>Aproximación de <c>CItem::IsSetItem()</c>, que delega en
-    /// <c>CSetItemOption::IsSetItem</c> (SetItemOption.txt, no portado). Un <see cref="Item.SetOption"/>
-    /// distinto de 0 es exactamente lo que ese campo representa en este wire (nibble bajo = set-item),
-    /// así que alcanza sin necesitar la tabla completa.</summary>
+    /// <summary>Approximation of <c>CItem::IsSetItem()</c>, which delegates to <c>CSetItemOption::IsSetItem</c>
+    /// (SetItemOption.txt, not ported). A <see cref="Item.SetOption"/> other than 0 is exactly what that field
+    /// represents on this wire (low nibble = set-item), so it is enough without needing the full
+    /// table.</summary>
     private static bool IsSetItem(Item item) => item.SetOption != 0;
 
-    /// <summary>Después de cualquier intento ejecutado (éxito o fracaso) la Chaos Box queda vacía.
-    /// El original sólo llama <c>ChaosBoxInit</c> explícitamente en la rama de FRACASO -- en la de
-    /// éxito de <c>ChaosItemMix</c>/<c>FruitMix</c>/etc. los ingredientes consumidos no se limpian
-    /// ahí mismo. No se pudo confirmar qué otro camino los limpia en ese caso (posiblemente un bug
-    /// del original de 20 años, posiblemente algo que pasa en otro lado que no se alcanzó a leer);
-    /// se optó por limpiar siempre, que es la opción segura -- lo contrario arriesgaría que el
-    /// jugador recupere sus ingredientes gratis al cerrar la ventana.</summary>
+    /// <summary>After any executed attempt (success or failure) the Chaos Box ends up empty. The original only
+    /// calls <c>ChaosBoxInit</c> explicitly in the FAILURE branch -- in the success branch of
+    /// <c>ChaosItemMix</c>/<c>FruitMix</c>/etc. the consumed ingredients are not cleared right there. It could
+    /// not be confirmed what other path clears them in that case (possibly a 20-year-old bug in the original,
+    /// possibly something that happens elsewhere that could not be read); it was decided to always clear, which
+    /// is the safe option -- the opposite would risk the player recovering their ingredients for free on
+    /// closing the window.</summary>
     private static void ClearBox(PlayerObject player) => player.ClearChaosBox();
 
     private static ChaosMixResult MixChaosItem(PlayerObject player, List<Item> items, GameServerInfoChaosMix rates,
@@ -321,10 +306,9 @@ public static class ChaosMixLogic
         return new ChaosMixResult(false, 0, null, false, rate, zen);
     }
 
-    /// <summary>Puerto de <c>Wing1Mix</c> (ChaosBox.cpp:744-839) -- Chaos + un arma del caos
-    /// excelente (nivel>=4, Option3>=1) -> ala de 1ra generación (Elf/Heaven/Satan). En el wire esto
-    /// se dispara con <see cref="ChaosMixType.Wing2"/> (11), no Wing1 -- ver el comentario de
-    /// <see cref="ChaosMixType"/>.</summary>
+    /// <summary>Port of <c>Wing1Mix</c> (ChaosBox.cpp:744-839) -- Chaos + an excellent chaos weapon (level>=4,
+    /// Option3>=1) -> 1st-generation wing (Elf/Heaven/Satan). On the wire this is triggered with <see
+    /// cref="ChaosMixType.Wing2"/> (11), not Wing1 -- see the comment of <see cref="ChaosMixType"/>.</summary>
     private static ChaosMixResult MixWing1(PlayerObject player, List<Item> items, GameServerInfoChaosMix rates,
         Func<Item, int> getBuyMoney, bool execute)
     {
@@ -385,11 +369,10 @@ public static class ChaosMixLogic
         return new ChaosMixResult(false, 0, null, false, rate, zen);
     }
 
-    /// <summary>Puerto de <c>Wing2Mix</c> (ChaosBox.cpp:515-636). <paramref name="wingTier"/>=0 ->
-    /// Chaos + Loch's Feather (nivel 0) + ala de 1ra -> ala de 2da (dispara con
-    /// <see cref="ChaosMixType.Wing1"/>=7 en el wire); =1 -> Chaos + Crest of Monarch (mismo índice
-    /// de item, nivel 1) + ala de 2da -> Cape of Lord (dispara con <see cref="ChaosMixType.Wing3"/>
-    /// =24).</summary>
+    /// <summary>Port of <c>Wing2Mix</c> (ChaosBox.cpp:515-636). <paramref name="wingTier"/>=0 -> Chaos + Loch's
+    /// Feather (level 0) + 1st-gen wing -> 2nd-gen wing (triggered with <see cref="ChaosMixType.Wing1"/>=7 on
+    /// the wire); =1 -> Chaos + Crest of Monarch (same item index, level 1) + 2nd-gen wing -> Cape of Lord
+    /// (triggered with <see cref="ChaosMixType.Wing3"/> =24).</summary>
     private static ChaosMixResult MixWing2Family(PlayerObject player, List<Item> items, GameServerInfoChaosMix rates,
         Func<Item, int> getBuyMoney, int wingTier, bool execute)
     {
@@ -405,11 +388,10 @@ public static class ChaosMixLogic
             {
                 featherCount++;
             }
-            // El ingrediente "ala" que pide esta mezcla es SIEMPRE de 1ra generación
-            // (12,0-12,2), para los dos niveles -- el original no lo condiciona por `type` acá
-            // (Wing2Mix, el bloque de conteo de WingItemCount usa ese rango fijo). Lo que cambia
-            // con `wingTier` es la Feather/Crest de arriba y el resultado: 2da generación de
-            // alas para tier=0, Cape of Lord para tier=1.
+            // The "wing" ingredient this mix asks for is ALWAYS 1st generation (12,0-12,2), for both tiers --
+            // the original does not condition it on `type` here (Wing2Mix, the WingItemCount counting block
+            // uses that fixed range). What changes with `wingTier` is the Feather/Crest above and the result:
+            // 2nd-generation wings for tier=0, Cape of Lord for tier=1.
             else if (Array.IndexOf(Wing1Candidates, (int)it.Index) >= 0)
             {
                 wingItemCount++;

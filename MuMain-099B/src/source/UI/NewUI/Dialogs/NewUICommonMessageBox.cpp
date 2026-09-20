@@ -1336,10 +1336,10 @@ bool SEASON3B::CPartyMsgBoxLayout::SetLayout()
 
 CALLBACK_RESULT SEASON3B::CPartyMsgBoxLayout::OkBtnDown(class CNewUIMessageBoxBase* pOwner, const leaf::xstreambuf& xParam)
 {
-    // CORREGIDO: llamaba a SocketClient->ToGameServer()->SendPartyInviteResponse, la capa Dotnet
-    // vieja (src/source/Dotnet/, protocolo de OpenMU) que este puerto viene reemplazando por
-    // Mu099B -- un GameServer 0.99B real nunca iba a entender ese paquete, así que aceptar una
-    // invitación de grupo no hacía nada del lado del servidor.
+    // FIXED: it called SocketClient->ToGameServer()->SendPartyInviteResponse, the old Dotnet layer
+    // (src/source/Dotnet/, OpenMU protocol) that this port has been replacing with Mu099B -- a real 0.99B
+    // GameServer was never going to understand that packet, so accepting a party invitation did nothing on the
+    // server side.
     Mu099B::SendPartyRequestResult(*SocketClient, true, static_cast<WORD>(PartyKey));
     PlayBuffer(SOUND_CLICK01);
     g_MessageBox->SendEvent(pOwner, MSGBOX_EVENT_DESTROY);

@@ -1,11 +1,8 @@
 namespace MuServer.DataServer.Db;
 
-/// <summary>
-/// Reemplaza a QueryManager (ODBC/SQL Server) + los stored procedures que usaba DataServer
-/// directamente (WZ_CreateCharacter, WZ_DeleteCharacter, WZ_GetItemSerial, WZ_Get/SetResetInfo,
-/// WZ_Get/SetMasterResetInfo, WZ_Get/SetEventEntryInfo), ahora contra PostgreSQL con consultas
-/// parametrizadas.
-/// </summary>
+/// <summary> Replaces QueryManager (ODBC/SQL Server) + the stored procedures DataServer used directly
+/// (WZ_CreateCharacter, WZ_DeleteCharacter, WZ_GetItemSerial, WZ_Get/SetResetInfo, WZ_Get/SetMasterResetInfo,
+/// WZ_Get/SetEventEntryInfo), now against PostgreSQL with parameterised queries. </summary>
 public interface ICharacterDataRepository
 {
     Task<long> GetItemCountAsync(CancellationToken ct);
@@ -22,12 +19,12 @@ public interface ICharacterDataRepository
 
     Task<CharacterListRow?> GetCharacterListRowAsync(string account, string name, CancellationToken ct);
 
-    /// <summary>Puerto de WZ_CreateCharacter: 1=creado, 0=cuenta/clase inválida, 3=nombre ya existe.</summary>
+    /// <summary>Port of WZ_CreateCharacter: 1=created, 0=invalid account/class, 3=name already exists.</summary>
     Task<byte> CreateCharacterAsync(string account, string name, int characterClass, CancellationToken ct);
 
     Task<bool> CharacterExistsAsync(string name, CancellationToken ct);
 
-    /// <summary>Puerto de WZ_DeleteCharacter: 1=borrado, 0=no existía.</summary>
+    /// <summary>Port of WZ_DeleteCharacter: 1=deleted, 0=did not exist.</summary>
     Task<byte> DeleteCharacterAsync(string account, string name, CancellationToken ct);
 
     Task<CharacterFullRow?> GetCharacterFullAsync(string account, string name, CancellationToken ct);
@@ -57,27 +54,27 @@ public interface ICharacterDataRepository
     /// amigos de <paramref name="ownerName"/>.</summary>
     Task<IReadOnlyList<string>> GetFriendListAsync(string ownerName, CancellationToken ct);
 
-    /// <summary>Reverso de lo anterior -- puerto de la consulta que hace CFriend::DGFriendStateSend
-    /// (Friend.cpp:502) al conectar/desconectar un personaje: "¿quién tiene a este nombre en SU
-    /// lista de amigos?", para saber a quién avisarle el cambio de estado online/offline.</summary>
+    /// <summary>Reverse of the above -- port of the query CFriend::DGFriendStateSend (Friend.cpp:502) makes
+    /// when a character connects/disconnects: "who has this name in THEIR friend list?", to know whom to notify
+    /// of the online/offline state change.</summary>
     Task<IReadOnlyList<string>> GetFriendsOfAsync(string targetName, CancellationToken ct);
 
     /// <summary>Puerto de WZ_WaitFriendAdd -- guarda una solicitud pendiente (idempotente).</summary>
     Task AddFriendRequestAsync(string ownerName, string requesterName, CancellationToken ct);
 
-    /// <summary>Puerto de WZ_WaitFriendDel + verificación de que la solicitud exista -- borra la
-    /// solicitud pendiente y devuelve si realmente existía (para no aceptar una respuesta a una
-    /// invitación que ya no está, ej. por timeout o duplicado).</summary>
+    /// <summary>Port of WZ_WaitFriendDel + a check that the request exists -- deletes the pending request and
+    /// returns whether it really existed (so as not to accept a reply to an invitation that is no longer there,
+    /// e.g. through timeout or duplicate).</summary>
     Task<bool> TryConsumeFriendRequestAsync(string ownerName, string requesterName, CancellationToken ct);
 
-    /// <summary>Puerto de WZ_FriendAdd -- inserta la amistad en AMBOS sentidos (el original la
-    /// modela con GUID/FriendName por fila, pero siempre agrega la entrada simétrica al aceptar).</summary>
+    /// <summary>Port of WZ_FriendAdd -- inserts the friendship in BOTH directions (the original models it with
+    /// GUID/FriendName per row, but always adds the symmetric entry on accepting).</summary>
     Task AddFriendPairAsync(string nameA, string nameB, CancellationToken ct);
 
-    /// <summary>Puerto de WZ_FriendDel -- borra la amistad en ambos sentidos, devuelve si existía.</summary>
+    /// <summary>Port of WZ_FriendDel -- deletes the friendship in both directions, returns whether it existed.</summary>
     Task<bool> RemoveFriendPairAsync(string nameA, string nameB, CancellationToken ct);
 
-    // ---------------------------------------------------------------- Fase 3: Warehouse (Baúl)
+    // ---------------------------------------------------------------- Phase 3: Warehouse
     Task<WarehouseRow?> GetWarehouseAsync(string account, CancellationToken ct);
     Task SaveWarehouseAsync(string account, byte[] items, uint money, ushort password, CancellationToken ct);
 

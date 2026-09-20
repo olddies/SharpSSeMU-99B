@@ -33,9 +33,8 @@ try:
     dep.place_heroes()
     dep.seed_equippable_weapon("Hero1")
 
-    # Cuenta NUEVA sin personajes -- para el flujo real de creación vía GameServer (bug reportado
-    # probando con el cliente real: F3:01 no estaba implementado y el cliente quedaba pegado en la
-    # pantalla de creación).
+    # NEW account without characters -- for the real creation flow via GameServer (bug reported testing with the
+    # real client: F3:01 was not implemented and the client stayed stuck on the creation screen).
     pg.sql("INSERT INTO memb_info (account, password, owner_name) "
            "VALUES ('newacc', 'newacc', 'SSeMU') ON CONFLICT (account) DO NOTHING;")
 

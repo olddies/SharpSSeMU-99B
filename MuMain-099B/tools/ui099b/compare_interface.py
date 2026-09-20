@@ -41,7 +41,7 @@ def jpeg_size(data: bytes) -> tuple[int, int] | None:
             continue
 
         marker = data[i + 1]
-        # Los SOF llevan las dimensiones; C4, C8 y CC son otra cosa pese al rango.
+        # The SOFs carry the dimensions; C4, C8 and CC are something else despite the range.
         if 0xC0 <= marker <= 0xCF and marker not in (0xC4, 0xC8, 0xCC):
             height = (data[i + 5] << 8) | data[i + 6]
             width = (data[i + 7] << 8) | data[i + 8]
@@ -92,9 +92,8 @@ def main() -> int:
         print(f"No encuentro la interfaz de 0.99B en {ORIGEN}")
         return 1
 
-    # El sistema de archivos de Windows no distingue mayúsculas pero los nombres
-    # sí difieren entre los dos clientes (Cursor.ozt contra CURSOR.OZT), así que
-    # el cruce se hace en minúsculas.
+    # The Windows file system does not distinguish case but the names do differ between the two clients
+    # (Cursor.ozt against CURSOR.OZT), so the matching is done in lowercase.
     destino = {p.name.lower(): p for p in DESTINO.iterdir() if p.is_file()}
 
     iguales, distintas, ilegibles, solo_origen = [], [], [], []
@@ -141,8 +140,7 @@ def main() -> int:
 
     respaldo = DESTINO.parent / "Interface.s6"
     if not respaldo.exists():
-        # Copia entera antes de tocar nada: sin esto no hay forma de volver
-        # atrás si el resultado no gusta.
+        # Whole copy before touching anything: without this there is no way back if the result is not liked.
         shutil.copytree(DESTINO, respaldo)
         print(f"\nRespaldo del original en {respaldo}")
 

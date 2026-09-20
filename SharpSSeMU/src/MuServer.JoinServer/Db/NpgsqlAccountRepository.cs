@@ -75,7 +75,7 @@ public sealed class NpgsqlAccountRepository : IAccountRepository
             expire = reader.GetDateTime(1);
         }
 
-        // Puerto exacto de WZ_GetAccountLevel: si el nivel no es 0 y ya venció, se resetea a 0.
+        // Exact port of WZ_GetAccountLevel: if the level is not 0 and has already expired, it is reset to 0.
         if (level != 0 && DateTime.UtcNow > expire)
         {
             level = 0;
@@ -112,8 +112,8 @@ public sealed class NpgsqlAccountRepository : IAccountRepository
             currentExpire = reader.GetDateTime(1);
         }
 
-        // Puerto exacto de WZ_SetAccountLevel: mismo nivel => se suman segundos al vencimiento
-        // actual (stackea duración); nivel distinto => el vencimiento arranca de nuevo desde ahora.
+        // Exact port of WZ_SetAccountLevel: same level => seconds are added to the current expiry (duration
+        // stacks); different level => the expiry starts again from now.
         DateTime newExpire = currentLevel == accountLevel
             ? currentExpire.AddSeconds(accountExpireSeconds)
             : DateTime.UtcNow.AddSeconds(accountExpireSeconds);

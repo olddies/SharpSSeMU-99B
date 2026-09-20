@@ -6,11 +6,9 @@ using MuServer.Shared.Logging;
 
 namespace MuServer.DataServer.Net;
 
-/// <summary>
-/// Puerto de CSocketManager (lado DataServer): acepta conexiones TCP entrantes de GameServers
-/// autorizados (AllowableIpList.txt). Igual que JoinServer, sin rate-limit/idle-timeout (conexiones
-/// de confianza, máximo 20 = MAX_SERVER). Sin heartbeat UDP: DataServer no habla con ConnectServer.
-/// </summary>
+/// <summary> Port of CSocketManager (DataServer side): accepts incoming TCP connections from authorised
+/// GameServers (AllowableIpList.txt). Like JoinServer, no rate-limit/idle-timeout (trusted connections, maximum
+/// 20 = MAX_SERVER). No UDP heartbeat: DataServer does not talk to ConnectServer. </summary>
 public sealed class GameServerLinkServer
 {
     private readonly ushort _port;
@@ -132,7 +130,7 @@ public sealed class GameServerLinkServer
         {
             _registry.Remove(link);
 
-            // Puerto de ClearServerCharacterInfo: al caerse el GameServer, se limpian sus personajes online.
+            // Port of ClearServerCharacterInfo: when the GameServer goes down, its online characters are cleared.
             if (link.ServerCode != 0xFFFF)
             {
                 _sessions.ClearByServerCode(link.ServerCode);

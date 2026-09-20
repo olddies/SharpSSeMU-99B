@@ -4,14 +4,11 @@ using MuServer.Shared.Logging;
 
 namespace MuServer.GameServer.World;
 
-/// <summary>
-/// Puerto simplificado del recorte "monstruos" de gObj[10000] (índices 0-7999,
-/// OBJECT_START_MONSTER..MAX_OBJECT_MONSTER, ver User.h:8-13) -- reemplaza gObjAddMonster/
-/// gObjSetPosMonster/gObjSetMonster (Monster.cpp:169-365, todos invocados desde
-/// CMonsterManager::SetMonsterData en el arranque, GameMain.cpp:35) con un diccionario de
-/// monstruos vivos + un allocator de índices lineal (igual de simple que el original, que
-/// también usa un allocator de free-list/scan lineal, ver Monster.cpp:645-687).
-/// </summary>
+/// <summary> Simplified port of the "monsters" slice of gObj[10000] (indices 0-7999,
+/// OBJECT_START_MONSTER..MAX_OBJECT_MONSTER, see User.h:8-13) -- it replaces gObjAddMonster/
+/// gObjSetPosMonster/gObjSetMonster (Monster.cpp:169-365, all invoked from CMonsterManager::SetMonsterData at
+/// start-up, GameMain.cpp:35) with a dictionary of live monsters + a linear index allocator (just as simple as
+/// the original, which also uses a free-list/linear-scan allocator, see Monster.cpp:645-687). </summary>
 public sealed class MonsterRegistry
 {
     private const int StartIndex = 0;
@@ -25,10 +22,10 @@ public sealed class MonsterRegistry
 
     public bool TryGet(int index, out Monster monster) => _monsters.TryGetValue(index, out monster!);
 
-    /// <summary>Puerto de CMonsterManager::SetMonsterData (MonsterManager.cpp:281-325) -- instancia
-    /// un Monster por cada fila de spawn cuya MONSTER_INFO exista y sea de tipo "monstruo real"
-    /// (Type==0; NPCs no se instancian todavía, ver comentario de MonsterInfo.cs). Devuelve la
-    /// cantidad de monstruos efectivamente creados.</summary>
+    /// <summary>Port of CMonsterManager::SetMonsterData (MonsterManager.cpp:281-325) -- instantiates a Monster
+    /// for each spawn row whose MONSTER_INFO exists and is of "real monster" type (Type==0; NPCs are not
+    /// instantiated yet, see the comment of MonsterInfo.cs). Returns the number of monsters actually
+    /// created.</summary>
     public int SpawnAll(IReadOnlyList<MonsterSpawnEntry> entries, MonsterInfoTable infoTable, MapRegistry maps)
     {
         int spawned = 0;
@@ -38,8 +35,8 @@ public sealed class MonsterRegistry
             if (entry.Type == 4)
             {
                 continue; // pool de posiciones de evento (Type==4, ver MonsterSpawnTable) -- NO se
-                          // instancia al arrancar, solo lo consume DevilSquareManager en runtime
-                          // (Fase 6), igual que el original (CMonsterSetBase no las carga en SetMonsterData).
+                          // instantiated at start-up, only DevilSquareManager consumes it at runtime (Phase 6),
+                          // same as the original (CMonsterSetBase does not load them in SetMonsterData).
             }
 
             var info = infoTable.Get(entry.MonsterClass);
@@ -104,18 +101,18 @@ public sealed class MonsterRegistry
         return spawned;
     }
 
-    /// <summary>Puerto de los multiplicadores globales de <c>CMonsterManager::SetInfo</c>
-    /// (MonsterManager.cpp:166-183) -- aplicados una sola vez al spawnear, sobre las columnas crudas
-    /// de MonsterList.txt (ver <see cref="MuServer.GameServer.Config.ServerInfoConfig"/>). Con los
-    /// valores reales del pack (todos =100) esto es un no-op; el mecanismo de escalado en sí no
-    /// estaba enchufado antes de portar <c>GameServerInfo - Common.dat</c>.</summary>
+    /// <summary>Port of the global multipliers of <c>CMonsterManager::SetInfo</c> (MonsterManager.cpp:166-183)
+    /// -- applied once when spawning, over the raw MonsterList.txt columns (see <see
+    /// cref="MuServer.GameServer.Config.ServerInfoConfig"/>). With the pack's real values (all =100) this is a
+    /// no-op; the scaling mechanism itself was not plugged in before porting <c>GameServerInfo -
+    /// Common.dat</c>.</summary>
     private static int ScaleRate(int value, int ratePercent) => (int)((long)value * ratePercent / 100);
 
     private static float ScaleRate(float value) => value * WorldPacketBuilder.ServerInfo.MonsterMaxLifeRate / 100f;
 
-    /// <summary>Puerto de gObjMonsterRegen (Monster.cpp:367-428) -- revive un monstruo en su punto
-    /// de spawn original (re-resolviendo la posición si era una caja aleatoria), llamado desde el
-    /// tick de respawn (ver ClientProtocolHandler.MonsterRespawnTickAsync).</summary>
+    /// <summary>Port of gObjMonsterRegen (Monster.cpp:367-428) -- revives a monster at its original spawn point
+    /// (re-resolving the position if it was a random box), called from the respawn tick (see
+    /// ClientProtocolHandler.MonsterRespawnTickAsync).</summary>
     public void Respawn(Monster monster, MapRegistry maps)
     {
         var map = maps.GetMap(monster.Map);
@@ -134,15 +131,13 @@ public sealed class MonsterRegistry
         map?.SetStandAttr(x, y);
     }
 
-    /// <summary>
-    /// Puerto de la porción "spawn dinámico de un solo monstruo" de CDevilSquare::SetMonster
-    /// (DevilSquare.cpp:977-1017) -- a diferencia de <see cref="SpawnAll"/> (todo el mapa, al
-    /// arrancar, desde MonsterSpawnTable), esto crea UN monstruo en runtime a partir de una entrada
-    /// de posición ya elegida (normalmente del pool Type==4, ver MonsterSpawnTable) y una clase dada
-    /// (no necesariamente la de <paramref name="entry"/> -- el pool es solo posiciones, la clase la
-    /// decide el llamador según EventStageSpawn.dat). Devuelve null si no hay índices libres o si la
-    /// clase no existe en <paramref name="infoTable"/>.
-    /// </summary>
+    /// <summary> Port of the "dynamic spawn of a single monster" portion of CDevilSquare::SetMonster
+    /// (DevilSquare.cpp:977-1017) -- unlike <see cref="SpawnAll"/> (the whole map, at start-up, from
+    /// MonsterSpawnTable), this creates ONE monster at runtime from an already chosen position entry (normally
+    /// from the Type==4 pool, see MonsterSpawnTable) and a given class (not necessarily that of <paramref
+    /// name="entry"/> -- the pool is only positions, the class is decided by the caller according to
+    /// EventStageSpawn.dat). Returns null if there are no free indices or if the class does not exist in
+    /// <paramref name="infoTable"/>. </summary>
     public Monster? SpawnOne(int monsterClass, MonsterSpawnEntry entry, MonsterInfoTable infoTable, MapRegistry maps)
     {
         var info = infoTable.Get(monsterClass);
@@ -201,13 +196,12 @@ public sealed class MonsterRegistry
         return monster;
     }
 
-    /// <summary>Spawnea un NPC de tienda (ShopManager.txt) como un <see cref="Monster"/> más --
-    /// reusa el mismo mecanismo de índices/viewport que un monstruo de combate real (ver comentario
-    /// de <see cref="Monster.ShopNumber"/>), pero con vida "infinita" (no hay forma de reducirla, ya
-    /// que OnAttackAsync/OnSkillAttackAsync rechazan atacar cualquier objeto con ShopNumber seteado)
-    /// y sin depender de MonsterInfoTable (el nombre/clase de un NPC no vive en MonsterList.txt en
-    /// este puerto, ver ShopManagerTable). Puerto simplificado de la porción "spawn de NPCs" de
-    /// CShopManager::ReloadShop (ShopManager.cpp:105-150).</summary>
+    /// <summary>Spawns a shop NPC (ShopManager.txt) as one more <see cref="Monster"/> -- it reuses the same
+    /// index/viewport mechanism as a real combat monster (see the comment of <see cref="Monster.ShopNumber"/>),
+    /// but with "infinite" life (there is no way to reduce it, since OnAttackAsync/OnSkillAttackAsync reject
+    /// attacking any object with ShopNumber set) and without depending on MonsterInfoTable (an NPC's name/class
+    /// does not live in MonsterList.txt in this port, see ShopManagerTable). Simplified port of the "NPC spawn"
+    /// portion of CShopManager::ReloadShop (ShopManager.cpp:105-150).</summary>
     public Monster? SpawnNpc(ShopInfo shop, MapRegistry? maps = null)
     {
         int index = AllocateIndex();
@@ -248,11 +242,10 @@ public sealed class MonsterRegistry
         return npc;
     }
 
-    /// <summary>Puerto de CDevilSquare::ClearMonster/DelMonster (DevilSquare.cpp) -- saca un monstruo
-    /// del registro por completo (a diferencia de la muerte normal, que lo deja Live=false esperando
-    /// respawn). El próximo tick de ViewportTicker lo va a sacar del VisibleMonsters de quien lo
-    /// tuviera a la vista de forma natural (deja de estar en <see cref="All"/>), sin necesidad de
-    /// mandar un 0x14 explícito acá.</summary>
+    /// <summary>Port of CDevilSquare::ClearMonster/DelMonster (DevilSquare.cpp) -- removes a monster from the
+    /// registry entirely (unlike normal death, which leaves it Live=false waiting for respawn). The next
+    /// ViewportTicker tick will remove it from the VisibleMonsters of whoever had it in view naturally (it
+    /// stops being in <see cref="All"/>), with no need to send an explicit 0x14 here.</summary>
     public bool Remove(int index) => _monsters.TryRemove(index, out _);
 
     private int AllocateIndex()

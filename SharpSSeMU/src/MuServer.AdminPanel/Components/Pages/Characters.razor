@@ -440,7 +440,7 @@ else
             await Repo.SaveCharacterAsync(_selected.Account, _selected.Name, updated, CancellationToken.None);
             _row = updated;
 
-            // Refleja el cambio de nivel/zen en la lista de arriba sin recargarla entera.
+            // Reflects the level/zen change in the list above without reloading it all.
             var idx = _characters!.FindIndex(c => c.Name == _selected.Name);
             if (idx >= 0)
             {

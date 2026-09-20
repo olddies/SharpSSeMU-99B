@@ -13,17 +13,17 @@ public enum QuestRewardType
     Combo = 8,
 }
 
-/// <summary>Puerto de QUEST_REWARD_INFO (QuestReward.h:19-33) -- una fila de
-/// <c>Data/Quest/QuestReward.txt</c>. La fila con <see cref="Type"/>==Change1 es literalmente el
-/// cambio de 2da clase real (QuestReward.cpp:137-153): sube <c>ChangeUp</c> de 0 a 1.</summary>
+/// <summary>Port of QUEST_REWARD_INFO (QuestReward.h:19-33) -- a row of <c>Data/Quest/QuestReward.txt</c>. The
+/// row with <see cref="Type"/>==Change1 is literally the real 2nd-class change (QuestReward.cpp:137-153): it
+/// raises <c>ChangeUp</c> from 0 to 1.</summary>
 public sealed record QuestRewardInfo(
     int Sort, QuestRewardType Type, int Index, int Quantity, int Level, int Option1, int Option2, int Option3,
     int NewOption, int RequireIndex, int RequireState, int[] RequireClass);
 
-/// <summary>Puerto de CQuestReward (QuestReward.h/.cpp) -- SOLO datos + el chequeo de elegibilidad;
-/// aplicar la recompensa (<c>InsertQuestReward</c>) vive en
-/// <c>ClientProtocolHandler.OnQuestStateAsync</c> porque necesita tocar <c>PlayerObject</c>/mandar
-/// paquetes, igual que el resto de este proyecto separa "datos" de "protocolo".</summary>
+/// <summary>Port of CQuestReward (QuestReward.h/.cpp) -- data ONLY + the eligibility check; applying the reward
+/// (<c>InsertQuestReward</c>) lives in <c>ClientProtocolHandler.OnQuestStateAsync</c> because it needs to touch
+/// <c>PlayerObject</c>/send packets, just as the rest of this project separates "data" from
+/// "protocol".</summary>
 public sealed class QuestRewardTable
 {
     public IReadOnlyList<QuestRewardInfo> Entries { get; }

@@ -30,10 +30,10 @@ public sealed record JoinAccountAlreadyConnectedRecv(ushort Index, string Accoun
     }
 }
 
-/// <summary>SDHP_DISCONNECT_ACCOUNT_RECV, lado GameServer -- la respuesta de JoinServer a
-/// DisconnectAccountSend (JSProtocol.h:21-27; espejo de JoinServerPacketBuilder.DisconnectAccountSend
-/// en el lado JoinServer). result: 1=éxito (cuenta liberada en JoinServer/DB), 0=no encontrada/no
-/// coincidía el índice o código de servidor.</summary>
+/// <summary>SDHP_DISCONNECT_ACCOUNT_RECV, GameServer side -- JoinServer's reply to DisconnectAccountSend
+/// (JSProtocol.h:21-27; mirror of JoinServerPacketBuilder.DisconnectAccountSend on the JoinServer side).
+/// result: 1=success (account released in JoinServer/DB), 0=not found/index or server code did not
+/// match.</summary>
 public sealed record DisconnectAccountAckRecv(ushort Index, string Account, byte Result)
 {
     public static DisconnectAccountAckRecv Parse(byte[] p)

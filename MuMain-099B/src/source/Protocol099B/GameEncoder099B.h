@@ -1,19 +1,11 @@
-// Codificador de salida del socket de GameServer en 0.99B.
-//
-// Contraparte de GameFramer099B: toma un paquete lógico ya armado (tipo,
-// tamaño, head y cuerpo) y devuelve los bytes exactos que van al socket.
-//
-// El orden es el inverso del de recepción, y la ofuscación es asimétrica:
-//
-//   1. XorData sobre el cuerpo. El servidor la deshace al recibir
-//      (ExtractPacket), así que acá SÍ hay que aplicarla -- al revés de lo que
-//      pasa en el sentido servidor -> cliente, donde nadie ofusca.
-//   2. Para C3/C4, cifrado por bloques de [serial][cuerpo], con el número de
-//      serie ocupando el lugar del byte de tamaño del paquete lógico.
-//   3. Cifrado de flujo sobre todo el paquete, encabezado incluido.
-//
-// El número de serie lo lleva el codificador porque el original lo incrementa
-// por conexión en cada envío cifrado.
+// Outgoing encoder of the 0.99B GameServer socket. Counterpart of GameFramer099B: takes an already built
+// logical packet (type, size, head and body) and returns the exact bytes that go to the socket. The order is
+// the inverse of receive, and the obfuscation is asymmetric: 1. XorData over the body. The server undoes it on
+// receive (ExtractPacket), so here it DOES have to be applied -- the opposite of the server -> client
+// direction, where nobody obfuscates. 2. For C3/C4, block cipher of [serial][body], with the serial number
+// taking the place of the logical packet's size byte. 3. Stream cipher over the whole packet, header included.
+// The serial number is kept by the encoder because the original increments it per connection on every encrypted
+// send.
 
 #pragma once
 
@@ -32,12 +24,11 @@ class GameEncoder
 public:
     GameEncoder(const StreamCipher& streamCipher, const BlockCipher& blockCipher);
 
-    /// Codifica un paquete lógico. Si su byte de tipo es 0xC3 o 0xC4 se cifra
-    /// por bloques; con 0xC1 o 0xC2 va en claro. En los dos casos se ofusca el
-    /// cuerpo y se cifra el flujo.
+    /// Encodes a logical packet. If its type byte is 0xC3 or 0xC4 it is block-encrypted; with 0xC1 or 0xC2 it
+    /// goes in the clear. In both cases the body is obfuscated and the stream is encrypted.
     std::vector<uint8_t> Encode(const uint8_t* logicalPacket, size_t length);
 
-    /// Serie que se usará en el próximo envío cifrado (para diagnóstico).
+    /// Serial that will be used on the next encrypted send (for diagnostics).
     uint8_t NextSerial() const { return _sendSerial; }
 
 private:

@@ -498,10 +498,10 @@ bool SEASON3B::CNewUICommandWindow::CommandParty(SHORT iChaKey)
         return false;
     }
 
-    // CORREGIDO: mismo bug que responder/salir del grupo (ver NewUICommonMessageBox.cpp y
-    // NewUIPartyInfoWindow.cpp) -- llamaba a la capa Dotnet vieja en vez de Mu099B::SendPartyRequest,
-    // que es lo que ya usa el otro camino para invitar (clic directo sobre el personaje,
-    // ZzzInterface.cpp). Este es el del menú contextual ("Party" al hacer clic derecho).
+    // FIXED: same bug as answering/leaving the party (see NewUICommonMessageBox.cpp and
+    // NewUIPartyInfoWindow.cpp) -- it called the old Dotnet layer instead of Mu099B::SendPartyRequest, which is
+    // what the other path already uses to invite (direct click on the character, ZzzInterface.cpp). This is the
+    // context menu one ("Party" on right click).
     Mu099B::SendPartyRequest(*SocketClient, iChaKey);
 
     return true;

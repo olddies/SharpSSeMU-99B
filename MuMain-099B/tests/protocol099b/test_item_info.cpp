@@ -1,9 +1,6 @@
-// Los cinco bytes de item de 0.99B y la conversión de índices.
-//
-// Los valores esperados salen de ItemByteConvert del emulador, no de leer mi
-// propio decodificador: un test que compara la implementación consigo misma
-// pasa igual estando equivocada, que es exactamente lo que dejó pasar el error
-// del ServerSerial de 17 bytes.
+// The five item bytes of 0.99B and the index conversion. The expected values come from the emulator's
+// ItemByteConvert, not from reading my own decoder: a test comparing the implementation against itself passes
+// even when wrong, which is exactly what let the 17-byte ServerSerial error through.
 
 #include <doctest.h>
 
@@ -15,8 +12,8 @@
 namespace
 {
 
-/// Reimplementación de CItemManager::ItemByteConvert tal como la hace el
-/// servidor, para comparar contra ella en vez de contra nosotros mismos.
+/// Reimplementation of CItemManager::ItemByteConvert as the server does it, to compare against it instead of
+/// against ourselves.
 std::array<uint8_t, Mu099B::ItemInfoSize> ServerEncode(int index, int level, int durability,
                                                        int luck, int skill, int option3,
                                                        int newOption, int setOption)
@@ -69,9 +66,8 @@ TEST_CASE("Los cinco bytes se leen igual que los arma el servidor")
 
 TEST_CASE("El noveno bit del indice viaja en el byte 3")
 {
-    // Con secciones de 32 y dieciséis secciones el índice llega a 511, que no
-    // entra en el byte 0. Perder ese bit convierte cualquier item de la segunda
-    // mitad de la tabla en otro 256 lugares antes.
+    // With sections of 32 and sixteen sections the index reaches 511, which does not fit in byte 0. Losing that
+    // bit turns any item in the second half of the table into another one 256 places earlier.
     for (const uint16_t index : {static_cast<uint16_t>(255), static_cast<uint16_t>(256),
                                  static_cast<uint16_t>(300), static_cast<uint16_t>(511)})
     {
@@ -82,15 +78,15 @@ TEST_CASE("El noveno bit del indice viaja en el byte 3")
         CHECK(item.Index == index);
     }
 
-    // Y que el bit esté donde el servidor lo pone, no en otro lado del byte.
+    // And that the bit is where the server puts it, not elsewhere in the byte.
     const auto high = ServerEncode(256, 0, 0, 0, 0, 0, 0, 0);
     CHECK(high[3] == 0x80);
 }
 
 TEST_CASE("El tercer bit del nivel de opcion pesa cuatro, no uno")
 {
-    // Los dos bits bajos van en el byte 1 y el tercero en el byte 3. Sumarlo
-    // como si fuera el bit de menor peso da la opción equivocada.
+    // The two low bits go in byte 1 and the third in byte 3. Adding it as if it were the lowest-weight bit
+    // gives the wrong option.
     for (int optionLevel = 0; optionLevel < 8; ++optionLevel)
     {
         const auto bytes = ServerEncode(0, 0, 1, 0, 0, optionLevel, 0, 0);
@@ -103,8 +99,8 @@ TEST_CASE("Un slot vacio son cinco ceros, y el indice 0 es un item de verdad")
     const std::array<uint8_t, Mu099B::ItemInfoSize> empty{};
     CHECK_FALSE(Mu099B::DecodeItemInfo(empty.data()).Present);
 
-    // La primera espada tiene índice 0. Si "sin item" se decidiera mirando sólo
-    // el índice, esa espada desaparecería del inventario.
+    // The first sword has index 0. If "no item" were decided by looking only at the index, that sword would
+    // vanish from the inventory.
     const auto sword = ServerEncode(0, 0, /*durability*/ 20, 0, 0, 0, 0, 0);
     const auto item = Mu099B::DecodeItemInfo(sword.data());
     CHECK(item.Present);
@@ -128,7 +124,7 @@ TEST_CASE("Codificar y decodificar devuelve el original")
     uint8_t bytes[Mu099B::ItemInfoSize];
     Mu099B::EncodeItemInfo(item, bytes);
 
-    // Y que sean los mismos bytes que armaría el servidor.
+    // And that they are the same bytes the server would build.
     const auto expected = ServerEncode(457, 9, 44, 1, 0, 6, 33, 12);
     for (size_t i = 0; i < Mu099B::ItemInfoSize; ++i)
     {
@@ -148,14 +144,14 @@ TEST_CASE("Codificar y decodificar devuelve el original")
 
 TEST_CASE("Los dos indices se diferencian solo en el paso")
 {
-    // Mismo grupo y mismo número en las dos numeraciones: 0.99B avanza de a 32
-    // por sección y el cliente de a 512 por grupo.
+    // Same group and same number in both numberings: 0.99B advances by 32 per section and the client by 512 per
+    // group.
     CHECK(Mu099B::ToClientItemIndex(0) == 0);        // espada 0
     CHECK(Mu099B::ToClientItemIndex(31) == 31);      // espada 31
     CHECK(Mu099B::ToClientItemIndex(32) == 512);     // hacha 0
     CHECK(Mu099B::ToClientItemIndex(33) == 513);     // hacha 1
-    CHECK(Mu099B::ToClientItemIndex(224) == 3584);   // casco 0 (sección 7)
-    CHECK(Mu099B::ToClientItemIndex(511) == 7711);   // varios 31 (sección 15)
+    CHECK(Mu099B::ToClientItemIndex(224) == 3584);   // helm 0 (section 7)
+    CHECK(Mu099B::ToClientItemIndex(511) == 7711);   // misc 31 (section 15)
 
     for (uint16_t wire = 0; wire < 512; ++wire)
     {
@@ -167,15 +163,14 @@ TEST_CASE("Los dos indices se diferencian solo en el paso")
 
 TEST_CASE("Un item que 0.99B no tiene se rechaza en vez de recortarse")
 {
-    // Los grupos del cliente llegan a 512 items; las secciones de 0.99B, a 32.
-    // Un número de 40 no existe acá, y mandarlo recortado haría que el servidor
-    // entienda otro objeto -- exactamente el tipo de error que no da síntoma
-    // hasta que alguien pierde un item.
+    // Client groups reach 512 items; 0.99B's sections, 32. A number of 40 does not exist here, and sending it
+    // trimmed would make the server understand another object -- exactly the kind of error that gives no
+    // symptom until someone loses an item.
     uint16_t wire = 0xFFFF;
     CHECK_FALSE(Mu099B::ToWireItemIndex(40, wire));
     CHECK_FALSE(Mu099B::ToWireItemIndex(512 + 100, wire));
 
-    // El límite exacto: 31 entra, 32 no.
+    // The exact limit: 31 fits, 32 does not.
     CHECK(Mu099B::ToWireItemIndex(31, wire));
     CHECK(wire == 31);
     CHECK_FALSE(Mu099B::ToWireItemIndex(32, wire));
@@ -183,9 +178,8 @@ TEST_CASE("Un item que 0.99B no tiene se rechaza en vez de recortarse")
 
 TEST_CASE("El bloque para el cliente se lee igual que lo lee el cliente")
 {
-    // Reimplementación de ParseItemData (NewUIItemMng.cpp), que es quien va a
-    // consumir estos bytes. Compararse contra el lector real es el punto: un
-    // bloque que nosotros escribimos y nosotros leemos no prueba nada.
+    // Reimplementation of ParseItemData (NewUIItemMng.cpp), which is what will consume these bytes. Comparing
+    // against the real reader is the point: a block that we write and we read proves nothing.
     struct Parsed
     {
         int Group = 0, Number = 0, Level = 0, Durability = 0;
@@ -225,7 +219,7 @@ TEST_CASE("El bloque para el cliente se lee igual que lo lee el cliente")
 
     Mu099B::ItemInfo item;
     item.Present = true;
-    item.Index = 300;  // sección 9 (pantalones), sub 12
+    item.Index = 300;  // section 9 (pants), sub 12
     item.Group = 9;
     item.Number = 12;
     item.Level = 11;
@@ -239,7 +233,7 @@ TEST_CASE("El bloque para el cliente se lee igual que lo lee el cliente")
     uint8_t block[Mu099B::ClientItemBlockSize];
     const size_t written = Mu099B::WriteClientItemBlock(item, block);
 
-    // Cinco fijos más opción, excelente y set.
+    // Five fixed plus option, excellent and set.
     CHECK(written == 8);
 
     const auto parsed = clientParse(block);
@@ -256,8 +250,8 @@ TEST_CASE("El bloque para el cliente se lee igual que lo lee el cliente")
 
 TEST_CASE("Un item sin opciones ocupa solo los cinco bytes fijos")
 {
-    // Las banderas mandan: anunciar un campo que no se escribió correría todo lo
-    // que viene detrás, y el inventario del cliente lee los items uno tras otro.
+    // The flags rule: announcing a field that was not written would shift everything that follows, and the
+    // client's inventory reads the items one after another.
     Mu099B::ItemInfo item;
     item.Present = true;
     item.Index = 0;

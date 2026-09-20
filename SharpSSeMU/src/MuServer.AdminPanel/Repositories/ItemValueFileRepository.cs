@@ -3,9 +3,9 @@ using System.Text;
 
 namespace MuServer.AdminPanel.Repositories;
 
-/// <summary>Una fila de Data/Item/ItemValue.txt: el precio explícito de un item, que pisa el que
-/// saldría de la fórmula general de precios. <see cref="Level"/> y <see cref="Grade"/> valen null
-/// cuando el archivo trae "*" ("cualquiera").</summary>
+/// <summary>A row of Data/Item/ItemValue.txt: an item's explicit price, which overrides the one that would come
+/// from the general price formula. <see cref="Level"/> and <see cref="Grade"/> are null when the file carries
+/// "*" ("any").</summary>
 public sealed class ItemValueRow
 {
     public required int Section { get; set; }
@@ -18,9 +18,9 @@ public sealed class ItemValueRow
     public int Index => Sub + Section * 512;
 }
 
-/// <summary>Lee y escribe Data/Item/ItemValue.txt. Es la tabla que hace que el Jewel of Bless valga
-/// 9.000.000 y no lo que daría la fórmula general -- si un item no está acá, su precio sale de esa
-/// fórmula.</summary>
+/// <summary>Reads and writes Data/Item/ItemValue.txt. It is the table that makes the Jewel of Bless worth
+/// 9,000,000 and not what the general formula would give -- if an item is not here, its price comes from that
+/// formula.</summary>
 public static class ItemValueFileRepository
 {
     public static (string Header, List<ItemValueRow> Rows) Load(string path)

@@ -1,10 +1,7 @@
-// Decodificación del CharSet[13] de apariencia.
-//
-// La referencia es el compositor del servidor: acá se reimplementa
-// CharacterMakePreviewCharSet tal como lo hace el emulador, se arma un CharSet
-// y se comprueba que el decodificador recupere exactamente lo que se puso.
-// Un bit corrido en este formato hace que todos los personajes se vean iguales,
-// que es el síntoma que ya costó caro del lado del servidor.
+// Decoding of the appearance CharSet[13]. The reference is the server's composer: here
+// CharacterMakePreviewCharSet is reimplemented exactly as the emulator does it, a CharSet is built and it is
+// checked that the decoder recovers exactly what was put in. One shifted bit in this format makes all
+// characters look the same, which is the symptom that already cost dearly on the server side.
 
 #include <doctest.h>
 
@@ -18,10 +15,10 @@
 namespace
 {
 
-/// Una pieza de equipo tal como la tiene el servidor antes de empaquetarla.
+/// A piece of equipment as the server has it before packing it.
 struct ServerItem
 {
-    int Index = -1;  ///< índice completo (sección*32 + sub); -1 = slot vacío
+    int Index = -1;  // < full index (section*32 + sub); -1 = empty slot
     int Level = 1;
     bool Excellent = false;
     bool SetItem = false;
@@ -157,7 +154,7 @@ TEST_CASE("La clase y el change-up salen del primer byte")
 
 TEST_CASE("Los cuatro bits bajos del primer byte no ensucian la clase")
 {
-    // Ahí va el ViewState, que el servidor escribe aparte al armar el viewport.
+    // The ViewState goes there, which the server writes separately when building the viewport.
     auto charSet = BuildCharSet(3, 0, EmptyWear());
     charSet[0] = static_cast<uint8_t>((charSet[0] & 0xF0) | 0x0F);
 
@@ -181,8 +178,8 @@ TEST_CASE("Un personaje sin equipo no reporta ninguna pieza")
 TEST_CASE("Las armas llevan el índice completo, de donde salen grupo y número")
 {
     auto wear = EmptyWear();
-    wear[SlotWeapon1] = {/*Index=*/1 * 32 + 5, /*Level=*/7};   // sección 1 (hachas), sub 5
-    wear[SlotWeapon2] = {/*Index=*/6 * 32 + 3, /*Level=*/1};   // sección 6 (escudos), sub 3
+    wear[SlotWeapon1] = {/*Index=*/1 * 32 + 5, /*Level=*/7};   // section 1 (axes), sub 5
+    wear[SlotWeapon2] = {/*Index=*/6 * 32 + 3, /*Level=*/1};   // section 6 (shields), sub 3
 
     const auto charSet = BuildCharSet(1, 0, wear);
     const auto appearance = Mu099B::DecodeCharSet(charSet.data());
@@ -200,8 +197,8 @@ TEST_CASE("Las armas llevan el índice completo, de donde salen grupo y número"
 
 TEST_CASE("Cada pieza de armadura recupera su grupo implícito y su sub-índice")
 {
-    // Se usan sub-índices con el bit 0x10 prendido a propósito: ese bit viaja
-    // suelto en charSet[9], con un corrimiento distinto por slot.
+    // Sub-indices with the 0x10 bit set are used on purpose: that bit travels loose in charSet[9], with a
+    // different shift per slot.
     auto wear = EmptyWear();
     wear[SlotHelm] = {7 * 32 + 20, 1};
     wear[SlotArmor] = {8 * 32 + 17, 3};
@@ -227,9 +224,8 @@ TEST_CASE("Cada pieza de armadura recupera su grupo implícito y su sub-índice"
 
 TEST_CASE("Los bits de excelente y conjunto van por slot, en un orden propio")
 {
-    // El servidor no los guarda en el orden de los slots sino con la tabla
-    // {1,0,6,5,4,3,2}: si el decodificador usara el orden natural, los marcaría
-    // en la pieza equivocada.
+    // The server does not store them in slot order but with the table {1,0,6,5,4,3,2}: if the decoder used the
+    // natural order, it would mark them on the wrong piece.
     auto wear = EmptyWear();
     wear[SlotWeapon1] = {0 * 32 + 1, 1, /*Excellent=*/true, /*SetItem=*/false};
     wear[SlotBoots] = {11 * 32 + 4, 1, /*Excellent=*/false, /*SetItem=*/true};
@@ -251,7 +247,7 @@ TEST_CASE("Las alas recuperan su número, incluidas las variantes altas")
         bool Expected;
     };
 
-    for (const auto& testCase : {Case{0, false},  // 0 es "sin alas" en el empaquetado
+    for (const auto& testCase : {Case{0, false},  // 0 is "no wings" in the packing
                                  Case{1, true}, Case{2, true}, Case{3, true},
                                  Case{6, true}, Case{30, true}})
     {
@@ -295,29 +291,28 @@ TEST_CASE("El bloque extendido queda en el formato que espera el cliente")
     uint8_t equipment[Mu099B::ExtendedEquipmentSize];
     Mu099B::WriteExtendedEquipment(appearance, equipment);
 
-    // Arma 1 en el offset 0: grupo en el nibble alto, número en el siguiente
-    // byte, brillo en el nibble alto del tercero y excelente en el bit 3.
+    // Weapon 1 at offset 0: group in the high nibble, number in the next byte, glow in the high nibble of the
+    // third and excellent in bit 3.
     CHECK(((equipment[0] & 0xF0) >> 4) == 1);
     CHECK(equipment[1] == 5);
     CHECK(((equipment[2] & 0xF0) >> 4) == 3);
     CHECK((equipment[2] & 0x08) != 0);
 
-    // Arma 2 vacía: el cliente lo detecta por los dos 0xFF.
+    // Empty weapon 2: the client detects it by the two 0xFF.
     CHECK(equipment[3] == 0xFF);
     CHECK(equipment[4] == 0xFF);
 
-    // Armadura: es la segunda pieza, en el offset 6 + 3.
+    // Armor: it is the second piece, at offset 6 + 3.
     CHECK(((equipment[9] & 0xF0) >> 4) == 8);
     CHECK(equipment[10] == 17);
 }
 
 TEST_CASE("La clase de la base de datos usa otro empaquetado que la del CharSet")
 {
-    // Estos cinco valores son las filas de default_class_type del servidor. La
-    // creación de personaje hace INSERT ... SELECT ... WHERE class = @class, así
-    // que un byte que no esté en esta lista no inserta nada y el servidor
-    // responde "cuenta llena" -- un mensaje que no delata la causa. Pasó con el
-    // empaquetado de Season 6 (clase << 2), que da 0, 4, 8, 12, 16.
+    // These five values are the server's default_class_type rows. Character creation does INSERT ... SELECT ...
+    // WHERE class = @class, so a byte not in this list inserts nothing and the server answers "account full" --
+    // a message that gives no hint of the cause. It happened with the Season 6 packing (class << 2), which
+    // gives 0, 4, 8, 12, 16.
     CHECK(Mu099B::MakeDatabaseClassByte(0) == 0);   // Dark Wizard
     CHECK(Mu099B::MakeDatabaseClassByte(1) == 16);  // Dark Knight
     CHECK(Mu099B::MakeDatabaseClassByte(2) == 32);  // Fairy Elf
@@ -331,7 +326,7 @@ TEST_CASE("La clase de la base de datos usa otro empaquetado que la del CharSet"
         CHECK(decoded.ChangeUp == 0);
     }
 
-    // La evolución viaja en el nibble bajo.
+    // The evolution travels in the low nibble.
     const auto evolved = Mu099B::DecodeDatabaseClassByte(0x11);
     CHECK(evolved.CharacterClass == 1);  // Dark Knight
     CHECK(evolved.ChangeUp == 1);        // Blade Knight
@@ -339,25 +334,23 @@ TEST_CASE("La clase de la base de datos usa otro empaquetado que la del CharSet"
 
 TEST_CASE("Las dos codificaciones de clase no son intercambiables")
 {
-    // El CharSet corre la clase un bit más porque los bits bajos llevan el
-    // ViewState. Confundirlas es silencioso: los dos decodificadores devuelven
-    // un número válido, sólo que el equivocado.
+    // The CharSet shifts the class one more bit because the low bits carry the ViewState. Mixing them up is
+    // silent: both decoders return a valid number, just the wrong one.
     for (uint8_t base = 1; base < 5; ++base)
     {
         const uint8_t database = Mu099B::MakeDatabaseClassByte(base);
         CHECK(Mu099B::DecodeClassByte(database).CharacterClass != base);
     }
 
-    // La única que coincide es la clase 0, y por eso crear un Dark Wizard
-    // funcionaba de casualidad mientras el resto fallaba.
+    // The only one that matches is class 0, which is why creating a Dark Wizard worked by chance while the rest
+    // failed.
     CHECK(Mu099B::DecodeClassByte(Mu099B::MakeDatabaseClassByte(0)).CharacterClass == 0);
 }
 
 TEST_CASE("El par de creacion usa una codificacion en cada sentido")
 {
-    // El pedido manda la clase con el empaquetado de la base de datos, pero el
-    // servidor la convierte al del CharSet antes de contestar. Esta es la misma
-    // cuenta que hace DGCharacterCreateRecv en el emulador.
+    // The request sends the class with the database packing, but the server converts it to the CharSet one
+    // before answering. This is the same computation DGCharacterCreateRecv does in the emulator.
     auto serverTransform = [](uint8_t databaseClass) {
         int transformed = (databaseClass % 16) * 16;
         transformed -= transformed / 32;
@@ -370,13 +363,12 @@ TEST_CASE("El par de creacion usa una codificacion en cada sentido")
         const uint8_t sent = Mu099B::MakeDatabaseClassByte(base);
         const uint8_t echoed = serverTransform(sent);
 
-        // Lo que vuelve hay que leerlo con el decodificador del CharSet. Leerlo
-        // con el de la base de datos da otra clase sin fallar en ninguna parte:
-        // un Dark Knight vuelve como Fairy Elf.
+        // What comes back has to be read with the CharSet decoder. Reading it with the database one gives
+        // another class without failing anywhere: a Dark Knight comes back as a Fairy Elf.
         CHECK(Mu099B::DecodeClassByte(echoed).CharacterClass == base);
     }
 
-    // El caso concreto que lo delató: se manda 16 (Dark Knight) y vuelve 32.
+    // The concrete case that gave it away: 16 (Dark Knight) is sent and 32 comes back.
     CHECK(serverTransform(16) == 32);
     CHECK(Mu099B::DecodeClassByte(32).CharacterClass == 1);
     CHECK(Mu099B::DecodeDatabaseClassByte(32).CharacterClass == 2);  // la lectura equivocada

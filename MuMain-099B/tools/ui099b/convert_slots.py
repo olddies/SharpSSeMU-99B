@@ -37,8 +37,8 @@ ORIGEN = REPO.parent / "MuClient" / "Data" / "Interface"
 OZJ_HEADER = 24
 OZT_HEADER = 4
 
-# 0.99B -> MuMain. Los nombres no coinciden, pero el rol sí; el tamaño destino
-# es el de la casilla, que está escrito a mano en SetEquipmentSlotInfo.
+# 0.99B -> MuMain. The names do not match, but the role does; the destination size is that of the slot, which is
+# hand-written in SetEquipmentSlotInfo.
 SLOTS = [
     ("Item_Cap.OZJ", "newui_item_cap.OZT", (46, 46)),
     ("Item_Upper.OZJ", "newui_item_upper.OZT", (46, 66)),
@@ -70,7 +70,7 @@ def load_ozt(path: Path) -> Image.Image:
     image = Image.frombytes("RGBA" if depth == 32 else "RGB", (width, height),
                             pixels[:width * height * (depth // 8)], "raw", mode)
 
-    # El bit 5 del descriptor dice si la primera fila es la de arriba.
+    # Bit 5 of the descriptor says whether the first row is the top one.
     if not (descriptor & 0x20):
         image = image.transpose(Image.FLIP_TOP_BOTTOM)
 
@@ -84,11 +84,11 @@ def save_ozt(image: Image.Image, path: Path) -> None:
 
     header = bytes([
         0, 0, 2,              # sin id, sin paleta, RGB sin comprimir
-        0, 0, 0, 0, 0,        # especificación de paleta, vacía
+        0, 0, 0, 0, 0,        # palette specification, empty
         0, 0, 0, 0,           # origen en (0, 0)
         width & 0xFF, width >> 8,
         height & 0xFF, height >> 8,
-        32,                   # bits por píxel
+        32,                   # bits per pixel
         0x28,                 # alfa de 8 bits, primera fila arriba
     ])
 
@@ -149,8 +149,8 @@ def main() -> int:
     print(f"{len(convertidas)} siluetas convertidas.")
 
     if args.previsualizar:
-        # Tres columnas: como queda la de 0.99B, y al lado la de MuMain para
-        # comparar. Sobre cuadros, para ver la transparencia.
+        # Three columns: how 0.99B's looks, and next to it MuMain's to compare. Over checkerboards, to see the
+        # transparency.
         alto = max(s[1] for _, _, s in convertidas) + 8
         hoja = Image.new("RGBA", (240, alto * len(convertidas)), (40, 40, 40, 255))
 

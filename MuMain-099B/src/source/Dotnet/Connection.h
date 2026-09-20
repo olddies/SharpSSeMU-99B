@@ -93,21 +93,13 @@ namespace Mu099B
 class GameSocket;
 }
 
-/// Conexión al servidor.
-///
-/// Tiene DOS transportes, y cuál se usa depende de con quién se habla:
-///
-///  * **ConnectServer**: va por la librería C#. Su protocolo es plano (C1/C2 sin
-///    cifrar) y el framing por tamaño es el mismo en los dos dialectos, así que
-///    se puede reutilizar tal cual.
-///  * **GameServer**: va por Mu099B::GameSocket, nativo. No es una preferencia:
-///    el cifrado de flujo de 0.99B tapa también los bytes de tipo y tamaño, así
-///    que ningún framer que trabaje sobre el flujo cifrado puede separar
-///    paquetes. Hay que descifrar antes de segmentar, y eso obliga a manejar el
-///    socket del lado nativo.
-///
-/// El resto del cliente no se entera: sigue usando Send() y recibiendo por la
-/// misma cola de paquetes.
+/// Connection to the server. It has TWO transports, and which one is used depends on who is being talked to: *
+/// **ConnectServer**: goes through the C# library. Its protocol is plain (unencrypted C1/C2) and size framing
+/// is the same in both dialects, so it can be reused as is. * **GameServer**: goes through Mu099B::GameSocket,
+/// native. This is not a preference: the 0.99B stream cipher also covers the type and size bytes, so no framer
+/// working on the encrypted stream can split packets. You have to decrypt before segmenting, and that forces
+/// handling the socket on the native side. The rest of the client does not notice: it keeps using Send() and
+/// receiving through the same packet queue.
 class Connection
 {
 private:
@@ -121,7 +113,7 @@ private:
     int32_t _handle;
     void(*_packetHandler)(int32_t, const BYTE*, int32_t);
 
-    /// Sólo para la conexión de juego; nulo para el ConnectServer.
+    /// Only for the game connection; null for the ConnectServer.
     Mu099B::GameSocket* _nativeSocket = nullptr;
 
     void OnDisconnected();
@@ -135,12 +127,11 @@ public:
     void Send(const BYTE* data, const int32_t length);
     void Close();
 
-    /// Lee del socket nativo y encola lo que haya llegado. Hay que llamarlo una
-    /// vez por cuadro: a diferencia del transporte C#, que empuja desde su
-    /// propio hilo, este socket es no bloqueante y se consulta.
+    /// Reads from the native socket and queues whatever has arrived. It has to be called once per frame: unlike
+    /// the C# transport, which pushes from its own thread, this socket is non-blocking and is polled.
     void Poll();
 
-    /// True si esta conexión usa el transporte nativo de 0.99B.
+    /// True if this connection uses the native 0.99B transport.
     bool UsesNativeTransport() const { return _nativeSocket != nullptr; }
 
     int32_t GetHandle() const { return _handle; }

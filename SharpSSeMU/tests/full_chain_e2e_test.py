@@ -36,8 +36,8 @@ try:
     dep.start_infra()
     dep.start_game()
 
-    # El GameServer late hacia el ConnectServer una vez por segundo (0xA1); hay que
-    # darle tiempo antes de preguntar por la lista.
+    # The GameServer beats towards the ConnectServer once per second (0xA1); it has to be given time before
+    # asking for the list.
     time.sleep(3.0)
 
     def c1sub(head: int, sub: int, payload: bytes = b"") -> bytes:
@@ -73,8 +73,8 @@ try:
     finally:
         s.close()
 
-    # Login auténtico contra el GameServer que resolvió el ConnectServer. El
-    # ClientVersion del wire son los bytes ASCII {'1','0','2','0','0'} (ServerInfo.cpp).
+    # Authentic login against the GameServer the ConnectServer resolved. The wire ClientVersion is the ASCII
+    # bytes {'1','0','2','0','0'} (ServerInfo.cpp).
     tc = _env.ROOT / "src" / "TestClient" / "bin" / "Debug" / _env.TFM / "TestClient.dll"
     r = subprocess.run(
         [_env.DOTNET, str(tc), "127.0.0.1", str(dep.game_port), _env.SERIAL, "10200",

@@ -59,8 +59,8 @@ try:
         print(r.stderr)
         results.append((title, r.returncode, r.stdout))
 
-    # El caso que tiene que quedar verde es el login válido: los negativos solo se
-    # inspeccionan por log (TestClient no distingue el motivo en su código de salida).
+    # The case that has to stay green is the valid login: the negatives are only inspected through the log
+    # (TestClient does not distinguish the reason in its exit code).
     valid_logins = [r for t, r, _out in results if t.startswith(("TEST 1", "TEST 4"))]
     test_rc = 0 if all(rc == 0 for rc in valid_logins) else 1
 

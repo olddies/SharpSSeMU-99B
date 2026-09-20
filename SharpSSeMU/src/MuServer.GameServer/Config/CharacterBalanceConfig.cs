@@ -2,19 +2,15 @@ using MuServer.Shared.Config;
 
 namespace MuServer.GameServer.Config;
 
-/// <summary>
-/// Puerto de las constantes de balance de "GameServerInfo - Character.dat" que usa
-/// CObjectManager::CharacterCalcAttribute (ObjectManager.cpp:1887-2523) para calcular daño/acierto/
-/// defensa por clase -- Fase 4 (segunda pasada, balance real de combate). El .dat original es un INI
-/// plano leído con GetPrivateProfileInt (default 0 si falta la clave); acá se reusa <see cref="IniFile"/>
-/// con los mismos defaults que trae el archivo real (ver MuServer99B/GameServer/DATA/GameServerInfo -
-/// Character.dat), así que un despliegue sin el archivo copiado igual anda con el balance de fábrica.
-///
-/// Clases indexadas 0-4 = DW,DK,FE,MG,DL (mismo orden/valores crudos que PlayerObject.Class -- ver
-/// ClientProtocolHandler.ClassFe=2). Solo se cargan las constantes que hacen falta para daño físico/
-/// acierto/defensa cuerpo a cuerpo (esta pasada no toca magia/skills/velocidad, ver comentario de
-/// PlayerObject.RecalcCombatStats).
-/// </summary>
+/// <summary> Port of the balance constants of "GameServerInfo - Character.dat" that
+/// CObjectManager::CharacterCalcAttribute (ObjectManager.cpp:1887-2523) uses to compute damage/hit/ defense per
+/// class -- Phase 4 (second pass, real combat balance). The original .dat is a flat INI read with
+/// GetPrivateProfileInt (default 0 if the key is missing); here <see cref="IniFile"/> is reused with the same
+/// defaults the real file carries (see MuServer99B/GameServer/DATA/GameServerInfo - Character.dat), so a
+/// deployment without the file copied still works with the factory balance. Classes indexed 0-4 =
+/// DW,DK,FE,MG,DL (same order/raw values as PlayerObject.Class -- see ClientProtocolHandler.ClassFe=2). Only
+/// the constants needed for physical damage/ hit/melee defense are loaded (this pass does not touch
+/// magic/skills/speed, see the comment of PlayerObject.RecalcCombatStats). </summary>
 public sealed class CharacterBalanceConfig
 {
     private static readonly string[] Prefixes = { "DW", "DK", "FE", "MG", "DL" };
@@ -24,17 +20,17 @@ public sealed class CharacterBalanceConfig
     public readonly int[] PhysiDamageMaxConstA = new int[5];
     public readonly int[] PhysiDamageMaxConstB = new int[5];
 
-    // Daño mágico base (Fase "skills") -- idénticos para las 5 clases en el .dat real (9,4), pero se
-    // cargan por clase igual (no hardcodeados) por si un despliegue los customiza.
+    // Base magic damage (the "skills" phase) -- identical for the 5 classes in the real .dat (9,4), but loaded
+    // per class anyway (not hardcoded) in case a deployment customises them.
     public readonly int[] MagicDamageMinConstA = new int[5];
     public readonly int[] MagicDamageMaxConstA = new int[5];
 
-    // Regeneración de maná/BP (CharacterAutoRecuperation, ObjectManager.cpp:1729-1758) -- porcentaje
-    // de MaxMana/MaxBP que se recupera por tick de regeneración (ver World/ViewportTicker.cs).
+    // Mana/BP regeneration (CharacterAutoRecuperation, ObjectManager.cpp:1729-1758) -- percentage of
+    // MaxMana/MaxBP recovered per regeneration tick (see World/ViewportTicker.cs).
     public readonly int[] MpRecoveryRate = new int[5];
     public readonly int[] BpRecoveryRate = new int[5];
 
-    // FE con arco (ObjectManager.cpp:1999-2012) -- fórmula alternativa, no una constante por clase.
+    // FE with bow (ObjectManager.cpp:1999-2012) -- alternative formula, not a per-class constant.
     public int FePhysiDamageMinBowConstA;
     public int FePhysiDamageMinBowConstB;
     public int FePhysiDamageMaxBowConstA;
@@ -54,17 +50,14 @@ public sealed class CharacterBalanceConfig
     public int DkDamageMultiplierMaxRate;
     public int DlDamageMultiplierMaxRate;
 
-    // Tope de puntos por stat, indexado por AccountLevel 0-3 (CharacterLevelUpPointAdd,
-    // ObjectManager.cpp:1078) -- vive en "GameServerInfo - Common.dat" en el original (clave
-    // MaxStatPoint_AL0..AL3), no en "Character.dat" como el resto de esta clase. Indexado con
-    // PlayerObject.AccountLevel.
-    //
-    // CORREGIDO: `Load` leía esta clave del mismo `ini` que el resto del archivo (Character.dat, vía
-    // `config.CharacterInfoPath`), pero la clave real vive en Common.dat -- así que la búsqueda nunca
-    // encontraba nada y siempre caía al default (65000) para las 4 franjas, sin importar lo que el
-    // admin pusiera en el panel (página Tasas/Configuración, que sí escribe Common.dat). No se notaba
-    // porque el valor de fábrica shippeado también es 65000 para las 4 -- pero un admin que cambiara
-    // el tope por nivel de cuenta para dar más margen a las cuentas VIP no veía ningún efecto.
+    // Stat-point cap, indexed by AccountLevel 0-3 (CharacterLevelUpPointAdd, ObjectManager.cpp:1078) -- it
+    // lives in "GameServerInfo - Common.dat" in the original (key MaxStatPoint_AL0..AL3), not in
+    // "Character.dat" like the rest of this class. Indexed with PlayerObject.AccountLevel. FIXED: `Load` read
+    // this key from the same `ini` as the rest of the file (Character.dat, via `config.CharacterInfoPath`), but
+    // the real key lives in Common.dat -- so the lookup never found anything and always fell back to the
+    // default (65000) for all 4 bands, regardless of what the admin set in the panel (Rates/Configuration page,
+    // which does write Common.dat). It was not noticeable because the shipped factory value is also 65000 for
+    // all 4 -- but an admin who changed the cap per account level to give VIP accounts more room saw no effect.
     public readonly int[] MaxStatPoint = new int[4];
 
     public static CharacterBalanceConfig Load(string path, string commonPath)
@@ -72,8 +65,8 @@ public sealed class CharacterBalanceConfig
         var ini = IniFile.Load(path);
         var cfg = new CharacterBalanceConfig();
 
-        // Defaults = valores reales de fábrica (GameServerInfo - Character.dat shippeado), para que
-        // un despliegue sin el .dat copiado tenga el mismo balance que el servidor original.
+        // Defaults = the real factory values (the shipped GameServerInfo - Character.dat), so that a deployment
+        // without the .dat copied has the same balance as the original server.
         var minA = new[] { 6, 8, 7, 6, 7 };
         var maxA = new[] { 4, 4, 4, 4, 5 };
         var asrA = new[] { 5, 5, 5, 5, 5 };

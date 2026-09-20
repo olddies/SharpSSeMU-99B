@@ -1,8 +1,8 @@
 using WorldTestClient;
 
-// Prueba de extremo a extremo de la Fase 2 del GameServer: dos "clientes" simulados (con las
-// claves de cifrado reales) que loguean, seleccionan personaje, entran al mundo, se ven aparecer
-// mutuamente por el viewport, y confirman que el movimiento de uno se propaga al otro.
+// End-to-end test of Phase 2 of the GameServer: two simulated "clients" (with the real encryption keys) that
+// log in, select a character, enter the world, see each other appear through the viewport, and confirm that
+// one's movement propagates to the other.
 
 string host = args[0];
 int port = int.Parse(args[1]);
@@ -17,53 +17,50 @@ string account2 = args[9];
 string password2 = args[10];
 string char2 = args[11];
 
-// Opcional: cuenta NUEVA (sin personajes) para probar el flujo real de creación de personaje vía
-// GameServer (C1:F3:01) -- el bug reportado por el usuario probando con el cliente real (main.exe):
-// la cuenta llega con 0 personajes, el cliente manda F3:01 al confirmar nombre/clase, y hasta ahora
-// el GameServer no lo manejaba en absoluto (solo existía el lado DataServer, usado nada más por el
-// seeding directo de estos mismos scripts de prueba). Solo corre si se pasan estos 3 args extra.
+// Optional: NEW account (without characters) to test the real character creation flow via GameServer (C1:F3:01)
+// -- the bug reported by the user testing with the real client (main.exe): the account arrives with 0
+// characters, the client sends F3:01 on confirming name/class, and until now the GameServer did not handle it
+// at all (only the DataServer side existed, used only by the direct seeding of these same test scripts). It
+// only runs if these 3 extra args are passed.
 string? account3 = args.Length > 14 ? args[12] : null;
 string? password3 = args.Length > 14 ? args[13] : null;
 string? newCharName = args.Length > 14 ? args[14] : null;
 
-// Opcional: habilita la sección de Devil Square (Fase 6) al final del test -- usa una cuenta/
-// personaje DEDICADO (no Hero1/Hero2) con Strength muy alto sembrado por SQL, porque los monstruos
-// reales de Devil Square 1 (Skeleton Archer/Cyclops, HP 850-1100, Defense 35-45) son intratables con
-// la fórmula de daño placeholder de esta fase usando el Strength bajo de un personaje recién creado
-// -- subirle el Strength a Hero1 en cambio rompería la temporización que el resto del flujo
-// compartido (Fase 4/5) ya asume (mata de novillo -- 1 golpe -- las pruebas de "pegale de nuevo,
-// todavía no debería estar muerto"). El ticket ("Devil's Invitation", GET_ITEM(14,19)) va sembrado
-// en el slot 13 de este personaje. El servidor ya debería haber recibido 'ds forcestart' por
-// consola antes de arrancar este proceso.
+// Optional: enables the Devil Square section (Phase 6) at the end of the test -- it uses a DEDICATED
+// account/character (not Hero1/Hero2) with a very high Strength seeded via SQL, because the real monsters of
+// Devil Square 1 (Skeleton Archer/Cyclops, HP 850-1100, Defense 35-45) are unbeatable with this phase's
+// placeholder damage formula using the low Strength of a newly created character -- raising Hero1's Strength
+// instead would break the timing that the rest of the shared flow (Phase 4/5) already assumes (it one-shots --
+// 1 hit -- the "hit it again, it should not be dead yet" tests). The ticket ("Devil's Invitation",
+// GET_ITEM(14,19)) is seeded in slot 13 of this character. The server should already have received 'ds
+// forcestart' via console before this process starts.
 bool dsEnabled = args.Length > 17;
 string? account4 = dsEnabled ? args[15] : null;
 string? password4 = dsEnabled ? args[16] : null;
 string? char4 = dsEnabled ? args[17] : null;
 
-// Opcional: habilita la sección de skills/maná después del bloque de combate cuerpo a cuerpo de la
-// Fase 4 -- reusa el cliente A (Hero1) y el monstruo de prueba ya sembrado, así que no hace falta una
-// cuenta dedicada; alcanza con pasar este flag como arg 12 (posición deliberadamente ANTES de
-// account3/account4 para no interferir con esos otros bloques opcionales, que se gatillan por
-// longitud de args, no por contenido).
+// Optional: enables the skills/mana section after Phase 4's melee combat block -- it reuses client A (Hero1)
+// and the already seeded test monster, so no dedicated account is needed; it is enough to pass this flag as arg
+// 12 (position deliberately BEFORE account3/account4 so as not to interfere with those other optional blocks,
+// which are triggered by args length, not by content).
 bool skillEnabled = args.Length > 12 && args[12] == "skills";
 
-// Opcional: habilita la sección de tiendas/NPC/acción/punto de stat (Task #32) -- mismo criterio de
-// gateo por valor de args[12] que skillEnabled (mutuamente excluyentes, ver comentario de arriba).
-// Usa el cliente A y asume un entorno de prueba DEDICADO (gameserver_shop_e2e_test.py) sin monstruos
-// de combate cargados, así que el único "monstruo" (el NPC de tienda) tiene índice 0 determinístico.
+// Optional: enables the shops/NPC/action/stat point section (Task #32) -- the same gating criterion by value of
+// args[12] as skillEnabled (mutually exclusive, see comment above). It uses client A and assumes a DEDICATED
+// test environment (gameserver_shop_e2e_test.py) with no combat monsters loaded, so the only "monster" (the
+// shop NPC) has a deterministic index 0.
 bool shopEnabled = args.Length > 12 && args[12] == "shop";
 
-// Opcional (solo con shopEnabled): nombre de un SEGUNDO personaje sembrado en la MISMA cuenta que
-// char1 (account1) -- regresión directa del bug reportado por el usuario ("solo veo el primero que
-// he creado" en la pantalla de selección), ver el bloque alsoExpectName en LoginAndEnterAsync.
+// Optional (only with shopEnabled): name of a SECOND character seeded in the SAME account as char1 (account1)
+// -- direct regression of the bug reported by the user ("I only see the first one I created" on the selection
+// screen), see the alsoExpectName block in LoginAndEnterAsync.
 string? secondCharName1 = shopEnabled && args.Length > 13 ? args[13] : null;
 
-// Opcional: habilita la sección de items de piso (drop/pickup) -- mismo criterio de gateo por valor
-// de args[12] que shopEnabled/skillEnabled (mutuamente excluyentes). Entorno DEDICADO
-// (gameserver_grounditem_e2e_test.py) con 2 monstruos de prueba a propósito determinísticos, sembrados
-// DESPUÉS del monstruo compartido de la Fase 4 (índice 0, "Spider" real de MonsterList.txt) -- así que
-// quedan en índice 1 = "siempre dropea item" (ItemRate=1) e índice 2 = "siempre dropea dinero"
-// (MoneyRate=1), NO en 0/1 (el índice 0 ya está tomado por el bloque de combate compartido de arriba).
+// Optional: enables the ground items (drop/pickup) section -- the same gating criterion by value of args[12] as
+// shopEnabled/skillEnabled (mutually exclusive). DEDICATED environment (gameserver_grounditem_e2e_test.py) with
+// 2 test monsters deliberately deterministic, seeded AFTER Phase 4's shared monster (index 0, a real "Spider"
+// from MonsterList.txt) -- so they end up at index 1 = "always drops an item" (ItemRate=1) and index 2 =
+// "always drops money" (MoneyRate=1), NOT at 0/1 (index 0 is already taken by the shared combat block above).
 bool groundItemEnabled = args.Length > 12 && args[12] == "grounditem";
 
 int failures = 0;
@@ -74,13 +71,13 @@ void Check(string name, bool ok, string extra = "")
     if (!ok) failures++;
 }
 
-// Castea un skill de ataque repitiendo el intento hasta que PEGUE (o se agoten los intentos). El
-// acierto de un casteo reusa el mismo AttackSuccessRate/DefenseSuccessRate que el melee (ver doc-
-// comment de OnSkillAttackAsync en ClientProtocolHandler.cs, punto 6), así que un solo intento sin
-// reintento hace al test intermitente por diseño (con Hero1/Kris+1 vs Bull Fighter la chance de
-// fallar un casteo individual ronda el 17%). El maná se descuenta en TODOS los intentos, acierten o
-// no (UseAttackSkill original lo hace así, no solo en el que finalmente pega) -- por eso devolvemos
-// la cantidad de intentos, para que el llamador pueda calcular el descuento total esperado.
+// Casts an attack skill repeating the attempt until it HITS (or the attempts run out). A cast's hit reuses the
+// same AttackSuccessRate/DefenseSuccessRate as melee (see the doc- comment of OnSkillAttackAsync in
+// ClientProtocolHandler.cs, point 6), so a single attempt without retry makes the test intermittent by design
+// (with Hero1/Kris+1 vs Bull Fighter the chance of failing an individual cast is around 17%). Mana is deducted
+// on ALL attempts, hit or not (the original UseAttackSkill does it that way, not only on the one that finally
+// hits) -- that is why we return the number of attempts, so the caller can compute the total expected
+// deduction.
 async Task<(FakeMuClient.DecodedPacket ManaPkt, FakeMuClient.DecodedPacket DmgPkt, FakeMuClient.DecodedPacket SkillPkt, int Attempts)>
     CastSkillUntilHitAsync(FakeMuClient client, byte skill, int targetIndex, int maxAttempts, CancellationToken ct)
 {
@@ -90,7 +87,7 @@ async Task<(FakeMuClient.DecodedPacket ManaPkt, FakeMuClient.DecodedPacket DmgPk
         var manaPkt = await client.WaitForAsync(0x27, TimeSpan.FromSeconds(5));
         var dmgPkt = await client.WaitForAsync(0xD9, TimeSpan.FromSeconds(5));
 
-        // PMSG_DAMAGE_SEND: bit 0x80 del byte [3] (mitad alta del índice de objetivo) es el missFlag.
+        // PMSG_DAMAGE_SEND: bit 0x80 of byte [3] (high half of the target index) is the missFlag.
         bool missed = (dmgPkt.Full[3] & 0x80) != 0;
 
         if (!missed)
@@ -118,14 +115,13 @@ async Task<(FakeMuClient Client, byte X, byte Y)> LoginAndEnterAsync(string labe
     byte result = loginResult.Full[4];
     Check($"[{label}] Login '{account}'", result == 1, $"(resultado={result})");
 
-    // Puerto real: el cliente pide la lista de personajes (0xF3:0x00) ANTES de elegir uno --
-    // sin este paso el cliente real se queda pegado en la pantalla de selección (bug encontrado
-    // recién al probar con main.exe de verdad; WorldTestClient no lo ejercitaba porque mandaba
-    // 0xF3:0x03 directo).
+    // Real port: the client asks for the character list (0xF3:0x00) BEFORE choosing one -- without this step
+    // the real client stays stuck on the selection screen (bug found only when testing with the real main.exe;
+    // WorldTestClient did not exercise it because it sent 0xF3:0x03 directly).
     await c.SendCharacterListRequestAsync();
     var listPkt = await c.WaitForAsync(0xF3, TimeSpan.FromSeconds(5), 0x00);
-    // C1:F3:00 -- [4]=ClassCode [5]=MoveCnt [6]=count. Sin ExtWarehouse (ese byte no existe en el
-    // struct real de este build, Protocol.h del árbol fuente correcto -- ver el doc-comment de
+    // C1:F3:00 -- [4]=ClassCode [5]=MoveCnt [6]=count. Without ExtWarehouse (that byte does not exist in this
+    // build's real struct, Protocol.h of the correct source tree -- see the doc-comment of
     // ClientPacketBuilder.CharacterListSend).
     byte charCount = listPkt.Full[6];
     bool foundInList = false;
@@ -133,9 +129,9 @@ async Task<(FakeMuClient Client, byte X, byte Y)> LoginAndEnterAsync(string labe
 
     for (int i = 0; i < charCount; i++)
     {
-        // slot(1)+Name[10]+pad(1, alineación de Level a WORD, ver ClientPackets.CharacterListSend)+
-        // Level(2)+CtlCode(1)+CharSet[13] = 28 bytes/entry. Sin GuildStatus (no existe en el struct
-        // real de este build).
+        // slot(1)+Name[10]+pad(1, alignment of Level to WORD, see ClientPackets.CharacterListSend)+
+        // Level(2)+CtlCode(1)+CharSet[13] = 28 bytes/entry. Without GuildStatus (it does not exist in this
+        // build's real struct).
         int off = 7 + (i * 28);
         string listedName = System.Text.Encoding.ASCII.GetString(listPkt.Full, off + 1, 10).TrimEnd('\0');
 
@@ -152,11 +148,11 @@ async Task<(FakeMuClient Client, byte X, byte Y)> LoginAndEnterAsync(string labe
 
     Check($"[{label}] CHARACTER_LIST_SEND incluye '{charName}'", foundInList, $"(count={charCount})");
 
-    // Regresión directa del bug reportado por el usuario ("solo veo el primero que he creado"): si
-    // alsoExpectName viene seteado, la cuenta tiene 2+ personajes sembrados y este check confirma
-    // que el SEGUNDO (slot != 0, offset != el primero) también se lee bien -- el bug real era la
-    // falta del byte de relleno de alineación (ver ClientPacketBuilder.CharacterListSend), no el
-    // tamaño de CharSet ni un ExtWarehouse/GuildStatus inventados.
+    // Direct regression of the bug reported by the user ("I only see the first one I created"): if
+    // alsoExpectName is set, the account has 2+ seeded characters and this check confirms that the SECOND one
+    // (slot != 0, offset != the first) is also read correctly -- the real bug was the missing alignment padding
+    // byte (see ClientPacketBuilder.CharacterListSend), not the CharSet size nor an invented
+    // ExtWarehouse/GuildStatus.
     if (alsoExpectName != null)
     {
         Check($"[{label}] CHARACTER_LIST_SEND también incluye el 2do personaje '{alsoExpectName}' (offset correcto)",
@@ -180,9 +176,9 @@ async Task<(FakeMuClient Client, byte X, byte Y)> LoginAndEnterAsync(string labe
     return (c, x, y);
 }
 
-// Fase 4 (~12s respawn) + Fase 5 (party/exp) + Fase 6 (Devil Square: hasta ~3 min esperando la
-// ventana forzada por consola + STAND (1 min) + START (1 min) reales del bracket de prueba, ver
-// DevilSquare.dat de test) agregan pasos.
+// Phase 4 (~12s respawn) + Phase 5 (party/exp) + Phase 6 (Devil Square: up to ~3 min waiting for the window
+// forced by console + real STAND (1 min) + START (1 min) of the test bracket, see the test's DevilSquare.dat)
+// add steps.
 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(dsEnabled ? 300 : 90));
 
 try
@@ -198,10 +194,10 @@ try
     var appearInB = await clientB.WaitForAsync(0x12, TimeSpan.FromSeconds(5));
     Check("[B] Recibió aparición de otro jugador (0x12)", true, $"({appearInB.Full.Length} bytes)");
 
-    // Regresión de layout: PMSG_VIEWPORT_PLAYER mide sizeof()=34 en MSVC, no 32 -- lleva 1 byte de
-    // relleno antes del WORD count (offset 17) y 1 de cola (offset 33). Verificado con static_assert
-    // por tools/protogen/verify_layout.cpp. Se comprueba el STRIDE y no el largo total para no
-    // depender de cuántos jugadores traiga el paquete: header C2 (4) + count (1) + N*34.
+    // Layout regression: PMSG_VIEWPORT_PLAYER is sizeof()=34 in MSVC, not 32 -- it carries 1 padding byte
+    // before the WORD count (offset 17) and 1 tail byte (offset 33). Verified with a static_assert by
+    // tools/protogen/verify_layout.cpp. The STRIDE is checked and not the total length so as not to depend on
+    // how many players the packet carries: C2 header (4) + count (1) + N*34.
     const int viewportPlayerStride = 34;
     int appearBody = appearInA.Full.Length - 5;
     Check("[A] PMSG_VIEWPORT_PLAYER respeta el stride real de 34 bytes",
@@ -210,10 +206,10 @@ try
 
     Console.WriteLine("\n=== A se mueve, verificando que B reciba el 0xD7 ===");
 
-    // Moverse un tile al costado de donde haya entrado A (posición real leída de CHARACTER_INFO_SEND,
-    // en vez de una coordenada absoluta hardcodeada -- este mismo Program.cs se comparte entre las
-    // pruebas de Fase 2/3 (personajes en zona segura, para viewport/movimiento) y Fase 4 (personajes
-    // fuera de zona segura, requerido para poder atacar), que arrancan en posiciones distintas).
+    // Moving one tile to the side of where A entered (real position read from CHARACTER_INFO_SEND, instead of a
+    // hardcoded absolute coordinate -- this same Program.cs is shared between the Phase 2/3 tests (characters
+    // in a safe zone, for viewport/movement) and Phase 4 (characters outside a safe zone, required to be able
+    // to attack), which start at different positions).
     byte moveX = (byte)(ax + 1);
     await clientA.SendMoveAsync(moveX, ay, 3);
 
@@ -225,11 +221,11 @@ try
 
     Console.WriteLine("\n=== A se mueve de nuevo con el path TRUNCADO a 1 byte (como manda el cliente real) ===");
 
-    // Regresión del bug reportado en producción: MoveRecv.Parse asumía 8 bytes de path fijos y
-    // tiraba ArgumentOutOfRangeException con el cliente real, que manda menos bytes de los que
-    // sugiere el struct C++ (path[8] es un tamaño "techo", no lo que efectivamente viaja en el
-    // paquete). WorldTestClient nunca lo exponía porque SendMoveAsync arma un path de 8 bytes
-    // completo -- este paso usa SendMoveShortPathAsync a propósito para reproducirlo.
+    // Regression of the bug reported in production: MoveRecv.Parse assumed a fixed 8 path bytes and threw
+    // ArgumentOutOfRangeException with the real client, which sends fewer bytes than the C++ struct suggests
+    // (path[8] is a "ceiling" size, not what actually travels in the packet). WorldTestClient never exposed it
+    // because SendMoveAsync builds a full 8-byte path -- this step uses SendMoveShortPathAsync on purpose to
+    // reproduce it.
     byte moveX2 = (byte)(moveX + 1);
     await clientA.SendMoveShortPathAsync(moveX2, ay, 3);
 
@@ -238,8 +234,8 @@ try
 
     Console.WriteLine("\n=== A equipa el arma sembrada (slot 12 -> slot 0, WEAPON1) ===");
 
-    // La semilla de datos (orchestrate_phase3.py) puso una espada real (GET_ITEM(0,0)) en el slot
-    // 12 (primer slot de "mochila", justo después de los 12 de equipo) del inventario de Hero1.
+    // The data seed (orchestrate_phase3.py) put a real sword (GET_ITEM(0,0)) in slot 12 (first "backpack" slot,
+    // right after the 12 equipment ones) of Hero1's inventory.
     await clientA.SendItemMoveAsync(12, 0);
 
     var moveResult = await clientA.WaitForAsync(0x24, TimeSpan.FromSeconds(5));
@@ -247,10 +243,9 @@ try
     // [4]=slot [5..9]=ItemInfo[0..4] (MAX_ITEM_INFO=5, ver Item.ToWireBytes).
     byte result = moveResult.Full[3];
     byte movedIndex = moveResult.Full[5]; // ItemInfo[0] = Index & 0xFF
-    // CORREGIDO: result no es un booleano -- es TargetFlag (0 para Inventory) en éxito, 0xFF en
-    // falla (puerto exacto de MoveItemToInventoryFromInventory, ItemManager.cpp:1920-1978; ver
-    // doc-comment de ClientProtocolHandler.OnItemMoveAsync). Antes se esperaba (incorrectamente)
-    // result==1.
+    // FIXED: result is not a boolean -- it is TargetFlag (0 for Inventory) on success, 0xFF on failure (exact
+    // port of MoveItemToInventoryFromInventory, ItemManager.cpp:1920-1978; see the doc-comment of
+    // ClientProtocolHandler.OnItemMoveAsync). Before, result==1 was (incorrectly) expected.
     Check("[A] ITEM_MOVE_SEND resultado OK", result == 0, $"(result={result}, index={movedIndex})");
 
     var equipSelf = await clientA.WaitForAsync(0xF3, TimeSpan.FromSeconds(5), 0x13);
@@ -263,12 +258,11 @@ try
 
     Console.WriteLine("\n=== Fase 4: A ataca al monstruo de prueba sembrado hasta matarlo ===");
 
-    // El monstruo de prueba ya estaba en rango de vista de A desde que entró al mundo (mucho antes
-    // de este punto del test), así que su paquete de aparición (0x13) ya se mandó y fue consumido
-    // silenciosamente por alguno de los WaitForAsync anteriores (que descartan cualquier paquete que
-    // no matchee el head que están esperando) -- no tiene sentido esperar OTRO 0x13 acá. Como es el
-    // único monstruo cargado en este entorno de prueba y MonsterRegistry asigna índices empezando en
-    // 0, su índice es determinístico.
+    // The test monster was already within A's view range since entering the world (long before this point of
+    // the test), so its appearance packet (0x13) was already sent and silently consumed by one of the earlier
+    // WaitForAsync calls (which discard any packet that does not match the head they are waiting for) -- there
+    // is no point waiting for ANOTHER 0x13 here. Since it is the only monster loaded in this test environment
+    // and MonsterRegistry assigns indices starting at 0, its index is deterministic.
     const int monsterIndex = 0;
     Console.WriteLine($"[A] Usando el monstruo de prueba (único cargado), index={monsterIndex}");
 
@@ -283,12 +277,12 @@ try
 
         try
         {
-            // PMSG_USER_DIE_SEND (C1:17) si murió en este golpe. HAY QUE MIRAR QUÉ ÍNDICE murió:
-            // el mismo head lo usa el servidor para avisar que murió un JUGADOR (ViewportTicker
-            // manda UserDieSend cuando un monstruo mata a alguien), así que dar por buena la sola
-            // llegada del 0x17 hace que el test cante "maté al monstruo" cuando en realidad murió
-            // el propio personaje -- un falso positivo que tapaba que el ataque nunca llegaba a
-            // hacer daño. Layout: [3..4]=índice del muerto, [5]=skill, [6..7]=índice del matador.
+            // PMSG_USER_DIE_SEND (C1:17) if it died on this hit. YOU HAVE TO LOOK AT WHICH INDEX died: the
+            // server uses the same head to announce that a PLAYER died (ViewportTicker sends UserDieSend when a
+            // monster kills someone), so accepting the mere arrival of the 0x17 makes the test claim "I killed
+            // the monster" when in fact the character itself died -- a false positive that hid that the attack
+            // never managed to do damage. Layout: [3..4]=index of the dead one, [5]=skill, [6..7]=index of the
+            // killer.
             var diePkt = await clientA.WaitForAsync(0x17, TimeSpan.FromMilliseconds(300));
             int deadIndex = (diePkt.Full[3] << 8) | diePkt.Full[4];
 
@@ -303,7 +297,7 @@ try
         }
         catch (TimeoutException)
         {
-            // no murió con este golpe, sigue el loop
+            // it did not die on this hit, the loop continues
         }
     }
 
@@ -323,11 +317,11 @@ try
     {
         Console.WriteLine("\n=== Fase skills: A castea 'Fire Ball' (skill 4) sobre el monstruo de prueba ===");
 
-        // Fire Ball (SkillList.txt index 4): Damage=8, MP=3, Range=6, usable por DW/MG sin requisito
-        // de nivel/energía -- Hero1 (DW, Energy=30 por el seed de default_class_type) puede castearlo
-        // de una. Dos rondas de casteo (cada una reintentada hasta pegar, ver CastSkillUntilHitAsync)
-        // permiten verificar el descuento de maná de forma determinística sin depender de saber el
-        // maná inicial exacto del personaje ni de que el primer roll de acierto salga a favor.
+        // Fire Ball (SkillList.txt index 4): Damage=8, MP=3, Range=6, usable by DW/MG with no level/energy
+        // requirement -- Hero1 (DW, Energy=30 from the default_class_type seed) can cast it right away. Two
+        // casting rounds (each retried until it hits, see CastSkillUntilHitAsync) allow verifying the mana
+        // deduction deterministically without depending on knowing the character's exact initial mana nor on
+        // the first hit roll going our way.
         const byte fireBall = 4;
         const int fireBallMana = 3;
         const int maxCastAttempts = 20;
@@ -365,10 +359,10 @@ try
     {
         Console.WriteLine("\n=== Tienda (Task #32): A habla con el NPC, ve el listado, compra y vende un item ===");
 
-        // Entorno de prueba dedicado (gameserver_shop_e2e_test.py): el monstruo de combate (Spider,
-        // index 0, ver el bloque de Fase 4 de arriba, que corre siempre) se spawnea primero
-        // (MonsterRegistry.SpawnAll), y DESPUÉS el NPC de tienda (Program.cs, un solo NPC en
-        // ShopManager.txt) -- por eso el NPC tiene índice 1 determinístico, no 0.
+        // Dedicated test environment (gameserver_shop_e2e_test.py): the combat monster (Spider, index 0, see
+        // the Phase 4 block above, which always runs) is spawned first (MonsterRegistry.SpawnAll), and AFTER it
+        // the shop NPC (Program.cs, a single NPC in ShopManager.txt) -- that is why the NPC has a deterministic
+        // index 1, not 0.
         const int npcIndex = 1;
 
         await clientA.SendNpcTalkAsync(npcIndex);
@@ -419,11 +413,10 @@ try
         Check("[A] ITEM_SELL_SEND result=1 (venta exitosa)", sellResult == 1, $"(result={sellResult})");
         Check("[A] El dinero aumentó tras vender", moneyAfterSell > moneyAfterBuy, $"(antes={moneyAfterBuy}, después={moneyAfterSell})");
 
-        // El precio del Jewel of Bless sale de Data/Item/ItemValue.txt (fila "14,013 * * 9000000"),
-        // no de la fórmula general: por la fórmula daría 18.700, que es lo que este test daba por
-        // bueno antes de que el GameServer cargara esa tabla. Se comprueba la diferencia de la
-        // venta y no el saldo absoluto porque el bloque de combate compartido corre antes y puede
-        // sumar dinero de un drop.
+        // The price of the Jewel of Bless comes from Data/Item/ItemValue.txt (row "14,013 * * 9000000"), not
+        // from the general formula: by the formula it would give 18,700, which is what this test accepted as
+        // good before the GameServer loaded that table. The sale difference is checked and not the absolute
+        // balance because the shared combat block runs before and can add money from a drop.
         const uint precioVentaEsperado = 3_000_000; // 9.000.000 / 3, el mismo tercio del original
         uint cobradoAlVender = moneyAfterSell - moneyAfterBuy;
         Check($"[A] Vender el Jewel of Bless paga {precioVentaEsperado} (ItemValue.txt, no la fórmula general)",
@@ -444,10 +437,10 @@ try
 
     if (groundItemEnabled)
     {
-        // Entorno de prueba dedicado (gameserver_grounditem_e2e_test.py): además del monstruo de
-        // combate compartido de la Fase 4 (índice 0, arriba), se siembran 2 monstruos de prueba
-        // extra determinísticos -- índice 1 "siempre dropea item" (ItemRate=1) e índice 2 "siempre
-        // dropea dinero" (MoneyRate=1) -- para no depender del azar real de MonsterList.txt.
+        // Dedicated test environment (gameserver_grounditem_e2e_test.py): besides Phase 4's shared combat
+        // monster (index 0, above), 2 extra deterministic test monsters are seeded -- index 1 "always drops an
+        // item" (ItemRate=1) and index 2 "always drops money" (MoneyRate=1) -- so as not to depend on the real
+        // chance of MonsterList.txt.
         const int itemDropperIndex = 1;
         const int moneyDropperIndex = 2;
 
@@ -477,13 +470,13 @@ try
         bool itemDropperDied = await KillAsync(clientA, itemDropperIndex);
         Check("[A] Mató al monstruo 'siempre dropea item'", itemDropperDied);
 
-        // IMPORTANTE: TryDropLootAsync manda 0x20 ANTES que la experiencia (0x9C) -- ver
-        // OnMonsterDeathAsync (Log.Add -> TryDropLootAsync -> ... -> GrantExperienceAsync). Como
-        // WaitForAsync descarta cualquier paquete que no matchee el head buscado, hay que esperar
-        // 0x20 PRIMERO acá o el 0x9C que viene después nunca aparece; la experiencia en sí ya está
-        // probada a fondo en la Fase 4, así que no hace falta esperarla en este bloque.
+        // IMPORTANT: TryDropLootAsync sends 0x20 BEFORE the experience (0x9C) -- see OnMonsterDeathAsync
+        // (Log.Add -> TryDropLootAsync -> ... -> GrantExperienceAsync). Since WaitForAsync discards any packet
+        // that does not match the head sought, 0x20 has to be waited for FIRST here or the 0x9C that comes
+        // afterwards never shows up; the experience itself is already thoroughly tested in Phase 4, so there is
+        // no need to wait for it in this block.
         var appearA = await clientA.WaitForAsync(0x20, TimeSpan.FromSeconds(5));
-        // C2:20 sin sub -- [4]=count [5]=indexHi(|0x80 si recién cayó) [6]=indexLo [7]=x [8]=y [9..13]=ItemInfo[0..4].
+        // C2:20 without sub -- [4]=count [5]=indexHi(|0x80 if just fell) [6]=indexLo [7]=x [8]=y [9..13]=ItemInfo[0..4].
         byte appearCount = appearA.Full[4];
         int groundIndex = ((appearA.Full[5] & 0x7F) << 8) | appearA.Full[6];
         bool justDropped = (appearA.Full[5] & 0x80) != 0;
@@ -516,7 +509,7 @@ try
         Check("[A] Segundo intento sobre el mismo slot da 0xFF (ya no hay nada ahí)", getAgainResult == 0xFF, $"(result={getAgainResult})");
 
         Console.WriteLine("\n=== Items de piso: A tira el item recién recogido al piso de nuevo ===");
-        await clientA.SendItemDropAsync(ax, ay, getOkResult); // getOkResult = slot de inventario donde quedó el item recogido
+        await clientA.SendItemDropAsync(ax, ay, getOkResult); // getOkResult = inventory slot where the picked-up item ended up
         var dropPkt = await clientA.WaitForAsync(0x23, TimeSpan.FromSeconds(5));
         byte dropResult = dropPkt.Full[3];
         Check("[A] ITEM_DROP_SEND result=1 (tiró el item de vuelta al piso)", dropResult == 1, $"(result={dropResult})");
@@ -578,9 +571,9 @@ try
 
     Console.WriteLine("\n=== Fase 5: party (invitar/aceptar/lista/chat de grupo/reparto de exp/salir) ===");
 
-    // Índices reales asignados por el servidor -- extraídos de los paquetes de aparición por
-    // viewport (0x12) que ya se recibieron más arriba: PMSG_VIEWPORT_SEND (sin sub-código) tiene
-    // header C2 de 4 bytes + count(1) + primera entrada empieza con indexHi/indexLo.
+    // Real indices assigned by the server -- extracted from the viewport appearance packets (0x12) already
+    // received above: PMSG_VIEWPORT_SEND (without sub-code) has a 4-byte C2 header + count(1) + the first entry
+    // starts with indexHi/indexLo.
     int bIndexSeenByA = (appearInA.Full[5] << 8) | appearInA.Full[6];
     int aIndexSeenByB = (appearInB.Full[5] << 8) | appearInB.Full[6];
 
@@ -600,8 +593,8 @@ try
     byte partyListCountB = partyListInB.Full[4];
     Check("[B] Recibió PARTY_LIST_SEND tras la aceptación (2 miembros)", partyListCountB == 2, $"(count={partyListCountB})");
 
-    // Regresión de layout: PMSG_PARTY_LIST mide sizeof()=24, no 22 -- lleva 2 bytes de relleno tras
-    // y (offset 14) para alinear el DWORD CurLife. Header C1 (3) + result (1) + count (1) + N*24.
+    // Layout regression: PMSG_PARTY_LIST is sizeof()=24, not 22 -- it carries 2 padding bytes after y (offset
+    // 14) to align the DWORD CurLife. C1 header (3) + result (1) + count (1) + N*24.
     const int partyMemberStride = 24;
     int partyBody = partyListInA.Full.Length - 5;
     Check("[A] PMSG_PARTY_LIST respeta el stride real de 24 bytes",
@@ -630,9 +623,8 @@ try
 
         try
         {
-            // Mismo cuidado que en el bucle de la fase 4: el 0x17 también avisa la
-            // muerte de un JUGADOR, así que hay que confirmar que el índice que
-            // murió es el del monstruo antes de darlo por muerto.
+            // Same care as in the phase 4 loop: the 0x17 also announces the death of a PLAYER, so it has to be
+            // confirmed that the index that died is the monster's before considering it dead.
             var diePkt = await clientA.WaitForAsync(0x17, TimeSpan.FromMilliseconds(300));
             int deadIndex = (diePkt.Full[3] << 8) | diePkt.Full[4];
 
@@ -660,7 +652,7 @@ try
 
     Console.WriteLine("\n=== Fase 5: B sale del grupo -- se disuelve (quedaban 2) y A recibe PARTY_DEL_MEMBER_SEND ===");
 
-    await clientB.SendPartyDelMemberAsync(1); // B es slot 1 (A, el líder que invitó, quedó en slot 0)
+    await clientB.SendPartyDelMemberAsync(1); // B is slot 1 (A, the leader who invited, stayed in slot 0)
 
     var delMemberInB = await clientB.WaitForAsync(0x43, TimeSpan.FromSeconds(5));
     Check("[B] Recibió PARTY_DEL_MEMBER_SEND al salir", delMemberInB.Full.Length >= 3);
@@ -757,9 +749,9 @@ try
         Check("[D] Recibió TELEPORT_SEND a Devil Square (mapa 9)", dsMap == 9, $"(Map={dsMap} X={dsX} Y={dsY})");
 
         Console.WriteLine("\n=== Fase 6: esperando STAND->START real y la aparición de un monstruo de evento (0x13) ===");
-        // La ventana de entrada abre bastante antes de que arranque STAND (ver 'ds forcestart' en el
-        // script de prueba) -- desde acá puede faltar casi toda la duración real de STAND
-        // (NotifyMinutes) antes de que START recién spawnee la etapa 0.
+        // The entry window opens quite a while before STAND starts (see 'ds forcestart' in the test script) --
+        // from here almost the whole real duration of STAND (NotifyMinutes) may remain before START only spawns
+        // stage 0.
         var monsterAppear = await clientD.WaitForAsync(0x13, TimeSpan.FromSeconds(100));
         int dsMonsterIndex = ((monsterAppear.Full[5] & 0x7F) << 8) | monsterAppear.Full[6];
         byte monX = monsterAppear.Full[11];

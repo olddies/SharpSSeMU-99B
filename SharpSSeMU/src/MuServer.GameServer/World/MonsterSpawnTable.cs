@@ -3,19 +3,16 @@ using MuServer.Shared.Scripting;
 
 namespace MuServer.GameServer.World;
 
-/// <summary>
-/// Puerto de MONSTER_SET_BASE_INFO (MonsterSetBase.h:9-20) -- una fila de la tabla de spawn de un
-/// mapa. <see cref="Type"/> es la sección del archivo (0=punto fijo, 1=caja+cantidad, 2=punto fijo
-/// con jitter ±3, ya resuelto a X/Y en <see cref="Load"/>). Los tipos 3/4 (variantes de NPC, ver
-/// MonsterSetBase.cpp) se leen pero no se instancian (MonsterRegistry.SpawnAll solo arma monstruos
-/// de combate reales, MONSTER_INFO.Type==0).
-/// </summary>
+/// <summary> Port of MONSTER_SET_BASE_INFO (MonsterSetBase.h:9-20) -- a row of a map's spawn table. <see
+/// cref="Type"/> is the file's section (0=fixed point, 1=box+count, 2=fixed point with ±3 jitter, already
+/// resolved to X/Y in <see cref="Load"/>). Types 3/4 (NPC variants, see MonsterSetBase.cpp) are read but not
+/// instantiated (MonsterRegistry.SpawnAll only builds real combat monsters, MONSTER_INFO.Type==0). </summary>
 public sealed class MonsterSpawnEntry
 {
     public required int Type { get; init; }
     public required int MonsterClass { get; init; }
     public required int Map { get; init; }
-    public int Dis { get; init; } // radio de patrulla/leash -- IA no portada todavía en esta fase (Fase 4 primera pasada = monstruos estáticos), se guarda para cuando se agregue.
+    public int Dis { get; init; } // patrol/leash radius -- AI not ported yet in this phase (Phase 4 first pass = static monsters), it is stored for when it is added.
     public int X { get; init; }
     public int Y { get; init; }
     public int TX { get; init; } // esquina opuesta de la caja (Type==1)
@@ -23,12 +20,10 @@ public sealed class MonsterSpawnEntry
     public int Dir { get; init; }
 }
 
-/// <summary>
-/// Puerto de CMonsterSetBase::LoadSpawn/GetPosition/GetBoxPosition (MonsterSetBase.cpp:28-217) --
-/// lee Data/Monster/Spawn/"NNN - NombreDeMapa.txt" (el número de mapa sale del nombre del archivo,
-/// no de adentro). Formato MemScript: cada archivo tiene una o más secciones (encabezado = número de
-/// tipo), cada sección termina en "end", el archivo entero termina en EOF.
-/// </summary>
+/// <summary> Port of CMonsterSetBase::LoadSpawn/GetPosition/GetBoxPosition (MonsterSetBase.cpp:28-217) -- reads
+/// Data/Monster/Spawn/"NNN - MapName.txt" (the map number comes from the file name, not from inside). MemScript
+/// format: each file has one or more sections (header = type number), each section ends in "end", the whole
+/// file ends at EOF. </summary>
 public static class MonsterSpawnTable
 {
     public static List<MonsterSpawnEntry> LoadAll(string spawnDir)
@@ -47,8 +42,8 @@ public static class MonsterSpawnTable
         {
             var name = Path.GetFileNameWithoutExtension(file);
 
-            // Puerto de MonsterSetBase.cpp:50-52: los primeros 3 chars deben ser dígitos, seguidos
-            // de " - " -- el número de mapa es el prefijo, el resto del nombre es solo descriptivo.
+            // Port of MonsterSetBase.cpp:50-52: the first 3 chars must be digits, followed by " - " -- the map
+            // number is the prefix, the rest of the name is only descriptive.
             if (name.Length < 6 || !char.IsDigit(name[0]) || !char.IsDigit(name[1]) || !char.IsDigit(name[2])
                 || name[3] != ' ' || name[4] != '-' || name[5] != ' ')
             {
@@ -151,12 +146,12 @@ public static class MonsterSpawnTable
 
                     case 4:
                     {
-                        // Puerto de MonsterSetBase.cpp Type==4 ("posición de evento", MonsterSetBase.h)
-                        // -- mismo layout de columnas que el tipo 0 (radio, x, y, dirección), pero estas
-                        // filas NO se instancian al arrancar el servidor: son el POOL de posiciones
-                        // candidatas del que CDevilSquare::SetMonster (y equivalentes de Blood/Chaos
-                        // Castle) elige al azar para spawnear monstruos de evento en runtime -- ver
-                        // World/DevilSquare.cs (Fase 6, primera pasada) y Monster.SpawnEntry.Type==4.
+                        // Port of MonsterSetBase.cpp Type==4 ("event position", MonsterSetBase.h) -- same
+                        // column layout as type 0 (radius, x, y, direction), but these rows are NOT
+                        // instantiated on starting the server: they are the POOL of candidate positions from
+                        // which CDevilSquare::SetMonster (and Blood/Chaos Castle equivalents) picks at random
+                        // to spawn event monsters at runtime -- see World/DevilSquare.cs (Phase 6, first pass)
+                        // and Monster.SpawnEntry.Type==4.
                         int dis = script.GetAsNumber();
                         int x = script.GetAsNumber();
                         int y = script.GetAsNumber();
@@ -167,9 +162,9 @@ public static class MonsterSpawnTable
                     }
 
                     default:
-                        // Secciones 3/4 (variantes de NPC) u otras no reconocidas: se descartan los
-                        // tokens restantes de la fila token por token (sin asumir cantidad de campos)
-                        // para no desincronizar el resto del archivo.
+                        // Sections 3/4 (NPC variants) or other unrecognised ones: the remaining tokens of the
+                        // row are discarded token by token (without assuming a number of fields) so as not to
+                        // desynchronise the rest of the file.
                         while (true)
                         {
                             var s = script.GetAsString();
@@ -186,10 +181,10 @@ public static class MonsterSpawnTable
         }
     }
 
-    /// <summary>Puerto de CMonsterSetBase::GetPosition/GetBoxPosition (MonsterSetBase.cpp:168-217)
-    /// -- para spawns de tipo caja (Type==1), intenta hasta 100 puntos al azar dentro del rectángulo
-    /// y rechaza tiles con atributo bloqueado (1=zona segura, 4/8=bloqueo); si todos fallan, cae al
-    /// punto inicial de la caja (mejor que no spawnear nada).</summary>
+    /// <summary>Port of CMonsterSetBase::GetPosition/GetBoxPosition (MonsterSetBase.cpp:168-217) -- for
+    /// box-type spawns (Type==1), it tries up to 100 random points inside the rectangle and rejects tiles with
+    /// a blocked attribute (1=safe zone, 4/8=block); if all fail, it falls back to the box's starting point
+    /// (better than not spawning anything).</summary>
     public static (int X, int Y) ResolvePosition(MonsterSpawnEntry entry, GameMap? map)
     {
         if (entry.Type != 1)

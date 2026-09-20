@@ -530,7 +530,7 @@ bool SEASON3B::CNewUIMoveCommandWindow::BtnProcess()
                             SaveOptions();
                         }
 
-                        // 0.99B no tiene la clave anti-trampa del dialecto posterior: sólo el índice.
+                        // 0.99B does not have the later dialect's anti-cheat key: only the index.
                         Mu099B::SendTeleportMove(*SocketClient, (*li)->_ReqInfo.index);
 
                         g_pNewUISystem->Hide(SEASON3B::INTERFACE_MOVEMAP);

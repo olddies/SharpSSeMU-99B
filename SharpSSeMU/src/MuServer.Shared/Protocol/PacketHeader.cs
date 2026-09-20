@@ -1,17 +1,12 @@
 namespace MuServer.Shared.Protocol;
 
-/// <summary>
-/// Formato de cabecera de paquete del protocolo MU Online (idéntico al usado por
-/// PBMSG_HEAD / PWMSG_HEAD / PSBMSG_HEAD / PSWMSG_HEAD en el ConnectServer/GameServer original en C++).
-///
-///   C1 + size(1 byte)              + head(1 byte)                => "byte size" sin cifrar
-///   C2 + size(2 bytes, big-endian) + head(1 byte)                => "word size" sin cifrar
-///   C3 + size(1 byte)              + head(1 byte)                => "byte size" cifrado (XOR/no usado por ConnectServer)
-///   C4 + size(2 bytes, big-endian) + head(1 byte)                => "word size" cifrado
-///
-/// Las variantes "Sub" agregan un byte adicional de sub-código justo después del head
-/// (usado por ejemplo en 0xF4:0x02, 0xF4:0x03, 0xF3:0xEA).
-/// </summary>
+/// <summary> Packet header format of the MU Online protocol (identical to the one used by PBMSG_HEAD /
+/// PWMSG_HEAD / PSBMSG_HEAD / PSWMSG_HEAD in the original C++ ConnectServer/GameServer). C1 + size(1 byte)
+/// + head(1 byte)                => unencrypted "byte size" C2 + size(2 bytes, big-endian) + head(1 byte)
+/// => unencrypted "word size" C3 + size(1 byte)              + head(1 byte)                => encrypted "byte
+/// size" (XOR/not used by ConnectServer) C4 + size(2 bytes, big-endian) + head(1 byte)                =>
+/// encrypted "word size" The "Sub" variants add an extra sub-code byte right after the head (used for example
+/// in 0xF4:0x02, 0xF4:0x03, 0xF3:0xEA). </summary>
 public static class PacketType
 {
     public const byte C1 = 0xC1;
@@ -22,7 +17,7 @@ public static class PacketType
 
 public static class PacketBuilder
 {
-    /// <summary>C1 head [payload] — cabecera de 1 byte de tamaño.</summary>
+    /// <summary>C1 head [payload] — header with a 1-byte size.</summary>
     public static byte[] BuildC1(byte head, ReadOnlySpan<byte> payload)
     {
         var buff = new byte[3 + payload.Length];
@@ -33,7 +28,7 @@ public static class PacketBuilder
         return buff;
     }
 
-    /// <summary>C1 head subh [payload] — variante con sub-código.</summary>
+    /// <summary>C1 head subh [payload] — variant with sub-code.</summary>
     public static byte[] BuildC1Sub(byte head, byte subh, ReadOnlySpan<byte> payload)
     {
         var buff = new byte[4 + payload.Length];
@@ -45,7 +40,7 @@ public static class PacketBuilder
         return buff;
     }
 
-    /// <summary>C2 head [payload] — cabecera de 2 bytes de tamaño (big-endian, high byte primero).</summary>
+    /// <summary>C2 head [payload] — header with a 2-byte size (big-endian, high byte first).</summary>
     public static byte[] BuildC2(byte head, ReadOnlySpan<byte> payload)
     {
         var buff = new byte[4 + payload.Length];
@@ -58,7 +53,7 @@ public static class PacketBuilder
         return buff;
     }
 
-    /// <summary>C2 head subh [payload] — variante con sub-código y tamaño de 2 bytes.</summary>
+    /// <summary>C2 head subh [payload] — variant with sub-code and 2-byte size.</summary>
     public static byte[] BuildC2Sub(byte head, byte subh, ReadOnlySpan<byte> payload)
     {
         var buff = new byte[5 + payload.Length];
@@ -72,10 +67,8 @@ public static class PacketBuilder
         return buff;
     }
 
-    /// <summary>
-    /// Empaqueta un string de tamaño fijo (padded con ceros), tal como los char[] fijos
-    /// usados en los structs C++ (ej. ServerAddress[16], ServerName[32]).
-    /// </summary>
+    /// <summary> Packs a fixed-size string (zero-padded), like the fixed char[] used in the C++ structs (e.g.
+    /// ServerAddress[16], ServerName[32]). </summary>
     public static byte[] FixedString(string? value, int length)
     {
         var buff = new byte[length];
@@ -88,11 +81,9 @@ public static class PacketBuilder
         return buff;
     }
 
-    /// <summary>
-    /// Lee un char[] fijo estilo C (terminado en el primer byte 0x00, o todo el rango si no hay
-    /// terminador) y lo decodifica como Latin1/ANSI — tal como recibe el cliente/GameServer los campos
-    /// account[11], password[11], ServerName[50], etc.
-    /// </summary>
+    /// <summary> Reads a fixed C-style char[] (terminated at the first 0x00 byte, or the whole range if there
+    /// is no terminator) and decodes it as Latin1/ANSI — just as the client/GameServer receive the account[11],
+    /// password[11], ServerName[50], etc. fields. </summary>
     public static string ReadFixedString(ReadOnlySpan<byte> source)
     {
         var nullIndex = source.IndexOf((byte)0);

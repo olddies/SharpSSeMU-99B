@@ -26,8 +26,8 @@ namespace Mu099B
 namespace
 {
 
-/// Tamaño de lectura por llamada. Lo que entre se le pasa entero al framer, que
-/// ya sabe acumular paquetes partidos.
+/// Read size per call. Whatever comes in is handed whole to the framer, which already knows how to accumulate
+/// split packets.
 constexpr size_t ReceiveChunk = 4096;
 
 bool WouldBlock()
@@ -60,9 +60,8 @@ bool SetNonBlocking(SocketHandle handle)
 }
 
 #ifdef _WIN32
-/// Winsock necesita inicializarse una vez por proceso. El cliente ya lo hace
-/// para su propia red, pero WSAStartup lleva cuenta de referencias, así que
-/// llamarlo de nuevo es correcto y evita depender del orden de arranque.
+/// Winsock has to be initialised once per process. The client already does it for its own networking, but
+/// WSAStartup is reference-counted, so calling it again is correct and avoids depending on the start-up order.
 struct WinsockScope
 {
     WinsockScope()
@@ -159,9 +158,8 @@ bool GameSocket::Connect(const std::string& host, uint16_t port, const StreamCip
             continue;
         }
 
-        // Se conecta en modo bloqueante y recién después se pasa a no
-        // bloqueante: así el resultado de la conexión es inmediato y no hay que
-        // andar sondeando un connect en progreso.
+        // It connects in blocking mode and only afterwards switches to non-blocking: that way the connection
+        // result is immediate and there is no need to poll a connect in progress.
         if (::connect(handle, it->ai_addr, static_cast<int>(it->ai_addrlen)) == 0)
         {
             break;
@@ -183,7 +181,7 @@ bool GameSocket::Connect(const std::string& host, uint16_t port, const StreamCip
         return Fail("no se pudo poner el socket en modo no bloqueante");
     }
 
-    // Sin Nagle: los paquetes del protocolo son chicos y se notaría como lag.
+    // No Nagle: the protocol's packets are small and it would be noticed as lag.
     int noDelay = 1;
     setsockopt(handle, IPPROTO_TCP, TCP_NODELAY, reinterpret_cast<const char*>(&noDelay),
                sizeof(noDelay));
@@ -221,9 +219,8 @@ bool GameSocket::Send(const uint8_t* logicalPacket, size_t length)
 
         if (written < 0 && WouldBlock())
         {
-            // Buffer de salida lleno. Es raro con paquetes de este tamaño; se
-            // reintenta en vez de perder el paquete a medio escribir, que
-            // dejaría el flujo del servidor desincronizado.
+            // Output buffer full. It is rare with packets of this size; it retries instead of losing a
+            // half-written packet, which would leave the server's stream out of sync.
             continue;
         }
 
@@ -267,7 +264,7 @@ bool GameSocket::Poll(std::vector<DecodedPacket>& packets)
 
         if (WouldBlock())
         {
-            return true;  // no hay más datos por ahora
+            return true;  // no more data for now
         }
 
         Close();

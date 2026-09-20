@@ -3,17 +3,14 @@ using MuServer.Shared.Scripting;
 
 namespace MuServer.GameServer.World;
 
-/// <summary>
-/// Puerto de "tienda de NPC" (ShopManager.h/.cpp + Shop.h/.cpp) -- primera pasada, alcance mínimo
-/// para comprar/vender en un NPC fijo. Sin Trade (jugador-a-jugador), Warehouse ni Personal Shop
-/// todavía (mismo criterio de alcance que el resto del proyecto -- ver README).
-///
-/// Un "shop" en el original es SIEMPRE dueño de un NPC específico, identificado por su índice de
-/// clase de monstruo (columna NPCIndex de ShopManager.txt, que coincide con el índice de clase en
-/// MonsterList.txt para esa fila de NPC) -- ese mismo número se usa como <see cref="ShopManagerTable.GetShopNumber"/>
-/// (el original resuelve por clase+mapa+posición porque un NPC puede tener el shop reasignado por
-/// Lua en runtime; acá, sin Lua portado, el índice de clase alcanza y es 1:1 con el shop).
-/// </summary>
+/// <summary> Port of the "NPC shop" (ShopManager.h/.cpp + Shop.h/.cpp) -- first pass, minimal scope to buy/sell
+/// at a fixed NPC. Without Trade (player-to-player), Warehouse nor Personal Shop yet (same scope criterion as
+/// the rest of the project -- see README). A "shop" in the original is ALWAYS owned by a specific NPC,
+/// identified by its monster class index (NPCIndex column of ShopManager.txt, which matches the class index in
+/// MonsterList.txt for that NPC row) -- that same number is used as <see
+/// cref="ShopManagerTable.GetShopNumber"/> (the original resolves by class+map+position because an NPC can have
+/// its shop reassigned by Lua at runtime; here, without Lua ported, the class index is enough and is 1:1 with
+/// the shop). </summary>
 public sealed class ShopInfo
 {
     public required int NpcClass { get; init; } // = ShopNumber en este puerto (ver comentario de arriba)
@@ -27,21 +24,18 @@ public sealed class ShopInfo
     public const int Rows = 15;
     public const int Size = Columns * Rows; // 120, SHOP_SIZE del original
 
-    /// <summary>Grilla de slots ya empaquetada (ver <see cref="ShopManagerTable.PackItems"/>) -- null =
-    /// slot vacío/ocupado por la esquina superior-izquierda de otro item más grande.</summary>
+    /// <summary>Already packed slot grid (see <see cref="ShopManagerTable.PackItems"/>) -- null = empty
+    /// slot/occupied by the top-left corner of another larger item.</summary>
     public Item?[] Slots { get; } = new Item?[Size];
 
     public int ItemCount => Slots.Count(s => s != null);
 }
 
-/// <summary>
-/// Puerto de CShopManager::Load/ReloadShop (ShopManager.cpp:29-150) + CShop::Load/InsertItem
-/// (Shop.cpp:35-95) -- carga ShopManager.txt (lista plana de NPCs-tienda) y, para cada uno, el
-/// archivo de items de Data/Shop/&lt;ShopPath&gt;.txt, empaquetándolos en una grilla de 8x15 con el
-/// mismo algoritmo de primer-hueco-libre (top-left first-fit) que usa <c>ShopRectCheck</c> del
-/// original, basado en Width/Height de <see cref="ItemBalanceTable"/> (ya cargada por la Fase 4
-/// segunda pasada, balance real de items).
-/// </summary>
+/// <summary> Port of CShopManager::Load/ReloadShop (ShopManager.cpp:29-150) + CShop::Load/InsertItem
+/// (Shop.cpp:35-95) -- loads ShopManager.txt (flat list of shop NPCs) and, for each one, the item file
+/// Data/Shop/&lt;ShopPath&gt;.txt, packing them into an 8x15 grid with the same first-free-slot algorithm
+/// (top-left first-fit) that the original's <c>ShopRectCheck</c> uses, based on the Width/Height of <see
+/// cref="ItemBalanceTable"/> (already loaded by Phase 4 second pass, real item balance). </summary>
 public sealed class ShopManagerTable
 {
     private readonly Dictionary<int, ShopInfo> _byNpcClass = new();
@@ -50,9 +44,9 @@ public sealed class ShopManagerTable
 
     public IEnumerable<ShopInfo> All => _byNpcClass.Values;
 
-    /// <summary>Puerto de CMonsterSetBase::LoadSpawn -- igual que los archivos de spawn de monstruos,
-    /// aunque acá <paramref name="shopManagerPath"/> es un único archivo plano (no uno por mapa), así
-    /// que no hace falta escanear un directorio.</summary>
+    /// <summary>Port of CMonsterSetBase::LoadSpawn -- the same as the monster spawn files, although here
+    /// <paramref name="shopManagerPath"/> is a single flat file (not one per map), so there is no need to scan
+    /// a directory.</summary>
     public int Load(string shopManagerPath, string shopDataDir, ItemBalanceTable items)
     {
         var script = new MemScript();
@@ -80,11 +74,11 @@ public sealed class ShopManagerTable
             int x = script.GetAsNumber();
             int y = script.GetAsNumber();
             int dir = script.GetAsNumber();
-            script.GetAsNumber(); // AL0 -- restricción de visibilidad del NPC por nivel de cuenta, no portada
+            script.GetAsNumber(); // AL0 -- NPC visibility restriction by account level, not ported
             script.GetAsNumber(); // AL1
             script.GetAsNumber(); // AL2
             script.GetAsNumber(); // AL3
-            script.GetAsNumber(); // GMLevel ('*' = -1 = sin restricción)
+            script.GetAsNumber(); // GMLevel ('*' = -1 = no restriction)
             string shopPath = script.GetAsString();
 
             var shop = new ShopInfo { NpcClass = npcClass, Map = map, X = x, Y = y, Dir = dir, Name = shopPath };
@@ -99,10 +93,10 @@ public sealed class ShopManagerTable
         return _byNpcClass.Count;
     }
 
-    /// <summary>Puerto de CShop::Load (Shop.cpp:35-95) -- ItemIndex viene como "sección,subíndice" SIN
-    /// espacio alrededor de la coma (ej. "14,000"): el tokenizer (MemScript.GetTokenNumber) no
-    /// reconoce ',' como parte de un número, así que corta en "14" y deja la coma como próximo
-    /// carácter -- se la descarta con un GetToken() extra antes de leer el subíndice.</summary>
+    /// <summary>Port of CShop::Load (Shop.cpp:35-95) -- ItemIndex comes as "section,sub-index" WITHOUT a space
+    /// around the comma (e.g. "14,000"): the tokenizer (MemScript.GetTokenNumber) does not recognise ',' as
+    /// part of a number, so it cuts at "14" and leaves the comma as the next character -- it is discarded with
+    /// an extra GetToken() before reading the sub-index.</summary>
     private static List<Item> LoadShopItems(string path)
     {
         var result = new List<Item>();
@@ -127,7 +121,7 @@ public sealed class ShopManagerTable
             }
 
             int section = script.GetNumber();
-            script.GetToken(); // descarta la ',' entre sección y subíndice
+            script.GetToken(); // discards the ',' between section and sub-index
             int sub = script.GetAsNumber();
             int level = script.GetAsNumber();
             int durability = script.GetAsNumber();
@@ -144,9 +138,9 @@ public sealed class ShopManagerTable
                 option3 |= 1;
             }
 
-            // Excelente: bits 0-5 del archivo -> bits 0-1 en Option3, bit ">3" (o sea, cualquier bit
-            // >= 4to) también va a Option3 (ver Item.ToWireBytes) -- puerto simplificado de
-            // CItem::SetExcellentOption, alcanza para representar cualquier combinación en el wire.
+            // Excellent: bits 0-5 of the file -> bits 0-1 in Option3, bit ">3" (that is, any bit >= 4th) also
+            // goes to Option3 (see Item.ToWireBytes) -- simplified port of CItem::SetExcellentOption, enough to
+            // represent any combination on the wire.
             option3 |= (byte)(excellent & 3);
 
             result.Add(new Item
@@ -165,10 +159,10 @@ public sealed class ShopManagerTable
         return result;
     }
 
-    /// <summary>Puerto de ShopRectCheck/ShopItemSet (Shop.cpp) -- primer-hueco-libre escaneando la
-    /// grilla en orden de lectura (fila por fila, izquierda a derecha), igual que el original. Un
-    /// item que no entra en ningún hueco libre se descarta (mismo comportamiento que el original
-    /// cuando el archivo de tienda tiene más filas de las que caben en 8x15).</summary>
+    /// <summary>Port of ShopRectCheck/ShopItemSet (Shop.cpp) -- first-free-slot scanning the grid in reading
+    /// order (row by row, left to right), like the original. An item that does not fit in any free slot is
+    /// discarded (the same behaviour as the original when the shop file has more rows than fit in
+    /// 8x15).</summary>
     private static void PackItems(ShopInfo shop, List<Item> itemsToPlace, ItemBalanceTable balance)
     {
         foreach (var item in itemsToPlace)
@@ -200,8 +194,8 @@ public sealed class ShopManagerTable
 
                     if (occupiedSlot < ShopInfo.Size)
                     {
-                        // Marcador de "ocupado por otro item" -- Durability=0/Index=-2 para no
-                        // confundirse con un slot realmente vacío (Index=-1) ni con un item real.
+                        // "Occupied by another item" marker -- Durability=0/Index=-2 so as not to be confused
+                        // with a really empty slot (Index=-1) nor with a real item.
                         shop.Slots[occupiedSlot] = OccupiedMarker;
                     }
                 }

@@ -8,8 +8,7 @@ namespace Mu099B
 namespace
 {
 
-/// En los encabezados de 2 bytes el tamaño va big-endian: byte alto primero
-/// (SET_NUMBERHB / SET_NUMBERLB en el original).
+/// In 2-byte headers the size is big-endian: high byte first (SET_NUMBERHB / SET_NUMBERLB in the original).
 void WriteWordSize(BYTE* field, WORD size)
 {
     field[0] = static_cast<BYTE>((size >> 8) & 0xFF);
@@ -83,9 +82,8 @@ namespace
 /// Tabla del XOR de argumentos (PacketArgumentDecrypt, Util.cpp).
 constexpr BYTE ArgumentXor[3] = {0xFC, 0xCF, 0xAB};
 
-/// Copia un texto en un campo de largo fijo, recortando y rellenando con ceros.
-/// El servidor lee estos campos como cadenas de largo fijo, así que lo que
-/// sobre tiene que quedar en cero y no con basura de la pila.
+/// Copies a text into a fixed-length field, trimming and padding with zeros. The server reads these fields as
+/// fixed-length strings, so what is left over has to be zero and not stack garbage.
 void WriteFixedString(char* field, size_t fieldSize, const char* text)
 {
     std::memset(field, 0, fieldSize);
@@ -176,11 +174,11 @@ MoveRequest BuildMoveRequest(BYTE x, BYTE y, BYTE direction, const BYTE* steps, 
     packet->x = x;
     packet->y = y;
 
-    // path[0]: dirección inicial en el nibble alto, cantidad de pasos en el bajo.
+    // path[0]: initial direction in the high nibble, number of steps in the low one.
     packet->path[0] = static_cast<BYTE>(((direction & 0x0F) << 4) | (stepCount & 0x0F));
 
-    // A partir de ahí, dos direcciones por byte. El paso n (contando desde 1)
-    // va en el byte (n+1)/2: nibble alto si n es impar, bajo si es par.
+    // From there on, two directions per byte. Step n (counting from 1) goes in byte (n+1)/2: high nibble if n
+    // is odd, low if even.
     for (size_t n = 1; n <= stepCount; ++n)
     {
         const size_t byteIndex = (n + 1) / 2;
@@ -196,7 +194,7 @@ MoveRequest BuildMoveRequest(BYTE x, BYTE y, BYTE direction, const BYTE* steps, 
         }
     }
 
-    // Sólo se manda hasta el último byte de camino realmente usado.
+    // Only up to the last actually used path byte is sent.
     const size_t pathBytes = 1 + ((stepCount + 1) / 2);
     const auto length = static_cast<BYTE>(offsetof(PMSG_MOVE_RECV, path) + pathBytes);
     SetHeader(packet->header, PMSG_MOVE_RECV::kHead, length);
@@ -235,7 +233,7 @@ PMSG_ATTACK_RECV BuildAttackRequest(WORD targetIndex, BYTE action, BYTE directio
 {
     PMSG_ATTACK_RECV packet{};
     SetHeader(packet.header, PMSG_ATTACK_RECV::kHead, sizeof(packet));
-    // Los índices de objeto van big-endian en todo el protocolo.
+    // Object indices are big-endian throughout the protocol.
     packet.index[0] = static_cast<BYTE>((targetIndex >> 8) & 0xFF);
     packet.index[1] = static_cast<BYTE>(targetIndex & 0xFF);
     packet.action = action;
@@ -257,7 +255,7 @@ PMSG_ACTION_RECV BuildActionRequest(BYTE direction, BYTE action, WORD targetInde
 namespace
 {
 
-/// Los índices de objeto viajan big-endian en todo el protocolo.
+/// Object indices travel big-endian throughout the protocol.
 void WriteObjectIndex(BYTE* field, WORD index)
 {
     field[0] = static_cast<BYTE>((index >> 8) & 0xFF);
@@ -357,7 +355,7 @@ void WriteItemInfo(BYTE* dst, const ItemWire& item)
 
     dst[2] = item.Durability;
 
-    // El bit 8 del índice va acá, no en dst[0].
+    // Bit 8 of the index goes here, not in dst[0].
     dst[3] = static_cast<BYTE>(((item.Index & 256) >> 1) | (item.Option3 > 3 ? 64 : 0) |
                                item.NewOption);
 
@@ -374,8 +372,8 @@ PMSG_NPC_TALK_RECV BuildNpcTalkRequest(WORD npcIndex)
 
 PBMSG_HEAD BuildNpcCloseRequest()
 {
-    // Sin cuerpo: al servidor le alcanza con el opcode. El head va a mano
-    // porque no hay struct propio para un paquete que es sólo cabecera.
+    // No body: the opcode is enough for the server. The head is written by hand because there is no struct of
+    // its own for a packet that is just a header.
     constexpr BYTE CloseNpcHead = 0x31;
 
     PBMSG_HEAD header{};
@@ -432,9 +430,8 @@ PMSG_LIVE_CLIENT_RECV BuildLiveClientRequest(DWORD tickCount, WORD physicalSpeed
 namespace
 {
 
-/// Escribe un DWORD en big-endian. Varios campos declarados como DWORD viajan
-/// así, armados a mano con SET_NUMBER*: asignarlos como enteros nativos los
-/// invierte y el servidor lee otra cifra.
+/// Writes a big-endian DWORD. Several fields declared as DWORD travel this way, built by hand with SET_NUMBER*:
+/// assigning them as native integers reverses them and the server reads another figure.
 void WriteBigEndianDword(BYTE* dst, DWORD value)
 {
     dst[0] = static_cast<BYTE>((value >> 24) & 0xFF);
@@ -461,11 +458,11 @@ PMSG_TRADE_RESPONSE_RECV BuildTradeResponse(bool accepted)
     return packet;
 }
 
-// El paquete se arma byte a byte en vez de con el struct generado porque el DWORD de money queda
-// alineado a 4 en memoria (sizeof(PMSG_TRADE_MONEY_RECV) == 8) pero viaja pegado al header, sin ese
-// relleno. El head sí sale del struct generado: estaba escrito a mano como 0x3B --el valor del
-// comentario equivocado de Trade.h del emulador-- y el real es 0x3A, que es el que despacha
-// Protocol.cpp y el que genera protogen.
+// The packet is built byte by byte instead of with the generated struct because the money DWORD is aligned to 4
+// in memory (sizeof(PMSG_TRADE_MONEY_RECV) == 8) but travels right after the header, without that padding. The
+// head does come from the generated struct: it was hand-written as 0x3B --the value of the emulator's wrong
+// Trade.h comment-- and the real one is 0x3A, which is what Protocol.cpp dispatches and what protogen
+// generates.
 TradeMoneyRequest BuildTradeMoneyRequest(DWORD money)
 {
     TradeMoneyRequest request{};
@@ -499,8 +496,7 @@ PMSG_WAREHOUSE_MONEY_RECV BuildWarehouseMoneyRequest(BYTE type, DWORD money)
     SetHeader(packet.header, PMSG_WAREHOUSE_MONEY_RECV::kHead, sizeof(packet));
     packet.type = type;
 
-    // El campo está declarado DWORD pero se llena por bytes: el servidor lo lee
-    // en big-endian.
+    // The field is declared DWORD but filled byte by byte: the server reads it big-endian.
     WriteBigEndianDword(reinterpret_cast<BYTE*>(&packet.money), money);
     return packet;
 }
@@ -533,8 +529,8 @@ MultiSkillRequest BuildMultiSkillRequest(BYTE skill, BYTE x, BYTE y, BYTE serial
 
     if (targetCount > MultiSkillRequest::MaxTargets)
     {
-        // Recortar es preferible a escribir fuera del buffer; el servidor
-        // tampoco procesa más de un puñado por golpe.
+        // Trimming is preferable to writing outside the buffer; the server does not process more than a handful
+        // per hit either.
         targetCount = MultiSkillRequest::MaxTargets;
     }
 
@@ -758,8 +754,8 @@ TeleportMoveRequest BuildTeleportMoveRequest(WORD moveIndex)
     request.Data[1] = static_cast<BYTE>(TeleportMoveRequest::Length);
     request.Data[2] = TeleportMoveHead;
 
-    // Los bytes 3 a 7 quedan en cero: el servidor no los mira. El número va al
-    // final, que es donde lo busca primero.
+    // Bytes 3 to 7 stay at zero: the server does not look at them. The number goes at the end, which is where
+    // it looks first.
     WriteObjectIndex(&request.Data[8], moveIndex);
     return request;
 }

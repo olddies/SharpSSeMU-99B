@@ -3,14 +3,13 @@ using System.Text;
 
 namespace MuServer.AdminPanel.Repositories;
 
-/// <summary>Lee y escribe Data/Item/Item.txt de punta a punta -- no reutiliza <c>MemScript</c> (el
-/// tokenizer que usa el GameServer para cargar <c>ItemBalanceTable</c>) porque ese tokenizer descarta
-/// los comentarios "//" al leer, y este panel necesita preservar la línea de cabecera de cada sección
-/// tal cual para no desincronizar el archivo de sus propios comentarios de columnas. El formato real
-/// (confirmado línea por línea contra Data/Item/Item.txt): 16 secciones (0-15), cada una como
-/// "&lt;número de sección&gt;" en su propia línea, seguido de una línea "//comentario de columnas",
-/// luego una fila por línea, y "end" para cerrar la sección. El layout de columnas por sección es
-/// el mismo que <c>MuServer.GameServer.World.ItemBalanceTable.Load</c> ya tiene verificado.</summary>
+/// <summary>Reads and writes Data/Item/Item.txt end to end -- it does not reuse <c>MemScript</c> (the tokenizer
+/// the GameServer uses to load <c>ItemBalanceTable</c>) because that tokenizer discards "//" comments when
+/// reading, and this panel needs to preserve each section's header line as is so as not to desynchronise the
+/// file from its own column comments. The real format (confirmed line by line against Data/Item/Item.txt): 16
+/// sections (0-15), each one as "&lt;section number&gt;" on its own line, followed by a "//column comment"
+/// line, then one row per line, and "end" to close the section. The per-section column layout is the same as
+/// the one <c>MuServer.GameServer.World.ItemBalanceTable.Load</c> already has verified.</summary>
 public static class ItemFileRepository
 {
     public static readonly IReadOnlyList<(int Section, string Label)> Sections = new List<(int, string)>
@@ -46,7 +45,7 @@ public static class ItemFileRepository
 
             i++;
 
-            // La línea de cabecera de columnas viene siempre justo después del número de sección.
+            // The column header line always comes right after the section number.
             if (i < lines.Length && lines[i].TrimStart().StartsWith("//"))
             {
                 headers[section] = lines[i];
@@ -83,9 +82,9 @@ public static class ItemFileRepository
         return (headers, rowsBySection);
     }
 
-    /// <summary>Tokeniza una fila respetando comillas -- a diferencia de Move.txt, los nombres de
-    /// item SÍ traen espacios dentro de las comillas (ej. "Sword of Assassin"), así que un
-    /// Split(' ') simple partiría el nombre en varios tokens.</summary>
+    /// <summary>Tokenises a row respecting quotes -- unlike Move.txt, item names DO carry spaces inside the
+    /// quotes (e.g. "Sword of Assassin"), so a simple Split(' ') would split the name into several
+    /// tokens.</summary>
     private static List<string> Tokenize(string line)
     {
         var tokens = new List<string>();
@@ -132,7 +131,7 @@ public static class ItemFileRepository
     {
         var t = Tokenize(line);
 
-        // "*" == -1 (sin restricción/cualquiera), igual que MemScript.GetTokenNumber.
+        // "*" == -1 (no restriction/any), the same as MemScript.GetTokenNumber.
         int Num(int idx) => idx >= t.Count ? 0 : (t[idx] == "*" ? -1 : int.Parse(t[idx], CultureInfo.InvariantCulture));
         bool Bool(int idx) => Num(idx) != 0;
 
@@ -150,7 +149,7 @@ public static class ItemFileRepository
             Name = t.Count > 8 ? t[8] : string.Empty,
         };
 
-        // A partir de acá el layout depende de la sección -- mismo switch que ItemBalanceTable.Load.
+        // From here on the layout depends on the section -- same switch as ItemBalanceTable.Load.
         switch (section)
         {
             case >= 0 and <= 5: // armas
@@ -170,7 +169,7 @@ public static class ItemFileRepository
                 ReadClass(row, t, 20);
                 break;
 
-            case 7 or 8 or 9: // casco/armadura/pantalón
+            case 7 or 8 or 9: // helm/armor/pants
                 row.Level = Num(9); row.Defense = Num(10); row.MagicDefense = Num(11); row.Durability = Num(12);
                 row.RequireLevel = Num(13); row.RequireStrength = Num(14); row.RequireDexterity = Num(15);
                 row.RequireEnergy = Num(16); row.RequireVitality = Num(17); row.RequireLeadership = Num(18);
@@ -201,7 +200,7 @@ public static class ItemFileRepository
                 ReadClass(row, t, 18);
                 break;
 
-            case 13: // mascotas/joyas de anillo-pendiente/misceláneo
+            case 13: // pets/ring-pendant jewels/miscellaneous
                 row.Level = Num(9); row.Durability = Num(10);
                 for (int n = 0; n < 7; n++)
                 {
@@ -211,7 +210,7 @@ public static class ItemFileRepository
                 ReadClass(row, t, 19);
                 break;
 
-            case 14: // joyas/pociones/consumibles -- sólo Value y Level
+            case 14: // jewels/potions/consumables -- only Value and Level
                 row.Value = Num(9); row.Level = Num(10);
                 break;
 
@@ -337,7 +336,7 @@ public static class ItemFileRepository
                         break;
                 }
 
-                // Quita el relleno final de la última columna para no dejar líneas con espacios colgando.
+                // Removes the trailing padding of the last column so as not to leave lines with dangling spaces.
                 while (sb.Length > 0 && sb[^1] == ' ')
                 {
                     sb.Length--;
@@ -349,8 +348,8 @@ public static class ItemFileRepository
             sb.AppendLine();
         }
 
-        // Escritura atómica (temp + copy) -- este archivo lo lee el GameServer al arrancar, y un
-        // Item.txt roto a medio escribir lo tumba.
+        // Atomic write (temp + copy) -- this file is read by the GameServer at start-up, and a broken
+        // half-written Item.txt takes it down.
         var tmpPath = path + ".tmp";
         File.WriteAllText(tmpPath, sb.ToString());
         File.Copy(tmpPath, path, overwrite: true);

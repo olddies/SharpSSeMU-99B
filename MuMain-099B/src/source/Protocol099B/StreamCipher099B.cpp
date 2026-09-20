@@ -6,8 +6,8 @@ namespace Mu099B
 namespace
 {
 
-/// El original reserva 32 bytes para el nombre de cliente y solo usa los tres
-/// primeros; el resto queda en cero y participa igual en la derivación.
+/// The original reserves 32 bytes for the client name and only uses the first three; the rest stays at zero and
+/// takes part in the derivation all the same.
 constexpr size_t CustomerNameSize = 32;
 constexpr char CustomerName[] = "SSE";
 
@@ -27,10 +27,9 @@ StreamCipher StreamCipher::FromServerSerial(const uint8_t* serverSerial, size_t 
         name[i] = static_cast<uint8_t>(CustomerName[i]);
     }
 
-    // El campo del serial son 17 bytes rellenados con ceros, y la derivación
-    // cicla sobre los 17 -- no sobre los caracteres que se hayan escrito en el
-    // .ini. Materializarlo acá es lo que evita que el largo del texto se cuele
-    // en la clave.
+    // The serial field is 17 bytes padded with zeros, and the derivation cycles over all 17 -- not over the
+    // characters that were written in the .ini. Materialising it here is what keeps the text length from
+    // leaking into the key.
     uint8_t serialField[ServerSerialFieldSize] = {};
     for (size_t i = 0; i < serialLength && i < ServerSerialFieldSize; ++i)
     {

@@ -122,14 +122,13 @@ CCharacterManager::~CCharacterManager() // OK
 namespace
 {
 
-/// Las cinco clases base de 0.99B en el orden en que las numera el servidor
-/// (el nibble alto del byte de clase, y el multiplicador de 32 en el CharSet).
+/// The five 0.99B base classes in the order the server numbers them (the high nibble of the class byte, and the
+/// multiplier of 32 in the CharSet).
 constexpr CLASS_TYPE k099BBaseClasses[] = {
     CLASS_WIZARD, CLASS_KNIGHT, CLASS_ELF, CLASS_DARK, CLASS_DARK_LORD,
 };
 
-/// La segunda clase de cada una. MG y DL no evolucionan en este build, así que
-/// quedan sin equivalente.
+/// The second class of each one. MG and DL do not evolve in this build, so they have no equivalent.
 constexpr CLASS_TYPE k099BEvolvedClasses[] = {
     CLASS_SOULMASTER, CLASS_BLADEKNIGHT, CLASS_MUSEELF, CLASS_UNDEFINED, CLASS_UNDEFINED,
 };
@@ -159,8 +158,8 @@ BYTE CCharacterManager::ChangeClientClassTypeToServer099BBaseClass(const CLASS_T
 {
     for (size_t base = 0; base < std::size(k099BBaseClasses); ++base)
     {
-        // La evolución se compara sólo si existe: si no, CLASS_UNDEFINED
-        // coincidiría con una clase desconocida y devolvería la base equivocada.
+        // The evolution is only compared if it exists: otherwise CLASS_UNDEFINED would match an unknown class
+        // and return the wrong base.
         if (k099BBaseClasses[base] == byClientClassType ||
             (k099BEvolvedClasses[base] != CLASS_UNDEFINED &&
              k099BEvolvedClasses[base] == byClientClassType))

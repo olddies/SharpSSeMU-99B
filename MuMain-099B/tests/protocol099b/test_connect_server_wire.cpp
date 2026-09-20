@@ -1,10 +1,7 @@
-// Verifica byte a byte los paquetes que el cliente le manda al ConnectServer
-// en el dialecto 0.99B, y el layout de los que recibe.
-//
-// Los valores esperados no son inventados: son los que acepta el ConnectServer
-// real de SharpSSeMU, confirmados corriendo la pila completa
-// (SharpSSeMU/tests/full_chain_e2e_test.py, que negocia lista de servidores y
-// resolución de IP:puerto contra los cuatro servidores levantados de verdad).
+// Verifies byte by byte the packets the client sends to the ConnectServer in the 0.99B dialect, and the layout
+// of those it receives. The expected values are not invented: they are what SharpSSeMU's real ConnectServer
+// accepts, confirmed by running the full stack (SharpSSeMU/tests/full_chain_e2e_test.py, which negotiates the
+// server list and IP:port resolution against the four servers actually running).
 
 #include <doctest.h>
 
@@ -28,17 +25,16 @@ TEST_CASE("La petición de lista de servidores es C1:F4:02 de 4 bytes")
     const Mu099B::BYTE* raw = Bytes(&packet);
 
     REQUIRE(sizeof(packet) == 4);
-    CHECK(raw[0] == 0xC1);  // plano, tamaño de 1 byte
-    CHECK(raw[1] == 0x04);  // el tamaño incluye el encabezado entero
+    CHECK(raw[0] == 0xC1);  // plain, 1-byte size
+    CHECK(raw[1] == 0x04);  // the size includes the whole header
     CHECK(raw[2] == 0xF4);
     CHECK(raw[3] == 0x02);
 }
 
 TEST_CASE("La petición de datos de servidor es C1:F4:03 con el código en 1 byte")
 {
-    // El ServerCode viaja como BYTE en este build, no como WORD: el struct del
-    // servidor (PMSG_SERVER_INFO_RECV) declara `BYTE ServerCode` y el paquete
-    // entero mide 5 bytes.
+    // The ServerCode travels as a BYTE in this build, not a WORD: the server's struct (PMSG_SERVER_INFO_RECV)
+    // declares `BYTE ServerCode` and the whole packet is 5 bytes.
     const auto packet = Mu099B::BuildServerInfoRequest(7);
     const Mu099B::BYTE* raw = Bytes(&packet);
 
@@ -52,8 +48,8 @@ TEST_CASE("La petición de datos de servidor es C1:F4:03 con el código en 1 byt
 
 TEST_CASE("Los encabezados de 2 bytes llevan el tamaño en big-endian")
 {
-    // SET_NUMBERHB/SET_NUMBERLB del original: byte alto primero. Escribirlo al
-    // revés da paquetes que el servidor descarta por tamaño imposible.
+    // SET_NUMBERHB/SET_NUMBERLB of the original: high byte first. Writing it the other way round gives packets
+    // the server discards for impossible size.
     Mu099B::PWMSG_HEAD header{};
     Mu099B::SetHeader(header, 0x12, 0x0102);
 
@@ -78,9 +74,9 @@ TEST_CASE("La variante cifrada solo cambia el byte de tipo")
 
 TEST_CASE("La lista de servidores que llega tiene contador de 1 byte y filas de 4")
 {
-    // El dialecto anterior traía el contador en 2 bytes y las filas empezaban en
-    // el offset 7. En 0.99B el contador ocupa 1 byte (offset 5) y las filas
-    // arrancan en el 6: leerlo con el layout viejo corre todo un byte.
+    // The previous dialect carried the counter in 2 bytes and the rows started at offset 7. In 0.99B the
+    // counter takes 1 byte (offset 5) and the rows start at 6: reading it with the old layout shifts everything
+    // by one byte.
     CHECK(sizeof(Mu099B::PMSG_SERVER_LIST_SEND) == 6);
     CHECK(offsetof(Mu099B::PMSG_SERVER_LIST_SEND, count) == 5);
 
@@ -101,8 +97,7 @@ TEST_CASE("La respuesta con IP y puerto pone el puerto en el offset 20")
 
 TEST_CASE("Se puede leer una lista de servidores armada como la manda el servidor")
 {
-    // Un servidor, código 0, 25% de carga: exactamente la forma que devuelve
-    // SharpSSeMU cuando full_chain le pide la lista.
+    // One server, code 0, 25% load: exactly the shape SharpSSeMU returns when full_chain asks for the list.
     Mu099B::BYTE wire[6 + 4] = {};
     auto* envelope = reinterpret_cast<Mu099B::PMSG_SERVER_LIST_SEND*>(wire);
     Mu099B::SetHeader(envelope->header, 0xF4, 0x02, static_cast<Mu099B::WORD>(sizeof(wire)));

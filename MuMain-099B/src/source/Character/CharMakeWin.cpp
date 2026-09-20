@@ -380,9 +380,9 @@ void CCharMakeWin::RequestCreateCharacter()
         rUIMng.PopUpMsgWin(MESSAGE_SPECIAL_NAME);
     else
     {
-        // 0.99B espera la clase base en el nibble alto (0, 16, 32, 48, 64), no el
-        // (clase << 2) + skin de Season 6. Con el empaquetado viejo el servidor
-        // no encuentra la fila de default_class_type y contesta "cuenta llena".
+        // 0.99B expects the base class in the high nibble (0, 16, 32, 48, 64), not the Season 6 (class << 2) +
+        // skin. With the old packing the server does not find the default_class_type row and answers "account
+        // full".
         const auto baseClass =
             gCharacterManager.ChangeClientClassTypeToServer099BBaseClass(CharacterView.Class);
         const auto classByte = Mu099B::MakeDatabaseClassByte(baseClass);

@@ -6,29 +6,26 @@ namespace Mu099B
 namespace
 {
 
-// Reparto de bits del byte 1. El nivel ocupa cuatro bits en el medio, con la
-// suerte arriba y la habilidad abajo; los dos bits de excelente que quedan se
-// completan con un tercero que viaja en el byte 3.
+// Bit layout of byte 1. The level takes four bits in the middle, with luck on top and skill below; the two
+// excellent bits that remain are completed with a third that travels in byte 3.
 constexpr uint8_t LuckMask = 0x80;
 constexpr uint8_t LevelMask = 0x78;
 constexpr int LevelShift = 3;
 constexpr uint8_t SkillMask = 0x04;
 constexpr uint8_t OptionLowMask = 0x03;
 
-// Reparto del byte 3. El bit alto es el noveno bit del índice: con secciones de
-// 32 y dieciséis secciones el índice llega a 511, que no entra en el byte 0.
+// Layout of byte 3. The high bit is the ninth bit of the index: with sections of 32 and sixteen sections the
+// index reaches 511, which does not fit in byte 0.
 constexpr uint8_t IndexHighMask = 0x80;
 constexpr uint8_t OptionHighMask = 0x40;
 constexpr uint8_t ExcellentMask = 0x3F;
 
-/// El tercer bit del nivel de opción vale 4, no 1: los otros dos son los de
-/// menor peso.
+/// The third bit of the option level is worth 4, not 1: the other two are the lowest-weight ones.
 constexpr uint8_t OptionHighValue = 4;
 
-// Banderas del bloque del cliente (ItemOptionFlags en _enum.h). Se replican acá
-// a propósito: este módulo no depende de los headers del cliente, así que los
-// tests pueden verificarlo sin arrastrar medio motor. El test comprueba que
-// coincidan con el enum.
+// Flags of the client's block (ItemOptionFlags in _enum.h). They are replicated here on purpose: this module
+// does not depend on the client's headers, so the tests can verify it without dragging in half the engine. The
+// test checks that they match the enum.
 constexpr uint8_t ClientFlagOption = 0x01;
 constexpr uint8_t ClientFlagLuck = 0x02;
 constexpr uint8_t ClientFlagSkill = 0x04;
@@ -41,9 +38,8 @@ ItemInfo DecodeItemInfo(const uint8_t bytes[ItemInfoSize])
 {
     ItemInfo item;
 
-    // Cinco ceros es el "sin item" del servidor. Hay que mirarlo antes de
-    // desarmar nada: el índice 0 es un item válido (la primera espada), así que
-    // un índice en cero por sí solo no distingue.
+    // Five zeros is the server's "no item". It has to be checked before unpacking anything: index 0 is a valid
+    // item (the first sword), so a zero index alone does not tell them apart.
     bool allZero = true;
     for (size_t i = 0; i < ItemInfoSize; ++i)
     {
@@ -122,8 +118,8 @@ size_t WriteClientItemBlock(const ItemInfo& item, uint8_t block[ClientItemBlockS
         return 0;
     }
 
-    // El cliente mete el grupo en el nibble alto y le deja doce bits al número,
-    // que le sobran para los treinta y dos de 0.99B.
+    // The client puts the group in the high nibble and leaves twelve bits for the number, which are more than
+    // enough for 0.99B's thirty-two.
     block[0] = static_cast<uint8_t>((item.Group << 4) | ((item.Number >> 8) & 0x0F));
     block[1] = static_cast<uint8_t>(item.Number & 0xFF);
     block[2] = item.Level;
@@ -144,8 +140,7 @@ size_t WriteClientItemBlock(const ItemInfo& item, uint8_t block[ClientItemBlockS
     if (item.OptionLevel != 0)
     {
         flags |= ClientFlagOption;
-        // El tipo de opción va en el nibble alto; 0.99B tiene una sola, así que
-        // queda en cero.
+        // The option type goes in the high nibble; 0.99B has only one, so it stays at zero.
         block[written] = static_cast<uint8_t>(item.OptionLevel & 0x0F);
         ++written;
     }
@@ -159,8 +154,8 @@ size_t WriteClientItemBlock(const ItemInfo& item, uint8_t block[ClientItemBlockS
 
     if (item.SetOption != 0)
     {
-        // El cliente lee este byte como "antiguo": discriminante en el nibble
-        // bajo y bonus en el alto. 0.99B sólo usa el bajo.
+        // The client reads this byte as "ancient": discriminator in the low nibble and bonus in the high one.
+        // 0.99B only uses the low one.
         flags |= ClientFlagAncient;
         block[written] = static_cast<uint8_t>(item.SetOption & 0x0F);
         ++written;
@@ -182,9 +177,8 @@ bool ToWireItemIndex(uint32_t clientIndex, uint16_t& wireIndex)
     const uint32_t group = clientIndex / ClientItemsPerGroup;
     const uint32_t number = clientIndex % ClientItemsPerGroup;
 
-    // Un número por encima de 32 es un item que 0.99B no tiene. Recortarlo
-    // silenciosamente mandaría otro objeto, así que se avisa y el llamador
-    // decide -- normalmente, no mandar nada.
+    // A number above 32 is an item that 0.99B does not have. Silently clipping it would send another object, so
+    // it is reported and the caller decides -- normally, to send nothing.
     if (number >= static_cast<uint32_t>(ItemsPerGroup) ||
         group >= static_cast<uint32_t>(ItemSectionCount))
     {
@@ -197,8 +191,7 @@ bool ToWireItemIndex(uint32_t clientIndex, uint16_t& wireIndex)
 
 bool DecodeDroppedMoney(const uint8_t bytes[ItemInfoSize], uint32_t& amount)
 {
-    // El índice se arma igual que en DecodeItemInfo: byte 0 más el noveno bit
-    // que viaja en el byte 3.
+    // The index is built the same as in DecodeItemInfo: byte 0 plus the ninth bit that travels in byte 3.
     const uint16_t index = static_cast<uint16_t>(
         bytes[0] | ((bytes[3] & IndexHighMask) != 0 ? 0x100 : 0));
 
@@ -207,8 +200,7 @@ bool DecodeDroppedMoney(const uint8_t bytes[ItemInfoSize], uint32_t& amount)
         return false;
     }
 
-    // Inverso exacto de lo que arma el servidor: byte alto, medio y bajo del
-    // monto repartidos en 1, 2 y 4.
+    // Exact inverse of what the server builds: high, middle and low byte of the amount spread over 1, 2 and 4.
     amount = (static_cast<uint32_t>(bytes[1]) << 16) |
              (static_cast<uint32_t>(bytes[2]) << 8) |
              static_cast<uint32_t>(bytes[4]);

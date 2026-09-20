@@ -3,23 +3,17 @@ using MuServer.Shared.Scripting;
 
 namespace MuServer.GameServer.World;
 
-/// <summary>
-/// Una fila de Data/Item/ItemValue.txt: el precio explícito de un item, que pisa el que saldría de
-/// la fórmula general de <c>CItem::Value()</c>.
-///
-/// <para>El archivo venía con el servidor desde el principio y no lo leía nadie. Sin él, los objetos
-/// de precio especial --joyas, entradas de evento, pociones de asedio-- se cotizaban con la fórmula
-/// general, que para ellos da cualquier cosa: el Jewel of Bless salía 18.700 en vez de 9.000.000, y
-/// el Jewel of Chaos 40.082.300 en vez de 810.000. Son las 72 filas del archivo, ninguna coincidía.
-/// El cliente, mientras tanto, mostraba los valores correctos (los tiene escritos a mano en
-/// <c>ItemValue</c>, ZzzInfomation.cpp), así que en la tienda se veía un número y se cobraba otro.</para>
-///
-/// <para><see cref="Level"/> y <see cref="Grade"/> valen -1 cuando el archivo trae "*", que
-/// significa "cualquiera". El nivel es el +0..+15 de la instancia. El grado es la máscara de
-/// opciones especiales: hoy lo usa únicamente el Horn of Dinorant, cuyas tres opciones suman
-/// 300.000 cada una (960.000 base, 1.260.000 con una, 1.560.000 con dos), que es exactamente lo que
-/// declaran sus siete filas.</para>
-/// </summary>
+/// <summary> A row of Data/Item/ItemValue.txt: an item's explicit price, which overrides the one that would
+/// come from the general formula of <c>CItem::Value()</c>. <para>The file came with the server from the start
+/// and nobody read it. Without it, the special-price objects --jewels, event tickets, siege potions-- were
+/// priced with the general formula, which gives anything for them: the Jewel of Bless came out at 18,700
+/// instead of 9,000,000, and the Jewel of Chaos at 40,082,300 instead of 810,000. Those are the file's 72 rows,
+/// none matched. The client, meanwhile, showed the correct values (it has them written by hand in
+/// <c>ItemValue</c>, ZzzInfomation.cpp), so in the shop one number was seen and another was charged.</para>
+/// <para><see cref="Level"/> and <see cref="Grade"/> are -1 when the file carries "*", which means "any". The
+/// level is the instance's +0..+15. The grade is the special-options mask: today only the Horn of Dinorant uses
+/// it, whose three options add 300,000 each (960,000 base, 1,260,000 with one, 1,560,000 with two), which is
+/// exactly what its seven rows declare.</para> </summary>
 public sealed class ItemValueRow
 {
     public required int Index { get; init; } // Item.GetItem(Section, Sub)
@@ -28,30 +22,24 @@ public sealed class ItemValueRow
     public required int Money { get; init; }
 }
 
-/// <summary>
-/// Puerto de la tabla de precios explícitos de Data/Item/ItemValue.txt.
-///
-/// <para><b>Lo que este puerto no hace:</b> el original escala algunos de estos precios por la
-/// cantidad apilada o por la durabilidad restante --el Symbol of Kundun vale 30.000 por unidad, la
-/// Siege Potion 900.000 por unidad, y las flechas y pernos valen su precio por la fracción de
-/// durabilidad que les queda-- y cada item lo hace a su manera. Acá se devuelve el valor de la
-/// tabla tal cual, sin escalar, porque el archivo no dice cuáles escalan y adivinarlo sería
-/// inventar. Un stack se cotiza como una unidad: bajo, pero del orden correcto, que es una mejora
-/// enorme frente a los factores de 300x a 6000x de la fórmula general.</para>
-/// </summary>
+/// <summary> Port of the explicit price table of Data/Item/ItemValue.txt. <para><b>What this port does not
+/// do:</b> the original scales some of these prices by the stacked quantity or by the remaining durability
+/// --the Symbol of Kundun is worth 30,000 per unit, the Siege Potion 900,000 per unit, and arrows and bolts are
+/// worth their price times the fraction of durability they have left-- and each item does it its own way. Here
+/// the table's value is returned as is, unscaled, because the file does not say which ones scale and guessing
+/// would be inventing. A stack is priced as one unit: low, but of the right order, which is an enormous
+/// improvement over the 300x to 6000x factors of the general formula.</para> </summary>
 public sealed class ItemValueTable
 {
     private readonly Dictionary<int, List<ItemValueRow>> _byIndex = new();
 
     public int Count { get; private set; }
 
-    /// <summary>El precio declarado para este item, o null si el archivo no lo menciona (en cuyo
-    /// caso el que llama debe caer a la fórmula general, como antes).
-    ///
-    /// <para>Entre varias filas del mismo item gana la más específica: una que fija nivel y grado
-    /// le gana a una que fija sólo el nivel, y ésa a una con los dos en "*". Sin ese orden, el
-    /// Horn of Dinorant sin opciones tomaría el precio de cualquiera de sus siete filas según el
-    /// orden del archivo.</para></summary>
+    /// <summary>The price declared for this item, or null if the file does not mention it (in which case the
+    /// caller must fall back to the general formula, as before). <para>Among several rows of the same item the
+    /// most specific wins: one that fixes level and grade beats one that only fixes the level, and that one
+    /// beats one with both at "*". Without that order, the Horn of Dinorant without options would take the
+    /// price of any of its seven rows depending on the file order.</para></summary>
     public int? Get(int index, int level, int grade)
     {
         if (!_byIndex.TryGetValue(index, out var filas))
@@ -108,8 +96,8 @@ public sealed class ItemValueTable
                 break;
             }
 
-            // El índice viene como "04,007": la coma es un token propio y se descarta, igual que en
-            // el parser de los archivos de tienda (ShopManagerTable.LoadShopItems).
+            // The index comes as "04,007": the comma is a token of its own and is discarded, the same as in the
+            // shop files' parser (ShopManagerTable.LoadShopItems).
             int section = script.GetNumber();
             script.GetToken();
             int sub = script.GetAsNumber();

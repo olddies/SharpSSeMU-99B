@@ -6,16 +6,13 @@ using MuServer.Shared.Logging;
 
 namespace MuServer.ConnectServer.Net;
 
-/// <summary>
-/// Puerto de CSocketManager (lado TCP). El original usaba IOCP con hilos worker manuales;
-/// acá se logra el mismo resultado (muchas conexiones concurrentes, no bloqueante) con
-/// Socket.AcceptAsync/ReceiveAsync de .NET, que internamente también usa E/S asíncrona del SO
-/// (epoll en Linux, IOCP en Windows) — mismo modelo, sin tener que reimplementar el plumbing manual.
-///
-/// Filtrado: el original rechazaba la conexión en la condición de WSAAccept (antes de completarse
-/// el 3-way handshake visible a la app). Acá se acepta el socket y se cierra inmediatamente si no
-/// pasa BlackList/IpManager — el efecto para el cliente (conexión rechazada) es equivalente.
-/// </summary>
+/// <summary> Port of CSocketManager (TCP side). The original used IOCP with manual worker threads; here the
+/// same result (many concurrent, non-blocking connections) is achieved with .NET's
+/// Socket.AcceptAsync/ReceiveAsync, which internally also uses the OS's asynchronous I/O (epoll on Linux, IOCP
+/// on Windows) — same model, without having to reimplement the manual plumbing. Filtering: the original
+/// rejected the connection in the WSAAccept condition (before the 3-way handshake visible to the app
+/// completed). Here the socket is accepted and closed immediately if it does not pass BlackList/IpManager — the
+/// effect for the client (connection rejected) is equivalent. </summary>
 public sealed class TcpGateServer
 {
     private readonly ushort _port;
@@ -107,10 +104,10 @@ public sealed class TcpGateServer
         try
         {
             await session.SendAsync(ConnectServerProtocolHandler.BuildInitPacket(true), ct);
-            // El cliente real espera la lista de NOMBRES de servidor (C2:F3:EA) automáticamente al
-            // conectar, antes de mostrar la pantalla de selección -- si no llega, no muestra nada y
-            // se desconecta (bug real encontrado probando con el cliente real: esta llamada faltaba
-            // por completo, BuildNameListPacket() nunca se invocaba desde ningún lado).
+            // The real client expects the server NAME list (C2:F3:EA) automatically on connecting, before
+            // showing the selection screen -- if it does not arrive, it shows nothing and disconnects (real bug
+            // found testing with the real client: this call was missing entirely, BuildNameListPacket() was
+            // never invoked from anywhere).
             await session.SendAsync(_protocol.BuildNameListPacket(), ct);
 
             var buffer = new byte[2048];
@@ -134,7 +131,7 @@ public sealed class TcpGateServer
 
                 if (received == 0)
                 {
-                    break; // peer cerró la conexión
+                    break; // peer closed the connection
                 }
 
                 if (!CheckPacketRate(session))
@@ -189,12 +186,10 @@ public sealed class TcpGateServer
         return session.PacketCountInWindow < MaxPacketPerSecond;
     }
 
-    /// <summary>
-    /// Puerto de ConnectServerTimeoutProc(). Nota de compatibilidad: en el original "MaxConnectionIdle"
-    /// se mide contra m_OnlineTime (fijado solo al conectar y nunca actualizado), es decir que en la
-    /// práctica funciona como un límite de duración TOTAL de la conexión, no de inactividad real.
-    /// Se replica ese mismo comportamiento aquí para no alterar el comportamiento observado.
-    /// </summary>
+    /// <summary> Port of ConnectServerTimeoutProc(). Compatibility note: in the original "MaxConnectionIdle" is
+    /// measured against m_OnlineTime (set only on connecting and never updated), which means that in practice
+    /// it works as a limit on the TOTAL duration of the connection, not on real inactivity. The same behaviour
+    /// is replicated here so as not to alter the observed behaviour. </summary>
     private async Task LifetimeSweepLoopAsync(CancellationToken ct)
     {
         while (!ct.IsCancellationRequested)

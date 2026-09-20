@@ -5,19 +5,15 @@ using MuServer.Shared.Logging;
 
 namespace MuServer.GameServer.World;
 
-/// <summary>
-/// Puerto simplificado del ciclo periódico gObjViewportProc()/CViewport (User.cpp/Viewport.cpp):
-/// en vez de replicar el mecanismo interno de VpPlayer[]/VpPlayer2[] por objeto, se hace un barrido
-/// completo O(n²) cada tick sobre todos los jugadores online (aceptable para esta fase: sin
-/// monstruos/NPCs, la cantidad de objetos es la de jugadores conectados) y se decide visibilidad
-/// mutua directamente por mapa+rango. El resultado en el cable es el mismo: paquetes de aparecer
-/// (0x12) y desaparecer (0x14) exactamente cuando corresponde.
-///
-/// Un jugador participa de este barrido desde que entra al mundo, porque RegenOk arranca en false
-/// (=0 en el original, ver PlayerObject.RegenOk) -- PMSG_CHARACTER_MOVE_VIEWPORT_ENABLE (0xF3:0x12)
-/// solo es relevante después de un teleport/gate real (que pone RegenOk en true/1), mecanismo que
-/// este build todavía no tiene enchufado (ver doc-comment de PlayerObject.RegenOk).
-/// </summary>
+/// <summary> Simplified port of the periodic cycle gObjViewportProc()/CViewport (User.cpp/Viewport.cpp):
+/// instead of replicating the internal VpPlayer[]/VpPlayer2[] mechanism per object, a full O(n²) sweep is done
+/// every tick over all online players (acceptable for this phase: without monsters/NPCs, the number of objects
+/// is that of connected players) and mutual visibility is decided directly by map+range. The result on the wire
+/// is the same: appear (0x12) and disappear (0x14) packets exactly when appropriate. A player takes part in
+/// this sweep from entering the world, because RegenOk starts as false (=0 in the original, see
+/// PlayerObject.RegenOk) -- PMSG_CHARACTER_MOVE_VIEWPORT_ENABLE (0xF3:0x12) is only relevant after a real
+/// teleport/gate (which sets RegenOk to true/1), a mechanism this build does not have plugged in yet (see the
+/// doc-comment of PlayerObject.RegenOk). </summary>
 public sealed class ViewportTicker
 {
     private static readonly TimeSpan TickInterval = TimeSpan.FromMilliseconds(200);
@@ -34,14 +30,13 @@ public sealed class ViewportTicker
     private readonly SkillDamageTable? _skillDamage;
     private int _tickCount;
 
-    /// <summary>Cada cuántos ticks (200ms cada uno) se manda PMSG_PARTY_LIFE_SEND -- ~2s, dentro del
-    /// rango razonable para un broadcast periódico de barras de vida de grupo (el original no fija
-    /// un período exacto documentado en el brief de investigación, solo confirma que es periódico).</summary>
+    /// <summary>Every how many ticks (200ms each) PMSG_PARTY_LIFE_SEND is sent -- ~2s, within the reasonable
+    /// range for a periodic broadcast of party life bars (the original does not fix an exact period documented
+    /// in the research brief, it only confirms that it is periodic).</summary>
     private const int PartyLifeTickInterval = 10;
 
-    /// <summary>Puerto de CharacterAutoRecuperation (ObjectManager.cpp:1729-1758): el original corre
-    /// cada 1s pero solo regenera maná cada 3er tick (~3s) -- acá el tick base es 200ms, así que 15
-    /// ticks ≈ 3s.</summary>
+    /// <summary>Port of CharacterAutoRecuperation (ObjectManager.cpp:1729-1758): the original runs every 1s but
+    /// only regenerates mana every 3rd tick (~3s) -- here the base tick is 200ms, so 15 ticks ≈ 3s.</summary>
     private const int ManaRegenTickInterval = 15;
 
     public ViewportTicker(
@@ -115,7 +110,7 @@ public sealed class ViewportTicker
         {
             if (observer.RegenOk)
             {
-                continue; // todavía no mandó 0xF3:0x12 -- no procesa su propia lista de visibles
+                continue; // has not sent 0xF3:0x12 yet -- it does not process its own visible list
             }
 
             int view = _maps.GetViewRange(observer.Map);
@@ -170,12 +165,11 @@ public sealed class ViewportTicker
         }
     }
 
-    /// <summary>Puerto de la porción "items" de CMap::StateSetDestroy (Map.cpp:433-474): libera
-    /// cualquier item de piso cuyo tiempo de vida venció y avisa a quien lo tuviera a la vista
-    /// (0xC2:0x21, <see cref="WorldPacketBuilder.ViewportItemDestroy"/>). No distingue por mapa al
-    /// mandar el aviso -- cada observador solo tiene en <see cref="PlayerObject.VisibleGroundItems"/>
-    /// los índices de SU propio mapa, así que un índice que no le pertenece simplemente no está en su
-    /// set y no genera ruido.</summary>
+    /// <summary>Port of the "items" portion of CMap::StateSetDestroy (Map.cpp:433-474): frees any ground item
+    /// whose lifetime expired and notifies whoever had it in view (0xC2:0x21, <see
+    /// cref="WorldPacketBuilder.ViewportItemDestroy"/>). It does not distinguish by map when sending the notice
+    /// -- each observer only has in <see cref="PlayerObject.VisibleGroundItems"/> the indices of THEIR own map,
+    /// so an index that does not belong to them is simply not in their set and generates no noise.</summary>
     private async Task SweepExpiredGroundItemsAsync(CancellationToken ct)
     {
         if (_groundItems == null)
@@ -213,10 +207,10 @@ public sealed class ViewportTicker
         }
     }
 
-    /// <summary>Puerto simplificado de CViewport::CreateViewportItem/DestroyViewportItem
-    /// (Viewport.cpp:376-417,499-525) -- mismo patrón de barrido O(n) por observador que
-    /// <see cref="TickMonstersForObserverAsync"/>, aplicado a <see cref="GroundItemRegistry"/> en vez
-    /// del registro de monstruos.</summary>
+    /// <summary>Simplified port of CViewport::CreateViewportItem/DestroyViewportItem
+    /// (Viewport.cpp:376-417,499-525) -- the same O(n)-per-observer sweep pattern as <see
+    /// cref="TickMonstersForObserverAsync"/>, applied to <see cref="GroundItemRegistry"/> instead of the
+    /// monster registry.</summary>
     private async Task TickGroundItemsForObserverAsync(PlayerObject observer, int view, CancellationToken ct)
     {
         if (_groundItems == null)
@@ -252,7 +246,7 @@ public sealed class ViewportTicker
 
             foreach (var g in newlyVisible)
             {
-                g.JustDropped = false; // el bit de "recién caído" solo se manda la primera vez
+                g.JustDropped = false; // the "just fallen" bit is only sent the first time
             }
         }
 
@@ -269,16 +263,14 @@ public sealed class ViewportTicker
         }
     }
 
-    /// <summary>
-    /// Puerto de la parte de respawn de ObjectSetStateCreate/ObjectSetStateProc
-    /// (ObjectManager.cpp:94-99,197-246): pasado MaxRegenMillis+1000ms desde la muerte, el monstruo
-    /// revive en su punto de spawn original (gObjMonsterRegen). Antes de revivir, gObjMonsterRegen
-    /// (Monster.cpp:369) llama gObjClearViewport -- recién en ESE momento el cadáver se saca de la
-    /// vista de quien lo veía, no al morir (ver el comentario de ClientProtocolHandler.
-    /// OnMonsterDeathAsync). Acá se porta ese mismo orden: primero ViewportDestroy a los que todavía
-    /// lo tenían visible, después el respawn. El paquete de aparición (0x13) lo manda naturalmente el
-    /// barrido normal de abajo, porque ya no va a estar en VisibleMonsters de nadie.
-    /// </summary>
+    /// <summary> Port of the respawn part of ObjectSetStateCreate/ObjectSetStateProc
+    /// (ObjectManager.cpp:94-99,197-246): once MaxRegenMillis+1000ms have passed since death, the monster
+    /// revives at its original spawn point (gObjMonsterRegen). Before reviving, gObjMonsterRegen
+    /// (Monster.cpp:369) calls gObjClearViewport -- only AT THAT MOMENT is the corpse removed from the view of
+    /// whoever saw it, not on dying (see the comment of ClientProtocolHandler. OnMonsterDeathAsync). The same
+    /// order is ported here: first ViewportDestroy to those who still had it visible, then the respawn. The
+    /// appearance packet (0x13) is naturally sent by the normal sweep below, because it will no longer be in
+    /// anyone's VisibleMonsters. </summary>
     private async Task RespawnDeadMonsters(CancellationToken ct)
     {
         if (_monsters == null)
@@ -309,14 +301,11 @@ public sealed class ViewportTicker
         }
     }
 
-    /// <summary>
-    /// Puerto simplificado del mismo mecanismo de arriba pero para monstruos (Viewport.cpp: la
-    /// función original recorre TODOS los objetos, jugadores y monstruos por igual; acá se separa
-    /// en dos pasadas porque son dos colecciones/tipos C# distintos). Actualiza
-    /// <see cref="PlayerObject.VisibleMonsters"/> y también <see cref="Monster.VisibleTo"/> (usado
-    /// por ClientProtocolHandler para dirigir los paquetes de daño/muerte solo a quien realmente ve
-    /// al monstruo, equivalente a MsgSendV2/VpPlayer2[] del original).
-    /// </summary>
+    /// <summary> Simplified port of the same mechanism as above but for monsters (Viewport.cpp: the original
+    /// function walks ALL objects, players and monsters alike; here it is split into two passes because they
+    /// are two different C# collections/types). It updates <see cref="PlayerObject.VisibleMonsters"/> and also
+    /// <see cref="Monster.VisibleTo"/> (used by ClientProtocolHandler to direct damage/death packets only to
+    /// whoever really sees the monster, equivalent to the original's MsgSendV2/VpPlayer2[]). </summary>
     private async Task TickMonstersForObserverAsync(PlayerObject observer, int view, CancellationToken ct)
     {
         if (_monsters == null)
@@ -345,9 +334,9 @@ public sealed class ViewportTicker
             currentlyVisible.Add(monster.Index);
             monster.VisibleTo.Add(observer.Index);
 
-            // Un cadáver (IsDead pero todavía no respawneó, ver RespawnDeadMonsters) sigue en
-            // currentlyVisible para que esta pasada no lo trate como "recién invisible" -- pero nunca
-            // se anuncia como recién aparecido, porque ya se avisó su muerte con el paquete 0x17.
+            // A corpse (IsDead but not respawned yet, see RespawnDeadMonsters) stays in currentlyVisible so
+            // that this pass does not treat it as "just became invisible" -- but it is never announced as just
+            // appeared, because its death was already announced with the 0x17 packet.
             if (!observer.VisibleMonsters.Contains(monster.Index) && !monster.IsDead)
             {
                 newlyVisible.Add(monster);
@@ -374,16 +363,14 @@ public sealed class ViewportTicker
         }
     }
 
-    /// <summary>
-    /// Puerto simplificado de CObjectManager::CharacterAutoRecuperation (ObjectManager.cpp:1729-1758),
-    /// rama de maná: <c>Mana += (MaxMana*MPRecoveryRate[clase])/100</c>, tope en MaxMana, cada
-    /// <see cref="ManaRegenTickInterval"/> ticks (~3s, ver comentario de la constante). Simplificaciones
-    /// documentadas: sin el bono de "+3pp si no atacó en los últimos 5s" (MPAutoRecuperationTime no se
-    /// trackea), sin bonos de item/efecto activo (MPRecoveryRate/EffectOption.AddMPRecoveryRate, no
-    /// portados), y SIN regeneración de vida (HPRecoveryRate vale 0 para las 5 clases en el .dat real
-    /// shippeado, así que el original tampoco regenera vida por este mecanismo -- omitirla no cambia
-    /// el comportamiento default). BP se regenera con la misma fórmula/constantes (BPRecoveryRate).
-    /// </summary>
+    /// <summary> Simplified port of CObjectManager::CharacterAutoRecuperation (ObjectManager.cpp:1729-1758),
+    /// mana branch: <c>Mana += (MaxMana*MPRecoveryRate[class])/100</c>, capped at MaxMana, every <see
+    /// cref="ManaRegenTickInterval"/> ticks (~3s, see the constant's comment). Documented simplifications:
+    /// without the "+3pp if it has not attacked in the last 5s" bonus (MPAutoRecuperationTime is not tracked),
+    /// without item/active effect bonuses (MPRecoveryRate/EffectOption.AddMPRecoveryRate, not ported), and
+    /// WITHOUT life regeneration (HPRecoveryRate is 0 for the 5 classes in the real shipped .dat, so the
+    /// original does not regenerate life by this mechanism either -- omitting it does not change the default
+    /// behaviour). BP is regenerated with the same formula/constants (BPRecoveryRate). </summary>
     private async Task TickManaRegenAsync(CancellationToken ct)
     {
         if (_characterBalance == null)
@@ -424,15 +411,13 @@ public sealed class ViewportTicker
         }
     }
 
-    /// <summary>
-    /// Puerto de User.cpp:2535-2541 (rama <c>GetTickCount()-lpObj->AutoSaveTime &gt; 600000</c>):
-    /// autoguardado incondicional cada 10 minutos para TODO jugador conectado, sin importar si
-    /// combatió o no -- éste es el mecanismo real que garantiza que la posición/progreso se persista
-    /// en cualquier sesión (caminar sin pelear, quedarse en el pueblo, etc.), a diferencia del
-    /// guardado throttled a 60s de <see cref="ClientProtocolHandler.ApplyExperienceGainAsync"/>, que
-    /// solo dispara con subidas de nivel. Ver PlayerObject.AutoSaveTime (mismo sentinel
-    /// DateTime.MinValue = "nunca guardado" que hace que el primer chequeo tras entrar al mundo ya
-    /// pueda disparar un guardado, igual que el original con AutoSaveTime en 0).
+    /// <summary> Port of User.cpp:2535-2541 (branch <c>GetTickCount()-lpObj->AutoSaveTime &gt; 600000</c>):
+    /// unconditional autosave every 10 minutes for EVERY connected player, whether or not they fought -- this
+    /// is the real mechanism that guarantees position/progress is persisted in any session (walking without
+    /// fighting, staying in town, etc.), unlike the 60s-throttled save of <see
+    /// cref="ClientProtocolHandler.ApplyExperienceGainAsync"/>, which only triggers on level-ups. See
+    /// PlayerObject.AutoSaveTime (the same sentinel DateTime.MinValue = "never saved" that makes the first
+    /// check after entering the world able to trigger a save, like the original with AutoSaveTime at 0).
     /// </summary>
     private async Task TickAutoSaveAsync(CancellationToken ct)
     {
@@ -458,9 +443,8 @@ public sealed class ViewportTicker
         }
     }
 
-    /// <summary>Puerto de la parte periódica de GCPartyLifeSend (llamada desde User.cpp:3488) --
-    /// manda las barras de vida/maná de cada grupo con más de un miembro cada
-    /// <see cref="PartyLifeTickInterval"/> ticks.</summary>
+    /// <summary>Port of the periodic part of GCPartyLifeSend (called from User.cpp:3488) -- sends the life/mana
+    /// bars of each party with more than one member every <see cref="PartyLifeTickInterval"/> ticks.</summary>
     private async Task TickPartyLifeAsync(CancellationToken ct)
     {
         if (_parties == null || _protocolHandler == null)
@@ -498,7 +482,7 @@ public sealed class ViewportTicker
                 continue;
             }
 
-            // 1. Validar si el objetivo existente sigue siendo válido
+            // 1. Check whether the existing target is still valid
             PlayerObject? target = null;
             if (monster.TargetIndex != -1)
             {
@@ -506,7 +490,7 @@ public sealed class ViewportTicker
                     || !target.WorldEntered
                     || target.Life == 0
                     || target.Map != monster.Map
-                    || !monster.VisibleTo.Contains(target.Index) // Prevenir daño invisible fuera del Viewport
+                    || !monster.VisibleTo.Contains(target.Index) // Prevent invisible damage outside the Viewport
                     || (map != null && map.IsSafeZone(target.X, target.Y)))
                 {
                     monster.TargetIndex = -1;
@@ -514,7 +498,7 @@ public sealed class ViewportTicker
                 }
                 else
                 {
-                    // Validar si el objetivo se alejó a más de 10 casillas
+                    // Check whether the target moved more than 10 tiles away
                     double distToTarget = Math.Sqrt(Math.Pow(monster.X - target.X, 2) + Math.Pow(monster.Y - target.Y, 2));
                     if (distToTarget > 10.0)
                     {
@@ -524,10 +508,10 @@ public sealed class ViewportTicker
                 }
             }
 
-            // 2. Si no tiene objetivo, buscar el jugador MÁS CERCANO en su Viewport
+            // 2. If it has no target, look for the CLOSEST player in its Viewport
             if (monster.TargetIndex == -1)
             {
-                // Un monstruo SOLO puede ver jugadores que lo estén viendo en su viewport (VisibleTo)
+                // A monster can ONLY see players who are seeing it in their viewport (VisibleTo)
                 PlayerObject? closest = null;
                 double closestDist = double.MaxValue;
 
@@ -535,7 +519,7 @@ public sealed class ViewportTicker
                 {
                     if (_players.TryGet(obsIndex, out var p) && p.WorldEntered && p.Life > 0 && p.Map == monster.Map)
                     {
-                        if (map != null && map.IsSafeZone(p.X, p.Y)) continue; // Jugadores en ciudad están protegidos
+                        if (map != null && map.IsSafeZone(p.X, p.Y)) continue; // Players in town are protected
 
                         double dist = Math.Sqrt(Math.Pow(monster.X - p.X, 2) + Math.Pow(monster.Y - p.Y, 2));
                         int maxDetectRange = monster.ViewRange > 0 ? Math.Min(monster.ViewRange, 5) : 4;
@@ -553,30 +537,28 @@ public sealed class ViewportTicker
                     monster.TargetIndex = closest.Index;
                     target = closest;
 
-                    // Al detectar por primera vez un jugador, dar un tiempo de gracia de reacción (1000ms)
+                    // On detecting a player for the first time, give a reaction grace time (1000ms)
                     monster.LastAttackTime = now;
                     monster.LastMoveTime = now;
-                    continue; // Espera al próximo tick para reaccionar
+                    continue; // Wait for the next tick to react
                 }
             }
 
             if (target == null)
             {
-                // Movimiento Autónomo (Roaming pasivo del monstruo en su área de spawn)
+                // Autonomous movement (passive roaming of the monster in its spawn area)
                 if (now >= monster.LastMoveTime.AddSeconds(3 + Random.Shared.Next(0, 3)))
                 {
                     monster.LastMoveTime = now;
 
-                    // Un paso de una casilla en una dirección al azar, aceptado sólo si no aleja al
-                    // monstruo más de Dis de DONDE APARECIÓ. Es el puerto de gObjMonsterMoveCheck
-                    // (Monster.cpp:430-462): distancia euclídea contra StartX/StartY, con el Dis de
-                    // su fila de spawn.
-                    //
-                    // Antes esto medía contra SpawnEntry.X/Y y encima recortaba el radio a 3. En los
-                    // spawns de área (Type 1) SpawnEntry.X/Y es la esquina del rectángulo COMPARTIDO,
-                    // así que los 85 monstruos del área de Lorencia terminaban todos apretados en un
-                    // cuadrado de 7x7 sobre esa esquina, caminando en círculos y entrando y saliendo
-                    // del viewport todo el tiempo.
+                    // One one-tile step in a random direction, accepted only if it does not take the monster
+                    // more than Dis from WHERE IT APPEARED. It is the port of gObjMonsterMoveCheck
+                    // (Monster.cpp:430-462): Euclidean distance against StartX/StartY, with the Dis of its
+                    // spawn row. Before, this measured against SpawnEntry.X/Y and on top of that clipped the
+                    // radius to 3. In area spawns (Type 1) SpawnEntry.X/Y is the corner of the SHARED
+                    // rectangle, so the 85 monsters of the Lorencia area all ended up squeezed into a 7x7
+                    // square on that corner, walking in circles and going in and out of the viewport all the
+                    // time.
                     int moveRange = Math.Max(1, monster.SpawnEntry.Dis);
 
                     int newX = monster.X + Random.Shared.Next(-1, 2);
@@ -612,7 +594,7 @@ public sealed class ViewportTicker
                 continue;
             }
 
-            // 3. Calcular distancia euclídea real
+            // 3. Compute the real Euclidean distance
             double eucDist = Math.Sqrt(Math.Pow(monster.X - target.X, 2) + Math.Pow(monster.Y - target.Y, 2));
             double attackRange = monster.AttackRange > 0 ? monster.AttackRange : 1.5;
 
@@ -625,16 +607,16 @@ public sealed class ViewportTicker
 
                 monster.LastAttackTime = now;
 
-                // Girar la dirección del monstruo hacia el jugador
+                // Turn the monster's direction towards the player
                 int signX = Math.Sign(target.X - monster.X);
                 int signY = Math.Sign(target.Y - monster.Y);
                 monster.Dir = GetDir8(signX, signY, monster.Dir);
 
                 var (isSpell, skillId) = GetMonsterAttackSkill(monster.MonsterClass, monster.AttackRange, monster.AttackType, monster.MonsterSkill);
 
-                // ---- Paso 1: miss/dodge (puerto de CAttack::MissCheck, Attack.cpp:987-1031) ----
-                // Mismo cálculo que OnAttackAsync (ver ClientProtocolHandler.cs), pero acá el atacante
-                // es el monstruo y el defensor el jugador.
+                // ---- Step 1: miss/dodge (port of CAttack::MissCheck, Attack.cpp:987-1031) ---- Same
+                // calculation as OnAttackAsync (see ClientProtocolHandler.cs), but here the attacker is the
+                // monster and the defender the player.
                 int attackSuccess = Math.Max(monster.AttackSuccessRate, 0);
                 int defenseSuccess = Math.Max(target.DefenseSuccessRate, 0);
                 bool graze = false;
@@ -660,20 +642,19 @@ public sealed class ViewportTicker
                     }
                 }
 
-                // ---- Paso 2: defensa del objetivo (CAttack::GetTargetDefense, Attack.cpp:1117-1154) ----
-                // La defensa se reduce a la mitad cuando el objetivo es OBJECT_USER -- acá el objetivo
-                // siempre es un jugador, así que la mitad se aplica siempre (no solo para hechizos).
+                // ---- Step 2: target defense (CAttack::GetTargetDefense, Attack.cpp:1117-1154) ---- Defense is
+                // halved when the target is an OBJECT_USER -- here the target is always a player, so the half
+                // always applies (not only for spells).
                 int targetDefense = Math.Max((int)target.Defense * 50 / 100, 0);
 
-                // ---- Paso 3: daño crudo ----
-                // Melee: CAttack::GetAttackDamage, rama OBJECT_MONSTER (Attack.cpp:1156-1307) -- usa
-                // PhysiDamageMin/Max del monstruo directamente, sin crítico/excelente (esos rolls solo
-                // existen en la rama de atacante jugador).
-                // Hechizo: CAttack::GetAttackDamageWizard (Attack.cpp:1309-1384) -- los monstruos nunca
-                // tienen MagicDamageMin/Max seteado (gObjSetMonster, Monster.cpp:206-365, no lo toca),
-                // así que el daño mágico sale pura y exclusivamente del propio skill
-                // (DamageMin/DamageMax de Skill.txt, ver SkillInfo.cs), igual que el término
-                // "lpObj->MagicDamageMin + lpSkill->m_DamageMin" con la parte del monstruo en cero.
+                // ---- Step 3: raw damage ---- Melee: CAttack::GetAttackDamage, OBJECT_MONSTER branch
+                // (Attack.cpp:1156-1307) -- uses the monster's PhysiDamageMin/Max directly, without
+                // critical/excellent (those rolls only exist in the player-attacker branch). Spell:
+                // CAttack::GetAttackDamageWizard (Attack.cpp:1309-1384) -- monsters never have
+                // MagicDamageMin/Max set (gObjSetMonster, Monster.cpp:206-365, does not touch it), so the magic
+                // damage comes purely and exclusively from the skill itself (DamageMin/DamageMax of Skill.txt,
+                // see SkillInfo.cs), like the term "lpObj->MagicDamageMin + lpSkill->m_DamageMin" with the
+                // monster's part at zero.
                 int damage;
                 var skillInfo = isSpell ? _skills?.Get(skillId) : null;
 
@@ -698,7 +679,7 @@ public sealed class ViewportTicker
                 damage -= targetDefense;
                 damage = Math.Max(damage, 0);
 
-                // ---- Paso 3: piso de daño según el nivel del ATACANTE (Attack.cpp:318-322) ----
+                // ---- Step 3: damage floor by the ATTACKER's level (Attack.cpp:318-322) ----
                 int minDamage = Math.Max(monster.Level / 10, 1);
 
                 if (damage < minDamage)
@@ -706,8 +687,8 @@ public sealed class ViewportTicker
                     damage = minDamage + Random.Shared.Next(minDamage);
                 }
 
-                // ---- Paso 4: multiplicador opcional por skill (SkillDamage.txt -- no-op con los datos
-                // reales), solo aplica del lado hechizo, igual que GetAttackDamageWizard ----
+                // ---- Step 4: optional per-skill multiplier (SkillDamage.txt -- no-op with the real data),
+                // only applies on the spell side, like GetAttackDamageWizard ----
                 if (skillInfo != null && _skillDamage != null)
                 {
                     damage = _skillDamage.Apply(skillInfo.Index, damage);
@@ -765,7 +746,7 @@ public sealed class ViewportTicker
             }
             else if (eucDist <= 7.0)
             {
-                // Persecución: Mover el monstruo 1 casilla en dirección al jugador
+                // Chase: move the monster 1 tile towards the player
                 if (now < monster.LastMoveTime.AddMilliseconds(1000)) continue;
 
                 monster.LastMoveTime = now;
@@ -781,7 +762,7 @@ public sealed class ViewportTicker
 
                 if (map != null && (map.IsSafeZone(stepX, stepY) || map.IsBlocked(stepX, stepY)))
                 {
-                    continue; // No entra a la ciudad ni atraviesa obstáculos
+                    continue; // It does not enter the town nor cross obstacles
                 }
 
                 monster.X = stepX;
@@ -797,7 +778,7 @@ public sealed class ViewportTicker
             }
             else
             {
-                // Perdió el rastro (más de 7 casillas): Soltar objetivo
+                // Lost the trail (more than 7 tiles): drop the target
                 monster.TargetIndex = -1;
             }
         }
@@ -860,10 +841,10 @@ public sealed class ViewportTicker
 
                 player.VisibleMonsters.Clear();
 
-                // 1. Enviar PMSG_CHARACTER_REGEN_SEND (C3:F3:04) CIFRADO al propio jugador para que main.exe ejecute el respawn completo
+                // 1. Send PMSG_CHARACTER_REGEN_SEND (C3:F3:04) ENCRYPTED to the player themselves so that main.exe runs the full respawn
                 await player.Session.SendEncryptedAsync(WorldPacketBuilder.CharacterRegenSend(player), ct);
 
-                // 2. Notificar aparición en el mapa a otros jugadores cercanos en la zona de respawn
+                // 2. Notify the appearance on the map to other nearby players in the respawn zone
                 var appearPacket = WorldPacketBuilder.ViewportPlayerAppear(new[] { player });
                 foreach (var other in _players.All)
                 {

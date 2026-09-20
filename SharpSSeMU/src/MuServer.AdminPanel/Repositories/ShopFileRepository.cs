@@ -3,8 +3,8 @@ using System.Text;
 
 namespace MuServer.AdminPanel.Repositories;
 
-/// <summary>Un NPC de tienda de Data/ShopManager.txt: dónde está parado y qué archivo de
-/// Data/Shop/ tiene su lista de items.</summary>
+/// <summary>A shop NPC of Data/ShopManager.txt: where it stands and which Data/Shop/ file has its item
+/// list.</summary>
 public sealed class ShopNpcRow
 {
     public required int NpcIndex { get; set; }
@@ -17,14 +17,14 @@ public sealed class ShopNpcRow
     public int Al2 { get; set; }
     public int Al3 { get; set; }
 
-    /// <summary>'*' en el archivo = sin restricción de GM; se guarda como null.</summary>
+    /// <summary>'*' in the file = no GM restriction; stored as null.</summary>
     public int? GmLevel { get; set; }
 
     public required string ShopPath { get; set; }
 }
 
-/// <summary>Un item a la venta, de Data/Shop/&lt;nombre&gt;.txt. El índice va en el archivo como
-/// "seccion,sub" (ej. <c>14,013</c> = Jewel of Bless), que es como lo lee <c>ShopItemTable</c>.</summary>
+/// <summary>An item for sale, from Data/Shop/&lt;name&gt;.txt. The index goes in the file as "section,sub"
+/// (e.g. <c>14,013</c> = Jewel of Bless), which is how <c>ShopItemTable</c> reads it.</summary>
 public sealed class ShopItemRow
 {
     public required int Section { get; set; }
@@ -37,13 +37,13 @@ public sealed class ShopItemRow
     public int Excellent { get; set; }
     public int SetOption { get; set; }
 
-    /// <summary>El comentario de fin de línea del archivo (normalmente el nombre del item). Se
-    /// conserva tal cual para no perderlo al guardar.</summary>
+    /// <summary>The file's end-of-line comment (normally the item's name). It is kept as is so as not to lose
+    /// it on save.</summary>
     public string Comment { get; set; } = string.Empty;
 }
 
-/// <summary>Lee y escribe Data/ShopManager.txt y los Data/Shop/*.txt, conservando el bloque de
-/// comentarios de cabecera de cada archivo.</summary>
+/// <summary>Reads and writes Data/ShopManager.txt and the Data/Shop/*.txt files, keeping each file's header
+/// comment block.</summary>
 public static class ShopFileRepository
 {
     public static (string Header, List<ShopNpcRow> Rows) LoadManager(string path)
@@ -106,7 +106,7 @@ public static class ShopFileRepository
             sb.Append("   ");
             sb.Append(Col(row.NpcIndex, 11));
             sb.Append(Col(row.MapNumber, 12));
-            // X/Y van con 3 dígitos en el archivo original ("062"), se respeta ese formato.
+            // X/Y go with 3 digits in the original file ("062"), that format is respected.
             sb.Append(Col(row.LocationX.ToString("000", CultureInfo.InvariantCulture), 12));
             sb.Append(Col(row.LocationY.ToString("000", CultureInfo.InvariantCulture), 12));
             sb.Append(Col(row.Direction, 12));
@@ -155,8 +155,8 @@ public static class ShopFileRepository
 
             inHeader = false;
 
-            // El comentario de fin de línea ("//Apple") es el nombre del item: se separa antes de
-            // tokenizar para no confundirlo con una columna.
+            // The end-of-line comment ("//Apple") is the item's name: it is split off before tokenising so as
+            // not to confuse it with a column.
             string comment = string.Empty;
             var commentAt = trimmed.IndexOf("//", StringComparison.Ordinal);
             if (commentAt >= 0)
@@ -165,7 +165,7 @@ public static class ShopFileRepository
                 trimmed = trimmed[..commentAt].TrimEnd();
             }
 
-            // La primera columna es "seccion,sub": la coma se trata como separador.
+            // The first column is "section,sub": the comma is treated as a separator.
             var t = Tokenize(trimmed.Replace(',', ' '));
             int Num(int i) => i < t.Count && int.TryParse(t[i], out var n) ? n : 0;
 
@@ -196,7 +196,7 @@ public static class ShopFileRepository
         foreach (var row in rows)
         {
             sb.Append("   ");
-            // Mismo formato que el archivo original: sección con 2 dígitos y subíndice con 3 ("00,010").
+            // Same format as the original file: section with 2 digits and sub-index with 3 ("00,010").
             sb.Append($"{row.Section:00},{row.Sub:000}".PadRight(12));
             sb.Append(Col(row.Level, 12));
             sb.Append(Col(row.Durability, 13));

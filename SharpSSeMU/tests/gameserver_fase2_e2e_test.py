@@ -24,8 +24,8 @@ try:
     print("seed OK")
 
     dep = _env.Deployment("fase2", pg)
-    # El bloque de ataque del WorldTestClient no está gateado por argumentos, así
-    # que corre también acá y necesita el monstruo de prueba.
+    # The WorldTestClient attack block is not gated by arguments, so it also runs here and needs the test
+    # monster.
     dep.seed_test_monster()
     dep.start_infra()
     dep.seed_characters((9100, "test", "Hero1"), (9101, "admin", "Hero2"))

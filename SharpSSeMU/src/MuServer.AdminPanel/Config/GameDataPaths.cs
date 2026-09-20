@@ -1,8 +1,8 @@
 namespace MuServer.AdminPanel.Config;
 
-/// <summary>Raíz del `Data/` real del GameServer que este panel lee y escribe. Un solo punto de
-/// verdad para que cada repositorio arme su propia ruta (`Move/Move.txt`, `Item/Item.txt`, etc.)
-/// sin repetir el cálculo de "dónde está Data".</summary>
+/// <summary>Root of the GameServer's real `Data/` that this panel reads and writes. A single point of truth so
+/// that each repository builds its own path (`Move/Move.txt`, `Item/Item.txt`, etc.) without repeating the
+/// calculation of "where Data is".</summary>
 public sealed class GameDataPaths(string root)
 {
     public string Root { get; } = root;

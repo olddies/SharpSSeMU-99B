@@ -3,13 +3,11 @@ using MuServer.Shared.Logging;
 
 namespace MuServer.GameServer.World;
 
-/// <summary>
-/// Puerto simplificado de CMapManager + CServerInfo::ReadMapInfo (carga todos los "Terrain&lt;N&gt;.att"
-/// que encuentre bajo Data/Terrain, N = número de mapa + 1). El original tiene un archivo de config
-/// por mapa (rango de vista, PK habilitado, etc.) -- acá solo se porta el rango de vista (ViewRange,
-/// default 12 según CMapManager::GetMapViewRange) porque es lo único que necesita el viewport de
-/// esta fase; el resto de la config de mapa se agrega cuando la fase correspondiente lo necesite.
-/// </summary>
+/// <summary> Simplified port of CMapManager + CServerInfo::ReadMapInfo (loads all the "Terrain&lt;N&gt;.att" it
+/// finds under Data/Terrain, N = map number + 1). The original has a config file per map (view range, PK
+/// enabled, etc.) -- here only the view range is ported (ViewRange, default 12 according to
+/// CMapManager::GetMapViewRange) because it is the only thing this phase's viewport needs; the rest of the map
+/// config is added when the corresponding phase needs it. </summary>
 public sealed class MapRegistry
 {
     private const int DefaultViewRange = 12;

@@ -3,17 +3,13 @@ using System.Text;
 
 namespace MuServer.AdminPanel.Repositories;
 
-/// <summary>Una fila de un Data/Monster/Spawn/*.txt. El layout de columnas depende del "tipo" de
-/// bloque en que está (el número suelto que abre cada sección del archivo), verificado contra
-/// <c>MonsterSpawnTable.Load</c>:
-/// <list type="bullet">
-/// <item>0 -- posición fija: radio, X, Y, dirección.</item>
-/// <item>1 -- área: radio, X, Y, X2, Y2, dirección y cuántos monstruos poner adentro.</item>
-/// <item>2 -- igual que 0, pero el servidor le suma un desvío aleatorio de ±3 al cargar.</item>
-/// <item>4 -- mismas columnas que 0, pero NO se spawnea al arrancar: son las posiciones candidatas
-/// que usan los eventos (Devil Square, Blood Castle) para poner sus monstruos en runtime.</item>
-/// </list>
-/// Dirección <c>-1</c> es el "*" del archivo: el servidor elige una al azar.</summary>
+/// <summary>A row of a Data/Monster/Spawn/*.txt. The column layout depends on the block "type" it is in (the
+/// loose number that opens each section of the file), verified against <c>MonsterSpawnTable.Load</c>: <list
+/// type="bullet"> <item>0 -- fixed position: radius, X, Y, direction.</item> <item>1 -- area: radius, X, Y, X2,
+/// Y2, direction and how many monsters to place inside.</item> <item>2 -- same as 0, but the server adds a
+/// random offset of ±3 on load.</item> <item>4 -- same columns as 0, but NOT spawned at start-up: they are the
+/// candidate positions that events (Devil Square, Blood Castle) use to place their monsters at runtime.</item>
+/// </list> Direction <c>-1</c> is the file's "*": the server picks one at random.</summary>
 public sealed class SpawnRow
 {
     public required int SpawnType { get; set; }
@@ -35,12 +31,12 @@ public sealed class SpawnBlock
     public string HeaderComment { get; init; } = string.Empty;
     public List<SpawnRow> Rows { get; } = new();
 
-    /// <summary>Sólo el tipo 1 usa las columnas X2/Y2/Cantidad.</summary>
+    /// <summary>Only type 1 uses the X2/Y2/Count columns.</summary>
     public bool IsArea => SpawnType == 1;
 }
 
-/// <summary>Lee y escribe los Data/Monster/Spawn/*.txt (dónde aparece cada monstruo en cada mapa).
-/// Conserva el bloque de comentarios de cabecera y el comentario de columnas de cada sección.</summary>
+/// <summary>Reads and writes the Data/Monster/Spawn/*.txt files (where each monster appears on each map). It
+/// keeps the header comment block and the column comment of each section.</summary>
 public static class SpawnFileRepository
 {
     public static IReadOnlyList<string> ListFiles(string spawnDirectory) =>
@@ -68,8 +64,7 @@ public static class SpawnFileRepository
 
             if (trimmed.Length == 0)
             {
-                // Las líneas en blanco del encabezado se conservan para que el archivo vuelva a
-                // salir con el mismo espaciado que tenía.
+                // Blank lines of the header are kept so that the file comes out with the same spacing it had.
                 if (inHeader)
                 {
                     header.AppendLine(line);
@@ -94,16 +89,16 @@ public static class SpawnFileRepository
 
             var tokens = trimmed.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
-            // Un número solo en su línea abre un bloque nuevo y dice de qué tipo son sus filas.
+            // A number alone on its line opens a new block and says what type its rows are.
             if (current is null && tokens.Length == 1 && int.TryParse(tokens[0], out var blockType))
             {
                 inHeader = false;
 
-                // El comentario de columnas viene justo después del número; se guarda para reescribirlo igual.
+                // The column comment comes right after the number; it is saved to be rewritten the same.
                 var comment = new StringBuilder();
                 for (int j = i + 1; j < lines.Length && lines[j].TrimStart().StartsWith("//"); j++)
                 {
-                    // Sin TrimEnd: se guarda la línea tal cual, espacios finales incluidos.
+                    // No TrimEnd: the line is saved as is, trailing spaces included.
                     comment.AppendLine(lines[j]);
                 }
 
@@ -172,7 +167,7 @@ public static class SpawnFileRepository
 
                 if (block.SpawnType == 1)
                 {
-                    // Los bloques de área usan columnas más anchas en el archivo original.
+                    // Area blocks use wider columns in the original file.
                     sb.Append(Col(row.X, 14));
                     sb.Append(Col(row.Y, 14));
                     sb.Append(Col(row.X2, 12));

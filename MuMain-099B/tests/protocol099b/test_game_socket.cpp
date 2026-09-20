@@ -1,10 +1,7 @@
-// Socket de GameServer contra un servidor de mentira en el mismo proceso.
-//
-// El test levanta un listener en loopback y habla el protocolo real desde el
-// otro lado: cifra con las tablas del servidor, no ofusca al enviar, y
-// des-ofusca lo que recibe. Es la única prueba que ejercita el orden completo
-// de las capas junto con el manejo del socket -- lo que los tests de las
-// piezas sueltas no pueden cubrir.
+// GameServer socket against a fake server in the same process. The test starts a loopback listener and speaks
+// the real protocol from the other side: it encrypts with the server's tables, does not obfuscate on send, and
+// de-obfuscates what it receives. It is the only test that exercises the full order of the layers together with
+// socket handling -- which the tests of the individual pieces cannot cover.
 
 #include <doctest.h>
 
@@ -106,8 +103,7 @@ public:
     void Accept() { _client = accept(_listener, nullptr, nullptr); }
     bool Accepted() const { return _client != TEST_INVALID_SOCKET; }
 
-    /// Manda un C1 plano como lo haría el servidor: sin XorData, sólo cifrado
-    /// de flujo.
+    /// Sends a plain C1 as the server would: without XorData, stream cipher only.
     void SendPlain(uint8_t head, const std::vector<uint8_t>& body)
     {
         std::vector<uint8_t> packet;
@@ -120,7 +116,7 @@ public:
         Write(packet);
     }
 
-    /// Lee lo que llegó del cliente y lo decodifica con las reglas del servidor.
+    /// Reads what arrived from the client and decodes it with the server's rules.
     std::vector<uint8_t> ReadOnePacket()
     {
         std::vector<uint8_t> raw(512);
@@ -172,8 +168,8 @@ private:
     uint16_t _port = 0;
 };
 
-/// Consulta el socket hasta que llegue algo o se agote la paciencia. El socket
-/// es no bloqueante a propósito, así que Poll puede volver sin nada.
+/// Polls the socket until something arrives or patience runs out. The socket is non-blocking on purpose, so
+/// Poll may return with nothing.
 bool PollUntil(Mu099B::GameSocket& socket, std::vector<Mu099B::DecodedPacket>& packets,
                size_t expected)
 {
@@ -248,7 +244,7 @@ TEST_CASE("Un paquete cifrado del cliente le llega bien al servidor")
 
     const auto received = server.ReadOnePacket();
     REQUIRE(received.size() == logical.size());
-    CHECK(received[0] == 0xC1);  // el servidor lo reconstruye como C1 lógico
+    CHECK(received[0] == 0xC1);  // the server rebuilds it as a logical C1
     CHECK(std::vector<uint8_t>(received.begin() + 2, received.end()) ==
           std::vector<uint8_t>(logical.begin() + 2, logical.end()));
 }
@@ -256,7 +252,7 @@ TEST_CASE("Un paquete cifrado del cliente le llega bien al servidor")
 TEST_CASE("Conectar a un puerto cerrado falla con un motivo, no cuelga")
 {
     Mu099B::GameSocket client;
-    // Puerto 1 en loopback: nadie escucha ahí.
+    // Port 1 on loopback: nobody is listening there.
     CHECK_FALSE(client.Connect("127.0.0.1", 1, MakeStream(), Mu099B::BlockCipher(Enc1, Dec2)));
     CHECK_FALSE(client.LastError().empty());
     CHECK_FALSE(client.IsConnected());

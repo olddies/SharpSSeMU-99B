@@ -1,7 +1,7 @@
 namespace MuServer.AdminPanel.Repositories;
 
-/// <summary>Una tabla de Data/ editable con el editor genérico: dónde está, cómo se llama y qué
-/// columnas tiene.</summary>
+/// <summary>A Data/ table editable with the generic editor: where it is, what it is called and what columns it
+/// has.</summary>
 public sealed record FlatTableDefinition(
     string Id,
     string Title,
@@ -9,15 +9,15 @@ public sealed record FlatTableDefinition(
     string[] PathParts,
     FlatColumn[] Columns);
 
-/// <summary>Esquemas de las tablas planas de Data/. Cada uno está copiado del comentario de columnas
-/// del propio archivo y verificado contra el loader del GameServer que lo lee.</summary>
+/// <summary>Schemas of the flat Data/ tables. Each one is copied from the column comment of the file itself and
+/// verified against the GameServer loader that reads it.</summary>
 public static class FlatTableCatalog
 {
     private static FlatColumn Num(string title, int width = 12) => new(title, FlatColumnKind.Number, width);
     private static FlatColumn Text(string title, int width = 38) => new(title, FlatColumnKind.QuotedText, width);
 
-    /// <summary>Las 5 columnas de uso por clase que cierran varias de estas tablas. El ancho no es el
-    /// mismo en todos los archivos (SkillList las separa más que los de quest), así que se pasa.</summary>
+    /// <summary>The 5 per-class usage columns that close several of these tables. The width is not the same in
+    /// all files (SkillList separates them more than the quest ones do), so it is passed in.</summary>
     private static FlatColumn[] ClassColumns(int width) =>
     [
         Num("DW", width), Num("DK", width), Num("FE", width), Num("MG", width), Num("DL", width),

@@ -4,18 +4,16 @@ public sealed record CredentialsRow(string Account, string Password);
 public sealed record PersonalInfoRow(string PersonalCode, int BlockCode);
 public sealed record AccountLevelRow(int AccountLevel, DateTime AccountExpire);
 
-/// <summary>
-/// Capa de datos de cuentas: reemplaza a QueryManager (ODBC/SQL Server) + los stored procedures
-/// WZ_CONNECT_MEMB / WZ_DISCONNECT_MEMB / WZ_GetAccountLevel / WZ_SetAccountLevel, ahora contra
-/// PostgreSQL con consultas parametrizadas (el original armaba el SQL con sprintf, vulnerable a
-/// inyección — acá se corrige sin cambiar el comportamiento observable).
-/// </summary>
+/// <summary> Account data layer: replaces QueryManager (ODBC/SQL Server) + the stored procedures
+/// WZ_CONNECT_MEMB / WZ_DISCONNECT_MEMB / WZ_GetAccountLevel / WZ_SetAccountLevel, now against PostgreSQL with
+/// parameterised queries (the original built the SQL with sprintf, vulnerable to injection — here it is fixed
+/// without changing the observable behaviour). </summary>
 public interface IAccountRepository
 {
     Task<CredentialsRow?> GetCredentialsAsync(string account, CancellationToken ct);
     Task<PersonalInfoRow?> GetPersonalInfoAsync(string account, CancellationToken ct);
 
-    /// <summary>Puerto de WZ_GetAccountLevel: si el nivel expiró, lo resetea a 0 y persiste.</summary>
+    /// <summary>Port of WZ_GetAccountLevel: if the level expired, it resets it to 0 and persists.</summary>
     Task<AccountLevelRow> GetAccountLevelAsync(string account, CancellationToken ct);
 
     /// <summary>Puerto de WZ_SetAccountLevel: mismo nivel => extiende vencimiento; nivel distinto => lo reinicia.</summary>

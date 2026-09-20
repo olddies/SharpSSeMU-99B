@@ -1,18 +1,17 @@
 namespace MuServer.AdminPanel.Repositories;
 
-/// <summary>Un ajuste de la página de Tasas. <see cref="PerAccountLevel"/> marca las claves que en el
-/// archivo están repetidas por nivel de cuenta (<c>_AL0</c>..<c>_AL3</c>): se muestran como un solo
-/// campo y se escriben en los 4, porque el servidor no tiene sistema de cuentas premium (el nivel de
-/// cuenta siempre vale 0) y dejar los otros 3 con valores distintos sólo genera confusión más
-/// adelante. Quien necesite los 4 por separado los tiene en la página de Configuración.</summary>
+/// <summary>A setting of the Rates page. <see cref="PerAccountLevel"/> marks the keys that are repeated per
+/// account level in the file (<c>_AL0</c>..<c>_AL3</c>): they are shown as a single field and written to all 4,
+/// because the server has no premium-account system (the account level is always 0) and leaving the other 3
+/// with different values only causes confusion later on. Whoever needs the 4 separately has them on the
+/// Configuration page.</summary>
 public sealed record RateSetting(string Key, string Label, string Help, bool PerAccountLevel = false);
 
 public sealed record RateGroup(string Title, string Icon, RateSetting[] Settings);
 
-/// <summary>Los ajustes que un admin toca de verdad para configurar su servidor, sacados a mano de
-/// <c>GameServerInfo - Common.dat</c> con nombre y explicación en castellano. No reemplaza a la
-/// página de Configuración (que muestra los ~845 campos crudos): es el atajo a lo que se usa siempre.
-/// </summary>
+/// <summary>The settings an admin really touches to configure their server, picked by hand from
+/// <c>GameServerInfo - Common.dat</c> with a name and explanation. It does not replace the Configuration page
+/// (which shows the ~845 raw fields): it is the shortcut to what is always used. </summary>
 public static class RateSettings
 {
     public const string FileName = "GameServerInfo - Common.dat";

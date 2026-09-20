@@ -66,8 +66,8 @@ def annotate_server_to_client(dirs: list[Path]) -> dict[str, dict]:
             }
             prior = out.get(struct)
             if prior and (prior["head"], prior["sub"]) != (entry["head"], entry["sub"]):
-                # El mismo struct timbrado con dos opcodes distintos: real (algunos
-                # se reusan), así que se guardan todos en vez de quedarse con uno.
+                # The same struct stamped with two different opcodes: real (some are reused), so all of them are
+                # kept instead of keeping only one.
                 prior.setdefault("aliases", []).append(entry)
             else:
                 out.setdefault(struct, entry)
@@ -121,7 +121,7 @@ def scan_dispatch(body: str, source: str) -> dict[str, dict]:
             out.setdefault(m.group(1), {
                 "head": head,
                 "sub": sub,
-                "encrypted": None,  # lo decide el cliente al mandar
+                "encrypted": None,  # decided by the client when sending
                 "direction": "client_to_server",
                 "source": source,
             })

@@ -3,10 +3,10 @@ using System.Text;
 
 namespace MuServer.AdminPanel.Repositories;
 
-/// <summary>Una fila de Data/Move/Move.txt, completa -- a diferencia de <c>MoveEntry</c> (el modelo
-/// en memoria del GameServer, que descarta AL0-3 porque nada los usa todavía), esta guarda las 4
-/// columnas de nivel de cuenta tal cual, para que editar y guardar desde acá no las borre.
-/// <c>null</c> en MinLevel/MaxLevel/MinReset/MaxReset/AL0-3 es el "*" del archivo (sin restricción).</summary>
+/// <summary>A complete row of Data/Move/Move.txt -- unlike <c>MoveEntry</c> (the GameServer's in-memory model,
+/// which discards AL0-3 because nothing uses them yet), this one keeps the 4 account-level columns as they are,
+/// so that editing and saving from here does not wipe them. <c>null</c> in
+/// MinLevel/MaxLevel/MinReset/MaxReset/AL0-3 is the file's "*" (no restriction).</summary>
 public sealed class MoveRow
 {
     public required int Index { get; set; }
@@ -23,10 +23,9 @@ public sealed class MoveRow
     public required int GateNumber { get; set; }
 }
 
-/// <summary>Lee y escribe Data/Move/Move.txt de punta a punta -- no reutiliza el <c>MoveTable</c> del
-/// GameServer porque ese es un lector de sólo lectura, pensado para cargar una vez al arrancar; este
-/// panel necesita ida y vuelta fiel byte a byte de las columnas que existen en el archivo, AL0-3
-/// incluidas.</summary>
+/// <summary>Reads and writes Data/Move/Move.txt end to end -- it does not reuse the GameServer's
+/// <c>MoveTable</c> because that is a read-only reader, meant to load once at start-up; this panel needs a
+/// byte-for-byte faithful round trip of the columns that exist in the file, AL0-3 included.</summary>
 public static class MoveFileRepository
 {
     public static (string Header, List<MoveRow> Rows) Load(string path)
@@ -64,9 +63,9 @@ public static class MoveFileRepository
 
     private static MoveRow ParseRow(string line)
     {
-        // El nombre puede tener espacios si viniera entre comillas (no es el caso en el archivo
-        // real, pero se soporta por si acaso) o no -- Move.txt lo escribe sin comillas y sin
-        // espacios ("Lorencia", no "Nueva Lorencia"), así que un split simple alcanza.
+        // The name may have spaces if it came quoted (not the case in the real file, but it is supported just
+        // in case) or not -- Move.txt writes it without quotes and without spaces ("Lorencia", not "New
+        // Lorencia"), so a simple split is enough.
         var tokens = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
         int Int(int i) => int.Parse(tokens[i], CultureInfo.InvariantCulture);
@@ -121,8 +120,8 @@ public static class MoveFileRepository
         }
         sb.AppendLine("end");
 
-        // Escritura atómica (temp + move) para no dejar el archivo a medio escribir si algo falla
-        // -- este archivo lo lee el GameServer al arrancar, y un Move.txt roto lo tumba.
+        // Atomic write (temp + move) so as not to leave the file half-written if something fails -- this file
+        // is read by the GameServer at start-up, and a broken Move.txt takes it down.
         var tmpPath = path + ".tmp";
         File.WriteAllText(tmpPath, sb.ToString());
         File.Copy(tmpPath, path, overwrite: true);

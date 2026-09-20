@@ -5,9 +5,9 @@ using MuServer.Shared.Protocol;
 
 namespace MuServer.GameServer.Net;
 
-/// <summary>Puerto de la porción "cliente de JoinServer" de GameServer.cpp/JSProtocol.cpp
-/// (JoinServerConnect/JoinServerMsgProc). Protocolo plano C1, sin cifrado (a diferencia del
-/// socket de clientes reales) — igual patrón que usan ConnectServer/JoinServer/DataServer entre sí.</summary>
+/// <summary>Port of the "JoinServer client" portion of GameServer.cpp/JSProtocol.cpp
+/// (JoinServerConnect/JoinServerMsgProc). Plain C1 protocol, without encryption (unlike the real clients'
+/// socket) — the same pattern ConnectServer/JoinServer/DataServer use among themselves.</summary>
 public sealed class JoinServerConnection
 {
     private readonly string _address;
@@ -116,17 +116,16 @@ public sealed class JoinServerConnection
                 break;
 
             case 0x02:
-                // Puerto de JGDisconnectAccountRecv (JSProtocol.cpp:94-100): en el original, cierra
-                // forzosamente el socket si el índice/cuenta siguen coincidiendo con un cliente
-                // conectado (gObjIsAccountValid) -- una red de seguridad para el caso borde de que
-                // JoinServer decida por su cuenta que la sesión ya no es válida. Este puerto ya cierra
-                // la sesión de forma proactiva apenas el socket del cliente se desconecta de verdad
-                // (ver ClientProtocolHandler.OnDisconnectAsync, que es lo que dispara el envío de este
-                // mismo 0x02 hacia JoinServer en primer lugar), así que para cuando esta respuesta
-                // llega la sesión casi siempre ya fue removida -- el cierre forzoso quedaría en la
-                // práctica como no-op. Se deja el callback enganchado igual (por si a futuro se agrega
-                // un cierre de sesión iniciado por JoinServer de verdad, ej. duplicidad de cuenta) en
-                // vez de solo loguearlo como no implementado.
+                // Port of JGDisconnectAccountRecv (JSProtocol.cpp:94-100): in the original, it forcibly closes
+                // the socket if the index/account still match a connected client (gObjIsAccountValid) -- a
+                // safety net for the edge case where JoinServer decides on its own that the session is no
+                // longer valid. This port already closes the session proactively as soon as the client's socket
+                // really disconnects (see ClientProtocolHandler.OnDisconnectAsync, which is what triggers
+                // sending this same 0x02 to JoinServer in the first place), so by the time this reply arrives
+                // the session has almost always already been removed -- the forced close would be a no-op in
+                // practice. The callback is left hooked anyway (in case a truly JoinServer-initiated session
+                // close, e.g. duplicate account, is added in the future) instead of just logging it as not
+                // implemented.
                 if (_onDisconnectAck != null)
                 {
                     await _onDisconnectAck(DisconnectAccountAckRecv.Parse(packet), ct);

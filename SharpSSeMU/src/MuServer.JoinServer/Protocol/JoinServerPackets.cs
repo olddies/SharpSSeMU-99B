@@ -2,9 +2,9 @@ using MuServer.Shared.Protocol;
 
 namespace MuServer.JoinServer.Protocol;
 
-// Todos los paquetes de este protocolo usan PBMSG_HEAD (C1, size 1 byte, head 1 byte — sin subh),
-// a diferencia de ConnectServer que usa variantes "Sub"/"Word". Offsets fijos, replicando 1:1
-// los structs SDHP_* de JoinServerProtocol.h (packing natural de 1 byte, sin relleno).
+// All the packets of this protocol use PBMSG_HEAD (C1, 1-byte size, 1-byte head — without subh), unlike
+// ConnectServer which uses "Sub"/"Word" variants. Fixed offsets, replicating 1:1 the SDHP_* structs of
+// JoinServerProtocol.h (natural 1-byte packing, no padding).
 
 public sealed record ServerInfoRecv(byte Type, ushort ServerPort, string ServerName, ushort ServerCode)
 {

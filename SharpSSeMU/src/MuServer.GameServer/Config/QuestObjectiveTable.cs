@@ -10,21 +10,19 @@ public enum QuestObjectiveType
     Money = 2,
 }
 
-/// <summary>Puerto de QUEST_OBJECTIVE_INFO (QuestObjective.h:29-47) -- una fila de
-/// <c>Data/Quest/QuestObjective.txt</c>. <see cref="RequireIndex"/>/<see cref="RequireState"/> es lo
-/// que ata este objetivo a un ÍNDICE Y ESTADO concretos de <see cref="QuestTable"/> (ej: "para
-/// completar la misión 0 en estado ACCEPT hace falta 1x item 471").</summary>
+/// <summary>Port of QUEST_OBJECTIVE_INFO (QuestObjective.h:29-47) -- a row of
+/// <c>Data/Quest/QuestObjective.txt</c>. <see cref="RequireIndex"/>/<see cref="RequireState"/> is what ties
+/// this objective to a concrete INDEX AND STATE of <see cref="QuestTable"/> (e.g. "to complete quest 0 in state
+/// ACCEPT you need 1x item 471").</summary>
 public sealed record QuestObjectiveInfo(
     int Sort, QuestObjectiveType Type, int Index, int Quantity, int Level, int Option1, int Option2, int Option3,
     int NewOption, int MapNumber, int DropMinLevel, int DropMaxLevel, int ItemDropRate,
     int RequireIndex, int RequireState, int[] RequireClass);
 
-/// <summary>
-/// Puerto de CQuestObjective (QuestObjective.h/.cpp) -- los objetivos (costo en Zen o item requerido)
-/// que hay que cumplir para avanzar cada paso de una misión, y el drop de items de misión al matar
-/// monstruos del nivel/mapa correctos (<see cref="MonsterItemDrop"/>, puerto de
-/// QuestObjective.cpp:213-269, enganchado en el cascada de loot real justo después de
-/// ItemBagManager y antes de DropEvent/ItemDrop/MoneyDrop -- ver Monster.cpp:59-79).
+/// <summary> Port of CQuestObjective (QuestObjective.h/.cpp) -- the objectives (Zen cost or required item) that
+/// must be met to advance each step of a quest, and the quest item drop when killing monsters of the right
+/// level/map (<see cref="MonsterItemDrop"/>, port of QuestObjective.cpp:213-269, hooked into the real loot
+/// cascade right after ItemBagManager and before DropEvent/ItemDrop/MoneyDrop -- see Monster.cpp:59-79).
 /// </summary>
 public sealed class QuestObjectiveTable
 {

@@ -486,8 +486,8 @@ void SendRequestUse(int Index, int Target, bool addPoints)
     }
 
     EnableUse = 10;
-    // El campo `type` de 0.99B es el mismo valor que FruitUsage: 0 suma puntos,
-    // 1 los quita. Para todo lo demás el servidor lo ignora.
+    // The 0.99B `type` field is the same value as FruitUsage: 0 adds points, 1 removes them. For everything
+    // else the server ignores it.
     Mu099B::SendItemUse(*SocketClient, static_cast<BYTE>(Index), static_cast<BYTE>(Target),
                         addPoints ? 0 : 1);
     g_ConsoleDebug->Write(MCD_SEND, L"0x26 [SendRequestUse(%d)]", Index);
@@ -527,11 +527,10 @@ bool SendRequestEquipmentItem(STORAGE_TYPE iSrcType, int iSrcIndex, ITEM* pItem,
         spareBits = (((BYTE)pItem->Jewel_Of_Harmony_Option) << 4) + ((BYTE)pItem->Jewel_Of_Harmony_OptionLevel);
     }
 
-    // PMSG_ITEM_MOVE_RECV reserva 5 bytes para el item, pero el servidor sólo lee
-    // contenedor y slot de cada lado (ItemMoveRecv.Parse toma los offsets 3, 4, 10
-    // y 11): valida contra su propia copia del inventario, no contra lo que diga
-    // el cliente. Se mandan en cero en vez de armar un mapeo de campos que nadie
-    // consume y que quedaría desactualizado sin que nada lo delate.
+    // PMSG_ITEM_MOVE_RECV reserves 5 bytes for the item, but the server only reads container and slot on each
+    // side (ItemMoveRecv.Parse takes offsets 3, 4, 10 and 11): it validates against its own copy of the
+    // inventory, not against what the client says. They are sent as zero instead of building a field mapping
+    // that nobody consumes and that would go stale without anything revealing it.
     Mu099B::SendItemMove(*SocketClient, static_cast<Mu099B::ItemContainer>(iSrcType),
         static_cast<BYTE>(iSrcIndex), /*itemInfo=*/nullptr,
         static_cast<Mu099B::ItemContainer>(iDstType), static_cast<BYTE>(iDstIndex));

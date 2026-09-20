@@ -14,11 +14,11 @@ public enum DevilSquareState
     Clean = 4,
 }
 
-/// <summary>Puerto simplificado de un slot de DEVIL_SQUARE_LEVEL.User[MAX_DS_USER] (DevilSquare.h) --
-/// a diferencia del arreglo fijo de 50 slots con hueco/índice -1, acá es una entrada de una List&lt;&gt;
-/// que preserva el orden de inserción a propósito: el desempate de <see cref="CalcRanks"/> depende de
-/// ese orden (quirk documentado en la investigación de esta fase: el original desempata por índice de
-/// slot más bajo = orden de ingreso, algo que un Dictionary no garantiza pero una List sí).</summary>
+/// <summary>Simplified port of a slot of DEVIL_SQUARE_LEVEL.User[MAX_DS_USER] (DevilSquare.h) -- unlike the
+/// fixed array of 50 slots with gaps/index -1, here it is an entry of a List&lt;&gt; that preserves insertion
+/// order on purpose: the tie-break of <see cref="CalcRanks"/> depends on that order (a quirk documented in this
+/// phase's research: the original breaks ties by lowest slot index = order of entry, something a Dictionary
+/// does not guarantee but a List does).</summary>
 public sealed class DevilSquareParticipant
 {
     public required int PlayerIndex { get; init; }
@@ -26,10 +26,10 @@ public sealed class DevilSquareParticipant
     public int Rank { get; set; } = -1; // 0-based, calculado en CalcRanks
 }
 
-/// <summary>Puerto de DEVIL_SQUARE_LEVEL (DevilSquare.h) -- estado en runtime de UN bracket (0-6,
-/// aunque solo 0-3 tienen datos reales en este paquete, ver README). MonsterIndices acumula TODOS los
-/// monstruos spawneados en las 4 etapas de la corrida actual (no se vacía entre etapas -- puerto
-/// exacto del comportamiento original, ver quirk de StageSpawn en la investigación de esta fase).</summary>
+/// <summary>Port of DEVIL_SQUARE_LEVEL (DevilSquare.h) -- runtime state of ONE bracket (0-6, although only 0-3
+/// have real data in this package, see README). MonsterIndices accumulates ALL the monsters spawned in the 4
+/// stages of the current run (it is not emptied between stages -- exact port of the original behaviour, see the
+/// StageSpawn quirk in this phase's research).</summary>
 public sealed class DevilSquareBracket
 {
     public required int Level { get; init; } // 0-based
@@ -47,44 +47,36 @@ public sealed class DevilSquareBracket
     public HashSet<int> MonsterIndices { get; } = new();
 }
 
-/// <summary>
-/// Puerto de CDevilSquare (DevilSquare.h/.cpp) -- Fase 6, primera pasada. Motor de estados +
-/// entrada/puntaje/recompensa de Devil Square. Simplificaciones documentadas explícitamente (mismo
-/// criterio que el resto del proyecto -- deuda técnica visible, no oculta):
-///
-///  - Sin integración con el sistema de diálogo de NPC (CNpcTalk::NpcCharon) -- ese subsistema no
-///    está portado todavía (ver ClientProtocolHandler, head 0x30/0x31 siguen sin implementar). El
-///    cliente real necesitaría hablar con el NPC Charon para abrir la ventana de selección antes de
-///    poder mandar C1:90 -- acá se asume que el cliente (o una herramienta de prueba) manda C1:90
-///    directamente, el resto del flujo (validación, teleport, puntaje, recompensa, ranking) es fiel.
-///  - Sin catálogo de mensajes de texto (Message.txt/gMessage) -- los avisos "Devil Square abre en N
-///    minutos", "no tenés el nivel suficiente", etc. no se mandan (no hay sistema de notificaciones
-///    de texto portado todavía). El paquete C1:92 (klaxon de 30 segundos, sin texto) SÍ se manda.
-///  - Recompensa de ITEM (solo 1er puesto, ver EventItemBagManager.txt) no está portada -- requiere
-///    el sistema recursivo de "bolsas" de ItemBagManager que no existe todavía en este puerto. XP y
-///    Zen sí se otorgan completos y byte-exactos contra las tablas de DevilSquare.dat.
-///  - Límite diario de entradas por cuenta (DSCount/m_DevilSquareMaxEntryCount) no portado -- se
-///    puede entrar cuantas veces se quiera mientras la ventana esté abierta.
-///  - Selección de posición de spawn: el original elige UNA posición libre al azar por instancia de
-///    CDevilSquare::SetMonster; acá se instancia un monstruo en CADA posición candidata del pool
-///    Type==4 para la clase/mapa (no se encontró en la investigación el número exacto de instancias
-///    por llamada) -- es la interpretación más simple y fiel al pool de posiciones tal como está
-///    definido en el archivo de datos real.
-/// </summary>
+/// <summary> Port of CDevilSquare (DevilSquare.h/.cpp) -- Phase 6, first pass. State engine +
+/// entry/score/reward of Devil Square. Explicitly documented simplifications (same criterion as the rest of the
+/// project -- visible technical debt, not hidden): - No integration with the NPC dialog system
+/// (CNpcTalk::NpcCharon) -- that subsystem is not ported yet (see ClientProtocolHandler, head 0x30/0x31 remain
+/// unimplemented). The real client would need to talk to the NPC Charon to open the selection window before
+/// being able to send C1:90 -- here it is assumed that the client (or a test tool) sends C1:90 directly, the
+/// rest of the flow (validation, teleport, score, reward, ranking) is faithful. - No text message catalogue
+/// (Message.txt/gMessage) -- the notices "Devil Square opens in N minutes", "you do not have enough level",
+/// etc. are not sent (there is no ported text notification system yet). The C1:92 packet (30-second klaxon,
+/// without text) IS sent. - ITEM reward (only 1st place, see EventItemBagManager.txt) is not ported -- it
+/// requires the recursive "bag" system of ItemBagManager which does not exist yet in this port. XP and Zen are
+/// granted in full and byte-exact against the DevilSquare.dat tables. - Daily entry limit per account
+/// (DSCount/m_DevilSquareMaxEntryCount) not ported -- one can enter as many times as wanted while the window is
+/// open. - Spawn position selection: the original picks ONE free position at random per instance of
+/// CDevilSquare::SetMonster; here a monster is instantiated at EACH candidate position of the Type==4 pool for
+/// the class/map (the exact number of instances per call was not found in the research) -- it is the simplest
+/// interpretation and the most faithful to the position pool as defined in the real data file. </summary>
 public sealed class DevilSquareManager
 {
     private static readonly TimeSpan TickInterval = TimeSpan.FromSeconds(1);
     private static readonly Random Rng = Random.Shared;
 
-    /// <summary>Puerto real de MAX_DS_USER (<c>gServerInfo.m_DevilSquareMaxUser</c>,
-    /// <c>GameServerInfo - Event.dat</c> -- ver <see cref="MuServer.GameServer.Config.ServerInfoConfig"/>).
-    /// CORREGIDO: antes de portar ese archivo este puerto usaba un tope hardcodeado de 50
-    /// (arbitrario); el real es 15.</summary>
+    /// <summary>Real port of MAX_DS_USER (<c>gServerInfo.m_DevilSquareMaxUser</c>, <c>GameServerInfo -
+    /// Event.dat</c> -- see <see cref="MuServer.GameServer.Config.ServerInfoConfig"/>). FIXED: before porting
+    /// that file this port used a hardcoded cap of 50 (arbitrary); the real one is 15.</summary>
     private static int MaxDsUser => WorldPacketBuilder.ServerInfo.DevilSquareMaxUser;
-    // Item.GetItem(sección,sub) = sección*32+sub (MaxItemType real de este build, ver Item.cs).
-    // GetItem(14,19) = 467 ("Devil's Invitation").
+    // Item.GetItem(section,sub) = section*32+sub (this build's real MaxItemType, see Item.cs). GetItem(14,19) =
+    // 467 ("Devil's Invitation").
     private static readonly int TicketItemLeveled = Item.GetItem(14, 19); // "Devil's Invitation"
-    private static readonly int TicketItemUniversal = Item.GetItem(13, 46); // sin nivel -- ver quirk documentado en investigación
+    private static readonly int TicketItemUniversal = Item.GetItem(13, 46); // no level -- see the quirk documented in the research
     private const int ClassMg = 3; // "clase especial" (MG/DL/RF en el original) -- solo MG existe en este paquete de datos
 
     private readonly DevilSquareConfig _config;
@@ -102,11 +94,11 @@ public sealed class DevilSquareManager
     /// volver a EMPTY (ver Gate.txt fila 27).</summary>
     private static readonly (byte Map, byte MinX, byte MinY, byte MaxX, byte MaxY) ExitBox = (3, 171, 108, 177, 117);
 
-    /// <summary>Callback hacia ClientProtocolHandler para dar experiencia de evento reusando el mismo
-    /// pipeline de subida de nivel que el combate normal (ver ClientProtocolHandler.GrantEventExperienceAsync)
-    /// -- se resuelve como delegate en vez de referencia directa para no crear una dependencia circular
-    /// en la construcción (DevilSquareManager se arma antes que ClientProtocolHandler, igual que
-    /// ViewportTicker/protocolHandler en Program.cs).</summary>
+    /// <summary>Callback towards ClientProtocolHandler to give event experience reusing the same level-up
+    /// pipeline as normal combat (see ClientProtocolHandler.GrantEventExperienceAsync) -- resolved as a
+    /// delegate instead of a direct reference so as not to create a circular dependency in construction
+    /// (DevilSquareManager is built before ClientProtocolHandler, like ViewportTicker/protocolHandler in
+    /// Program.cs).</summary>
     public Func<PlayerObject, long, CancellationToken, Task>? GrantExperience { get; set; }
 
     public DevilSquareManager(
@@ -124,11 +116,11 @@ public sealed class DevilSquareManager
         _players = players;
         _dataServer = dataServer;
 
-        // Puerto de las filas 58-61 de Gate.txt (entrada) -- brackets 0-3, únicos con datos reales
-        // en DevilSquare.dat/EventEntryLevel.dat/EventStageSpawn.dat en este paquete (ver README).
-        // Brackets 4-6 (MAX_DS_LEVEL=7) quedan sin datos (HasData=false, nunca salen de BLANK) --
-        // documentado como quirk fiel al original, GetDevilSquareLevel jamás los devuelve con estos
-        // archivos reales de todas formas (bracket 3 no tiene tope superior de nivel).
+        // Port of rows 58-61 of Gate.txt (entry) -- brackets 0-3, the only ones with real data in
+        // DevilSquare.dat/EventEntryLevel.dat/EventStageSpawn.dat in this package (see README). Brackets 4-6
+        // (MAX_DS_LEVEL=7) are left without data (HasData=false, they never leave BLANK) -- documented as a
+        // quirk faithful to the original, GetDevilSquareLevel never returns them with these real files anyway
+        // (bracket 3 has no upper level cap).
         var boxes = new (byte MinX, byte MinY, byte MaxX, byte MaxY)[]
         {
             ((byte)133, (byte)91, (byte)141, (byte)99),
@@ -150,15 +142,12 @@ public sealed class DevilSquareManager
         }
     }
 
-    /// <summary>
-    /// Puerto de CDevilSquare::ForceStart (DevilSquare.cpp, disparado por el menú de admin
-    /// IDM_EVENT_FORCEDEVILSQUARE en GameServer.cpp:280-281) -- inserta una entrada de horario
-    /// sintética "ahora + N segundos" (concreta, no comodín, igual que el original que usa "+1
-    /// minuto") y reinicia el/los bracket(s) indicado(s) a EMPTY para que CheckSync la recoja de
-    /// inmediato. Expuesto acá como comando de consola ('ds forcestart[ N]', ver Program.cs) --
-    /// sirve tanto para testing determinístico (sin esperar el horario real de cada 4hs) como para
-    /// el mismo caso de uso administrativo que tenía el original.
-    /// </summary>
+    /// <summary> Port of CDevilSquare::ForceStart (DevilSquare.cpp, triggered by the admin menu
+    /// IDM_EVENT_FORCEDEVILSQUARE in GameServer.cpp:280-281) -- inserts a synthetic schedule entry "now + N
+    /// seconds" (concrete, not a wildcard, like the original which uses "+1 minute") and resets the indicated
+    /// bracket(s) to EMPTY so that CheckSync picks it up immediately. Exposed here as a console command ('ds
+    /// forcestart[ N]', see Program.cs) -- it serves both for deterministic testing (without waiting for the
+    /// real schedule every 4h) and for the same administrative use case the original had. </summary>
     public void ForceStart(int? level = null, int delaySeconds = 40)
     {
         var target = DateTime.UtcNow.AddSeconds(delaySeconds);
@@ -179,9 +168,9 @@ public sealed class DevilSquareManager
 
     public void Start(CancellationToken ct)
     {
-        // Puerto de CDevilSquare::Init (DevilSquare.cpp) -- arranca cada bracket con datos en EMPTY,
-        // re-sincronizado contra el horario configurado. Sin el flag global m_DevilSquareEvent (config
-        // de servidor no portada) -- se asume siempre habilitado, equivalente a tenerlo en 1.
+        // Port of CDevilSquare::Init (DevilSquare.cpp) -- starts each bracket with data in EMPTY,
+        // re-synchronised against the configured schedule. Without the global flag m_DevilSquareEvent (unported
+        // server config) -- it is assumed always enabled, equivalent to having it at 1.
         foreach (var bracket in _brackets.Values)
         {
             if (bracket.HasData)
@@ -256,9 +245,9 @@ public sealed class DevilSquareManager
         }
     }
 
-    /// <summary>Puerto de CheckUser (llamado desde cada ProcState_*) -- saca de la lista a quien se
-    /// desconectó o ya no está parado en el mapa del bracket (se fue caminando, o el proceso lo sacó
-    /// por otro motivo). Hasta 1s de latencia como el original (ticker de 1s).</summary>
+    /// <summary>Port of CheckUser (called from each ProcState_*) -- removes from the list whoever disconnected
+    /// or is no longer standing on the bracket's map (walked away, or the process removed them for another
+    /// reason). Up to 1s of latency like the original (1s ticker).</summary>
     private void CheckUser(DevilSquareBracket bracket)
     {
         bracket.Participants.RemoveAll(p => !_players.TryGet(p.PlayerIndex, out var player) || player.Map != bracket.Map);
@@ -273,8 +262,8 @@ public sealed class DevilSquareManager
 
         if (remainSec > 0 && remainSec <= 30 && !bracket.TimeCountSent)
         {
-            // Puerto de DataSendAll (server-wide, no solo a los participantes -- distinto del resto
-            // de los avisos, que son bracket-scoped, ver investigación de esta fase).
+            // Port of DataSendAll (server-wide, not only to the participants -- unlike the rest of the notices,
+            // which are bracket-scoped, see this phase's research).
             await BroadcastToAllOnlineAsync(DevilSquarePacketBuilder.TimeCountSend(0), ct);
             bracket.TimeCountSent = true;
         }
@@ -315,9 +304,9 @@ public sealed class DevilSquareManager
             return;
         }
 
-        // Puerto EXACTO de SetStage0/1/2/3 (DevilSquare.cpp:1120-1147): división entera truncando
-        // ANTES de dividir por EventTime*60 -- no simplificar el orden de operaciones, cambia los
-        // instantes exactos de transición de etapa.
+        // EXACT port of SetStage0/1/2/3 (DevilSquare.cpp:1120-1147): integer division truncating BEFORE
+        // dividing by EventTime*60 -- do not simplify the order of operations, it changes the exact stage
+        // transition instants.
         int totalSec = _config.Timing.EventMinutes * 60;
         int remainSecInt = Math.Max(0, (int)remainSec);
         int pct = totalSec <= 0 ? 0 : (remainSecInt * 100) / totalSec;
@@ -358,8 +347,8 @@ public sealed class DevilSquareManager
         bracket.TimeCountSent = false;
         bracket.Stage = 0;
 
-        // Puerto de ClearUser (DevilSquare.cpp) -- teletransporta a todo el que haya quedado
-        // registrado (si el bracket se recicla con gente todavía adentro) de vuelta a Noria.
+        // Port of ClearUser (DevilSquare.cpp) -- teleports everyone who remained registered (if the bracket is
+        // recycled with people still inside) back to Noria.
         foreach (var participant in bracket.Participants)
         {
             if (_players.TryGet(participant.PlayerIndex, out var player))
@@ -371,8 +360,8 @@ public sealed class DevilSquareManager
         bracket.Participants.Clear();
         ClearMonsters(bracket);
 
-        // Puerto de CheckSync (DevilSquare.cpp:474-509) -- recalcula desde cero el próximo horario a
-        // partir de TODA la lista configurada (no avanza un cursor guardado), ver quirk documentado.
+        // Port of CheckSync (DevilSquare.cpp:474-509) -- recomputes from scratch the next schedule from the
+        // WHOLE configured list (it does not advance a saved cursor), see the documented quirk.
         var next = ComputeNextOccurrence(_config.Schedule, DateTime.UtcNow);
 
         if (next == null)
@@ -412,9 +401,9 @@ public sealed class DevilSquareManager
         bracket.State = DevilSquareState.Clean;
     }
 
-    /// <summary>Puerto de CDevilSquare::CalcUserRank (DevilSquare.cpp:744-784) -- desempate por orden
-    /// de ingreso (índice de slot más bajo en el original, acá directamente el orden de la lista, ver
-    /// comentario de <see cref="DevilSquareParticipant"/>).</summary>
+    /// <summary>Port of CDevilSquare::CalcUserRank (DevilSquare.cpp:744-784) -- tie-break by order of entry
+    /// (lowest slot index in the original, here directly the list order, see the comment of <see
+    /// cref="DevilSquareParticipant"/>).</summary>
     private static void CalcRanks(DevilSquareBracket bracket)
     {
         var ranked = bracket.Participants
@@ -472,24 +461,24 @@ public sealed class DevilSquareManager
 
         if (money > 0)
         {
-            // Puerto de gObjCheckMaxMoney -- tope simple para no desbordar el uint (el original usa
-            // MAX_MONEY=2000000000, mismo valor documentado en varios lados del código original).
+            // Port of gObjCheckMaxMoney -- simple cap so as not to overflow the uint (the original uses
+            // MAX_MONEY=2000000000, the same value documented in several places of the original code).
             const uint maxMoney = 2_000_000_000;
             player.Money = money > maxMoney - player.Money ? maxMoney : player.Money + money;
             await player.Session.SendEncryptedAsync(ItemPacketBuilder.MoneySend(player.Money), ct);
         }
 
-        // Recompensa de ITEM (solo rank 0) NO portada -- ver deuda técnica documentada en el
-        // encabezado de esta clase (requiere ItemBagManager recursivo, fuera de esta primera pasada).
+        // ITEM reward (only rank 0) NOT ported -- see the technical debt documented in this class's header (it
+        // requires a recursive ItemBagManager, outside this first pass).
     }
 
     private async Task SendScoreListAsync(DevilSquareBracket bracket, List<DevilSquareParticipant> ranked, PlayerObject recipient, DevilSquareParticipant self, CancellationToken ct)
     {
         var entries = new List<DevilSquareScoreEntry>();
 
-        // Puerto EXACTO de GCDevilSquareScoreSend (DevilSquare.cpp:1292-1370): la entrada #0 es
-        // SIEMPRE el propio recipiente (aunque se repita más abajo en su posición ordenada real) --
-        // ver quirk documentado en la investigación de esta fase.
+        // EXACT port of GCDevilSquareScoreSend (DevilSquare.cpp:1292-1370): entry #0 is ALWAYS the recipient
+        // themselves (even if repeated further down at their real sorted position) -- see the quirk documented
+        // in this phase's research.
         entries.Add(BuildScoreEntry(bracket, self));
 
         foreach (var p in ranked)
@@ -555,11 +544,9 @@ public sealed class DevilSquareManager
 
     // ---------------------------------------------------------------- Entrada (CGDevilSquareEnterRecv)
 
-    /// <summary>
-    /// Puerto de CGDevilSquareEnterRecv (DevilSquare.cpp:1149-1290) -- cadena de validación completa
-    /// (sin el chequeo de tope diario de entradas ni PK, no portados, ver deuda técnica documentada
-    /// en el encabezado de la clase). Maneja tanto la respuesta C1:90 como el teleport de entrada.
-    /// </summary>
+    /// <summary> Port of CGDevilSquareEnterRecv (DevilSquare.cpp:1149-1290) -- full validation chain (without
+    /// the daily entry cap check or PK, not ported, see the technical debt documented in the class header). It
+    /// handles both the C1:90 reply and the entry teleport. </summary>
     public async Task HandleEnterAsync(ClientSession session, PlayerObject player, int level, int rawSlot, CancellationToken ct)
     {
         if (level < 0 || level >= DevilSquareConfig.MaxLevel || !_brackets.TryGetValue(level, out var bracket) || !bracket.HasData)
@@ -568,13 +555,12 @@ public sealed class DevilSquareManager
             return;
         }
 
-        // Puerto de "lpMsg->slot -= INVENTORY_WEAR_SIZE" + el chequeo INVENTORY_FULL_RANGE posterior
-        // (DevilSquare.cpp:1149-1290) -- el original resta 12 y usa el resultado como índice, lo cual
-        // solo tiene sentido si es un índice YA relativo a mochila que luego se vuelve a sumar en
-        // otro lado no visible en el extracto disponible; para evitar reproducir una ambigüedad de
-        // una sola línea sin el contexto completo, acá se usa la misma convención de índice único
-        // 0-107 que el resto de este puerto (ItemMoveAsync, SetItem, etc. -- ver Item.cs) validando
-        // directamente contra el rango de mochila (12-107).
+        // Port of "lpMsg->slot -= INVENTORY_WEAR_SIZE" + the later INVENTORY_FULL_RANGE check
+        // (DevilSquare.cpp:1149-1290) -- the original subtracts 12 and uses the result as an index, which only
+        // makes sense if it is an index ALREADY relative to the backpack that is later added back elsewhere not
+        // visible in the available excerpt; to avoid reproducing a one-line ambiguity without the full context,
+        // here the same single-index convention 0-107 as the rest of this port is used (ItemMoveAsync, SetItem,
+        // etc. -- see Item.cs) validating directly against the backpack range (12-107).
         int realSlot = rawSlot;
 
         if (realSlot < Item.InventoryWearSize || realSlot >= Item.InventorySize)
@@ -627,9 +613,8 @@ public sealed class DevilSquareManager
             return;
         }
 
-        // Éxito -- consumir el ticket (1 unidad de "durabilidad", igual que el resto de consumibles
-        // apilables de este puerto), avisar al cliente del cambio, registrar participante y
-        // teletransportar.
+        // Success -- consume the ticket (1 unit of "durability", like the rest of this port's stackable
+        // consumables), notify the client of the change, register participant and teleport.
         byte newDurability = (byte)Math.Max(item.Durability - 1, 0);
         var finalItem = newDurability == 0
             ? Item.Empty()
@@ -662,11 +647,10 @@ public sealed class DevilSquareManager
     private static Task SendEnterResultAsync(ClientSession session, byte result, CancellationToken ct) =>
         session.SendAsync(DevilSquarePacketBuilder.EnterSend(result), ct);
 
-    /// <summary>Puerto de la porción de gObjMoveGate que aplica cuando SÍ cambia de mapa
-    /// (User.cpp:222-247) -- posición al azar dentro de la caja de entrada (mismo mecanismo que
-    /// CGate::GetGate), sin el chequeo de bloqueo de tile (Type==1 de MonsterSpawnTable sí lo hace,
-    /// pero el gate original tampoco lo hace para cajas de evento -- confirmado que gObjMoveGate no
-    /// llama CheckAttr).</summary>
+    /// <summary>Port of the portion of gObjMoveGate that applies when it DOES change map (User.cpp:222-247) --
+    /// random position inside the entry box (same mechanism as CGate::GetGate), without the tile-block check
+    /// (Type==1 of MonsterSpawnTable does do it, but the original gate does not do it either for event boxes --
+    /// confirmed that gObjMoveGate does not call CheckAttr).</summary>
     private async Task TeleportInAsync(PlayerObject player, DevilSquareBracket bracket, CancellationToken ct)
     {
         var (minX, minY, maxX, maxY) = bracket.EntranceBox;
@@ -704,11 +688,9 @@ public sealed class DevilSquareManager
 
     // ---------------------------------------------------------------- Consulta de tiempo restante (C1:91)
 
-    /// <summary>
-    /// Puerto de la rama Devil Square de CGEventRemainTimeRecv (Protocol.cpp:1565-1590) -- ignora el
-    /// ItemLevel que manda el cliente y usa el bracket calculado del propio jugador (igual que el
-    /// original). Otros EventType (Blood/Chaos/Kalima) no están portados -- se ignoran en silencio.
-    /// </summary>
+    /// <summary> Port of the Devil Square branch of CGEventRemainTimeRecv (Protocol.cpp:1565-1590) -- ignores
+    /// the ItemLevel the client sends and uses the bracket computed for the player themselves (like the
+    /// original). Other EventTypes (Blood/Chaos/Kalima) are not ported -- they are silently ignored. </summary>
     public async Task HandleRemainTimeQueryAsync(ClientSession session, PlayerObject player, byte eventType, CancellationToken ct)
     {
         if (eventType != 1)
@@ -754,12 +736,11 @@ public sealed class DevilSquareManager
 
     // ---------------------------------------------------------------- Puntaje (CDevilSquare::MonsterDieProc)
 
-    /// <summary>
-    /// Puerto de CDevilSquare::MonsterDieProc (DevilSquare.cpp:1077-1118) -- se llama DESPUÉS de que
-    /// ClientProtocolHandler ya procesó la experiencia normal (los dos sistemas son independientes en
-    /// el original, no se excluyen). Crédito al atacante con MÁS daño acumulado (no al que dio el
-    /// golpe final -- gObjMonsterGetTopHitDamageUser), no al parámetro "killer" del llamador.
-    /// </summary>
+    /// <summary> Port of CDevilSquare::MonsterDieProc (DevilSquare.cpp:1077-1118) -- it is called AFTER
+    /// ClientProtocolHandler already processed the normal experience (the two systems are independent in the
+    /// original, they are not mutually exclusive). Credit goes to the attacker with the MOST accumulated damage
+    /// (not whoever dealt the final blow -- gObjMonsterGetTopHitDamageUser), not to the caller's "killer"
+    /// parameter. </summary>
     public async Task OnMonsterKilledAsync(Monster monster, CancellationToken ct)
     {
         if (monster.DevilSquareBracket is not int bracketIdx)
@@ -824,16 +805,13 @@ public sealed class DevilSquareManager
         }
     }
 
-    /// <summary>
-    /// Puerto de CScheduleManager::GetSchedule tal como lo usa CheckSync -- soonest future occurrence
-    /// entre TODAS las filas configuradas, recalculado desde cero cada vez (no avanza un cursor
-    /// persistente). Soporta con fidelidad completa el caso real de este paquete de datos
-    /// (Year/Month/Day/DayOfWeek en "*", solo Hour/Minute/Second fijos); para combinaciones con
-    /// Year/Month/Day fijos hace una búsqueda acotada día por día hasta 2 años adelante (más que
-    /// suficiente para cualquier horario realista, y el paquete de datos real nunca los usa).
-    /// La convención de StartDoW (1~7) no está confirmada contra el original -- se asume 1=Domingo
-    /// (DayOfWeek de .NET + 1), documentado porque el dato real de este paquete siempre usa "*" acá.
-    /// </summary>
+    /// <summary> Port of CScheduleManager::GetSchedule as CheckSync uses it -- soonest future occurrence among
+    /// ALL the configured rows, recomputed from scratch every time (it does not advance a persistent cursor).
+    /// It supports with full fidelity the real case of this data package (Year/Month/Day/DayOfWeek at "*", only
+    /// Hour/Minute/Second fixed); for combinations with fixed Year/Month/Day it does a bounded day-by-day
+    /// search up to 2 years ahead (more than enough for any realistic schedule, and the real data package never
+    /// uses them). The StartDoW convention (1~7) is not confirmed against the original -- 1=Sunday (.NET's
+    /// DayOfWeek + 1) is assumed, documented because this package's real data always uses "*" here. </summary>
     internal static DateTime? ComputeNextOccurrence(IReadOnlyList<DevilSquareStartTime> schedule, DateTime fromUtc)
     {
         DateTime? best = null;

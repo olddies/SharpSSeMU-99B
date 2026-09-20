@@ -1,9 +1,7 @@
-// Pedidos de NPC, tienda, puertas y señal de vida.
-//
-// Todos son paquetes chicos, y ahí está el riesgo: un opcode equivocado o un
-// campo corrido no rompe nada visible, sólo hace que el servidor conteste otra
-// cosa o nada. Los valores esperados salen del despacho de SharpSSeMU y de los
-// static_assert del generador, no de leer los constructores.
+// NPC requests, shop, gates and heartbeat. They are all small packets, and that is where the risk lies: a wrong
+// opcode or a shifted field breaks nothing visible, it only makes the server answer something else or nothing.
+// The expected values come from SharpSSeMU's dispatch and from the generator's static_asserts, not from reading
+// the constructors.
 
 #include <doctest.h>
 
@@ -39,8 +37,8 @@ TEST_CASE("Cerrar la ventana del NPC es solo la cabecera")
     const auto packet = Mu099B::BuildNpcCloseRequest();
     const auto* raw = Raw(&packet);
 
-    // Tres bytes: sin cuerpo. Si el tamaño declarado no coincide con lo que se
-    // manda, el servidor pierde la sincronización del flujo entero.
+    // Three bytes: no body. If the declared size does not match what is sent, the server loses sync of the
+    // whole stream.
     REQUIRE(sizeof(packet) == 3);
     CHECK(raw[0] == 0xC1);
     CHECK(raw[1] == 3);
@@ -49,8 +47,8 @@ TEST_CASE("Cerrar la ventana del NPC es solo la cabecera")
 
 TEST_CASE("Comprar y vender se distinguen solo por el opcode")
 {
-    // Los dos llevan un slot y nada más, así que confundirlos vende lo que uno
-    // queria comprar. Por eso el test los mira juntos.
+    // Both carry a slot and nothing else, so mixing them up sells what one wanted to buy. That is why the test
+    // looks at them together.
     const auto buy = Mu099B::BuildItemBuyRequest(7);
     const auto sell = Mu099B::BuildItemSellRequest(7);
 
@@ -76,9 +74,8 @@ TEST_CASE("Reparar lleva slot y tipo")
 
 TEST_CASE("Cruzar una puerta manda tambien donde esta uno parado")
 {
-    // El servidor usa x e y para comprobar que el personaje de verdad llegó
-    // hasta la puerta: mandar la posición de destino en vez de la actual hace
-    // que rechace el cruce.
+    // The server uses x and y to check that the character really reached the gate: sending the destination
+    // position instead of the current one makes it reject the crossing.
     const auto packet = Mu099B::BuildTeleportRequest(17, 125, 130);
     const auto* raw = Raw(&packet);
 
@@ -97,21 +94,21 @@ TEST_CASE("La senal de vida lleva el reloj y las dos velocidades")
     REQUIRE(sizeof(packet) == 12);
     CHECK(raw[2] == 0x0E);
 
-    // Estos tres sí son campos nativos del struct, no bytes armados a mano, así
-    // que viajan en little-endian como los escribe el compilador.
+    // These three are native struct fields, not hand-built bytes, so they travel little-endian as the compiler
+    // writes them.
     CHECK(packet.TickCount == 0x11223344u);
     CHECK(packet.PhysiSpeed == 0x0102);
     CHECK(packet.MagicSpeed == 0x0304);
 
-    // El relleno entre la cabecera de 3 bytes y el DWORD alineado a 4 viaja por
-    // la red: el servidor lee sizeof(), no la suma de los campos.
+    // The padding between the 3-byte header and the 4-aligned DWORD travels over the network: the server reads
+    // sizeof(), not the sum of the fields.
     CHECK(offsetof(Mu099B::PMSG_LIVE_CLIENT_RECV, TickCount) == 4);
 }
 
 TEST_CASE("Todos declaran el tamano que realmente ocupan")
 {
-    // El framer del servidor corta por el byte de tamaño: si miente, lo que
-    // sigue en el flujo se lee como si empezara en otro lado.
+    // The server's framer cuts by the size byte: if it lies, what follows in the stream is read as if it
+    // started elsewhere.
     const auto talk = Mu099B::BuildNpcTalkRequest(1);
     const auto buy = Mu099B::BuildItemBuyRequest(0);
     const auto sell = Mu099B::BuildItemSellRequest(0);
@@ -129,11 +126,9 @@ TEST_CASE("Todos declaran el tamano que realmente ocupan")
 
 TEST_CASE("El dinero del trade y del baul viaja en big-endian")
 {
-    // Los dos campos están declarados como entero de cuatro bytes pero se
-    // llenan a mano, byte por byte, empezando por el más significativo.
-    // Asignarlos como enteros nativos los invierte y el servidor lee otra cifra
-    // -- una que además es enorme, no cero, así que el error no se nota hasta
-    // que alguien pierde dinero.
+    // Both fields are declared as a four-byte integer but filled by hand, byte by byte, starting with the most
+    // significant. Assigning them as native integers reverses them and the server reads another figure -- one
+    // that is also huge, not zero, so the error is not noticed until someone loses money.
     const auto trade = Mu099B::BuildTradeMoneyRequest(0x01020304);
 
     REQUIRE(Mu099B::TradeMoneyRequest::Length == 7);
@@ -159,9 +154,8 @@ TEST_CASE("El dinero del trade y del baul viaja en big-endian")
 
 TEST_CASE("Los paquetes sin cuerpo declaran tres bytes")
 {
-    // Cancelar el trade y cerrar el baúl no existen como struct en el emulador;
-    // el layout sale del parser del servidor. Si el tamaño no coincide con lo
-    // que se manda, el flujo entero se desincroniza.
+    // Cancelling the trade and closing the warehouse do not exist as structs in the emulator; the layout comes
+    // from the server's parser. If the size does not match what is sent, the whole stream goes out of sync.
     const auto cancel = Mu099B::BuildTradeCancelRequest();
     const auto close = Mu099B::BuildWarehouseCloseRequest();
 
@@ -173,9 +167,8 @@ TEST_CASE("Los paquetes sin cuerpo declaran tres bytes")
 
 TEST_CASE("La respuesta al trade manda el struct completo aunque use un byte")
 {
-    // El servidor sólo lee el primer byte, pero el original manda sizeof()
-    // entero. Recortarlo cambiaría el tamaño declarado y el framer del servidor
-    // cortaría en el lugar equivocado.
+    // The server only reads the first byte, but the original sends the whole sizeof(). Trimming it would change
+    // the declared size and the server's framer would cut in the wrong place.
     const auto accept = Mu099B::BuildTradeResponse(true);
     const auto reject = Mu099B::BuildTradeResponse(false);
 
@@ -191,8 +184,8 @@ TEST_CASE("El skill de area es de largo variable y lleva los objetivos detras")
     const Mu099B::WORD targets[] = {0x0102, 0x0304, 0x0506};
     const auto packet = Mu099B::BuildMultiSkillRequest(0x2C, 100, 120, 7, targets, 3);
 
-    // Ocho de cabecera más dos por objetivo. El tamaño declarado tiene que ser
-    // ese, no el del buffer: el framer del servidor corta por ahí.
+    // Eight of header plus two per target. The declared size has to be that, not the buffer's: the server's
+    // framer cuts by it.
     REQUIRE(packet.Length == 8 + 3 * 2);
     CHECK(packet.Data[0] == 0xC1);
     CHECK(packet.Data[1] == packet.Length);
@@ -203,7 +196,7 @@ TEST_CASE("El skill de area es de largo variable y lleva los objetivos detras")
     CHECK(packet.Data[6] == 7);
     CHECK(packet.Data[7] == 3);
 
-    // Los indices, big-endian como todos los de este protocolo.
+    // The indices, big-endian like all of those in this protocol.
     CHECK(packet.Data[8] == 0x01);
     CHECK(packet.Data[9] == 0x02);
     CHECK(packet.Data[10] == 0x03);
@@ -214,8 +207,8 @@ TEST_CASE("El skill de area es de largo variable y lleva los objetivos detras")
 
 TEST_CASE("Mas objetivos de los que entran se recortan, no desbordan")
 {
-    // Escribir fuera del buffer por confiar en un conteo que viene de la logica
-    // de juego seria un desborde de pila; el servidor tampoco procesa tantos.
+    // Writing outside the buffer by trusting a count that comes from game logic would be a stack overflow; the
+    // server does not process that many either.
     Mu099B::WORD muchos[Mu099B::MultiSkillRequest::MaxTargets + 5] = {};
     const auto packet = Mu099B::BuildMultiSkillRequest(
         1, 0, 0, 0, muchos, Mu099B::MultiSkillRequest::MaxTargets + 5);
@@ -258,8 +251,7 @@ TEST_CASE("Crear un gremio lleva ocho caracteres de nombre y el emblema entero")
 
     const auto packet = Mu099B::BuildGuildCreateRequest("MiGremio", mark);
 
-    // El nombre de gremio son ocho, no diez como los de personaje: usar el
-    // largo equivocado corre el emblema entero.
+    // The guild name is eight, not ten like character names: using the wrong length shifts the whole emblem.
     REQUIRE(sizeof(packet) == 43);
     CHECK(Raw(&packet)[2] == 0x55);
     CHECK(offsetof(Mu099B::PMSG_GUILD_CREATE_RECV, GuildName) == 3);
@@ -273,9 +265,8 @@ TEST_CASE("Crear un gremio lleva ocho caracteres de nombre y el emblema entero")
 
 TEST_CASE("Repartir un punto identifica la estadistica por numero")
 {
-    // El orden del servidor es fuerza, agilidad, vitalidad, energia, liderazgo.
-    // Coincide con el enum del cliente, y por eso el cast directo alcanza -- si
-    // alguno de los dos cambiara, este test lo delata.
+    // The server's order is strength, agility, vitality, energy, command. It matches the client's enum, which
+    // is why the direct cast is enough -- if either changed, this test gives it away.
     const auto packet = Mu099B::BuildLevelUpPointRequest(2);  // vitalidad
 
     REQUIRE(sizeof(packet) == 5);
@@ -295,7 +286,7 @@ TEST_CASE("Las peticiones sin cuerpo declaran solo su cabecera")
     CHECK(Raw(&guild)[1] == 3);
     CHECK(Raw(&guild)[2] == 0x52);
 
-    // Este lleva sub-código, así que su cabecera es de cuatro y no de tres.
+    // This one carries a sub-code, so its header is four and not three.
     CHECK(Raw(&viewport)[1] == 4);
     CHECK(Raw(&viewport)[2] == 0xF3);
     CHECK(Raw(&viewport)[3] == 0x12);
@@ -320,8 +311,8 @@ TEST_CASE("Los pedidos de evento y de mezcla llevan sus dos campos")
     CHECK(Raw(&mix)[2] == 0x86);
     CHECK(mix.type == 1);
 
-    // Este declara un entero de cuatro bytes, así que la cabecera de tres deja
-    // un byte de relleno antes: el campo arranca en el 4, no en el 3.
+    // This one declares a four-byte integer, so the three-byte header leaves a padding byte before it: the
+    // field starts at 4, not at 3.
     REQUIRE(sizeof(rate) == 8);
     CHECK(Raw(&rate)[2] == 0x88);
     CHECK(offsetof(Mu099B::PMSG_CHAOS_MIX_RATE_RECV, type) == 4);

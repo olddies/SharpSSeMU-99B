@@ -3,14 +3,12 @@ using System.Buffers.Binary;
 
 namespace MuServer.Shared.Crypto;
 
-/// <summary>
-/// Puerto de CPacketManager (PacketManager.cpp) del GameServer original: el cifrado por bloques
-/// usado SOLO para los paquetes que el original marca con cabecera C3/C4 (ej. el login C3:F1:01).
-/// Convierte un paquete "lógico" de 8 bytes por bloque en un bloque cifrado de 11 bytes (y viceversa),
-/// usando tablas Modulus/Key/Xor de 4 elementos cargadas desde archivos binarios (Hack/Enc2.dat para
-/// cifrar, Hack/Dec1.dat para descifrar) — los mismos archivos que trae el paquete original y que
-/// también usa el cliente, así que hay que leerlos tal cual, no se pueden inventar.
-/// </summary>
+/// <summary> Port of CPacketManager (PacketManager.cpp) of the original GameServer: the block cipher used ONLY
+/// for the packets the original marks with a C3/C4 header (e.g. the C3:F1:01 login). It converts a "logical"
+/// packet of 8 bytes per block into an encrypted 11-byte block (and vice versa), using 4-element
+/// Modulus/Key/Xor tables loaded from binary files (Hack/Enc2.dat to encrypt, Hack/Dec1.dat to decrypt) — the
+/// same files the original package ships and that the client also uses, so they have to be read as they are,
+/// they cannot be invented. </summary>
 public sealed class PacketCipher
 {
     private readonly struct KeyTable
@@ -70,7 +68,7 @@ public sealed class PacketCipher
         return new KeyTable(modulus, key, xor);
     }
 
-    /// <summary>Cifra "source" (tamaño arbitrario) en bloques de 8 -> 11 bytes. Devuelve el ciphertext completo.</summary>
+    /// <summary>Encrypts "source" (arbitrary size) in blocks of 8 -> 11 bytes. Returns the full ciphertext.</summary>
     public byte[] Encrypt(ReadOnlySpan<byte> source)
     {
         int blockCount = (source.Length + 7) / 8;
@@ -92,10 +90,8 @@ public sealed class PacketCipher
         return target;
     }
 
-    /// <summary>
-    /// Descifra "source" (múltiplo de 11 bytes) devolviendo el plaintext reconstruido, o null si
-    /// algún bloque falla el checksum (equivalente al -1 del original, que desconecta al cliente).
-    /// </summary>
+    /// <summary> Decrypts "source" (a multiple of 11 bytes) returning the reconstructed plaintext, or null if
+    /// any block fails the checksum (equivalent to the original's -1, which disconnects the client). </summary>
     public byte[]? Decrypt(ReadOnlySpan<byte> source)
     {
         if (source.Length % 11 != 0)
@@ -174,8 +170,8 @@ public sealed class PacketCipher
 
         for (int n = 0; n < 4; n++)
         {
-            // Igual que el original: dos AddBits sobre el MISMO buffer de 4 bytes (OR-acumulado) --
-            // primero los 16 bits en la posición 0, después 2 bits más en la posición de bit 22.
+            // Same as the original: two AddBits over the SAME 4-byte buffer (OR-accumulated) -- first the 16
+            // bits at position 0, then 2 more bits at bit position 22.
             var buf4 = new byte[4];
             AddBits(buf4, 0, source11, bitPos, 16);
             bitPos += 16;
@@ -293,11 +289,10 @@ public sealed class PacketCipher
         }
     }
 
-    // ---------------------------------------------------------------- XorData (puerto de CPacketManager::XorData)
-    // Se aplica SOLO en recepción (tanto a paquetes C1/C2 planos como al resultado ya decodificado
-    // de un bloque C3/C4), nunca al enviar — así se comporta el GameServer original (ver DataRecv/
-    // DataSend en SocketManager.cpp: XorData vive dentro de ExtractPacket, llamado únicamente desde
-    // el camino de recepción).
+    // ---------------------------------------------------------------- XorData (port of
+    // CPacketManager::XorData) Applied ONLY on receive (both to plain C1/C2 packets and to the already decoded
+    // result of a C3/C4 block), never on send — that is how the original GameServer behaves (see DataRecv/
+    // DataSend in SocketManager.cpp: XorData lives inside ExtractPacket, called only from the receive path).
 
     public static void DeobfuscateInPlace(Span<byte> buff, int size, int headerLength)
     {
@@ -315,15 +310,13 @@ public sealed class PacketCipher
         }
     }
 
-    /// <summary>
-    /// Contraparte "encode" de <see cref="DeobfuscateInPlace"/> — no existe en el GameServer original
-    /// (XorData es solo de recepción ahí), pero SÍ tiene que existir en el cliente real cerrado para que
-    /// la des-ofuscación del servidor reconstruya el paquete original. Se obtiene despejando la
-    /// recurrencia de XorData: si decoded[n] = wire[n]^wire[n-1]^filter[n%32] (recorriendo n de mayor a
-    /// menor, usando el wire[n-1] SIN tocar todavía), entonces wire[n] = plain[n]^wire[n-1]^filter[n%32]
-    /// recorriendo n de MENOR a mayor. Usado únicamente por el arnés de pruebas (TestClient) para
-    /// construir paquetes C3 auténticos, ya que el proyecto no incluye el cliente real (binario cerrado).
-    /// </summary>
+    /// <summary> "Encode" counterpart of <see cref="DeobfuscateInPlace"/> — it does not exist in the original
+    /// GameServer (XorData is receive-only there), but it DOES have to exist in the closed real client so that
+    /// the server's de-obfuscation reconstructs the original packet. It is obtained by solving the XorData
+    /// recurrence: if decoded[n] = wire[n]^wire[n-1]^filter[n%32] (walking n from highest to lowest, using
+    /// wire[n-1] NOT yet touched), then wire[n] = plain[n]^wire[n-1]^filter[n%32] walking n from LOWEST to
+    /// highest. Used only by the test harness (TestClient) to build authentic C3 packets, since the project
+    /// does not include the real client (closed binary). </summary>
     public static void ObfuscateInPlace(Span<byte> buff, int size, int headerLength)
     {
         int start = size - 1;

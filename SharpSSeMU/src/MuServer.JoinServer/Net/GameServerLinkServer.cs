@@ -6,12 +6,10 @@ using MuServer.Shared.Logging;
 
 namespace MuServer.JoinServer.Net;
 
-/// <summary>
-/// Puerto de CSocketManager (lado JoinServer): acepta conexiones TCP entrantes de GameServers
-/// autorizados (AllowableIpList.txt) y despacha su protocolo. A diferencia de ConnectServer, acá
-/// no hay rate-limiting ni idle-timeout en el original — son pocas conexiones de confianza
-/// (máximo 20, MAX_SERVER), así que se omiten esos controles igual que en el C++ original.
-/// </summary>
+/// <summary> Port of CSocketManager (JoinServer side): accepts incoming TCP connections from authorised
+/// GameServers (AllowableIpList.txt) and dispatches their protocol. Unlike ConnectServer, here there is no
+/// rate-limiting nor idle-timeout in the original — there are few trusted connections (maximum 20, MAX_SERVER),
+/// so those controls are omitted as in the original C++. </summary>
 public sealed class GameServerLinkServer
 {
     private readonly ushort _port;

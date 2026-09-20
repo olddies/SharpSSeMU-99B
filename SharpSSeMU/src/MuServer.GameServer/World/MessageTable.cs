@@ -3,9 +3,8 @@ using MuServer.Shared.Scripting;
 
 namespace MuServer.GameServer.World;
 
-/// <summary>
-/// Puerto de CMessage (Message.cpp:10-90) -- carga y provee mensajes traducidos por índice desde Data/Message.txt.
-/// </summary>
+/// <summary> Port of CMessage (Message.cpp:10-90) -- loads and provides translated messages by index from
+/// Data/Message.txt. </summary>
 public sealed class MessageTable
 {
     private readonly Dictionary<int, string> _messages = new();

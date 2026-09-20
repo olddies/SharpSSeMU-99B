@@ -10,10 +10,10 @@ namespace Mu099B
 namespace
 {
 
-/// Las tablas se guardan XOReadas con estas cuatro constantes.
+/// The tables are stored XOR-ed with these four constants.
 constexpr uint32_t SaveLoadXor[4] = {0x3F08A79Bu, 0xE25CC287u, 0x93D27AB9u, 0x20DEA7BFu};
 
-/// Encabezado de los archivos de clave: marca fija y tamaño total.
+/// Header of the key files: fixed mark and total size.
 constexpr uint16_t KeyFileMarker = 4370;
 constexpr uint32_t KeyFileSize = 6 + 48;
 
@@ -27,8 +27,8 @@ int ByteOfBit(int value)
     return value >> 3;
 }
 
-/// Corrimiento de bits sobre un buffer completo. Positivo mueve a la derecha,
-/// negativo a la izquierda (mismo criterio que el Shift del original).
+/// Bit shift over a whole buffer. Positive shifts right, negative left (same criterion as the original's
+/// Shift).
 void Shift(uint8_t* buff, size_t size, int shiftSize)
 {
     if (shiftSize == 0 || size == 0)
@@ -55,9 +55,8 @@ void Shift(uint8_t* buff, size_t size, int shiftSize)
     }
 }
 
-/// Copia `size` bits de `source` (desde `sourceBitPos`) dentro de `target` a
-/// partir de `targetBitPos`, OR-eando sobre lo que ya haya. Devuelve la nueva
-/// posición de bit en el destino.
+/// Copies `size` bits of `source` (from `sourceBitPos`) into `target` starting at `targetBitPos`, OR-ing over
+/// whatever is already there. Returns the new bit position in the destination.
 int AddBits(uint8_t* target, int targetBitPos, const uint8_t* source, int sourceBitPos, int size)
 {
     const int sourceBitEnd = sourceBitPos + size;
@@ -260,9 +259,8 @@ int BlockCipher::DecryptBlock(uint8_t* target, const uint8_t* source11) const
 
     for (int n = 0; n < 4; ++n)
     {
-        // Igual que el original: dos AddBits sobre el MISMO buffer de 4 bytes
-        // (OR acumulado) -- primero 16 bits en la posición 0, después 2 bits
-        // más en la posición de bit 22.
+        // Same as the original: two AddBits over the SAME 4-byte buffer (accumulated OR) -- first 16 bits at
+        // position 0, then 2 more bits at bit position 22.
         uint8_t buf4[4] = {};
         AddBits(buf4, 0, source11, bitPos, 16);
         bitPos += 16;

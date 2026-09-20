@@ -3,13 +3,11 @@ using MuServer.Shared.Scripting;
 
 namespace MuServer.GameServer.World;
 
-/// <summary>
-/// Puerto de MONSTER_INFO (MonsterManager.h:11-39) -- fila de balance de un tipo de monstruo, tal
-/// como se lee de MonsterList.txt. <see cref="Type"/> decide si esta fila es un monstruo real (0)
-/// o un NPC (cualquier otro valor, ej. vendedores/quest-givers) -- por ahora el registro de
-/// monstruos (Fase 4) solo instancia las filas Type==0 (ver MonsterRegistry.SpawnAll), los NPCs
-/// quedan para una fase posterior (no tienen IA de combate en el original tampoco).
-/// </summary>
+/// <summary> Port of MONSTER_INFO (MonsterManager.h:11-39) -- balance row of a monster type, as read from
+/// MonsterList.txt. <see cref="Type"/> decides whether this row is a real monster (0) or an NPC (any other
+/// value, e.g. vendors/quest-givers) -- for now the monster registry (Phase 4) only instantiates the Type==0
+/// rows (see MonsterRegistry.SpawnAll), NPCs are left for a later phase (they have no combat AI in the original
+/// either). </summary>
 public sealed class MonsterInfo
 {
     public int Index { get; init; }
@@ -39,14 +37,12 @@ public sealed class MonsterInfo
     public int[] Resistance { get; init; } = new int[7];
 }
 
-/// <summary>
-/// Puerto de CMonsterManager::Load/SetInfo (MonsterManager.cpp:54-183) -- lee Data/Monster/MonsterList.txt
-/// (formato MemScript, columnas confirmadas contra el archivo real, ver comentario de cabecera en el
-/// propio .txt). Los multiplicadores globales de servidor (m_MonsterMaxLifeRate, etc. -- SetInfo:166-183)
-/// no están portados todavía (viven en las ~500 columnas de balance de CServerInfo que Fase 1 no leyó);
-/// se usan los valores crudos de la tabla tal cual, equivalente a tener todos esos rates en 100 (el
-/// default de un paquete sin tocar).
-/// </summary>
+/// <summary> Port of CMonsterManager::Load/SetInfo (MonsterManager.cpp:54-183) -- reads
+/// Data/Monster/MonsterList.txt (MemScript format, columns confirmed against the real file, see the header
+/// comment in the .txt itself). The global server multipliers (m_MonsterMaxLifeRate, etc. -- SetInfo:166-183)
+/// are not ported yet (they live in the ~500 balance columns of CServerInfo that Phase 1 did not read); the
+/// table's raw values are used as they are, equivalent to having all those rates at 100 (the default of an
+/// untouched package). </summary>
 public sealed class MonsterInfoTable
 {
     private readonly Dictionary<int, MonsterInfo> _byIndex = new();

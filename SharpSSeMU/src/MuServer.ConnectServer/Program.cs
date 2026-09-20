@@ -6,10 +6,10 @@ using MuServer.ConnectServer.Net;
 using MuServer.ConnectServer.Protocol;
 using MuServer.Shared.Logging;
 
-// Puerto funcional del ConnectServer original (SSeMU 0.99B) a .NET 8, pensado para correr en
-// Linux. Mismo protocolo binario (C1/C2, 0xF4:02/03, 0xF3:EA, heartbeats UDP 0xA1/0xA2) y mismos
-// archivos de configuración (ConnectServer.ini, BlackList.txt, ServerList.dat) que el original,
-// para que el main.exe/Main.dll del cliente se conecte sin ningún cambio.
+// Functional port of the original ConnectServer (SSeMU 0.99B) to .NET 8, meant to run on Linux. Same binary
+// protocol (C1/C2, 0xF4:02/03, 0xF3:EA, UDP heartbeats 0xA1/0xA2) and same configuration files
+// (ConnectServer.ini, BlackList.txt, ServerList.dat) as the original, so that the client's main.exe/Main.dll
+// connects without any change.
 
 var baseDir = AppContext.BaseDirectory;
 Log.Configure(Path.Combine(baseDir, "LOG"));
@@ -78,10 +78,10 @@ while (!cts.Token.IsCancellationRequested)
 
     if (line == null)
     {
-        // Sin consola interactiva (lanzado como servicio/en background, con stdin redirigido o
-        // cerrado): no hay comandos que leer, pero el servidor SÍ tiene que seguir corriendo. Antes
-        // se salía acá, y eso mataba el proceso apenas arrancaba en cuanto no había una consola de
-        // verdad detrás (mismo bug que GameServer/Program.cs, portado igual).
+        // No interactive console (launched as a service/in the background, with stdin redirected or closed):
+        // there are no commands to read, but the server DOES have to keep running. It used to exit here, and
+        // that killed the process as soon as it started whenever there was no real console behind it (same bug
+        // as GameServer/Program.cs, ported the same way).
         Log.Add(LogColor.Blue, "No interactive console: commands are disabled, the server keeps running.");
 
         try

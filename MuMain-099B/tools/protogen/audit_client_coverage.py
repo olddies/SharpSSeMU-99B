@@ -25,12 +25,12 @@ REPO = Path(__file__).resolve().parents[2]
 SERVER = REPO.parent / "SharpSSeMU" / "src" / "MuServer.GameServer"
 WSCLIENT = REPO / "src" / "source" / "Network" / "Server" / "WSclient.cpp"
 
-# Opcodes que el GameServer manda al DataServer, no al cliente: salen de los
-# mismos builders pero no tienen por qué estar en el dispatch.
+# Opcodes the GameServer sends to the DataServer, not to the client: they come out of the same builders but need
+# not be in the dispatch.
 TO_DATA_SERVER = {0x70, 0x72}
 
-# El dispatch usa estas constantes en vez del número. Buscar el literal no las
-# encuentra, pero están atendidas.
+# The dispatch uses these constants instead of the number. Searching for the literal does not find them, but
+# they are handled.
 BY_MACRO = {
     0xD7: "PACKET_MOVE",
     0xD0: "PACKET_POSITION",
@@ -69,9 +69,8 @@ def main() -> int:
     faltan: list[str] = []
 
     for head, sub in sorted(al_cliente, key=lambda k: (k[0], -1 if k[1] is None else k[1])):
-        # Un sub-código se atiende en el switch anidado de su cabecera; alcanza
-        # con que exista ese case, porque en este protocolo los sub-códigos no
-        # se repiten entre ramas.
+        # A sub-code is handled in the nested switch of its header; it is enough for that case to exist, because
+        # in this protocol sub-codes are not repeated between branches.
         if not atendido(sub if sub is not None else head):
             faltan.append(f"0x{head:02X}" + (f":0x{sub:02X}" if sub is not None else ""))
 

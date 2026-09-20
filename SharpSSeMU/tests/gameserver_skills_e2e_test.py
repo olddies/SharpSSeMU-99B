@@ -22,7 +22,7 @@ try:
 
     dep = _env.Deployment("skills", pg, game_port=55902)
     dep.seed_test_monster()
-    # SkillDamage.txt real: la copia que publica el build trae 0 entradas.
+    # Real SkillDamage.txt: the copy the build publishes has 0 entries.
     dep.copy_server_data("Skill", "SkillDamage.txt")
 
     dep.start_infra()

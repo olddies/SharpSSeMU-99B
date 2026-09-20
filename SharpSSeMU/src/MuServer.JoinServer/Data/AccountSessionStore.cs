@@ -4,11 +4,9 @@ using MuServer.Shared.Logging;
 
 namespace MuServer.JoinServer.Data;
 
-/// <summary>
-/// Puerto de CAccountManager: registro en memoria de qué cuentas están logueadas ahora mismo y en
-/// qué GameServer, para no permitir doble-login y para poder forzar desconexión cuando cae un
-/// GameServer. La clave se normaliza igual que el original (según CaseSensitive del .ini).
-/// </summary>
+/// <summary> Port of CAccountManager: in-memory registry of which accounts are logged in right now and on which
+/// GameServer, to disallow double login and to be able to force disconnection when a GameServer goes down. The
+/// key is normalised the same as the original (according to the .ini's CaseSensitive). </summary>
 public sealed class AccountSessionStore
 {
     private const int MaxAccounts = 10000;
@@ -48,8 +46,8 @@ public sealed class AccountSessionStore
         return removed;
     }
 
-    /// <summary>Puerto de DisconnectProc: expira cuentas "en movimiento entre mapas/servidores"
-    /// después de 30s sin completar el cambio (igual que el original).</summary>
+    /// <summary>Port of DisconnectProc: expires accounts "moving between maps/servers" after 30s without
+    /// completing the change (same as the original).</summary>
     public IReadOnlyList<AccountSession> SweepStaleMapMoves()
     {
         var expired = new List<AccountSession>();

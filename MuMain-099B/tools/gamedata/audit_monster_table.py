@@ -111,8 +111,8 @@ def main():
             problemas += 1
         print()
 
-    # El nombre lo busca por numero de clase, asi que un spawn de una clase que
-    # ni siquiera esta en MonsterList tampoco tendria nombre.
+    # The name is looked up by class number, so a spawn of a class that is not even in MonsterList would not
+    # have a name either.
     huerfanos = sorted(c for c in spawnean if c not in servidor)
     if huerfanos:
         print("Clases que spawnean y no estan en MonsterList.txt: %s"

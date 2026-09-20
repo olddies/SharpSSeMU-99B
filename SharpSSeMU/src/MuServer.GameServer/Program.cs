@@ -8,10 +8,10 @@ using MuServer.GameServer.World;
 using MuServer.Shared.Crypto;
 using MuServer.Shared.Logging;
 
-// Puerto funcional del GameServer original (SSeMU 0.99B) a .NET 8 -- Fase 1 (núcleo de conexión) +
-// Fase 2 (entrar al mundo: selección de personaje, mapa, viewport de jugadores, movimiento).
-// Acepta clientes reales (con el cifrado completo del protocolo original), reenvía el login a
-// JoinServer y la carga de personaje a DataServer (ambos ya portados).
+// Functional port of the original GameServer (SSeMU 0.99B) to .NET 8 -- Phase 1 (connection core) + Phase 2
+// (entering the world: character selection, map, player viewport, movement). It accepts real clients (with the
+// original protocol's full encryption), forwards the login to JoinServer and the character load to DataServer
+// (both already ported).
 
 var baseDir = AppContext.BaseDirectory;
 Log.Configure(Path.Combine(baseDir, "LOG"));
@@ -22,23 +22,22 @@ Log.Add(LogColor.Black, "SSeMU GameServer (C# port) starting...");
 
 var config = GameServerConfig.Load(Path.Combine(baseDir, "GameServer.ini"), baseDir);
 
-// Puerto parcial de CServerInfo (ver Config/ServerInfoConfig.cs) -- solo los campos con consumidor
-// real ya portado (fórmula de experiencia, tiempo de vida de items en el piso, rates de monstruo,
-// AddExperienceRate, DevilSquareMaxUser). Seteado en WorldPacketBuilder.ServerInfo ANTES de spawnear
-// monstruos (que ya leen los rates al construirse) y de armar el DevilSquareManager.
+// Partial port of CServerInfo (see Config/ServerInfoConfig.cs) -- only the fields with a real consumer already
+// ported (experience formula, lifetime of items on the ground, monster rates, AddExperienceRate,
+// DevilSquareMaxUser). Set in WorldPacketBuilder.ServerInfo BEFORE spawning monsters (which already read the
+// rates when constructed) and building the DevilSquareManager.
 var serverInfo = ServerInfoConfig.Load(config.ServerInfoCommonPath, config.ServerInfoEventPath);
 WorldPacketBuilder.ServerInfo = serverInfo;
 
-// Cobertura COMPLETA de los 7 archivos GameServerInfo - *.dat (ver Config/GameServerInfoCommon.cs
-// para la explicación completa): a diferencia de `serverInfo`/`characterBalance` de arriba (que solo
-// cargan los campos con un consumidor real ya portado), estas 8 clases (7 archivos + Custom.dat que
-// en realidad son 3 sub-lectores) cargan TODOS los ~845 campos reales, así que ningún valor de estos
-// archivos queda hardcodeado -- si el .dat está en Data/, se lee tal cual; si falta, cada campo cae
-// al mismo default 0 que usa GetPrivateProfileInt en el original. Todavía no tienen consumidor (los
-// sistemas de juego que los usarían -- Chaos Mix, /reset, Custom Arena/Attack/Pick, Mana Shield, PK,
-// Trade, Guild, etc. -- no están portados), así que por ahora solo se cargan y quedan disponibles acá
-// (variables locales) para que el próximo sistema que se porte las enchufe sin tener que escribir el
-// parseo del .dat de cero.
+// FULL coverage of the 7 GameServerInfo - *.dat files (see Config/GameServerInfoCommon.cs for the full
+// explanation): unlike `serverInfo`/`characterBalance` above (which only load the fields with a real consumer
+// already ported), these 8 classes (7 files + Custom.dat which is actually 3 sub-readers) load ALL ~845 real
+// fields, so no value of these files stays hardcoded -- if the .dat is in Data/, it is read as is; if it is
+// missing, each field falls back to the same default 0 that GetPrivateProfileInt uses in the original. They
+// have no consumer yet (the game systems that would use them -- Chaos Mix, /reset, Custom Arena/Attack/Pick,
+// Mana Shield, PK, Trade, Guild, etc. -- are not ported), so for now they are only loaded and left available
+// here (local variables) so that the next system ported can plug them in without having to write the .dat
+// parsing from scratch.
 var gsiCommon = GameServerInfoCommon.Load(config.ServerInfoCommonPath);
 var gsiCharacter = GameServerInfoCharacter.Load(config.CharacterInfoPath);
 var gsiChaosMix = GameServerInfoChaosMix.Load(config.ServerInfoChaosMixPath);
@@ -68,8 +67,8 @@ maps.LoadAll(config.TerrainPath);
 
 var players = new PlayerRegistry();
 
-// Fase 4 (primera pasada): monstruos estáticos -- ver World/Monster.cs para las limitaciones
-// documentadas de esta pasada (sin IA de patrulla/persecución, sin contraataque).
+// Phase 4 (first pass): static monsters -- see World/Monster.cs for the documented limitations of this pass (no
+// patrol/chase AI, no counterattack).
 var monsterInfoTable = new MonsterInfoTable();
 monsterInfoTable.Load(config.MonsterListPath);
 var monsterSpawnEntries = MonsterSpawnTable.LoadAll(config.MonsterSpawnPath);
@@ -84,31 +83,31 @@ var parties = new PartyRegistry();
 var itemBalance = new ItemBalanceTable();
 itemBalance.Load(config.ItemPath);
 
-// Precios explícitos de joyas/entradas de evento/pociones de asedio. Sin esta tabla esos objetos
-// caen a la fórmula general de CItem::Value(), que para ellos da órdenes de magnitud de diferencia
-// -- ver World/ItemValue.cs.
+// Explicit prices for jewels/event tickets/siege potions. Without this table those objects fall back to the
+// general CItem::Value() formula, which for them gives orders of magnitude of difference -- see
+// World/ItemValue.cs.
 var itemValues = new ItemValueTable();
 itemValues.Load(config.ItemValuePath);
 var characterBalance = CharacterBalanceConfig.Load(config.CharacterInfoPath, config.ServerInfoCommonPath);
 
-// Fase "skills": magia y maná -- ver World/SkillInfo.cs, Config/CharacterBalanceConfig.cs (consts de
-// daño mágico/regeneración) y ClientProtocolHandler.OnSkillAttackAsync.
+// "Skills" phase: magic and mana -- see World/SkillInfo.cs, Config/CharacterBalanceConfig.cs (magic
+// damage/regeneration constants) and ClientProtocolHandler.OnSkillAttackAsync.
 var skills = new SkillInfoTable();
 skills.Load(config.SkillListPath);
 var skillDamage = new SkillDamageTable();
 skillDamage.Load(config.SkillDamagePath);
 
-// Fase 6 (primera pasada): Devil Square -- ver World/DevilSquareData.cs/DevilSquareManager.cs. Los
-// datos se cargan acá (no dependen de DataServerConnection), pero el DevilSquareManager en sí se
-// arma más abajo, una vez que dataServer existe (necesita mandarle el guardado de ranking, head 0x3F).
+// Phase 6 (first pass): Devil Square -- see World/DevilSquareData.cs/DevilSquareManager.cs. The data is loaded
+// here (it does not depend on DataServerConnection), but the DevilSquareManager itself is built further down,
+// once dataServer exists (it needs to send it the ranking save, head 0x3F).
 var devilSquareConfig = DevilSquareConfig.Load(Path.Combine(config.EventPath, "DevilSquare.dat"));
 var eventEntryLevels = EventEntryLevelTable.Load(Path.Combine(config.EventPath, "EventEntryLevel.dat"));
 var eventStageSpawns = EventStageSpawnTable.Load(Path.Combine(config.EventPath, "EventStageSpawn.dat"));
 var eventSpawnPool = monsterSpawnEntries.Where(e => e.Type == 4).ToList();
 
-// NPCs y tiendas (primera pasada): ver World/Shop.cs -- se cargan acá (dependen de itemBalance ya
-// cargada, arriba, para el empaquetado por Width/Height) y cada NPC se spawnea como un Monster más
-// (mismo mecanismo de índices/viewport, ver Monster.ShopNumber/MonsterRegistry.SpawnNpc).
+// NPCs and shops (first pass): see World/Shop.cs -- they are loaded here (they depend on the already loaded
+// itemBalance, above, for the Width/Height packing) and each NPC is spawned as one more Monster (same
+// index/viewport mechanism, see Monster.ShopNumber/MonsterRegistry.SpawnNpc).
 var shops = new ShopManagerTable();
 shops.Load(config.ShopManagerPath, config.ShopDataPath, itemBalance);
 
@@ -124,10 +123,10 @@ foreach (var shop in shops.All)
 
 Log.Add(LogColor.Blue, "[ShopManagerTable] {0} shop NPC(s) spawned", npcsSpawned);
 
-// Misiones (Quest/QuestObjective/QuestReward) -- motor real data-driven (ver Config/QuestTable.cs)
-// que reemplaza la versión anterior hardcodeada de "hablar con Sebina/Marlon" (causaba
-// "Conversation is over" en el cliente real para cualquier jugador que no calzara exactamente el
-// nivel 150 fijo que se había adivinado, en vez de consultar los requisitos reales del .txt).
+// Quests (Quest/QuestObjective/QuestReward) -- real data-driven engine (see Config/QuestTable.cs) that replaces
+// the earlier hardcoded "talk to Sebina/Marlon" version (which caused "Conversation is over" in the real client
+// for any player who did not exactly match the fixed level 150 that had been guessed, instead of consulting the
+// real requirements of the .txt).
 var questTable = QuestTable.Load(config.QuestPath);
 var questObjectiveTable = QuestObjectiveTable.Load(config.QuestObjectivePath);
 var questRewardTable = QuestRewardTable.Load(config.QuestRewardPath);
@@ -153,9 +152,9 @@ var joinServer = new JoinServerConnection(
     },
     onDisconnectAck: (msg, _) =>
     {
-        // Ver el comentario largo en JoinServerConnection.DispatchAsync (case 0x02): este puerto ya
-        // cierra la sesión de forma proactiva cuando el socket se desconecta de verdad, así que no
-        // hace falta buscarla de nuevo acá para cerrarla -- solo se deja registrado el resultado.
+        // See the long comment in JoinServerConnection.DispatchAsync (case 0x02): this port already closes the
+        // session proactively when the socket really disconnects, so there is no need to look it up again here
+        // to close it -- only the result is recorded.
         Log.Add(LogColor.Blue, "[JoinServer] Account '{0}' released on the JoinServer side (index={1}, result={2})",
             msg.Account, msg.Index, msg.Result);
         return Task.CompletedTask;
@@ -247,15 +246,15 @@ bloodCastle.Start(cts.Token);
 var clientListener = new GameClientListener(config.ServerPort, packetCipher, streamCipher, protocolHandler);
 clientListener.Start(cts.Token);
 
-// Heartbeat UDP 0xA1 hacia ConnectServer -- sin esto ConnectServer nunca muestra este GameServer
-// en la lista ni puede resolver su IP:puerto para el cliente real (ver ServerList.dat).
+// UDP heartbeat 0xA1 towards ConnectServer -- without this ConnectServer never shows this GameServer in the
+// list nor can it resolve its IP:port for the real client (see ServerList.dat).
 var connectServerHeartbeat = new GameServerHeartbeatClient(
     config.ConnectServerAddress, config.ConnectServerPort, config.ServerCode, config.ServerMaxUserNumber,
     getUserCount: () => clientListener.ConnectedCount);
 connectServerHeartbeat.Start(cts.Token);
 
-// Estado en vivo para MuServer.AdminPanel -- ver StatusWriter.cs. Mismo directorio Data/ que el
-// resto de la config (junto a Item.txt, no adentro de Item/).
+// Live status for MuServer.AdminPanel -- see StatusWriter.cs. Same Data/ directory as the rest of the config
+// (next to Item.txt, not inside Item/).
 var dataDirectory = Path.GetDirectoryName(Path.GetDirectoryName(config.ItemPath)) ?? "Data";
 var statusWriter = new StatusWriter(dataDirectory, config.ServerName, config.ServerMaxUserNumber,
     getPlayerCount: () => clientListener.ConnectedCount,
@@ -268,19 +267,19 @@ statusWriter.Start(cts.Token);
 var globalMessagePoller = new GlobalMessagePoller(dataDirectory, players);
 globalMessagePoller.Start(cts.Token);
 
-// Tick periódico de viewport (aparecer/desaparecer jugadores cercanos) -- ver World/ViewportTicker.cs.
-// También dispara el broadcast periódico de vida/maná de grupo (PMSG_PARTY_LIFE_SEND, ver
-// GCPartyLifeSend en el brief de investigación de la Fase 5).
+// Periodic viewport tick (nearby players appearing/disappearing) -- see World/ViewportTicker.cs. It also
+// triggers the periodic party life/mana broadcast (PMSG_PARTY_LIFE_SEND, see GCPartyLifeSend in the Phase 5
+// research brief).
 var viewportTicker = new ViewportTicker(players, maps, monsters, parties, protocolHandler, characterBalance, groundItems, gates, skills, skillDamage);
 viewportTicker.Start(cts.Token);
 
 Log.Add(LogColor.Blue, "GameServer ready on TCP port {0}. Commands: 'exit'", config.ServerPort);
 
-// Ctrl+C / cierre de consola: apagado ordenado en vez de matar el proceso a lo bruto. Es la única
-// forma de parar el servidor cuando corre sin consola interactiva (ver el manejo de EOF de abajo).
+// Ctrl+C / console close: orderly shutdown instead of killing the process outright. It is the only way to stop
+// the server when it runs without an interactive console (see the EOF handling below).
 Console.CancelKeyPress += (_, e) =>
 {
-    e.Cancel = true; // que no mate el proceso: cancelamos nosotros y salimos por el camino normal
+    e.Cancel = true; // so that it does not kill the process: we cancel ourselves and exit through the normal path
     Log.Add(LogColor.Blue, "Ctrl+C received, shutting down...");
     cts.Cancel();
 };
@@ -291,10 +290,10 @@ while (!cts.Token.IsCancellationRequested)
 
     if (line == null)
     {
-        // Sin consola interactiva (lanzado como servicio/en background, con stdin redirigido o
-        // cerrado): no hay comandos que leer, pero el servidor SÍ tiene que seguir corriendo. Antes
-        // se salía acá, y eso mataba el proceso apenas arrancaba en cuanto no había una consola de
-        // verdad detrás. Se espera la cancelación (Ctrl+C o cierre) en vez de terminar.
+        // No interactive console (launched as a service/in the background, with stdin redirected or closed):
+        // there are no commands to read, but the server DOES have to keep running. It used to exit here, and
+        // that killed the process as soon as it started whenever there was no real console behind it.
+        // Cancellation (Ctrl+C or close) is awaited instead of finishing.
         Log.Add(LogColor.Blue, "No interactive console: commands are disabled, the server keeps running.");
 
         try
@@ -318,9 +317,9 @@ while (!cts.Token.IsCancellationRequested)
             break;
 
         default:
-            // Puerto de IDM_EVENT_FORCEDEVILSQUARE (GameServer.cpp:280-281) -- 'ds forcestart' fuerza
-            // el próximo Devil Square (todos los brackets) a abrir en unos segundos, sin esperar el
-            // horario real; 'ds forcestart N' fuerza solo el bracket N (1-based, igual que los logs).
+            // Port of IDM_EVENT_FORCEDEVILSQUARE (GameServer.cpp:280-281) -- 'ds forcestart' forces the next
+            // Devil Square (all brackets) to open in a few seconds, without waiting for the real schedule; 'ds
+            // forcestart N' forces only bracket N (1-based, same as the logs).
             if (trimmed.StartsWith("ds forcestart", StringComparison.OrdinalIgnoreCase))
             {
                 // 'ds forcestart' | 'ds forcestart N' (bracket 1-based) | 'ds forcestart N S' (+ demora en segundos)

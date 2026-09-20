@@ -49,9 +49,8 @@ POR_GRUPO = 512
 CLAVE_CHECKSUM = 0xE2F1
 LARGO_NOMBRE = 30
 
-# Campo del cliente -> (offset dentro del registro, formato struct).
-# Son los offsets de ITEM_ATTRIBUTE_FILE_LEGACY; si alguien toca ItemFieldDefs.h
-# hay que rehacerlos.
+# Client field -> (offset within the record, struct format). These are the offsets of
+# ITEM_ATTRIBUTE_FILE_LEGACY; if someone touches ItemFieldDefs.h they have to be redone.
 CAMPOS = {
     "TwoHand": (30, "B"), "Level": (32, "H"), "Slot": (34, "B"),
     "Skill": (36, "H"), "Width": (38, "B"), "Height": (39, "B"),
@@ -68,9 +67,8 @@ for _i in range(5):
 for _i in range(7):
     CAMPOS["Resist%d" % _i] = (76 + _i, "B")
 
-# Columna de Item.txt -> campo del cliente. Las que no estan aca no tienen
-# equivalente del lado del cliente: HaveSerial, HaveOption, DropItem y SetAttr
-# son decisiones que solo toma el servidor.
+# Item.txt column -> client field. The ones not here have no client-side equivalent: HaveSerial, HaveOption,
+# DropItem and SetAttr are decisions only the server makes.
 COLUMNAS = {
     "Slot": "Slot", "Skill": "Skill", "Width": "Width", "Height": "Height",
     "Level": "Level", "DamageMin": "DamageMin", "DamageMax": "DamageMax",
@@ -224,8 +222,8 @@ def leer_servidor(path):
         indice = int(texto.split()[0])
         resto = texto.split(None, 1)[1]
 
-        # El nombre viene entre comillas y tiene espacios; se lo saca antes de
-        # partir en columnas y se lo vuelve a poner en su lugar.
+        # The name comes in quotes and has spaces; it is taken out before splitting into columns and put back in
+        # its place.
         comillas = re.search(r'"([^"]*)"', resto)
         etiqueta = comillas.group(1) if comillas else ""
         partes = re.sub(r'"[^"]*"', "\x00", resto).split()
@@ -379,8 +377,8 @@ def main():
             escribir_cliente(path, cliente)
             print("   %d valores escritos." % cambios)
 
-            # Releer del disco: si el cifrado o el checksum quedaron mal, esto
-            # falla aca y no cuando el cliente intente abrir el archivo.
+            # Re-read from disk: if the encryption or the checksum went wrong, this fails here and not when the
+            # client tries to open the file.
             diferencias, _, _ = comparar(leer_cliente(path), servidor, con_nombres)
             if diferencias:
                 print("   QUEDARON DIFERENCIAS despues de escribir.")

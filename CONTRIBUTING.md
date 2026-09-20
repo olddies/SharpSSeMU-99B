@@ -52,11 +52,11 @@ Full details: [`docs/BUILDING.md`](docs/BUILDING.md).
 - **Docs:** user-facing docs are in English with a Spanish counterpart under `docs/es/`; keep both in sync when you change one, or note in the PR that the other needs updating.
 - **Commits/PRs:** small, focused; describe the *why*; link the related issue. Target branch: `main`.
 
-## Language of code comments
+## Language
 
-User-facing text (docs, server logs, AdminPanel) is English-first with Spanish as a second language. Many **source-code
-comments are still in Spanish** (the project began in Spanish); translating them is a welcome contribution. New code
-should use English comments.
+Docs, server logs, the AdminPanel and code comments are English-first; Spanish is a full second language for docs, logs
+and the AdminPanel (see `docs/GETTING_STARTED.md`). Write new code and comments in English. A few string literals in
+test tooling (console output of `WorldTestClient`, `tests/_env.py`) are still Spanish -- translating them is welcome.
 
 ## Reporting security problems
 

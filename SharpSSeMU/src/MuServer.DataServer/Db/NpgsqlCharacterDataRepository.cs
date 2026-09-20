@@ -31,7 +31,7 @@ public sealed class NpgsqlCharacterDataRepository : ICharacterDataRepository
         return result is long l ? l : 0;
     }
 
-    /// <summary>Puerto de WZ_GetItemSerial: incremento atómico.</summary>
+    /// <summary>Port of WZ_GetItemSerial: atomic increment.</summary>
     public async Task<long> GetNextItemSerialAsync(CancellationToken ct)
     {
         await using var conn = await OpenAsync(ct);
@@ -90,7 +90,7 @@ public sealed class NpgsqlCharacterDataRepository : ICharacterDataRepository
         await cmd.ExecuteNonQueryAsync(ct);
     }
 
-    /// <summary>Null si todavía no existe fila de AccountCharacter para esta cuenta (distinto de "existe con 5 slots vacíos").</summary>
+    /// <summary>Null if there is no AccountCharacter row yet for this account (different from "exists with 5 empty slots").</summary>
     public async Task<AccountSlots?> GetAccountSlotsAsync(string account, CancellationToken ct)
     {
         await using var conn = await OpenAsync(ct);
@@ -121,7 +121,7 @@ public sealed class NpgsqlCharacterDataRepository : ICharacterDataRepository
             throw new ArgumentOutOfRangeException(nameof(slot));
         }
 
-        // El nombre de columna no puede parametrizarse; slot está acotado a 0-4 arriba, así que es seguro.
+        // The column name cannot be parameterised; slot is bounded to 0-4 above, so it is safe.
         var column = $"game_id{slot + 1}";
 
         await using var conn = await OpenAsync(ct);
@@ -169,7 +169,7 @@ public sealed class NpgsqlCharacterDataRepository : ICharacterDataRepository
             reader.GetInt32(0), reader.GetInt16(1), EmptyIfNull(reader.IsDBNull(2) ? null : (byte[])reader[2], 1728), reader.GetInt16(3));
     }
 
-    /// <summary>Puerto de WZ_CreateCharacter. 1=creado, 0=el nombre ya existe, 2=clase inválida/error.</summary>
+    /// <summary>Port of WZ_CreateCharacter. 1=created, 0=the name already exists, 2=invalid class/error.</summary>
     public async Task<byte> CreateCharacterAsync(string account, string name, int characterClass, CancellationToken ct)
     {
         await using var conn = await OpenAsync(ct);
@@ -209,7 +209,7 @@ public sealed class NpgsqlCharacterDataRepository : ICharacterDataRepository
         return await cmd.ExecuteScalarAsync(ct) != null;
     }
 
-    /// <summary>Puerto de WZ_DeleteCharacter (borra también las tablas relacionadas por nombre).</summary>
+    /// <summary>Port of WZ_DeleteCharacter (also deletes the related tables by name).</summary>
     public async Task<byte> DeleteCharacterAsync(string account, string name, CancellationToken ct)
     {
         if (!await CharacterExistsAsync(name, ct))
@@ -228,7 +228,7 @@ public sealed class NpgsqlCharacterDataRepository : ICharacterDataRepository
             "DELETE FROM ranking_blood_castle WHERE name = @n",
             "DELETE FROM ranking_chaos_castle WHERE name = @n",
             "DELETE FROM ranking_devil_square WHERE name = @n",
-            "DELETE FROM ranking_illusion_temple WHERE name = @n", // no estaba en el WZ_DeleteCharacter original (esa tabla no existía), se agrega por consistencia
+            "DELETE FROM ranking_illusion_temple WHERE name = @n", // was not in the original WZ_DeleteCharacter (that table did not exist), added for consistency
             "DELETE FROM reset_data WHERE name = @n",
             "DELETE FROM event_entry_count WHERE name = @n",
         })
@@ -372,7 +372,7 @@ public sealed class NpgsqlCharacterDataRepository : ICharacterDataRepository
 
         if (!await reader.ReadAsync(ct))
         {
-            // Igual que el original cuando no hay fila: SkillKey=0xFF*10, resto de teclas 0xFF, ChatWindow=6.
+            // Same as the original when there is no row: SkillKey=0xFF*10, rest of the keys 0xFF, ChatWindow=6.
             return new OptionDataRow(Enumerable.Repeat((byte)0xFF, 10).ToArray(), 0xFF, 0xFF, 0xFF, 0xFF, 0x06);
         }
 
@@ -401,11 +401,11 @@ public sealed class NpgsqlCharacterDataRepository : ICharacterDataRepository
         await cmd.ExecuteNonQueryAsync(ct);
     }
 
-    // ---------------------------------------------------------------- reset / master reset / event entry
-    // Nota sobre "rollover" de día/semana/mes: el original usa DATEDIFF(day/week/month, ...) de SQL
-    // Server, cuyo comportamiento exacto para week/month depende de la configuración regional del
-    // servidor (DATEFIRST). Acá se aproxima con comparación calendario (mismo día / misma semana ISO
-    // / mismo mes-año), que cubre el mismo propósito práctico (contadores diarios/semanales/mensuales).
+    // ---------------------------------------------------------------- reset / master reset / event entry Note
+    // on day/week/month "rollover": the original uses SQL Server's DATEDIFF(day/week/month, ...), whose exact
+    // behaviour for week/month depends on the server's regional configuration (DATEFIRST). Here it is
+    // approximated with a calendar comparison (same day / same ISO week / same month-year), which serves the
+    // same practical purpose (daily/weekly/monthly counters).
 
     private static bool RolledOverDay(DateTime stored, DateTime now) => stored.Date != now.Date;
 
@@ -986,7 +986,7 @@ public sealed class NpgsqlCharacterDataRepository : ICharacterDataRepository
         cmdMember.Parameters.AddWithValue("m", masterName);
         await cmdMember.ExecuteNonQueryAsync(ct);
 
-        return 1; // Éxito
+        return 1; // Success
     }
 
     public async Task<bool> SaveGuildMemberAsync(string guildName, string memberName, byte status, CancellationToken ct)

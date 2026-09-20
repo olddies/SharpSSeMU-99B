@@ -3,15 +3,12 @@ using MuServer.GameServer.Net;
 
 namespace MuServer.GameServer.World;
 
-/// <summary>
-/// Puerto parcial de OBJECTSTRUCT (User.h) para un jugador -- solo los campos que hacen falta para
-/// "entrar al mundo" (Fase 2): identidad/stats para el paquete de info de personaje, posición para
-/// mapa/movimiento/viewport, y los bytes crudos de inventario/skill/quest/efecto que DataServer ya
-/// manda completos (se guardan como blobs opacos hasta que la Fase 3 los interprete de verdad).
-///
-/// A diferencia de los paquetes de red (que sí se portan byte a byte), esto es una clase C# idiomática
-/// -- el gObj[10000] global del original se reemplaza acá por PlayerRegistry + esta clase por jugador.
-/// </summary>
+/// <summary> Partial port of OBJECTSTRUCT (User.h) for a player -- only the fields needed to "enter the world"
+/// (Phase 2): identity/stats for the character info packet, position for map/movement/viewport, and the raw
+/// inventory/skill/quest/effect bytes that DataServer already sends complete (stored as opaque blobs until
+/// Phase 3 really interprets them). Unlike the network packets (which are ported byte by byte), this is an
+/// idiomatic C# class -- the original's global gObj[10000] is replaced here by PlayerRegistry + this class per
+/// player. </summary>
 public sealed class PlayerObject
 {
     public required int Index { get; init; }
@@ -27,13 +24,13 @@ public sealed class PlayerObject
     public uint Experience { get; set; }
     public uint Money { get; set; }
 
-    /// <summary>Nivel de cuenta (0-3, AL0..AL3 en los .dat de GameServerInfo) -- en el original
-    /// distingue cuentas normales/premium para varias tasas (ChaosMixRate, drop rate, MaxStatPoint,
-    /// etc.). Puerto de <c>gObj[index].AccountLevel = lpMsg->AccountLevel</c> (JSProtocol.cpp:85):
-    /// JoinServer ya calcula este valor de verdad (WZ_GetAccountLevel, con expiración) y se lo manda a
-    /// GameServer al conectar la cuenta -- ver <see cref="ClientSession.AccountLevel"/>, guardado ahí
-    /// porque llega antes de que exista este objeto. Se copia una sola vez al entrar al mundo, igual
-    /// que el resto de los campos de identidad (no cambia mientras la sesión sigue conectada).</summary>
+    /// <summary>Account level (0-3, AL0..AL3 in the GameServerInfo .dat files) -- in the original it
+    /// distinguishes normal/premium accounts for several rates (ChaosMixRate, drop rate, MaxStatPoint, etc.).
+    /// Port of <c>gObj[index].AccountLevel = lpMsg->AccountLevel</c> (JSProtocol.cpp:85): JoinServer already
+    /// computes this value for real (WZ_GetAccountLevel, with expiry) and sends it to GameServer when the
+    /// account connects -- see <see cref="ClientSession.AccountLevel"/>, stored there because it arrives before
+    /// this object exists. It is copied only once on entering the world, like the rest of the identity fields
+    /// (it does not change while the session stays connected).</summary>
     public int AccountLevel { get; set; }
     public uint Strength { get; set; }
     public uint Dexterity { get; set; }
@@ -55,48 +52,46 @@ public sealed class PlayerObject
     public uint Reset { get; set; }
     public uint MasterReset { get; set; }
 
-    /// <summary>Puerto de lpObj->ChatLimitTime -- no se consume todavía (sin sistema de mute), pero
-    /// se guarda tal cual se recibió de DataServer para poder devolverlo sin cambios en
-    /// <see cref="ClientProtocolHandler.SaveCharacterAsync"/> (ver doc-comment ahí: sin este campo,
-    /// cada guardado pisaría el valor real de la fila con 0).</summary>
+    /// <summary>Port of lpObj->ChatLimitTime -- not consumed yet (no mute system), but it is stored as received
+    /// from DataServer so it can be returned unchanged in <see
+    /// cref="ClientProtocolHandler.SaveCharacterAsync"/> (see the doc-comment there: without this field, every
+    /// save would overwrite the row's real value with 0).</summary>
     public uint ChatLimitTime { get; set; }
 
-    /// <summary>Contadores de entradas a eventos (Blood/Chaos/Devil Square) tal como los manda
-    /// DataServer al entrar al mundo -- ninguno de los tres sistemas está portado todavía (Devil
-    /// Square tiene su propio límite de tickets en <see cref="World.DevilSquareManager"/>, separado
-    /// de este contador histórico), así que se guardan sin tocar por el mismo motivo que
-    /// <see cref="ChatLimitTime"/>.</summary>
+    /// <summary>Event entry counters (Blood/Chaos/Devil Square) as DataServer sends them on entering the world
+    /// -- none of the three systems is ported yet (Devil Square has its own ticket limit in <see
+    /// cref="World.DevilSquareManager"/>, separate from this historical counter), so they are stored untouched
+    /// for the same reason as <see cref="ChatLimitTime"/>.</summary>
     public ushort BCCount { get; set; }
     public ushort CCCount { get; set; }
     public ushort DSCount { get; set; }
 
-    /// <summary>Puerto de lpObj->CharSaveTime (ObjectManager.cpp:1034-1038): throttle de 60s para el
-    /// guardado disparado por ganar experiencia/subir de nivel. <see cref="DateTime.MinValue"/> =
-    /// "nunca guardado" (equivalente al campo en 0 de un OBJECTSTRUCT recién zereado), que hace que
-    /// el primer chequeo tras entrar al mundo ya pueda disparar un guardado.</summary>
+    /// <summary>Port of lpObj->CharSaveTime (ObjectManager.cpp:1034-1038): 60s throttle for the save triggered
+    /// by gaining experience/levelling up. <see cref="DateTime.MinValue"/> = "never saved" (equivalent to the
+    /// field at 0 in a freshly zeroed OBJECTSTRUCT), which makes the first check after entering the world able
+    /// to trigger a save.</summary>
     public DateTime CharSaveTime { get; set; } = DateTime.MinValue;
 
-    /// <summary>Puerto de lpObj->AutoSaveTime (User.cpp:2537-2541): throttle de 10 minutos para el
-    /// autoguardado periódico incondicional (corre para cualquier jugador conectado, no solo tras
-    /// combate) -- éste es el mecanismo real que garantiza que la posición/progreso se persista aun
-    /// en una sesión sin matar monstruos. Mismo sentinel que <see cref="CharSaveTime"/>.</summary>
+    /// <summary>Port of lpObj->AutoSaveTime (User.cpp:2537-2541): 10-minute throttle for the unconditional
+    /// periodic autosave (it runs for any connected player, not only after combat) -- this is the real
+    /// mechanism that guarantees position/progress is persisted even in a session without killing monsters.
+    /// Same sentinel as <see cref="CharSaveTime"/>.</summary>
     public DateTime AutoSaveTime { get; set; } = DateTime.MinValue;
 
-    // Blobs opacos tal como los manda DataServer -- Skill/Quest/Effect se interpretan recién en
-    // fases posteriores (combate = skills, quest/eventos = fases sociales/especiales). Inventory
-    // se mantiene como el blob crudo de 1728 bytes (fuente de verdad para el guardado en
-    // DataServer) PERO además se decodifica a <see cref="Items"/> en cuanto llega (Fase 3) -- los
-    // dos se mantienen sincronizados por <see cref="SetItem"/>, que escribe en ambos lados a la vez
-    // en vez de tener que re-serializar los 108 slots enteros cada vez que cambia uno solo.
+    // Opaque blobs as DataServer sends them -- Skill/Quest/Effect are only interpreted in later phases (combat
+    // = skills, quest/events = social/special phases). Inventory is kept as the raw 1728-byte blob (source of
+    // truth for saving to DataServer) BUT it is also decoded into <see cref="Items"/> as soon as it arrives
+    // (Phase 3) -- the two are kept in sync by <see cref="SetItem"/>, which writes on both sides at once
+    // instead of having to re-serialise all 108 slots every time a single one changes.
     public byte[] Inventory { get; set; } = new byte[1728];
     public byte[] Skill { get; set; } = new byte[180];
     public byte[] Quest { get; set; } = Enumerable.Repeat((byte)0xFF, 50).ToArray();
     public byte[] Effect { get; set; } = new byte[208];
 
-    /// <summary>Puerto simplificado de lpObj->Interface (use/type/state, User.h) + TargetShopNumber --
-    /// no-nulo mientras el jugador tiene abierta la ventana de compra de un NPC (entre CGNpcTalkRecv y
-    /// CGNpcTalkCloseRecv/CGItemBuyRecv/CGItemSellRecv). Solo INTERFACE_SHOP está portado en esta
-    /// pasada (Trade/Warehouse/PersonalShop quedan para más adelante, ver README).</summary>
+    /// <summary>Simplified port of lpObj->Interface (use/type/state, User.h) + TargetShopNumber -- non-null
+    /// while the player has an NPC's buy window open (between CGNpcTalkRecv and
+    /// CGNpcTalkCloseRecv/CGItemBuyRecv/CGItemSellRecv). Only INTERFACE_SHOP is ported in this pass
+    /// (Trade/Warehouse/PersonalShop are left for later, see README).</summary>
     public int? TargetShopNumber { get; set; }
 
     /// <summary>Puerto de lpObj->Inventory[INVENTORY_SIZE] (CItem por slot) -- Fase 3. Se llena
@@ -211,9 +206,9 @@ public sealed class PlayerObject
         return -1;
     }
 
-    /// <summary>Decodifica <see cref="Inventory"/> (blob crudo de DataServer, 16 bytes/slot) en
-    /// <see cref="Items"/> -- puerto del loop de CharacterInfoSet que llama ConvertItemByte por
-    /// cada slot (ObjectManager.cpp, justo antes de CharacterMakePreviewCharSet).</summary>
+    /// <summary>Decodes <see cref="Inventory"/> (DataServer's raw blob, 16 bytes/slot) into <see cref="Items"/>
+    /// -- port of the CharacterInfoSet loop that calls ConvertItemByte for each slot (ObjectManager.cpp, right
+    /// before CharacterMakePreviewCharSet).</summary>
     public void DecodeInventory()
     {
         for (int slot = 0; slot < Item.InventorySize; slot++)
@@ -230,9 +225,9 @@ public sealed class PlayerObject
         }
     }
 
-    /// <summary>Escribe un item en un slot, manteniendo <see cref="Items"/> y el blob crudo
-    /// <see cref="Inventory"/> sincronizados (para que un guardado posterior a DataServer refleje
-    /// el cambio sin tener que re-decodificar todo).</summary>
+    /// <summary>Writes an item into a slot, keeping <see cref="Items"/> and the raw <see cref="Inventory"/>
+    /// blob in sync (so that a later save to DataServer reflects the change without having to re-decode
+    /// everything).</summary>
     public void SetItem(int slot, Item item)
     {
         Items[slot] = item;
@@ -245,7 +240,7 @@ public sealed class PlayerObject
         }
     }
 
-    // Posición / mundo
+    // Position / world
     public byte Map { get; set; }
     public byte X { get; set; }
     public byte Y { get; set; }
@@ -261,41 +256,37 @@ public sealed class PlayerObject
     public int PhysiSpeed { get; set; }
     public int MagicSpeed { get; set; }
 
-    /// <summary>Puerto de lpObj->ActionNumber (User.h, seteado en CGActionRecv, Protocol.cpp:611-666)
-    /// -- último código de acción recibido (120=ataque, 128=sentarse, 129=saludo/pose, 130=curación).
-    /// El original lo usa también para reproducir la pose al armar el paquete de viewport de un
-    /// jugador que recién entra en rango de otro (VpPlayer2[]/CharacterMakePreviewCharSet) -- esa
-    /// reproducción NO está portada todavía (el paquete de "jugador apareció" de este puerto no lleva
-    /// pose), así que por ahora este campo solo se guarda para uso futuro; el efecto visible inmediato
-    /// (animación de sentarse/saludar) ya funciona vía el broadcast de ActionSend en tiempo real.</summary>
+    /// <summary>Port of lpObj->ActionNumber (User.h, set in CGActionRecv, Protocol.cpp:611-666) -- last action
+    /// code received (120=attack, 128=sit, 129=greeting/pose, 130=heal). The original also uses it to replay
+    /// the pose when building the viewport packet of a player who has just come into range of another
+    /// (VpPlayer2[]/CharacterMakePreviewCharSet) -- that replay is NOT ported yet (this port's "player
+    /// appeared" packet carries no pose), so for now this field is only stored for future use; the immediate
+    /// visible effect (sit/greet animation) already works via the real-time ActionSend broadcast.</summary>
     public byte ActionNumber { get; set; }
 
-    /// <summary>
-    /// Puerto de CharSet[13] (ver CObjectManager::CharacterMakePreviewCharSet, ObjectManager.cpp:1139-
-    /// 1269 del árbol fuente correcto, "Emulator 0.99 (2.1.7)/GameServer" -- ver el doc-comment de
-    /// <see cref="World.Item"/> para la explicación de por qué este repo tiene dos árboles de C++ y
-    /// cuál es el real). REVERTIDO de un tamaño fabricado de 18 bytes (con bits de extensión en
-    /// índices 12-17 y ramas de alas/mascota de temporadas posteriores) que una pasada de porting
-    /// anterior investigó contra el árbol de fuente EQUIVOCADO (`Source/Source/Emulator/GameServer`
-    /// sin sufijo de versión, una temporada mucho más tardía) -- el CharSet real de este build es de
-    /// 13 bytes, sin esos bits de extensión ni esas alas/mascotas (no existen en 0.99B).
+    /// <summary> Port of CharSet[13] (see CObjectManager::CharacterMakePreviewCharSet, ObjectManager.cpp:1139-
+    /// 1269 of the correct source tree, "Emulator 0.99 (2.1.7)/GameServer" -- see the doc-comment of <see
+    /// cref="World.Item"/> for the explanation of why this repo has two C++ trees and which one is the real
+    /// one). REVERTED from a fabricated size of 18 bytes (with extension bits at indices 12-17 and wing/pet
+    /// branches of later seasons) that an earlier porting pass investigated against the WRONG source tree
+    /// (`Source/Source/Emulator/GameServer` without a version suffix, a much later season) -- this build's real
+    /// CharSet is 13 bytes, without those extension bits nor those wings/pets (they do not exist in 0.99B).
     /// </summary>
     public byte[] CharSet { get; } = new byte[13];
 
-    /// <summary>ChangeUp (2da/3ra evolución de clase) -- DataServer manda la clase en formato crudo
-    /// de DB (<c>Class*16 + ChangeUp</c>, ej. 0/16/32/48/64 para 1ra clase DW/DK/FE/MG/DL); se
-    /// descompone en <see cref="Class"/> (índice compacto 0-4) y este campo en el único punto de
-    /// entrada real (ver ClientProtocolHandler.OnCharacterInfoFromDataServerAsync). Ningún camino de
-    /// este puerto todavía permite un cambio de clase real (2do/3er change), así que en la práctica
-    /// siempre vale 0 con los datos de semilla actuales, pero el campo ya está correctamente
-    /// derivado si algún personaje real tuviera un valor distinto guardado.</summary>
+    /// <summary>ChangeUp (2nd/3rd class evolution) -- DataServer sends the class in raw DB format (<c>Class*16
+    /// + ChangeUp</c>, e.g. 0/16/32/48/64 for 1st-class DW/DK/FE/MG/DL); it is decomposed into <see
+    /// cref="Class"/> (compact index 0-4) and this field at the single real entry point (see
+    /// ClientProtocolHandler.OnCharacterInfoFromDataServerAsync). No path of this port yet allows a real class
+    /// change (2nd/3rd change), so in practice it is always 0 with the current seed data, but the field is
+    /// already correctly derived if some real character had a different value stored.</summary>
     public byte ChangeUp { get; set; }
 
-    /// <summary>Puerto completo (Fase 3) de CObjectManager::CharacterMakePreviewCharSet
-    /// (ObjectManager.cpp:1139-1268) -- arma los 13 bytes de apariencia a partir del equipo real
-    /// puesto en <see cref="Items"/> (slots 0-11, ver constantes Slot* de <see cref="Item"/>). Sin
-    /// la parte de sentado/posado (no hay acciones todavía) ni el bit de "full-set" (depende de
-    /// CharacterCalcAttribute, que es cálculo de atributos -- Fase 4).</summary>
+    /// <summary>Full port (Phase 3) of CObjectManager::CharacterMakePreviewCharSet
+    /// (ObjectManager.cpp:1139-1268) -- builds the 13 appearance bytes from the real equipment worn in <see
+    /// cref="Items"/> (slots 0-11, see the Slot* constants of <see cref="Item"/>). Without the sit/pose part
+    /// (there are no actions yet) nor the "full-set" bit (it depends on CharacterCalcAttribute, which is
+    /// attribute calculation -- Phase 4).</summary>
     public void RebuildCharSet()
     {
         var built = BuildCharSet(Class, ChangeUp, Items);
@@ -306,22 +297,19 @@ public sealed class PlayerObject
         }
     }
 
-    /// <summary>
-    /// Puerto EXACTO de CObjectManager::CharacterMakePreviewCharSet (ObjectManager.cpp:1139-1269 del
-    /// árbol fuente correcto, "Emulator 0.99 (2.1.7)/GameServer" -- ver el doc-comment de
-    /// <see cref="World.Item"/> para la explicación completa de por qué este repo tiene dos árboles de
-    /// C++ y por qué una pasada de porting anterior investigó este método contra el árbol EQUIVOCADO
-    /// (una temporada muy posterior con CharSet[18], alas/mascotas de esa temporada y bits de
-    /// extensión que no existen en 0.99B). Factorizado como método estático para poder reusarlo tanto
-    /// desde <see cref="RebuildCharSet"/> (jugador ya en el mundo, con <see cref="Items"/> reales)
-    /// como desde la pantalla de selección de personaje (formato compacto que manda DataServer -- ver
-    /// ClientProtocolHandler.OnCharacterListFromDataServerAsync, que reconstruye Item[9] equivalentes
-    /// con Item.FromCompactPreviewBytes antes de llamar acá; el original hace lo mismo en
-    /// DSProtocol.cpp, DGCharacterListRecv, con la MISMA lógica byte a byte). Sin la parte de
-    /// sentado/posado (CharSet[0] bits 0-1 con ActionNumber==ACTION_SIT1/POSE1 -- no hay acciones con
-    /// eco de viewport todavía) ni el bit de "set completo" (CharSet[11] bit0, depende de
-    /// CharacterCalcAttribute -- Fase 4, sin el bono de "mismo set visual" documentado ahí).
-    /// </summary>
+    /// <summary> EXACT port of CObjectManager::CharacterMakePreviewCharSet (ObjectManager.cpp:1139-1269 of the
+    /// correct source tree, "Emulator 0.99 (2.1.7)/GameServer" -- see the doc-comment of <see
+    /// cref="World.Item"/> for the full explanation of why this repo has two C++ trees and why an earlier
+    /// porting pass investigated this method against the WRONG tree (a much later season with CharSet[18], that
+    /// season's wings/pets and extension bits that do not exist in 0.99B). Factored as a static method so it
+    /// can be reused both from <see cref="RebuildCharSet"/> (player already in the world, with real <see
+    /// cref="Items"/>) and from the character selection screen (compact format sent by DataServer -- see
+    /// ClientProtocolHandler.OnCharacterListFromDataServerAsync, which rebuilds equivalent Item[9] with
+    /// Item.FromCompactPreviewBytes before calling here; the original does the same in DSProtocol.cpp,
+    /// DGCharacterListRecv, with the SAME logic byte for byte). Without the sit/pose part (CharSet[0] bits 0-1
+    /// with ActionNumber==ACTION_SIT1/POSE1 -- there are no actions with viewport echo yet) nor the "full set"
+    /// bit (CharSet[11] bit0, depends on CharacterCalcAttribute -- Phase 4, without the "same visual set" bonus
+    /// documented there). </summary>
     public static byte[] BuildCharSet(byte cls, byte changeUp, IReadOnlyList<Item> wear)
     {
         var charSet = new byte[13];
@@ -331,10 +319,10 @@ public sealed class PlayerObject
         b0 += (byte)(cls * 32);
         charSet[0] = b0;
 
-        // TempInventory: armas (slots 0-1) guardan el índice completo (m_Index, 0-511), "sin arma" =
-        // 0xFF; el resto de slots de equipo (2-11) guardan solo el subíndice dentro de su sección
-        // (m_Index%MAX_ITEM_TYPE), "slot vacío" = MAX_ITEM_TYPE-1 = 0x1F -- puerto exacto de
-        // ObjectManager.cpp:1159-1185. Item.MaxItemType = 32 (MAX_ITEM_TYPE real de este build,
+        // TempInventory: weapons (slots 0-1) store the full index (m_Index, 0-511), "no weapon" = 0xFF; the
+        // rest of the equipment slots (2-11) store only the sub-index within their section
+        // (m_Index%MAX_ITEM_TYPE), "empty slot" = MAX_ITEM_TYPE-1 = 0x1F -- exact port of
+        // ObjectManager.cpp:1159-1185. Item.MaxItemType = 32 (this build's real MAX_ITEM_TYPE,
         // ItemManager.h:12).
         const int noWeapon = 0xFF;
         int noItem = Item.MaxItemType - 1; // 0x1F
@@ -391,15 +379,15 @@ public sealed class PlayerObject
             charSet[11] |= (byte)((((item.SetOption & 0x03) != 0) ? 2 : 0) << table[n]);
         }
 
-        // Bit de "set completo" (CharacterCalcAttribute) diferido a la Fase 4 (cálculo de
-        // atributos) -- no se prende charSet[11] bit0 todavía.
+        // "Full set" bit (CharacterCalcAttribute) deferred to Phase 4 (attribute calculation) -- charSet[11]
+        // bit0 is not turned on yet.
 
         charSet[6] = (byte)(level >> 16);
         charSet[7] = (byte)(level >> 8);
         charSet[8] = (byte)level;
 
-        // Alas (slot 7) -- puerto exacto de ObjectManager.cpp:1232-1249. Solo estos 3 casos existen en
-        // este build (0.99B); sin alas o cualquier índice fuera de esta lista no prende ningún bit.
+        // Wings (slot 7) -- exact port of ObjectManager.cpp:1232-1249. Only these 3 cases exist in this build
+        // (0.99B); without wings or any index outside this list no bit is turned on.
         int wing = temp[Item.SlotWing];
 
         if (wing is >= 0 and <= 2)
@@ -443,93 +431,81 @@ public sealed class PlayerObject
         return charSet;
     }
 
-    // Estado de conexión al mundo
-    /// <summary>
-    /// Puerto de <c>char RegenOk</c> (User.h:509). El original es un contador de 4 estados
-    /// (0=normal/visible, 1=recién-teleportado, 2/3=transición) pero para este build alcanza con un
-    /// booleano porque el único lugar que lo pone en 1 es <c>gObjMoveGate</c>/<c>gObjTeleport</c>/
-    /// <c>gObjSummonAlly</c> (User.cpp:2114,2144,2168,2220,2259) -- y NINGUNO de esos caminos
-    /// (portales de mapa, hechizo de teleport) está portado todavía en este build (el único emisor de
-    /// <see cref="Protocol.WorldPackets.TeleportSend"/> es World/DevilSquareManager.cs, que tampoco
-    /// bloquea). El valor inicial real es 0 (=false, NO bloqueado), seteado por
-    /// <c>gObjCharZeroSet</c> (User.cpp:368) al aceptar la conexión, y NO se toca en ningún punto del
-    /// flujo de login/selección de personaje/entrada al mundo (confirmado leyendo la función completa
-    /// que arma el personaje desde DataServer, ObjectManager.cpp:2733-2736: solo toca Live/Type/
-    /// State/Connected). Un default de "true" (bloqueado hasta que el cliente mande 0xF3:0x12) fue un
-    /// bug de esta porta: <see cref="MuServer.GameServer.WorldTestClient"/> manda ese paquete
-    /// incondicionalmente y por eso el regression test nunca lo detectó, pero un cliente real de MU
-    /// probablemente solo lo manda como ack de haber cargado el mapa DESPUÉS de un teleport/gate real
-    /// -- si nunca hace ninguno (como al recién entrar al mundo la primera vez), jamás lo manda, y con
-    /// el default viejo (true) el jugador quedaba bloqueado para siempre viendo el mapa vacío (sin
-    /// jugadores NI monstruos NI NPCs, ya que <see cref="ViewportTicker"/> salta enteramente el
-    /// barrido de un observador con RegenOk==true). Corregido a false para que coincida con el
-    /// comportamiento real.
-    /// </summary>
+    // World connection state
+    /// <summary> Port of <c>char RegenOk</c> (User.h:509). The original is a 4-state counter (0=normal/visible,
+    /// 1=just-teleported, 2/3=transition) but for this build a boolean is enough because the only place that
+    /// sets it to 1 is <c>gObjMoveGate</c>/<c>gObjTeleport</c>/ <c>gObjSummonAlly</c>
+    /// (User.cpp:2114,2144,2168,2220,2259) -- and NONE of those paths (map portals, teleport spell) is ported
+    /// yet in this build (the only emitter of <see cref="Protocol.WorldPackets.TeleportSend"/> is
+    /// World/DevilSquareManager.cs, which does not block either). The real initial value is 0 (=false, NOT
+    /// blocked), set by <c>gObjCharZeroSet</c> (User.cpp:368) when accepting the connection, and it is NOT
+    /// touched at any point of the login/character selection/world entry flow (confirmed by reading the whole
+    /// function that builds the character from DataServer, ObjectManager.cpp:2733-2736: it only touches
+    /// Live/Type/ State/Connected). A default of "true" (blocked until the client sends 0xF3:0x12) was a bug of
+    /// this port: <see cref="MuServer.GameServer.WorldTestClient"/> sends that packet unconditionally and that
+    /// is why the regression test never detected it, but a real MU client probably only sends it as an ack of
+    /// having loaded the map AFTER a real teleport/gate -- if it never does one (as when entering the world for
+    /// the first time), it never sends it, and with the old default (true) the player stayed blocked forever
+    /// seeing the empty map (no players NOR monsters NOR NPCs, since <see cref="ViewportTicker"/> skips an
+    /// observer's sweep entirely when RegenOk==true). Fixed to false to match the real behaviour. </summary>
     public bool RegenOk { get; set; } // false = visible/normal (default real), true = bloqueado tras teleport
     public bool WorldEntered { get; set; }
 
-    /// <summary>Puerto del flag <c>lpObj->SendQuestInfo</c> (User.h) -- CQuest::GCQuestInfoSend (Quest.cpp:397-417)
-    /// solo manda el paquete C1:A0 (blob completo de 50 bytes de estado de misiones) la PRIMERA vez
-    /// por sesión; todas las llamadas posteriores (incluida la que dispara CQuest::NpcTalk en cada
-    /// diálogo con un NPC de misión) son no-op para esta parte y solo mandan el C1:A1 de estado. Ver
-    /// DSProtocol.cpp:503 -- se manda proactivamente al entrar al mundo, junto con ItemListSend/SkillListSend.</summary>
+    /// <summary>Port of the <c>lpObj->SendQuestInfo</c> flag (User.h) -- CQuest::GCQuestInfoSend
+    /// (Quest.cpp:397-417) only sends the C1:A0 packet (full 50-byte blob of quest state) the FIRST time per
+    /// session; all later calls (including the one CQuest::NpcTalk triggers on every dialog with a quest NPC)
+    /// are a no-op for this part and only send the C1:A1 state packet. See DSProtocol.cpp:503 -- it is sent
+    /// proactively on entering the world, together with ItemListSend/SkillListSend.</summary>
     public bool SendQuestInfo { get; set; }
 
-    /// <summary>Índices de otros jugadores actualmente visibles para este jugador (equivalente
-    /// simplificado de VpPlayer[] -- ver ViewportTicker).</summary>
+    /// <summary>Indices of other players currently visible to this player (simplified equivalent of VpPlayer[]
+    /// -- see ViewportTicker).</summary>
     public HashSet<int> VisibleTo { get; } = new();
 
-    /// <summary>Índices de monstruos actualmente visibles para este jugador (mismo mecanismo que
-    /// <see cref="VisibleTo"/> pero para el registro de monstruos -- ver ViewportTicker).</summary>
+    /// <summary>Indices of monsters currently visible to this player (same mechanism as <see cref="VisibleTo"/>
+    /// but for the monster registry -- see ViewportTicker).</summary>
     public HashSet<int> VisibleMonsters { get; } = new();
 
-    /// <summary>Índices (dentro del mapa actual del jugador, ver <see cref="GroundItem.Index"/>) de
-    /// items de piso actualmente visibles -- mismo mecanismo que <see cref="VisibleMonsters"/>. Como
-    /// este puerto no tiene cambio de mapa en runtime (sin portales/teletransporte todavía), no hace
-    /// falta limpiar este set al cambiar de mapa.</summary>
+    /// <summary>Indices (within the player's current map, see <see cref="GroundItem.Index"/>) of ground items
+    /// currently visible -- same mechanism as <see cref="VisibleMonsters"/>. Since this port has no runtime map
+    /// change (no portals/teleport yet), there is no need to clear this set on changing map.</summary>
     public HashSet<int> VisibleGroundItems { get; } = new();
 
     // ---------------------------------------------------------------- Fase 4: combate (primera pasada)
 
-    /// <summary>Puerto de los campos de combate de OBJECTSTRUCT (PhysiDamageMin/Max, Defense,
-    /// AttackSuccessRate, DefenseSuccessRate) -- ver <see cref="RecalcCombatStats"/> para el puerto
-    /// real de CObjectManager::CharacterCalcAttribute (Fase 4, segunda pasada, balance real de
-    /// items).</summary>
+    /// <summary>Port of OBJECTSTRUCT's combat fields (PhysiDamageMin/Max, Defense, AttackSuccessRate,
+    /// DefenseSuccessRate) -- see <see cref="RecalcCombatStats"/> for the real port of
+    /// CObjectManager::CharacterCalcAttribute (Phase 4, second pass, real item balance).</summary>
     public int PhysiDamageMin { get; set; }
     public int PhysiDamageMax { get; set; }
     public int Defense { get; set; }
     public int AttackSuccessRate { get; set; }
     public int DefenseSuccessRate { get; set; }
 
-    /// <summary>Daño mágico base (Energy/const, ver <see cref="RecalcCombatStats"/>) -- usado por los
-    /// skills de ataque (Fase "skills"), ver ClientProtocolHandler.OnSkillAttackAsync.</summary>
+    /// <summary>Base magic damage (Energy/const, see <see cref="RecalcCombatStats"/>) -- used by the attack
+    /// skills ("skills" phase), see ClientProtocolHandler.OnSkillAttackAsync.</summary>
     public int MagicDamageMin { get; set; }
     public int MagicDamageMax { get; set; }
 
-    /// <summary>Índice de clase 0-4 = DW/DK/FE/MG/DL (mismo orden que <see cref="Class"/> crudo, ver
-    /// ClientProtocolHandler.ClassFe=2 y CharacterBalanceConfig).</summary>
+    /// <summary>Class index 0-4 = DW/DK/FE/MG/DL (same order as the raw <see cref="Class"/>, see
+    /// ClientProtocolHandler.ClassFe=2 and CharacterBalanceConfig).</summary>
     private const int ClassDw = 0, ClassDk = 1, ClassFe = 2, ClassMg = 3, ClassDl = 4;
 
-    /// <summary>
-    /// Puerto de CObjectManager::CharacterCalcAttribute (ObjectManager.cpp:1887-2523) -- Fase 4,
-    /// segunda pasada (balance real de combate, reemplaza el placeholder Str/Nivel de la primera
-    /// pasada). Cubre daño físico base por clase, aporte de arma(s) equipada(s) (con el escalado por
-    /// nivel +0..+15 de <see cref="ItemCombatMath"/>), bono de flecha/perno, penalización de doble
-    /// empuñadura, acierto de ataque y defensa/tasa de defensa (dexterity + piezas de armadura/escudo/
-    /// alas equipadas). Simplificaciones documentadas explícitamente frente al original:
-    ///   1) Sin crítico/excelente/set-item (dependen de ItemOption.txt/SetItemOption.txt, no
-    ///      portados -- ver comentario de cabecera de ItemCombatMath).
-    ///   2) Sin el bono de +5%..+30% de Defensa por "5 piezas de armadura al mismo nivel alto" ni el
-    ///      +10% de DefenseSuccessRate por "mismo set visual" (ObjectManager.cpp:2314-2421) -- ambos
-    ///      dependen de comparar SetItemOption/visual-index entre piezas, fuera de alcance de esta
-    ///      pasada.
-    ///   3) Sin PhysiSpeed/MagicSpeed (velocidad de ataque) ni HP/MP/BP por Vitalidad/Energía -- no
-    ///      hay cooldown de ataque server-side todavía (el cliente ya se autolimita) y Life/MaxLife
-    ///      vienen de DataServer, así que no hacen falta para que el combate funcione.
-    ///   4) Sin daño mágico (DW/MG/DL con hechizos) -- no hay sistema de skills portado todavía.
-    ///   5) Sin las variantes PvP de acierto/defensa (Attack.cpp: MissCheckPvP/GetTargetDefense al
-    ///      50% contra jugadores) -- esta fase de combate solo cubre jugador-contra-monstruo.
-    /// </summary>
+    /// <summary> Port of CObjectManager::CharacterCalcAttribute (ObjectManager.cpp:1887-2523) -- Phase 4,
+    /// second pass (real combat balance, replaces the first pass's Str/Level placeholder). It covers base
+    /// physical damage per class, contribution of the equipped weapon(s) (with the +0..+15 level scaling of
+    /// <see cref="ItemCombatMath"/>), arrow/bolt bonus, dual-wield penalty, attack success rate and
+    /// defense/defense rate (dexterity + equipped armor/shield/ wing pieces). Explicitly documented
+    /// simplifications compared to the original: 1) No critical/excellent/set-item (they depend on
+    /// ItemOption.txt/SetItemOption.txt, not ported -- see the header comment of ItemCombatMath). 2) No
+    /// +5%..+30% Defense bonus for "5 armor pieces at the same high level" nor the +10% DefenseSuccessRate for
+    /// "same visual set" (ObjectManager.cpp:2314-2421) -- both depend on comparing SetItemOption/visual-index
+    /// between pieces, outside the scope of this pass. 3) No PhysiSpeed/MagicSpeed (attack speed) nor HP/MP/BP
+    /// from Vitality/Energy -- there is no server-side attack cooldown yet (the client already limits itself)
+    /// and Life/MaxLife come from DataServer, so they are not needed for combat to work. 4) No magic damage
+    /// (DW/MG/DL with spells) -- there is no skill system ported yet. 5) No PvP variants of hit/defense
+    /// (Attack.cpp: MissCheckPvP/GetTargetDefense at 50% against players) -- this combat phase only covers
+    /// player-versus-monster. </summary>
     public void RecalcCombatStats(ItemBalanceTable items, CharacterBalanceConfig cfg)
     {
         int cls = Class switch
@@ -542,12 +518,12 @@ public sealed class PlayerObject
         var rightInfo = right.IsItem() ? items.Get(right.Index) : null;
         var leftInfo = left.IsItem() ? items.Get(left.Index) : null;
 
-        // La munición (flecha/perno) NO cuenta como "arma" para doble-empuñadura/suma de daño --
-        // solo aporta el bono porcentual de ObjectManager.cpp:2444-2459 (ver más abajo).
+        // Ammunition (arrow/bolt) does NOT count as a "weapon" for dual-wield/damage sum -- it only contributes
+        // the percentage bonus of ObjectManager.cpp:2444-2459 (see below).
         bool rightIsWeapon = rightInfo is { IsWeapon: true } && !rightInfo.IsAmmo;
         bool leftIsWeapon = leftInfo is { IsWeapon: true } && !leftInfo.IsAmmo;
 
-        // ---- Paso 1: daño físico base por clase (ObjectManager.cpp:1974-2053) ----
+        // ---- Step 1: base physical damage per class (ObjectManager.cpp:1974-2053) ----
         int baseMin, baseMax;
 
         switch (cls)
@@ -563,9 +539,9 @@ public sealed class PlayerObject
                 break;
 
             case ClassFe:
-                // Puerto de ObjectManager.cpp:1999-2012: fórmula alternativa si el arma en la mano
-                // derecha es un arco/ballesta (sección 4 de Item.txt), sea cual sea el hueco donde
-                // esté (algunos arcos van en Weapon2 según Item.txt, ver comentario de ItemBalance).
+                // Port of ObjectManager.cpp:1999-2012: alternative formula if the right-hand weapon is a
+                // bow/crossbow (section 4 of Item.txt), whichever slot it is in (some bows go in Weapon2
+                // according to Item.txt, see the comment of ItemBalance).
                 bool bow = rightInfo is { Section: 4 };
 
                 if (bow)
@@ -591,8 +567,8 @@ public sealed class PlayerObject
                 break;
         }
 
-        // ---- Paso 2: aporte de cada mano equipada (ObjectManager.cpp:2055-2085) ----
-        // El báculo (sección 5) solo suma la MITAD de su daño a la rama física (es un arma "mágica").
+        // ---- Step 2: contribution of each equipped hand (ObjectManager.cpp:2055-2085) ---- The staff (section
+        // 5) only adds HALF of its damage to the physical branch (it is a "magic" weapon).
         int minRight = baseMin, maxRight = baseMax, minLeft = baseMin, maxLeft = baseMax;
 
         if (rightInfo is { IsWeapon: true })
@@ -613,9 +589,9 @@ public sealed class PlayerObject
             maxLeft += staff ? wMax / 2 : wMax;
         }
 
-        // ---- Paso 3: bono de flecha/perno (ObjectManager.cpp:2444-2459) ----
-        // Arco/ballesta en la derecha + munición con nivel de mejora en la izquierda -- el bono usa
-        // el NIVEL CRUDO de la munición (Item.Level), no su daño escalado (que es 0).
+        // ---- Step 3: arrow/bolt bonus (ObjectManager.cpp:2444-2459) ---- Bow/crossbow in the right hand +
+        // ammunition with an upgrade level in the left -- the bonus uses the ammunition's RAW LEVEL
+        // (Item.Level), not its scaled damage (which is 0).
         if (rightIsWeapon && rightInfo!.Section == 4 && leftInfo is { IsAmmo: true })
         {
             int rate = (left.Level * 2) + 1;
@@ -623,8 +599,8 @@ public sealed class PlayerObject
             maxRight += (maxRight * rate / 100) + 1;
         }
 
-        // ---- Paso 4: penalización de doble empuñadura (ObjectManager.cpp:2461-2473) ----
-        // DK/MG/DL con dos armas cuerpo a cuerpo (secciones 0-3) a la vez -- ambas manos al 55%.
+        // ---- Step 4: dual-wield penalty (ObjectManager.cpp:2461-2473) ---- DK/MG/DL with two melee weapons
+        // (sections 0-3) at once -- both hands at 55%.
         bool meleeDual = rightIsWeapon && leftIsWeapon && rightInfo!.Section <= 3 && leftInfo!.Section <= 3
             && cls is ClassDk or ClassMg or ClassDl;
 
@@ -675,11 +651,10 @@ public sealed class PlayerObject
 
         AttackSuccessRate = Math.Max(asr, 0);
 
-        // ---- Paso 7: defensa y tasa de defensa (ObjectManager.cpp:2230-2422) ----
-        // Dexterity/const + suma de GetDefense()/GetDefenseSuccessRate() de Weapon2 (si es escudo),
-        // Helm, Armor, Pants, Gloves, Boots y Wing -- cada pieza devuelve 0 si está rota o si esa
-        // sección no tiene la columna correspondiente (ej. un arma en Weapon2 no tiene
-        // DefenseSuccessRate, ver World/ItemBalance.cs).
+        // ---- Step 7: defense and defense rate (ObjectManager.cpp:2230-2422) ---- Dexterity/const + sum of
+        // GetDefense()/GetDefenseSuccessRate() of Weapon2 (if it is a shield), Helm, Armor, Pants, Gloves,
+        // Boots and Wing -- each piece returns 0 if it is broken or if that section does not have the
+        // corresponding column (e.g. a weapon in Weapon2 has no DefenseSuccessRate, see World/ItemBalance.cs).
         int def = SafeDiv(Dexterity, cfg.DefenseConstA[cls]);
         int dsr = SafeDiv(Dexterity, cfg.DefenseSuccessRateConstA[cls]);
 
@@ -711,13 +686,12 @@ public sealed class PlayerObject
         Defense = Math.Max(def, 0);
         DefenseSuccessRate = Math.Max(dsr, 0);
 
-        // ---- Paso 8: daño mágico base (ObjectManager.cpp:1980-1994 etc, Fase "skills") ----
-        // Energy/const, idéntico para las 5 clases con los valores reales (9,4) pero cargado por
-        // clase igual (ver CharacterBalanceConfig). Bono de arma mágica (espada/báculo con columna
-        // MagicDamageRate en Item.txt, ej. "Dark Reign Blade"/"Rune Blade"/cualquier báculo) --
-        // puerto de Attack.cpp:1341-1345, sin el factor de "durabilidad actual fraccionaria" del
-        // original (se usa 1.0 si el arma no está rota, mismo tipo de simplificación que el resto de
-        // este puerto).
+        // ---- Step 8: base magic damage (ObjectManager.cpp:1980-1994 etc, "skills" phase) ---- Energy/const,
+        // identical for the 5 classes with the real values (9,4) but loaded per class anyway (see
+        // CharacterBalanceConfig). Magic weapon bonus (sword/staff with a MagicDamageRate column in Item.txt,
+        // e.g. "Dark Reign Blade"/"Rune Blade"/any staff) -- port of Attack.cpp:1341-1345, without the
+        // original's "fractional current durability" factor (1.0 is used if the weapon is not broken, the same
+        // kind of simplification as the rest of this port).
         int magicMin = SafeDiv(Energy, cfg.MagicDamageMinConstA[cls]);
         int magicMax = SafeDiv(Energy, cfg.MagicDamageMaxConstA[cls]);
 
@@ -799,13 +773,12 @@ public sealed class PlayerObject
         PhysiSpeed = basePhysiSpeed + bonusSpeed;
         MagicSpeed = baseMagicSpeed + bonusSpeed;
 
-        // ---- Paso 9: recalculación de MaxLife y MaxMana (ObjectManager.cpp:2475-2508) ----
-        // Defaults base y multiplicadores de DefaultClassInfo.txt:
-        // DW (0): BaseHP=60, LevelHP=1.0, VitHP=2.0; BaseMP=60, LevelMP=2.0, EneMP=2.0
-        // DK (1): BaseHP=110, LevelHP=2.0, VitHP=3.0; BaseMP=20, LevelMP=0.5, EneMP=1.0
-        // FE (2): BaseHP=80, LevelHP=1.0, VitHP=2.0; BaseMP=30, LevelMP=1.5, EneMP=1.5
-        // MG (3): BaseHP=110, LevelHP=1.0, VitHP=2.0; BaseMP=60, LevelMP=1.0, EneMP=2.0
-        // DL (4): BaseHP=90, LevelHP=1.5, VitHP=2.0; BaseMP=40, LevelMP=1.0, EneMP=1.5
+        // ---- Step 9: recalculation of MaxLife and MaxMana (ObjectManager.cpp:2475-2508) ---- Base defaults
+        // and multipliers from DefaultClassInfo.txt: DW (0): BaseHP=60, LevelHP=1.0, VitHP=2.0; BaseMP=60,
+        // LevelMP=2.0, EneMP=2.0 DK (1): BaseHP=110, LevelHP=2.0, VitHP=3.0; BaseMP=20, LevelMP=0.5, EneMP=1.0
+        // FE (2): BaseHP=80, LevelHP=1.0, VitHP=2.0; BaseMP=30, LevelMP=1.5, EneMP=1.5 MG (3): BaseHP=110,
+        // LevelHP=1.0, VitHP=2.0; BaseMP=60, LevelMP=1.0, EneMP=2.0 DL (4): BaseHP=90, LevelHP=1.5, VitHP=2.0;
+        // BaseMP=40, LevelMP=1.0, EneMP=1.5
         float[] baseHp = { 60f, 110f, 80f, 110f, 90f };
         float[] levelHp = { 1.0f, 2.0f, 1.0f, 1.0f, 1.5f };
         float[] vitHp = { 2.0f, 3.0f, 2.0f, 2.0f, 2.0f };
@@ -822,7 +795,7 @@ public sealed class PlayerObject
         MaxLife = (uint)Math.Max(maxLife, 1f);
         MaxMana = (uint)Math.Max(maxMana, 1f);
 
-        // ---- Paso 10: recalculación de MaxBP / AG (CharacterCalcBP, ObjectManager.cpp:1865-1884) ----
+        // ---- Step 10: recalculation of MaxBP / AG (CharacterCalcBP, ObjectManager.cpp:1865-1884) ----
         double maxBp = cls switch
         {
             ClassDw => (Strength * 0.20) + (Dexterity * 0.40) + (Vitality * 0.30) + (Energy * 0.20),
@@ -841,25 +814,24 @@ public sealed class PlayerObject
 
     private static int SafeDiv(uint value, int div) => div <= 0 ? 0 : (int)(value / (uint)div);
 
-    // ---------------------------------------------------------------- Fase "skills": magia y maná
+    // ---------------------------------------------------------------- "Skills" phase: magic and mana
 
-    /// <summary>Puerto de lpObj->SkillDelay[MAX_SKILL] (CheckSkillDelay, SkillManager.cpp:440-454) --
-    /// último instante en el que se casteó cada skill (por índice), para el cooldown por skill de la
-    /// columna "Delay" (milisegundos) de SkillList.txt.</summary>
+    /// <summary>Port of lpObj->SkillDelay[MAX_SKILL] (CheckSkillDelay, SkillManager.cpp:440-454) -- last
+    /// instant each skill was cast (by index), for the per-skill cooldown of the "Delay" column (milliseconds)
+    /// of SkillList.txt.</summary>
     public Dictionary<int, DateTime> SkillDelay { get; } = new();
 
     // ---------------------------------------------------------------- Fase 5: party (primera pasada)
 
-    /// <summary>Puerto de lpObj->PartyNumber -- ID del grupo en PartyRegistry, -1 = sin grupo (igual
-    /// convención que el original).</summary>
+    /// <summary>Port of lpObj->PartyNumber -- party ID in PartyRegistry, -1 = no party (same convention as the
+    /// original).</summary>
     public int PartyNumber { get; set; } = -1;
 
-    /// <summary>Puerto MUY simplificado de Interface.type==INTERFACE_PARTY/TargetNumber (Party.cpp):
-    /// solo se necesitan estos dos campos (uno por lado de la invitación) para validar que la
-    /// respuesta de "aceptar/rechazar" corresponda a una invitación realmente pendiente -- el
-    /// original además bloquea otras interfaces (tienda, diálogo NPC, etc.) mientras hay una
-    /// invitación de party abierta, cosa que no aplica todavía porque esas interfaces no están
-    /// portadas. -1 = sin invitación pendiente en ese rol.</summary>
-    public int PartyInviteTargetIndex { get; set; } = -1; // yo invité a este índice, esperando su respuesta
-    public int PartyInviterIndex { get; set; } = -1;      // este índice me invitó a mí, esperando mi respuesta
+    /// <summary>VERY simplified port of Interface.type==INTERFACE_PARTY/TargetNumber (Party.cpp): only these
+    /// two fields (one per side of the invitation) are needed to validate that the "accept/reject" reply
+    /// corresponds to a really pending invitation -- the original also blocks other interfaces (shop, NPC
+    /// dialog, etc.) while a party invitation is open, which does not apply yet because those interfaces are
+    /// not ported. -1 = no pending invitation in that role.</summary>
+    public int PartyInviteTargetIndex { get; set; } = -1; // I invited this index, waiting for their reply
+    public int PartyInviterIndex { get; set; } = -1;      // this index invited me, waiting for my reply
 }

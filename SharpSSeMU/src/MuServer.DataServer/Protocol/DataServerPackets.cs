@@ -2,9 +2,9 @@ using MuServer.Shared.Protocol;
 
 namespace MuServer.DataServer.Protocol;
 
-// Todos los structs originales usan PBMSG_HEAD (C1, size 1 byte) salvo donde se indica C2 (word
-// size): 0x09 (Pet), 0x01 (CharacterList), 0x04 (CharacterInfo), 0x30/0x31 (saves grandes), 0x34
-// (Pet save). Offsets replicados 1:1 desde DataServerProtocol.h (structs sin padding, 1 byte).
+// All the original structs use PBMSG_HEAD (C1, 1-byte size) except where C2 (word size) is indicated: 0x09
+// (Pet), 0x01 (CharacterList), 0x04 (CharacterInfo), 0x30/0x31 (big saves), 0x34 (Pet save). Offsets replicated
+// 1:1 from DataServerProtocol.h (structs without padding, 1 byte).
 
 public sealed record ServerInfoRecv(byte Type, ushort ServerPort, string ServerName, ushort ServerCode, uint FreeSize)
 {
@@ -299,7 +299,7 @@ public sealed record RankingDuelSaveRecv(ushort Index, string Account, string Na
     }
 }
 
-/// <summary>Forma común de 0x3D/0x3E/0x3F/0x40 (Blood/Chaos/Devil/IllusionTemple) — un único DWORD score.</summary>
+/// <summary>Common shape of 0x3D/0x3E/0x3F/0x40 (Blood/Chaos/Devil/IllusionTemple) — a single DWORD score.</summary>
 public sealed record RankingScoreSaveRecv(ushort Index, string Account, string Name, uint Score)
 {
     public static RankingScoreSaveRecv Parse(byte[] p)
@@ -356,13 +356,12 @@ public sealed record GlobalWhisperRecv(ushort Index, string Account, string Name
 /// <summary>Entrada individual de la lista de personajes (formato compacto de inventario, 60 bytes).</summary>
 public sealed record CharacterListEntry(byte Slot, string Name, ushort Level, byte Class, byte CtlCode, byte[] CompactInventory);
 
-// ---------------------------------------------------------------- Fase 5 (GameServer): amigos, head 0xB0
-// Puerto simplificado de CFriend/DataServer/Friend.cpp: en vez del layout PSBMSG_HEAD idéntico al
-// original (sub-códigos 0x00-0x08 espejando 1 a 1 los del cliente), acá se usa un esquema propio de
-// sub-códigos GS->DS vs. DS->GS más simple, ya que este puerto no necesita mantener compatibilidad
-// binaria con un cliente DataServer-a-DataServer externo (solo con el propio GameServer, también
-// portado en este mismo repo). El correo entre amigos (T_FriendMail) no está portado -- ver
-// comentario de 004_friends.sql.
+// ---------------------------------------------------------------- Phase 5 (GameServer): friends, head 0xB0
+// Simplified port of CFriend/DataServer/Friend.cpp: instead of the PSBMSG_HEAD layout identical to the original
+// (sub-codes 0x00-0x08 mirroring the client's 1 to 1), a simpler scheme of its own is used here for GS->DS vs.
+// DS->GS sub-codes, since this port does not need to keep binary compatibility with an external
+// DataServer-to-DataServer client (only with its own GameServer, also ported in this same repo). Friend mail
+// (T_FriendMail) is not ported -- see the comment in 004_friends.sql.
 
 public sealed record FriendListRequest(ushort Index, string Account, string Name)
 {
@@ -446,7 +445,7 @@ public static class DataServerPacketBuilder
         w.WriteByte(result);
         w.WriteByte(slot);
         w.WriteByte(cls);
-        // El original rellena "equipment" con 0xFF (slot vacío), no con 0x00.
+        // The original fills "equipment" with 0xFF (empty slot), not with 0x00.
         var equipment = new byte[24];
         Array.Fill(equipment, (byte)0xFF);
         w.WriteBytes(equipment, 24);
@@ -509,10 +508,10 @@ public static class DataServerPacketBuilder
         w.WriteBytes(effect, 208);
         w.WriteUInt32(reset);
         w.WriteUInt32(masterReset);
-        // DSProtocol.h (GameServer) espera estos 3 campos acá que DataServerProtocol.h (DataServer)
-        // original no tiene -- discrepancia real entre los dos headers del paquete original. Se
-        // agregan con valores por defecto (matrimonio no implementado todavía) para no romper el
-        // layout binario que espera GameServer.
+        // DSProtocol.h (GameServer) expects these 3 fields here which the original DataServerProtocol.h
+        // (DataServer) does not have -- a real discrepancy between the original packet's two headers. They are
+        // added with default values (marriage not implemented yet) so as not to break the binary layout the
+        // GameServer expects.
         w.WriteUInt32(isNewChar);
         w.WriteUInt16(married);
         w.WriteFixedString(marryName, 11);
@@ -639,8 +638,8 @@ public static class DataServerPacketBuilder
 
     // ---------------------------------------------------------------- Fase 5 (GameServer): amigos, head 0xB0
 
-    /// <summary>0xB0:00 -- respuesta a FriendListRequest. server=0xFF si el amigo está offline (o no
-    /// se pudo determinar), o el ServerCode real si está online en algún GameServer.</summary>
+    /// <summary>0xB0:00 -- reply to FriendListRequest. server=0xFF if the friend is offline (or could not be
+    /// determined), or the real ServerCode if online on some GameServer.</summary>
     public static byte[] FriendListSend(ushort index, string account, string name, IReadOnlyList<(string Name, byte Server)> friends)
     {
         var w = new PacketWriter();
@@ -658,8 +657,8 @@ public static class DataServerPacketBuilder
         return PacketBuilder.BuildC1Sub(0xB0, 0x00, w.ToArray());
     }
 
-    /// <summary>0xB0:01 -- ack al que MANDÓ la solicitud de amistad (0=no se pudo, ej. objetivo
-    /// inexistente o ya son amigos; 1=solicitud guardada/entregada).</summary>
+    /// <summary>0xB0:01 -- ack to whoever SENT the friend request (0=could not, e.g. non-existent target or
+    /// already friends; 1=request stored/delivered).</summary>
     public static byte[] FriendRequestResultSend(ushort index, string account, string name, byte result, string targetName)
     {
         var w = new PacketWriter();
@@ -671,9 +670,9 @@ public static class DataServerPacketBuilder
         return PacketBuilder.BuildC1Sub(0xB0, 0x01, w.ToArray());
     }
 
-    /// <summary>0xB0:02 -- push al GameServer del DESTINATARIO: alguien le mandó una solicitud de
-    /// amistad (solo se entrega si está online en ESE momento -- igual limitación documentada que
-    /// whisper: no hay cola de notificaciones para cuando el destinatario se conecte después).</summary>
+    /// <summary>0xB0:02 -- push to the RECIPIENT's GameServer: someone sent them a friend request (only
+    /// delivered if they are online at THAT moment -- same documented limitation as whisper: there is no
+    /// notification queue for when the recipient connects later).</summary>
     public static byte[] FriendRequestIncomingSend(ushort targetIndex, string targetAccount, string targetName, string requesterName, byte requesterServer)
     {
         var w = new PacketWriter();
@@ -685,7 +684,7 @@ public static class DataServerPacketBuilder
         return PacketBuilder.BuildC1Sub(0xB0, 0x02, w.ToArray());
     }
 
-    /// <summary>0xB0:03 -- ack al que ACEPTÓ/RECHAZÓ, confirmando que se procesó.</summary>
+    /// <summary>0xB0:03 -- ack to whoever ACCEPTED/REJECTED, confirming it was processed.</summary>
     public static byte[] FriendResultAckSend(ushort index, string account, string name, byte result, string requesterName)
     {
         var w = new PacketWriter();
@@ -697,8 +696,8 @@ public static class DataServerPacketBuilder
         return PacketBuilder.BuildC1Sub(0xB0, 0x03, w.ToArray());
     }
 
-    /// <summary>0xB0:04 -- push al GameServer del que mandó la solicitud ORIGINAL, avisándole que
-    /// (fue aceptada/rechazada). Solo se entrega si sigue online.</summary>
+    /// <summary>0xB0:04 -- push to the GameServer of whoever sent the ORIGINAL request, telling them that it
+    /// was accepted/rejected. Only delivered if they are still online.</summary>
     public static byte[] FriendResultDeliverSend(ushort requesterIndex, string requesterAccount, string requesterName, byte result, string accepterName)
     {
         var w = new PacketWriter();
@@ -722,9 +721,9 @@ public static class DataServerPacketBuilder
         return PacketBuilder.BuildC1Sub(0xB0, 0x05, w.ToArray());
     }
 
-    /// <summary>0xB0:06 -- puerto de CFriend::DGFriendStateSend: push al GameServer de
-    /// <paramref name="ownerIndex"/> avisándole que <paramref name="friendName"/> cambió de estado
-    /// (server=0xFF offline, o el ServerCode real si se conectó).</summary>
+    /// <summary>0xB0:06 -- port of CFriend::DGFriendStateSend: push to the GameServer of <paramref
+    /// name="ownerIndex"/> telling them that <paramref name="friendName"/> changed state (server=0xFF offline,
+    /// or the real ServerCode if it connected).</summary>
     public static byte[] FriendStateSend(ushort ownerIndex, string ownerAccount, string ownerName, string friendName, byte server)
     {
         var w = new PacketWriter();

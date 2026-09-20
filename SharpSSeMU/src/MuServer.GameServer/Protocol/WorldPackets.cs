@@ -5,9 +5,9 @@ using MuServer.Shared.Protocol;
 
 namespace MuServer.GameServer.Protocol;
 
-// Puerto de los paquetes de Fase 2 (Protocol.h/DSProtocol.h/Viewport.h) -- selección de personaje,
-// entrada al mundo, viewport (aparecer/desaparecer OTROS JUGADORES, no monstruos/NPCs todavía) y
-// movimiento. Layouts confirmados byte a byte contra el .h original.
+// Port of the Phase 2 packets (Protocol.h/DSProtocol.h/Viewport.h) -- character selection, entering the world,
+// viewport (OTHER PLAYERS appearing/disappearing, not monsters/NPCs yet) and movement. Layouts confirmed byte
+// by byte against the original .h.
 
 // ---------------------------------------------------------------- GameServer -> DataServer (0x04)
 
@@ -69,8 +69,8 @@ public static class DataServerCharacterPacketBuilder
         return PacketBuilder.BuildC2Sub(0x05, 0x30, w.ToArray());
     }
 
-    /// <summary>C1:0x70 -- avisa a DataServer que este índice ahora controla este personaje (en
-    /// memoria, ver DataServerProtocolHandler.OnConnectCharacterAsync ya implementado).</summary>
+    /// <summary>C1:0x70 -- tells DataServer that this index now controls this character (in memory, see
+    /// DataServerProtocolHandler.OnConnectCharacterAsync, already implemented).</summary>
     public static byte[] ConnectCharacter(ushort index, string account, string name)
     {
         var w = new PacketWriter();
@@ -80,7 +80,7 @@ public static class DataServerCharacterPacketBuilder
         return PacketBuilder.BuildC1(0x70, w.ToArray());
     }
 
-    /// <summary>C1:0x71 -- contraparte de desconexión.</summary>
+    /// <summary>C1:0x71 -- disconnect counterpart.</summary>
     public static byte[] DisconnectCharacter(ushort index, string account, string name)
     {
         var w = new PacketWriter();
@@ -90,20 +90,17 @@ public static class DataServerCharacterPacketBuilder
         return PacketBuilder.BuildC1(0x71, w.ToArray());
     }
 
-    /// <summary>
-    /// SDHP_CHARACTER_INFO_SAVE_SEND (GS->DS), C2:0x30 -- puerto de GDCharacterInfoSaveSend
-    /// (DSProtocol.cpp:991-1047). Espejo exacto de lo que
-    /// MuServer.DataServer/Protocol/DataServerPackets.cs::CharacterInfoSaveRecv.Parse espera leer
-    /// (que ya estaba implementado y conectado a NpgsqlCharacterDataRepository.SaveCharacterAsync
-    /// desde antes -- lo que faltaba era este lado GameServer->DataServer, nunca se mandaba este
-    /// paquete). Bug real confirmado esta sesión y causa raíz de "el progreso no se guarda"/"todos
-    /// los personajes aparecen siempre en la misma posición X=182 Y=128": sin este paquete, la fila
-    /// de <c>character</c> en la base nunca se actualiza después de la creación (que sí graba la
-    /// posición default de <c>DefaultClassType</c>, 182/128 para DW/DK/MG/DL -- ese valor coincide
-    /// byte a byte con el INSERT real de MuOnline.sql, no es hardcodeo nuestro), así que CADA login
-    /// vuelve a leer para siempre esa misma fila sin tocar, sin importar cuánto haya caminado el
-    /// personaje en sesiones anteriores.
-    /// </summary>
+    /// <summary> SDHP_CHARACTER_INFO_SAVE_SEND (GS->DS), C2:0x30 -- port of GDCharacterInfoSaveSend
+    /// (DSProtocol.cpp:991-1047). Exact mirror of what
+    /// MuServer.DataServer/Protocol/DataServerPackets.cs::CharacterInfoSaveRecv.Parse expects to read (which
+    /// was already implemented and connected to NpgsqlCharacterDataRepository.SaveCharacterAsync from before --
+    /// what was missing was this GameServer->DataServer side, this packet was never sent). Real bug confirmed
+    /// this session and root cause of "progress is not saved"/"all characters always appear at the same
+    /// position X=182 Y=128": without this packet, the <c>character</c> row in the database is never updated
+    /// after creation (which does record the default position of <c>DefaultClassType</c>, 182/128 for
+    /// DW/DK/MG/DL -- that value matches, byte for byte, the real INSERT of MuOnline.sql, it is not hardcoded
+    /// by us), so EVERY login re-reads that same untouched row forever, no matter how far the character walked
+    /// in earlier sessions. </summary>
     public static byte[] CharacterInfoSaveSend(World.PlayerObject p)
     {
         var w = new PacketWriter();
@@ -111,7 +108,7 @@ public static class DataServerCharacterPacketBuilder
         w.WriteFixedString(p.Account, 11);
         w.WriteFixedString(p.Name, 11);
         w.WriteUInt16(p.Level);
-        w.WriteByte((byte)((p.Class * 16) + p.ChangeUp)); // DBClass, mismo patrón que CharacterInfoSend
+        w.WriteByte((byte)((p.Class * 16) + p.ChangeUp)); // DBClass, same pattern as CharacterInfoSend
         w.WriteUInt32(p.LevelUpPoint);
         w.WriteUInt32(p.Experience);
         w.WriteUInt32(p.Money);
@@ -129,7 +126,7 @@ public static class DataServerCharacterPacketBuilder
         w.WriteBytes(p.Inventory, 1728); // ya sincronizado por SetItem, ver doc-comment de PlayerObject.Inventory
         w.WriteBytes(p.Skill, 180);
         w.WriteByte(p.Map);
-        w.WriteByte(p.X); // posición VIVA (actualizada por OnMoveAsync) -- no la de login
+        w.WriteByte(p.X); // LIVE position (updated by OnMoveAsync) -- not the login one
         w.WriteByte(p.Y);
         w.WriteByte(p.Dir);
         w.WriteUInt32(p.PKCount);
@@ -146,10 +143,10 @@ public static class DataServerCharacterPacketBuilder
         return PacketBuilder.BuildC2(0x30, w.ToArray());
     }
 
-    /// <summary>SDHP_CHARACTER_LIST_SEND (GS->DS), C1:01: index+account -- pide a DataServer la
-    /// lista de personajes de la cuenta (espejo exacto de lo que
-    /// MuServer.DataServer\Protocol\DataServerPackets.cs::CharacterListRecv.Parse espera leer).
-    /// Puerto de GDCharacterListSend (DSProtocol.cpp).</summary>
+    /// <summary>SDHP_CHARACTER_LIST_SEND (GS->DS), C1:01: index+account -- asks DataServer for the account's
+    /// character list (exact mirror of what
+    /// MuServer.DataServer\Protocol\DataServerPackets.cs::CharacterListRecv.Parse expects to read). Port of
+    /// GDCharacterListSend (DSProtocol.cpp).</summary>
     public static byte[] CharacterListRequest(ushort index, string account)
     {
         var w = new PacketWriter();
@@ -158,15 +155,14 @@ public static class DataServerCharacterPacketBuilder
         return PacketBuilder.BuildC1(0x01, w.ToArray());
     }
 
-    /// <summary>SDHP_CHARACTER_CREATE_SEND (GS->DS), C1:02 -- espejo exacto de lo que
-    /// MuServer.DataServer/Protocol/DataServerPackets.cs::CharacterCreateRecv.Parse espera leer.
-    /// Puerto de GDCharacterCreateSend (DSProtocol.cpp). A diferencia del original, acá NO se
-    /// replica la validación previa de clase/CARD_CODE de CGCharacterCreateRecv (esa lógica depende
-    /// de un sistema de desbloqueo de MG/DL/SU/RF por nivel de cuenta que no está portado) -- se
-    /// reenvía directo y se deja que DataServer sea la autoridad: su CreateCharacterAsync ya rechaza
-    /// cualquier clase que no tenga fila en default_class_type (hoy solo DW/DK/FE/MG/SUM, ver
-    /// db/postgres/003_default_class_seed.sql) con result=2, así que el efecto visible es el mismo
-    /// (no se puede crear una clase no habilitada) sin duplicar la lógica de validación.</summary>
+    /// <summary>SDHP_CHARACTER_CREATE_SEND (GS->DS), C1:02 -- exact mirror of what
+    /// MuServer.DataServer/Protocol/DataServerPackets.cs::CharacterCreateRecv.Parse expects to read. Port of
+    /// GDCharacterCreateSend (DSProtocol.cpp). Unlike the original, the prior class/CARD_CODE validation of
+    /// CGCharacterCreateRecv is NOT replicated here (that logic depends on an MG/DL/SU/RF unlock system by
+    /// account level that is not ported) -- it is forwarded directly and DataServer is left as the authority:
+    /// its CreateCharacterAsync already rejects any class with no row in default_class_type (today only
+    /// DW/DK/FE/MG/SUM, see db/postgres/003_default_class_seed.sql) with result=2, so the visible effect is the
+    /// same (a non-enabled class cannot be created) without duplicating the validation logic.</summary>
     public static byte[] CharacterCreateRequest(ushort index, string account, string name, byte characterClass)
     {
         var w = new PacketWriter();
@@ -178,11 +174,11 @@ public static class DataServerCharacterPacketBuilder
     }
 }
 
-/// <summary>SDHP_CHARACTER_CREATE_RECV (DS->GS), C1:02 -- espejo exacto de
-/// MuServer.DataServer/Protocol/DataServerPackets.cs::DataServerPacketBuilder.CharacterCreateSend.
-/// Puerto de DGCharacterCreateRecv (DSProtocol.cpp) -- solo la parte de parseo; la conversión de
-/// Class al formato que espera el cliente vive en ClientProtocolHandler (mismo lugar que el resto de
-/// conversiones DataServer-a-cliente de esta fase).</summary>
+/// <summary>SDHP_CHARACTER_CREATE_RECV (DS->GS), C1:02 -- exact mirror of
+/// MuServer.DataServer/Protocol/DataServerPackets.cs::DataServerPacketBuilder.CharacterCreateSend. Port of
+/// DGCharacterCreateRecv (DSProtocol.cpp) -- only the parsing part; the conversion of Class to the format the
+/// client expects lives in ClientProtocolHandler (the same place as the rest of this phase's
+/// DataServer-to-client conversions).</summary>
 public sealed record CharacterCreateResultFromDataServer(ushort Index, string Account, string Name, byte Result, byte Slot, byte Class, byte[] Equipment, ushort Level)
 {
     public static CharacterCreateResultFromDataServer Parse(byte[] p)
@@ -200,15 +196,15 @@ public sealed record CharacterCreateResultFromDataServer(ushort Index, string Ac
     }
 }
 
-/// <summary>Un personaje dentro de SDHP_CHARACTER_LIST_RECV (DS->GS) -- el Inventory viaja todavía
-/// en el formato compacto de 60 bytes (5 bytes/slot de equipo, ver Item.FromCompactPreviewBytes);
-/// OnCharacterListFromDataServerAsync es quien lo convierte a CharSet[13] para el cliente.</summary>
+/// <summary>A character inside SDHP_CHARACTER_LIST_RECV (DS->GS) -- the Inventory still travels in the compact
+/// 60-byte format (5 bytes/equipment slot, see Item.FromCompactPreviewBytes);
+/// OnCharacterListFromDataServerAsync is what converts it to CharSet[13] for the client.</summary>
 public sealed record CharacterListEntryFromDataServer(byte Slot, string Name, ushort Level, byte Class, byte CtlCode, byte[] CompactInventory);
 
-/// <summary>SDHP_CHARACTER_LIST_RECV (DS->GS), C2:01 -- espejo exacto de
-/// MuServer.DataServer\Protocol\DataServerPackets.cs::DataServerPacketBuilder.CharacterListSend.
-/// Puerto de DGCharacterListRecv (DSProtocol.cpp), solo la parte de parseo -- la conversión a
-/// CharSet vive en ClientProtocolHandler (mismo lugar que ya porta CharacterMakePreviewCharSet).</summary>
+/// <summary>SDHP_CHARACTER_LIST_RECV (DS->GS), C2:01 -- exact mirror of
+/// MuServer.DataServer\Protocol\DataServerPackets.cs::DataServerPacketBuilder.CharacterListSend. Port of
+/// DGCharacterListRecv (DSProtocol.cpp), only the parsing part -- the conversion to CharSet lives in
+/// ClientProtocolHandler (the same place that already ports CharacterMakePreviewCharSet).</summary>
 public sealed record CharacterListFromDataServer(
     ushort Index, string Account, byte MoveCnt, byte ExtClass, IReadOnlyList<CharacterListEntryFromDataServer> Entries)
 {
@@ -307,23 +303,22 @@ public sealed record CharacterInfoFromDataServer(
 
 public sealed record CharacterInfoRecv(string Name)
 {
-    // PMSG_CHARACTER_INFO_RECV (Protocol.h:252-256): PSBMSG_HEAD(4) + char name[10] -- OJO, 10 bytes
-    // acá, no 11 como en la mayoría de los otros campos de nombre del protocolo.
+    // PMSG_CHARACTER_INFO_RECV (Protocol.h:252-256): PSBMSG_HEAD(4) + char name[10] -- WATCH OUT, 10 bytes
+    // here, not 11 as in most of the protocol's other name fields.
     public static CharacterInfoRecv Parse(byte[] p) => new(PacketBuilder.ReadFixedString(p.AsSpan(4, 10)));
 }
 
 public sealed record MoveRecv(byte X, byte Y, byte[] Path)
 {
-    // PMSG_MOVE_RECV declara path[8] fijo en el struct C++, pero el cliente real NO manda los 8
-    // bytes siempre -- header.size refleja el tamaño real enviado (que depende de cuántos pasos
-    // tiene el movimiento: 1 paso no necesita los 8 bytes de path, alcanza con path[0]). En C++ leer
-    // más allá de header.size es "seguro" porque el struct está mapeado sobre un buffer más grande
-    // que igual existe en memoria (con basura, pero no crashea); acá el array ya viene del tamaño
-    // exacto que puso el framer, así que pedir 8 bytes fijos cuando el paquete es más corto tira
-    // ArgumentOutOfRangeException -- confirmado con el cliente real (WorldTestClient nunca lo
-    // exponía porque siempre arma un path de 8 bytes completo). Se rellena con 0 lo que falte,
-    // exactamente el mismo efecto práctico que "leer basura no inicializada" tenía en el original
-    // (esos bytes no se usan si pathCount no llega a cubrirlos, ver OnMoveAsync).
+    // PMSG_MOVE_RECV declares a fixed path[8] in the C++ struct, but the real client does NOT always send all 8
+    // bytes -- header.size reflects the real size sent (which depends on how many steps the movement has: 1
+    // step does not need the 8 path bytes, path[0] is enough). In C++ reading past header.size is "safe"
+    // because the struct is mapped over a larger buffer that exists in memory anyway (with garbage, but it does
+    // not crash); here the array already comes with the exact size the framer set, so asking for a fixed 8
+    // bytes when the packet is shorter throws ArgumentOutOfRangeException -- confirmed with the real client
+    // (WorldTestClient never exposed it because it always builds a full 8-byte path). What is missing is filled
+    // with 0, exactly the same practical effect that "reading uninitialised garbage" had in the original (those
+    // bytes are not used if pathCount does not reach them, see OnMoveAsync).
     public static MoveRecv Parse(byte[] p)
     {
         var path = new byte[8];
@@ -340,16 +335,16 @@ public sealed record MoveRecv(byte X, byte Y, byte[] Path)
 
 public static class WorldPacketBuilder
 {
-    /// <summary>Constantes reales de <c>GameServerInfo - Common.dat</c> (ver
-    /// <see cref="MuServer.GameServer.Config.ServerInfoConfig"/>) que <see cref="NextExperience"/>
-    /// necesita -- seteado una vez en Program.cs al arrancar. Si nunca se setea (ej. algún test viejo
-    /// que no pasa por Program.cs), se usa una instancia con los defaults de fábrica, así que el
-    /// puerto sigue andando igual que antes de que este archivo se cargara.</summary>
+    /// <summary>Real constants of <c>GameServerInfo - Common.dat</c> (see <see
+    /// cref="MuServer.GameServer.Config.ServerInfoConfig"/>) that <see cref="NextExperience"/> needs -- set
+    /// once in Program.cs at start-up. If it is never set (e.g. some old test that does not go through
+    /// Program.cs), an instance with the factory defaults is used, so the port keeps working as before this
+    /// file was loaded.</summary>
     public static MuServer.GameServer.Config.ServerInfoConfig ServerInfo { get; set; } = new();
 
-    /// <summary>PMSG_CHARACTER_INFO_SEND, C3:F3:03 -- construida como "lógica" C1Sub (el tipo real
-    /// C3 lo pone ClientSession.SendEncryptedAsync al cifrar). GAMESERVER_EXTRA==1 en este build,
-    /// así que van los 13 DWORD "View*" extra.</summary>
+    /// <summary>PMSG_CHARACTER_INFO_SEND, C3:F3:03 -- built as a "logical" C1Sub (the real C3 type is set by
+    /// ClientSession.SendEncryptedAsync on encrypting). GAMESERVER_EXTRA==1 in this build, so the 13 extra
+    /// "View*" DWORDs go in.</summary>
     public static byte[] CharacterInfoSend(PlayerObject p)
     {
         var w = new PacketWriter();
@@ -370,23 +365,22 @@ public static class WorldPacketBuilder
         w.WriteUInt16((ushort)Math.Min(p.MaxMana, (uint)65000));
         w.WriteUInt16((ushort)Math.Min(p.BP, (uint)65000));
         w.WriteUInt16((ushort)Math.Min(p.MaxBP, (uint)65000));
-        // PMSG_CHARACTER_INFO_SEND no tiene #pragma pack(1) en el original (Protocol.h:589-632), así
-        // que MSVC inserta 2 bytes de relleno acá para alinear el DWORD Money a 4 bytes (offset 38
-        // tras MaxBP no es múltiplo de 4). Sin este relleno, Money y TODO lo que sigue (PKLevel,
-        // CtlCode, FruitAddPoint... y los 13 DWORD "View*" del final) le llega desplazado 2 bytes al
-        // cliente real -- confirmado como la causa de los stats con "números infinitos" reportados
-        // jugando con el cliente real (WorldTestClient nunca lo detectó porque no valida los bytes
-        // exactos de este paquete, solo que llegue).
-        w.WriteUInt16(0); // relleno de alineación (no existe en el struct, es padding del compilador)
+        // PMSG_CHARACTER_INFO_SEND has no #pragma pack(1) in the original (Protocol.h:589-632), so MSVC inserts
+        // 2 padding bytes here to align the DWORD Money to 4 bytes (offset 38 after MaxBP is not a multiple of
+        // 4). Without this padding, Money and EVERYTHING that follows (PKLevel, CtlCode, FruitAddPoint... and
+        // the 13 "View*" DWORDs at the end) reaches the real client shifted 2 bytes -- confirmed as the cause
+        // of the stats with "infinite numbers" reported when playing with the real client (WorldTestClient
+        // never detected it because it does not validate this packet's exact bytes, only that it arrives).
+        w.WriteUInt16(0); // alignment padding (does not exist in the struct, it is compiler padding)
         w.WriteUInt32(p.Money);
         w.WriteByte(p.PKLevel);
         w.WriteByte(p.CtlCode);
         w.WriteUInt16(p.FruitAddPoint);
-        w.WriteUInt16(0); // MaxFruitAddPoint -- config de balance, no portado todavía (Fase 3+)
+        w.WriteUInt16(0); // MaxFruitAddPoint -- balance config, not ported yet (Phase 3+)
         w.WriteUInt16((ushort)Math.Min(p.Leadership, ushort.MaxValue));
         w.WriteUInt16(p.FruitSubPoint);
         w.WriteUInt16(0); // MaxFruitSubPoint (idem)
-        // GAMESERVER_EXTRA==1 -- offset acá ya cae en múltiplo de 4 (52), no hace falta más relleno.
+        // GAMESERVER_EXTRA==1 -- the offset here already falls on a multiple of 4 (52), no more padding is needed.
         w.WriteUInt32(p.Reset);
         w.WriteUInt32(0); // ViewPoint (puntos de reset acumulados para gastar -- Fase 3+)
         w.WriteUInt32(p.Life);
@@ -403,7 +397,7 @@ public static class WorldPacketBuilder
         return PacketBuilder.BuildC1Sub(0xF3, 0x03, w.ToArray());
     }
 
-    /// <summary>PMSG_NEW_CHARACTER_CALC_SEND (C1:F3:E1) -- Actualiza todos los stats visuales ampliados en el cliente (Attack Speed, Daño, Defensa, etc.).</summary>
+    /// <summary>PMSG_NEW_CHARACTER_CALC_SEND (C1:F3:E1) -- Updates all the extended visual stats on the client (Attack Speed, Damage, Defense, etc.).</summary>
     public static byte[] NewCharacterCalcSend(PlayerObject p)
     {
         var w = new PacketWriter();
@@ -450,11 +444,11 @@ public static class WorldPacketBuilder
         return PacketBuilder.BuildC1Sub(0xF3, 0xE1, w.ToArray());
     }
 
-    /// <summary>Puerto exacto de <c>gObjSetExperienceTable</c> (User.cpp:276-297): <c>gLevelExperience[n]
-    /// = (n+9)*n*n*ExperienceMultiplierConstA</c> para <c>n&lt;=255</c>, más un término extra para
-    /// niveles por encima de 255 usando <see cref="Config.ServerInfoConfig.ExperienceMultiplierConstB"/>
-    /// (<c>over=n-255</c>, incrementando cada nivel: <c>+= (over+9)*over*over*ConstB</c>). Antes de
-    /// portar <c>GameServerInfo - Common.dat</c> esto era un placeholder <c>nivel²*1000</c>.</summary>
+    /// <summary>Exact port of <c>gObjSetExperienceTable</c> (User.cpp:276-297): <c>gLevelExperience[n] =
+    /// (n+9)*n*n*ExperienceMultiplierConstA</c> for <c>n&lt;=255</c>, plus an extra term for levels above 255
+    /// using <see cref="Config.ServerInfoConfig.ExperienceMultiplierConstB"/> (<c>over=n-255</c>, incrementing
+    /// every level: <c>+= (over+9)*over*over*ConstB</c>). Before porting <c>GameServerInfo - Common.dat</c>
+    /// this was a <c>level²*1000</c> placeholder.</summary>
     internal static uint NextExperience(int level)
     {
         long constA = ServerInfo.ExperienceMultiplierConstA;
@@ -473,9 +467,9 @@ public static class WorldPacketBuilder
         return (uint)Math.Clamp(exp, 0, uint.MaxValue);
     }
 
-    /// <summary>PMSG_CHARACTER_REGEN_SEND, C3:F3:04 (Protocol.h:634-651) -- enviado al jugador cuando muere
-    /// y reaparece (respawn). Ordena al cliente main.exe levantar al personaje del suelo, reubicar la cámara
-    /// y el modelo en (X, Y, Map, Dir) y restablecer los stats de vida/maná/experiencia/dinero.</summary>
+    /// <summary>PMSG_CHARACTER_REGEN_SEND, C3:F3:04 (Protocol.h:634-651) -- sent to the player when they die
+    /// and respawn. It orders the main.exe client to lift the character off the ground, relocate the camera and
+    /// the model to (X, Y, Map, Dir) and reset the life/mana/experience/money stats.</summary>
     public static byte[] CharacterRegenSend(PlayerObject p)
     {
         var w = new PacketWriter();
@@ -486,7 +480,7 @@ public static class WorldPacketBuilder
         w.WriteUInt16((ushort)Math.Min(p.Life, (uint)65000));
         w.WriteUInt16((ushort)Math.Min(p.Mana, (uint)65000));
         w.WriteUInt16((ushort)Math.Min(p.BP, (uint)65000));
-        w.WriteUInt16(0); // 2 bytes padding de alineación de MSVC antes de DWORD Experience
+        w.WriteUInt16(0); // 2 bytes of MSVC alignment padding before DWORD Experience
         w.WriteUInt32(p.Experience);
         w.WriteUInt32(p.Money);
         w.WriteUInt32(p.Life);
@@ -495,9 +489,9 @@ public static class WorldPacketBuilder
         return PacketBuilder.BuildC1Sub(0xF3, 0x04, w.ToArray());
     }
 
-    /// <summary>PMSG_NEW_CHARACTER_INFO_SEND, C1:F3:E0 -- stats derivados para la UI del propio
-    /// jugador (no viewport). Se manda una vez al entrar, con los mismos valores base (sin bonos de
-    /// items/skills, que se agregan en fases posteriores).</summary>
+    /// <summary>PMSG_NEW_CHARACTER_INFO_SEND, C1:F3:E0 -- derived stats for the player's own UI (not viewport).
+    /// Sent once on entering, with the same base values (without item/skill bonuses, which are added in later
+    /// phases).</summary>
     public static byte[] NewCharacterInfoSend(PlayerObject p)
     {
         var w = new PacketWriter();
@@ -520,10 +514,10 @@ public static class WorldPacketBuilder
         w.WriteUInt16(0);
         w.WriteUInt16(p.FruitSubPoint);
         w.WriteUInt16(0);
-        // Igual que en CharacterInfoSend: PMSG_NEW_CHARACTER_INFO_SEND (Protocol.h:744-780) tampoco
-        // tiene pack(1) -- acá el DWORD ViewReset necesita 2 bytes de relleno para caer alineado a 4
-        // (offset 42 tras MaxFruitSubPoint no es múltiplo de 4).
-        w.WriteUInt16(0); // relleno de alineación
+        // Same as in CharacterInfoSend: PMSG_NEW_CHARACTER_INFO_SEND (Protocol.h:744-780) has no pack(1) either
+        // -- here the DWORD ViewReset needs 2 padding bytes to land 4-aligned (offset 42 after MaxFruitSubPoint
+        // is not a multiple of 4).
+        w.WriteUInt16(0); // alignment padding
         w.WriteUInt32(p.Reset);
         w.WriteUInt32(0);
         w.WriteUInt32(p.Life);
@@ -552,17 +546,16 @@ public static class WorldPacketBuilder
         return PacketBuilder.BuildC1(0xD7, w.ToArray());
     }
 
-    /// <summary>PMSG_POSITION_SEND, C1:D0 -- usado para forzar/corregir la posición del cliente
-    /// (Move rechazado por colisión o fuera de rango). CORREGIDO: el struct real (Protocol.h:339-345)
-    /// es <c>header + index[2] + x + y</c> -- este puerto mandaba SOLO x,y (2 bytes de payload) sin el
-    /// <c>index[2]</c> inicial (4 bytes de payload reales). El cliente, que lee este paquete a offset
-    /// fijo esperando 4 bytes de payload, terminaba interpretando los 2 bytes que sí mandábamos (nuestro
-    /// x,y) como si fueran <c>index[0..1]</c>, y leía basura (bytes del siguiente paquete en el mismo
-    /// bloque, o nada) como el x,y real -- la posición de corrección le llegaba corrompida. Esto se
-    /// manda EXACTAMENTE cuando un movimiento se rechaza (colisión/fuera de rango, ver
-    /// ClientProtocolHandler.OnMoveAsync), que es precisamente el momento típico de "caminar para
-    /// acercarse a atacar" -- coincide con el reporte de "atacar me manda de vuelta a mi sitio de
-    /// aparición" con el cliente real.</summary>
+    /// <summary>PMSG_POSITION_SEND, C1:D0 -- used to force/correct the client's position (Move rejected by
+    /// collision or out of range). FIXED: the real struct (Protocol.h:339-345) is <c>header + index[2] + x +
+    /// y</c> -- this port sent ONLY x,y (2 payload bytes) without the leading <c>index[2]</c> (4 real payload
+    /// bytes). The client, which reads this packet at a fixed offset expecting 4 payload bytes, ended up
+    /// interpreting the 2 bytes we did send (our x,y) as if they were <c>index[0..1]</c>, and read garbage
+    /// (bytes of the next packet in the same block, or nothing) as the real x,y -- the correction position
+    /// reached it corrupted. This is sent EXACTLY when a movement is rejected (collision/out of range, see
+    /// ClientProtocolHandler.OnMoveAsync), which is precisely the typical moment of "walking to get closer to
+    /// attack" -- it matches the report of "attacking sends me back to my spawn spot" with the real
+    /// client.</summary>
     public static byte[] PositionSend(int index, byte x, byte y)
     {
         var w = new PacketWriter();
@@ -573,16 +566,15 @@ public static class WorldPacketBuilder
         return PacketBuilder.BuildC1(0xD0, w.ToArray());
     }
 
-    /// <summary>PMSG_TELEPORT_SEND, C3:1C -- puerto EXACTO de CMove::GCTeleportSend (Move.cpp:279-292)
-    /// y su struct real (Move.h:36-44 del árbol fuente correcto, "Emulator 0.99 (2.1.7)/GameServer" --
-    /// ver el doc-comment de <see cref="World.Item"/> para la explicación de por qué este repo tiene
-    /// dos árboles de C++ y cuál es el real). REVERTIDO: una pasada anterior, investigando contra el
-    /// árbol equivocado, había cambiado <c>gate</c> de BYTE a WORD -- el real es BYTE (clamp a 0/1 en
-    /// GCTeleportSend: <c>pMsg.gate = ((gate&gt;0)?1:gate);</c>). Usado por gObjMoveGate para
-    /// avisarle al cliente que cambió de mapa/posición fuera de un movimiento normal (entrada/salida
-    /// de Devil Square, Fase 6). Se manda cifrado por bloques (ver ClientSession.SendEncryptedAsync)
-    /// -- acá se arma como paquete "lógico" C1 sin sub-código, igual que el resto de los C3 de este
-    /// puerto (el tipo real 0xC3 lo pone SendEncryptedAsync).</summary>
+    /// <summary>PMSG_TELEPORT_SEND, C3:1C -- EXACT port of CMove::GCTeleportSend (Move.cpp:279-292) and its
+    /// real struct (Move.h:36-44 of the correct source tree, "Emulator 0.99 (2.1.7)/GameServer" -- see the
+    /// doc-comment of <see cref="World.Item"/> for the explanation of why this repo has two C++ trees and which
+    /// one is the real one). REVERTED: an earlier pass, investigating against the wrong tree, had changed
+    /// <c>gate</c> from BYTE to WORD -- the real one is BYTE (clamped to 0/1 in GCTeleportSend: <c>pMsg.gate =
+    /// ((gate&gt;0)?1:gate);</c>). Used by gObjMoveGate to tell the client that it changed map/position outside
+    /// a normal movement (entering/leaving Devil Square, Phase 6). It is sent block-encrypted (see
+    /// ClientSession.SendEncryptedAsync) -- here it is built as a "logical" C1 packet without sub-code, like
+    /// the rest of this port's C3s (the real type 0xC3 is set by SendEncryptedAsync).</summary>
     public static byte[] TeleportSend(byte gate, byte map, byte x, byte y, byte dir)
     {
         var w = new PacketWriter();
@@ -594,20 +586,18 @@ public static class WorldPacketBuilder
         return PacketBuilder.BuildC1(0x1C, w.ToArray());
     }
 
-    /// <summary>PMSG_VIEWPORT_SEND (aparecer jugadores), C2:12. Uno o más PMSG_VIEWPORT_PLAYER
-    /// concatenados atrás del header. REVERTIDO: una pasada anterior de porting investigó este
-    /// paquete contra el árbol de fuente EQUIVOCADO (ver doc-comment de <see cref="World.Item"/>) y
-    /// "corrigió" el struct a una versión de temporada muy posterior (CharSet[18] +
-    /// attribute/MuunItem/level/MaxHP/CurHP inventados, count movido al final) que no existe en este
-    /// build. El struct real (Viewport.h:45-54 del árbol correcto, confirmado también contra el
-    /// builder real <c>CViewport::GCViewportPlayerSend</c>, Viewport.cpp:601-676) es:
-    /// <c>index[2]+x+y+CharSet[13]+count(WORD, lista de efectos)+name[10]+tx+ty+DirAndPkLevel</c> --
-    /// el campo <c>count</c> va ANTES de <c>name</c>, no al final, y es la cuenta de una lista de
-    /// efectos/buffs visuales que se apendan después del struct fijo (no portada, count=0 siempre).
-    /// El ViewState real ocupa los 4 bits bajos de CharSet[0] (máscara <c>0x0F</c>/<c>&amp;15</c>,
-    /// Viewport.cpp:657-658: <c>CharSet[0] &amp;= 0xF0; CharSet[0] |= ViewState &amp; 15;</c>) --
-    /// REVERTIDO de una máscara de 3 bits (0xF8) que una pasada anterior había introducido "corrigiendo"
-    /// algo que ya estaba bien.</summary>
+    /// <summary>PMSG_VIEWPORT_SEND (players appearing), C2:12. One or more PMSG_VIEWPORT_PLAYER concatenated
+    /// after the header. REVERTED: an earlier porting pass investigated this packet against the WRONG source
+    /// tree (see the doc-comment of <see cref="World.Item"/>) and "fixed" the struct to a much later season's
+    /// version (CharSet[18] + invented attribute/MuunItem/level/MaxHP/CurHP, count moved to the end) that does
+    /// not exist in this build. The real struct (Viewport.h:45-54 of the correct tree, also confirmed against
+    /// the real builder <c>CViewport::GCViewportPlayerSend</c>, Viewport.cpp:601-676) is:
+    /// <c>index[2]+x+y+CharSet[13]+count(WORD, effect list)+name[10]+tx+ty+DirAndPkLevel</c> -- the
+    /// <c>count</c> field goes BEFORE <c>name</c>, not at the end, and is the count of a list of visual
+    /// effects/buffs that are appended after the fixed struct (not ported, count=0 always). The real ViewState
+    /// takes the 4 low bits of CharSet[0] (mask <c>0x0F</c>/<c>&amp;15</c>, Viewport.cpp:657-658: <c>CharSet[0]
+    /// &amp;= 0xF0; CharSet[0] |= ViewState &amp; 15;</c>) -- REVERTED from a 3-bit mask (0xF8) that an earlier
+    /// pass had introduced "fixing" something that was already right.</summary>
     public static byte[] ViewportPlayerAppear(IReadOnlyList<PlayerObject> players)
     {
         using var body = new MemoryStream();
@@ -616,27 +606,25 @@ public static class WorldPacketBuilder
         foreach (var target in players)
         {
             byte indexHi = (byte)((target.Index >> 8) & 0xFF);
-            // "Recién apareció" (spawn flag) -- en esta fase no distinguimos aparición real de
-            // reaparición por rango, así que se deja siempre en 0 (no imprescindible para que el
-            // cliente lo renderice bien).
+            // "Just appeared" (spawn flag) -- in this phase we do not distinguish a real appearance from a
+            // reappearance by range, so it is always left at 0 (not essential for the client to render it
+            // correctly).
             body.WriteByte(indexHi);
             body.WriteByte((byte)(target.Index & 0xFF));
             body.WriteByte(target.X);
             body.WriteByte(target.Y);
 
-            // ViewState (GM oculto/otros estados de visibilidad, lpObj->ViewState) no está trackeado
-            // en este puerto todavía -- se manda siempre 0 (visible normal), igual que un jugador sin
-            // ningún estado especial en el original.
+            // ViewState (hidden GM/other visibility states, lpObj->ViewState) is not tracked in this port yet
+            // -- it is always sent as 0 (normal visible), like a player with no special state in the original.
             target.CharSet[0] &= 0xF0;
             body.Write(target.CharSet, 0, 13); // CharSet[13] real (ver PlayerObject.CharSet)
 
-            // PMSG_VIEWPORT_PLAYER no tiene #pragma pack(1) (Viewport.h:45-56), así que MSVC alinea
-            // el WORD count a offset par: tras CharSet[13] vamos en el offset 17, impar, y el
-            // compilador mete 1 byte de relleno. El original manda el struct COMPLETO
-            // (memcpy(&send[size],&info,sizeof(info)), Viewport.cpp:672, con InfoSize inicializado a
-            // sizeof(info)), así que ese byte viaja en el wire. Sin él, count/name/tx/ty/
-            // DirAndPkLevel le llegan corridos 1 byte al cliente real.
-            body.WriteByte(0); // relleno de alineación (offset 17)
+            // PMSG_VIEWPORT_PLAYER has no #pragma pack(1) (Viewport.h:45-56), so MSVC aligns the WORD count to
+            // an even offset: after CharSet[13] we are at offset 17, odd, and the compiler inserts 1 padding
+            // byte. The original sends the WHOLE struct (memcpy(&send[size],&info,sizeof(info)),
+            // Viewport.cpp:672, with InfoSize initialised to sizeof(info)), so that byte travels on the wire.
+            // Without it, count/name/tx/ty/ DirAndPkLevel reach the real client shifted 1 byte.
+            body.WriteByte(0); // alignment padding (offset 17)
 
             body.WriteByte(0); // count (WORD, lista de efectos) low -- sin efectos visuales portados
             body.WriteByte(0); // high
@@ -647,22 +635,22 @@ public static class WorldPacketBuilder
             body.WriteByte(target.TY);
             body.WriteByte((byte)((target.Dir * 16) | (target.PKLevel & 0x0F)));
 
-            // Relleno de cola: el struct alinea a 2 (por el WORD count) y su último campo termina en
-            // el offset 32, así que sizeof() = 34, no 33. Sin este byte, cada jugador siguiente del
-            // viewport arranca 2 bytes antes de donde el cliente lo espera -- error acumulativo que
-            // desalinea todo el resto de la lista.
+            // Tail padding: the struct aligns to 2 (because of the WORD count) and its last field ends at
+            // offset 32, so sizeof() = 34, not 33. Without this byte, each following player in the viewport
+            // starts 2 bytes earlier than where the client expects it -- a cumulative error that misaligns the
+            // whole rest of the list.
             body.WriteByte(0);
         }
 
         return BuildC2NoSub(0x12, body.ToArray());
     }
 
-    /// <summary>Puerto del patrón de empaquetado "SET_NUMBERHB(SET_NUMBERHW(x))" usado por este
-    /// build para BYTE MaxHP[4]/CurHP[4] (Viewport.cpp:1698-1706) -- NO es big-endian estándar: el
-    /// orden de bytes resultante es [bits24-31, bits8-15, bits16-23, bits0-7] (byte más
-    /// significativo, luego el byte bajo de la mitad baja, luego el byte bajo de la mitad alta,
-    /// luego el byte menos significativo). Mismo patrón usado en varias otras versiones de MU para
-    /// HP/Money -- confirmado leyendo la macro aplicada byte a byte, no una suposición.</summary>
+    /// <summary>Port of the packing pattern "SET_NUMBERHB(SET_NUMBERHW(x))" used by this build for BYTE
+    /// MaxHP[4]/CurHP[4] (Viewport.cpp:1698-1706) -- it is NOT standard big-endian: the resulting byte order is
+    /// [bits24-31, bits8-15, bits16-23, bits0-7] (most significant byte, then the low byte of the low half,
+    /// then the low byte of the high half, then the least significant byte). The same pattern is used in
+    /// several other MU versions for HP/Money -- confirmed by reading the macro applied byte by byte, not an
+    /// assumption.</summary>
     private static void WritePackedUInt32Swapped(Stream s, uint v)
     {
         ushort hw = (ushort)((v >> 16) & 0xFFFF);
@@ -673,8 +661,8 @@ public static class WorldPacketBuilder
         s.WriteByte((byte)(lw & 0xFF));
     }
 
-    /// <summary>PMSG_VIEWPORT_SEND no lleva sub-código (es PWMSG_HEAD, no PSWMSG_HEAD) -- se arma a
-    /// mano en vez de usar BuildC2Sub (que agrega un byte de sub-código de más).</summary>
+    /// <summary>PMSG_VIEWPORT_SEND carries no sub-code (it is PWMSG_HEAD, not PSWMSG_HEAD) -- it is built by
+    /// hand instead of using BuildC2Sub (which adds one extra sub-code byte).</summary>
     private static byte[] BuildC2NoSub(byte head, byte[] payload)
     {
         var buff = new byte[4 + payload.Length];
@@ -703,10 +691,10 @@ public static class WorldPacketBuilder
         return PacketBuilder.BuildC1(0x14, body.ToArray());
     }
 
-    /// <summary>PMSG_VIEWPORT_SEND variante monstruo (GCViewportMonsterSend/GCViewportSimpleMonsterSend,
-    /// Viewport.cpp:690-773,1263-1321), C2:13. <paramref name="justSpawned"/> prende el bit de
-    /// "recién apareció" (animación de spawn) -- se usa al revivir un monstruo tras su respawn, no
-    /// cuando un jugador simplemente entra al rango de vista de uno que ya estaba parado ahí.</summary>
+    /// <summary>PMSG_VIEWPORT_SEND monster variant (GCViewportMonsterSend/GCViewportSimpleMonsterSend,
+    /// Viewport.cpp:690-773,1263-1321), C2:13. <paramref name="justSpawned"/> turns on the "just appeared" bit
+    /// (spawn animation) -- it is used when reviving a monster after its respawn, not when a player simply
+    /// enters the view range of one that was already standing there.</summary>
     public static byte[] ViewportMonsterAppear(IReadOnlyList<Monster> monsters, bool justSpawned = false)
     {
         using var body = new MemoryStream();
@@ -725,15 +713,15 @@ public static class WorldPacketBuilder
             body.WriteByte((byte)(m.Index & 0xFF));
             body.WriteByte((byte)((m.MonsterClass >> 8) & 0xFF));
             body.WriteByte((byte)(m.MonsterClass & 0xFF));
-            body.WriteByte(0); // count (WORD, lista de efectos) low -- sin efectos activos todavía
+            body.WriteByte(0); // count (WORD, effect list) low -- no active effects yet
             body.WriteByte(0); // high
             body.WriteByte(m.X);
             body.WriteByte(m.Y);
             body.WriteByte(m.TX);
             body.WriteByte(m.TY);
             body.WriteByte((byte)(m.Dir * 16)); // PKLevel no aplica a monstruos, nibble bajo en 0
-            // Relleno de cola: el struct alinea a 2 (por el WORD count) y su último campo termina en
-            // el offset 10, así que sizeof(PMSG_VIEWPORT_MONSTER) = 12 en el wire (MSVC pack(8)), no 11.
+            // Tail padding: the struct aligns to 2 (because of the WORD count) and its last field ends at
+            // offset 10, so sizeof(PMSG_VIEWPORT_MONSTER) = 12 on the wire (MSVC pack(8)), not 11.
             body.WriteByte(0);
         }
 
@@ -752,15 +740,15 @@ public static class WorldPacketBuilder
         return PacketBuilder.BuildC1(0xD7, w.ToArray());
     }
 
-    /// <summary>PMSG_VIEWPORT_ITEM dentro del batch PMSG_VIEWPORT_SEND (GCViewportItemSend,
-    /// Viewport.cpp:~905-909), C2:20. Bit 0x80 del byte alto del índice = "recién apareció"
-    /// (<see cref="GroundItem.JustDropped"/>, anima la caída/aparición en el cliente). El dinero
-    /// (<see cref="GroundItem.MoneyAmount"/> no nulo) usa un empaquetado de ItemInfo distinto al de
-    /// un item normal -- puerto byte a byte verificado contra Viewport.cpp: byte0=index&0xFF,
-    /// byte1=SET_NUMBERLB(SET_NUMBERHW(money))=bits16-23, byte2=SET_NUMBERHB(SET_NUMBERLW(money))=
-    /// bits8-15, byte3=(index&256)>>1, byte4=SET_NUMBERLB(SET_NUMBERLW(money))=bits0-7. Los bits
-    /// 24-31 del monto NO se envían nunca para un item de dinero en el suelo en este build -- es una
-    /// limitación real del C++ original, replicada tal cual (no "arreglada").</summary>
+    /// <summary>PMSG_VIEWPORT_ITEM inside the PMSG_VIEWPORT_SEND batch (GCViewportItemSend,
+    /// Viewport.cpp:~905-909), C2:20. Bit 0x80 of the high byte of the index = "just appeared" (<see
+    /// cref="GroundItem.JustDropped"/>, animates the fall/appearance on the client). Money (<see
+    /// cref="GroundItem.MoneyAmount"/> not null) uses a different ItemInfo packing from a normal item --
+    /// byte-for-byte port verified against Viewport.cpp: byte0=index&0xFF,
+    /// byte1=SET_NUMBERLB(SET_NUMBERHW(money))=bits16-23, byte2=SET_NUMBERHB(SET_NUMBERLW(money))= bits8-15,
+    /// byte3=(index&256)>>1, byte4=SET_NUMBERLB(SET_NUMBERLW(money))=bits0-7. Bits 24-31 of the amount are
+    /// NEVER sent for a money item on the ground in this build -- it is a real limitation of the original C++,
+    /// replicated as is (not "fixed").</summary>
     public static byte[] ViewportItemAppear(IReadOnlyList<GroundItem> items)
     {
         using var body = new MemoryStream();
@@ -802,9 +790,9 @@ public static class WorldPacketBuilder
         return BuildC2NoSub(0x20, body.ToArray());
     }
 
-    /// <summary>PMSG_VIEWPORT_DESTROY_ITEM_SEND (GCViewportDestroyItemSend, Viewport.cpp:579-630),
-    /// C2:21 -- paquete DISTINTO del que usan jugadores/monstruos (C1:14, <see cref="ViewportDestroy"/>);
-    /// los items de piso tienen su propio head. 2 bytes por item (solo el índice, sin bit de flag).</summary>
+    /// <summary>PMSG_VIEWPORT_DESTROY_ITEM_SEND (GCViewportDestroyItemSend, Viewport.cpp:579-630), C2:21 -- a
+    /// DIFFERENT packet from the one used for players/monsters (C1:14, <see cref="ViewportDestroy"/>); ground
+    /// items have their own head. 2 bytes per item (only the index, no flag bit).</summary>
     public static byte[] ViewportItemDestroy(IReadOnlyList<int> indexes)
     {
         using var body = new MemoryStream();
@@ -833,16 +821,16 @@ public sealed record AttackRecv(int TargetIndex, byte Action, byte Dir)
     }
 }
 
-/// <summary>PMSG_ACTION_RECV (Protocol.h:155-161), C1:18 -- pose/emote/sentarse (dir+action) más un
-/// índice de "objetivo" opcional que el original ni siquiera valida (CGActionRecv, Protocol.cpp:611-
-/// 666, lo reenvía tal cual al construir PMSG_ACTION_SEND).</summary>
+/// <summary>PMSG_ACTION_RECV (Protocol.h:155-161), C1:18 -- pose/emote/sit (dir+action) plus an optional
+/// "target" index that the original does not even validate (CGActionRecv, Protocol.cpp:611- 666, forwards it as
+/// is when building PMSG_ACTION_SEND).</summary>
 public sealed record ActionRecv(byte Dir, byte Action, int TargetIndex)
 {
-    /// <summary>Regresión de producción (mismo patrón que el path truncado de MoveRecv): el cliente
-    /// real a veces manda este paquete SIN el campo final "index[2]" (que el original ni siquiera
-    /// usa/valida, ver doc-comment de arriba) -- el struct C++ declara un tamaño "techo" de 7 bytes,
-    /// pero lo efectivamente enviado puede ser más corto. Se lee defensivamente byte a byte en vez de
-    /// asumir el largo completo, igual que MoveRecv.Parse.</summary>
+    /// <summary>Production regression (same pattern as MoveRecv's truncated path): the real client sometimes
+    /// sends this packet WITHOUT the final "index[2]" field (which the original does not even use/validate, see
+    /// the doc-comment above) -- the C++ struct declares a "ceiling" size of 7 bytes, but what is actually sent
+    /// can be shorter. It is read defensively byte by byte instead of assuming the full length, like
+    /// MoveRecv.Parse.</summary>
     public static ActionRecv Parse(byte[] p)
     {
         byte dir = p.Length > 3 ? p[3] : (byte)0;
@@ -861,9 +849,9 @@ public sealed record LevelUpPointRecv(byte Type)
 
 public static class CombatPacketBuilder
 {
-    /// <summary>PMSG_ACTION_SEND (Protocol.h:355-362), C1:18 -- animación de ataque, se manda a
-    /// todos los que ven al atacante (acá: solo al propio atacante, ver nota en
-    /// ClientProtocolHandler.OnAttackAsync sobre el broadcast simplificado de esta primera pasada).</summary>
+    /// <summary>PMSG_ACTION_SEND (Protocol.h:355-362), C1:18 -- attack animation, sent to everyone who sees the
+    /// attacker (here: only to the attacker itself, see the note in ClientProtocolHandler.OnAttackAsync about
+    /// this first pass's simplified broadcast).</summary>
     public static byte[] ActionSend(int attackerIndex, byte dir, byte action, int targetIndex)
     {
         var w = new PacketWriter();
@@ -876,9 +864,9 @@ public static class CombatPacketBuilder
         return PacketBuilder.BuildC1(0x18, w.ToArray());
     }
 
-    /// <summary>PMSG_DAMAGE_SEND (Protocol.h:327-337), C1:D9 -- número de daño mostrado sobre el
-    /// objetivo. <paramref name="targetCurrentLife"/>/<paramref name="damage"/> alimentan los campos
-    /// GAMESERVER_EXTRA (ViewCurHP/ViewDamageHP), presentes en este build.</summary>
+    /// <summary>PMSG_DAMAGE_SEND (Protocol.h:327-337), C1:D9 -- damage number shown over the target. <paramref
+    /// name="targetCurrentLife"/>/<paramref name="damage"/> feed the GAMESERVER_EXTRA fields
+    /// (ViewCurHP/ViewDamageHP), present in this build.</summary>
     public static byte[] DamageSend(int targetIndex, int damage, byte type, bool missFlag, float targetCurrentLife)
     {
         var w = new PacketWriter();
@@ -895,19 +883,18 @@ public static class CombatPacketBuilder
         w.WriteByte((byte)((clampedDamage >> 8) & 0xFF));
         w.WriteByte((byte)(clampedDamage & 0xFF));
         w.WriteByte(type);
-        // CORREGIDO (bug introducido en una pasada anterior de esta misma sesión): el comentario decía
-        // "header de 4 bytes -> offset 9 -> 3 bytes de relleno", pero PMSG_DAMAGE_SEND usa PBMSG_HEAD
-        // (Protocol.h:22-41: type+size+head, BYTE los 3, sin campos que fuercen alineación > 1), que
-        // mide 3 bytes, NO 4 (el de 4 bytes es PSBMSG_HEAD, con un subh extra, usado por los paquetes
-        // C1:F3:xx como CharacterInfoSend/LevelUpSend -- PMSG_DAMAGE_SEND es C1:D9 directo, sin
-        // sub-código). Offset real tras index[2]+damage[2]+type = 3+2+2+1 = 8, que YA es múltiplo de 4
-        // -- CERO bytes de relleno hacen falta acá. Los 3 bytes que este puerto agregaba de más
-        // corrían ViewCurHP/ViewDamageHP 3 bytes, y como el paquete total también quedaba 3 bytes más
-        // largo de lo que el cliente real espera, TODO lo que el cliente leía de ahí en más (el número
-        // de daño mostrado, y potencialmente el framing de paquetes subsiguientes en el mismo bloque
-        // cifrado) salía basura -- coincide exactamente con los "números de daño ilógicos tipo
-        // 9998989898" reportados jugando con el cliente real. PMSG_MANA_SEND (ver ManaPacketBuilder)
-        // tenía el mismo error por el mismo motivo, también corregido.
+        // FIXED (bug introduced in an earlier pass of this same session): the comment said "4-byte header ->
+        // offset 9 -> 3 padding bytes", but PMSG_DAMAGE_SEND uses PBMSG_HEAD (Protocol.h:22-41: type+size+head,
+        // BYTE all 3, with no fields forcing alignment > 1), which is 3 bytes, NOT 4 (the 4-byte one is
+        // PSBMSG_HEAD, with an extra subh, used by the C1:F3:xx packets like CharacterInfoSend/LevelUpSend --
+        // PMSG_DAMAGE_SEND is C1:D9 directly, without sub-code). The real offset after index[2]+damage[2]+type
+        // = 3+2+2+1 = 8, which is ALREADY a multiple of 4 -- ZERO padding bytes are needed here. The 3 bytes
+        // this port added in excess shifted ViewCurHP/ViewDamageHP by 3 bytes, and since the total packet also
+        // came out 3 bytes longer than the real client expects, EVERYTHING the client read from there on (the
+        // displayed damage number, and potentially the framing of subsequent packets in the same encrypted
+        // block) came out as garbage -- it matches exactly the "illogical damage numbers like 9998989898"
+        // reported when playing with the real client. PMSG_MANA_SEND (see ManaPacketBuilder) had the same error
+        // for the same reason, also fixed.
         w.WriteUInt32((uint)targetCurrentLife);
         w.WriteUInt32((uint)damage);
         return PacketBuilder.BuildC1(0xD9, w.ToArray());
@@ -946,15 +933,14 @@ public static class CombatPacketBuilder
         return PacketBuilder.BuildC1(0x19, w.ToArray());
     }
 
-    /// <summary>PMSG_REWARD_EXPERIENCE_SEND (Protocol.h:449-460), C1:9C -- popup de experiencia
-    /// ganada, unicast al jugador que se la llevó (ver GCMonsterDieSend).
-    /// CORREGIDO: al struct real (PBMSG_HEAD=3 bytes + index[2] + WORD experience[2] (4 bytes, NO 2 --
-    /// es un array de 2 WORDs) + damage[2]) le faltaba el relleno de alineación antes de los 3 DWORD
-    /// "View*" de GAMESERVER_EXTRA: offset tras esos campos = 3+2+4+2 = 11, no múltiplo de 4 -- hace
-    /// falta 1 byte de relleno para llegar a 12. Sin él, ViewDamageHP/ViewExperience/
-    /// ViewNextExperience (y el popup de experiencia que arma el cliente con esos valores) llegaban
-    /// desplazados 1 byte -- explica el "no dan experiencia" reportado (el cliente probablemente
-    /// descarta o ignora el popup si los DWORD no calzan con lo esperado).</summary>
+    /// <summary>PMSG_REWARD_EXPERIENCE_SEND (Protocol.h:449-460), C1:9C -- popup of experience gained, unicast
+    /// to the player who took it (see GCMonsterDieSend). FIXED: the real struct (PBMSG_HEAD=3 bytes + index[2]
+    /// + WORD experience[2] (4 bytes, NOT 2 -- it is an array of 2 WORDs) + damage[2]) was missing the
+    /// alignment padding before the 3 "View*" DWORDs of GAMESERVER_EXTRA: offset after those fields = 3+2+4+2 =
+    /// 11, not a multiple of 4 -- 1 padding byte is needed to reach 12. Without it,
+    /// ViewDamageHP/ViewExperience/ ViewNextExperience (and the experience popup the client builds from those
+    /// values) arrived shifted 1 byte -- it explains the reported "they give no experience" (the client
+    /// probably discards or ignores the popup if the DWORDs do not match what is expected).</summary>
     public static byte[] MonsterDieSend(int monsterIndex, uint experience, int damage, uint currentExperience, uint nextExperience)
     {
         var w = new PacketWriter();
@@ -965,7 +951,7 @@ public static class CombatPacketBuilder
         int clampedDamage = Math.Min(damage, 65000);
         w.WriteByte((byte)((clampedDamage >> 8) & 0xFF));
         w.WriteByte((byte)(clampedDamage & 0xFF));
-        w.WriteByte(0); // relleno de alineación (offset 11 -> 12)
+        w.WriteByte(0); // alignment padding (offset 11 -> 12)
         w.WriteUInt32((uint)damage);
         w.WriteUInt32(currentExperience);
         w.WriteUInt32(nextExperience);
@@ -985,10 +971,10 @@ public static class CombatPacketBuilder
         w.WriteUInt16(0); // MaxFruitAddPoint -- balance de fruits no portado
         w.WriteUInt16(p.FruitSubPoint);
         w.WriteUInt16(0); // MaxFruitSubPoint
-        // Mismo problema de alineación que CharacterInfoSend/NewCharacterInfoSend (PMSG_LEVEL_UP_SEND,
-        // Protocol.h:653-673, sin pack(1)): 9 WORD = 18 bytes tras el header de 4, offset 22 no es
-        // múltiplo de 4 -- 2 bytes de relleno antes del primer DWORD "View*".
-        w.WriteUInt16(0); // relleno de alineación
+        // Same alignment problem as CharacterInfoSend/NewCharacterInfoSend (PMSG_LEVEL_UP_SEND,
+        // Protocol.h:653-673, without pack(1)): 9 WORDs = 18 bytes after the 4-byte header, offset 22 is not a
+        // multiple of 4 -- 2 padding bytes before the first "View*" DWORD.
+        w.WriteUInt16(0); // alignment padding
         w.WriteUInt32(p.LevelUpPoint);
         w.WriteUInt32(p.MaxLife);
         w.WriteUInt32(p.MaxMana);
@@ -998,18 +984,17 @@ public static class CombatPacketBuilder
         return PacketBuilder.BuildC1Sub(0xF3, 0x05, w.ToArray());
     }
 
-    /// <summary>PMSG_LEVEL_UP_POINT_SEND (Protocol.h:675-692), C1:F3:06 -- respuesta a
-    /// LevelUpPointRecv. <paramref name="ok"/>=false manda result=0 (fallo, sin el resto de los
-    /// campos poblados -- igual que el original, que solo llena result/MaxLifeAndMana/MaxBP/View*
-    /// dentro del if de éxito). result de éxito = 16+type (16=Str,17=Dex,18=Vit,19=Ene,
-    /// 20=Leadership, ver CGLevelUpPointRecv).</summary>
+    /// <summary>PMSG_LEVEL_UP_POINT_SEND (Protocol.h:675-692), C1:F3:06 -- reply to LevelUpPointRecv. <paramref
+    /// name="ok"/>=false sends result=0 (failure, without the rest of the fields populated -- like the
+    /// original, which only fills result/MaxLifeAndMana/MaxBP/View* inside the success if). Success result =
+    /// 16+type (16=Str,17=Dex,18=Vit,19=Ene, 20=Leadership, see CGLevelUpPointRecv).</summary>
     public static byte[] LevelUpPointSend(PlayerObject p, byte type, bool ok)
     {
         var w = new PacketWriter();
         w.WriteByte(ok ? (byte)(16 + type) : (byte)0);
-        // result(1) tras el header(4) -> offset 5, no múltiplo de 2 -- 1 byte de relleno antes del
-        // primer WORD (MaxLifeAndMana).
-        w.WriteByte(0); // relleno de alineación
+        // result(1) after the header(4) -> offset 5, not a multiple of 2 -- 1 padding byte before the first
+        // WORD (MaxLifeAndMana).
+        w.WriteByte(0); // alignment padding
         uint maxLifeAndMana = type switch
         {
             2 => p.MaxLife, // Vitality sube MaxLife
@@ -1018,9 +1003,9 @@ public static class CombatPacketBuilder
         };
         w.WriteUInt16((ushort)Math.Min(maxLifeAndMana, (uint)65000));
         w.WriteUInt16((ushort)Math.Min(p.MaxBP, (uint)65000));
-        // MaxLifeAndMana(2)+MaxBP(2) = 4 bytes tras offset 6 -> offset 10, no múltiplo de 4 -- 2 bytes
-        // de relleno antes del primer DWORD "View*".
-        w.WriteUInt16(0); // relleno de alineación
+        // MaxLifeAndMana(2)+MaxBP(2) = 4 bytes after offset 6 -> offset 10, not a multiple of 4 -- 2 padding
+        // bytes before the first "View*" DWORD.
+        w.WriteUInt16(0); // alignment padding
         w.WriteUInt32(p.LevelUpPoint);
         w.WriteUInt32(p.MaxLife);
         w.WriteUInt32(p.MaxMana);
@@ -1034,30 +1019,28 @@ public static class CombatPacketBuilder
     }
 }
 
-// ---------------------------------------------------------------- Fase 3: items e inventario
-// Puerto de ItemManager.h/.cpp -- solo el subconjunto de paquetes de "mover/equipar dentro del
-// inventario propio" (Trade/Warehouse/Shop/PersonalShop y recoger/tirar del suelo quedan para una
-// pasada posterior de la Fase 3, documentado en el README).
+// ---------------------------------------------------------------- Phase 3: items and inventory Port of
+// ItemManager.h/.cpp -- only the subset of "move/equip inside one's own inventory" packets
+// (Trade/Warehouse/Shop/PersonalShop and pick up/drop on the ground are left for a later pass of Phase 3,
+// documented in the README).
 
-/// <summary>PMSG_ITEM_MOVE_RECV, C1:24 (ItemManager.h:63-71) -- header(3) + SourceFlag(1) +
-/// SourceSlot(1) + ItemInfo[5] (offsets 5-9, echo del cliente, IGNORADO -- el servidor es la
-/// autoridad sobre qué item hay realmente en SourceSlot, ItemManager.cpp:2853-3025) + TargetFlag(1,
-/// offset 10) + TargetSlot(1, offset 11). Paquete completo de 12 bytes. SourceFlag/TargetFlag:
-/// 0=Inventory (único container soportado por ahora).</summary>
+/// <summary>PMSG_ITEM_MOVE_RECV, C1:24 (ItemManager.h:63-71) -- header(3) + SourceFlag(1) + SourceSlot(1) +
+/// ItemInfo[5] (offsets 5-9, client echo, IGNORED -- the server is the authority on which item is really in
+/// SourceSlot, ItemManager.cpp:2853-3025) + TargetFlag(1, offset 10) + TargetSlot(1, offset 11). Full packet of
+/// 12 bytes. SourceFlag/TargetFlag: 0=Inventory (the only container supported for now).</summary>
 public sealed record ItemMoveRecv(byte SourceFlag, byte SourceSlot, byte TargetFlag, byte TargetSlot)
 {
     public static ItemMoveRecv Parse(byte[] p) => new(p[3], p[4], p[10], p[11]);
 }
 
-// ---------------------------------------------------------------- Fase 3 (segunda pasada): recoger/tirar del suelo
-// Puerto de CGItemGetRecv/CGItemDropRecv (ItemManager.cpp:3289-3718) -- items tirados en el piso por
-// muerte de monstruo o por el propio jugador (PMSG_ITEM_DROP_RECV), y recogidos de vuelta
-// (PMSG_ITEM_GET_RECV). Ver World/GroundItem.cs para el modelo de datos y el resto del doc-comment
-// de alcance/simplificaciones (sin ItemBag/eventos/Muun/quest-items, sin el hop a DataServer para
-// asignar Serial -- se genera localmente).
+// ---------------------------------------------------------------- Phase 3 (second pass): pick up/drop on the
+// ground Port of CGItemGetRecv/CGItemDropRecv (ItemManager.cpp:3289-3718) -- items dropped on the floor by a
+// monster's death or by the player themselves (PMSG_ITEM_DROP_RECV), and picked back up (PMSG_ITEM_GET_RECV).
+// See World/GroundItem.cs for the data model and the rest of the scope/simplifications doc-comment (no
+// ItemBag/events/Muun/quest-items, no hop to DataServer to assign Serial -- it is generated locally).
 
-/// <summary>PMSG_ITEM_GET_RECV, C1:22 -- <paramref name="GroundIndex"/> es el slot dentro del array
-/// de 300 items del MAPA del jugador (no un índice global), igual que <see cref="GroundItem.Index"/>.</summary>
+/// <summary>PMSG_ITEM_GET_RECV, C1:22 -- <paramref name="GroundIndex"/> is the slot within the 300-item array
+/// of the player's MAP (not a global index), just like <see cref="GroundItem.Index"/>.</summary>
 public sealed record ItemGetRecv(int GroundIndex)
 {
     public static ItemGetRecv Parse(byte[] p) => new((p[3] << 8) | p[4]);
@@ -1071,15 +1054,15 @@ public sealed record ItemDropRecv(byte X, byte Y, byte Slot)
 
 public static class ItemPacketBuilder
 {
-    /// <summary>PMSG_ITEM_LIST_SEND, C4:F3:10 (tamaño de 2 bytes, cifrado por bloques -- ver
-    /// ClientSession.SendEncryptedC4Async). Entrada armada como paquete "lógico" C2Sub de cabecera
-    /// de 2 bytes; el tipo real C4 lo pone SendEncryptedC4Async. count+repetido{slot,ItemInfo[5]}
-    /// -- 6 bytes por slot ocupado (ItemManager.h:187-198, PMSG_ITEM_LIST).</summary>
+    /// <summary>PMSG_ITEM_LIST_SEND, C4:F3:10 (2-byte size, block-encrypted -- see
+    /// ClientSession.SendEncryptedC4Async). Input built as a "logical" C2Sub packet with a 2-byte header; the
+    /// real C4 type is set by SendEncryptedC4Async. count+repeated{slot,ItemInfo[5]} -- 6 bytes per occupied
+    /// slot (ItemManager.h:187-198, PMSG_ITEM_LIST).</summary>
     public static byte[] ItemListSend(PlayerObject p)
     {
         using var body = new MemoryStream();
         var countPos = body.Position;
-        body.WriteByte(0); // se corrige más abajo
+        body.WriteByte(0); // corrected further below
         int count = 0;
 
         Span<byte> info = stackalloc byte[Item.WireByteSize];
@@ -1105,14 +1088,13 @@ public static class ItemPacketBuilder
         return PacketBuilder.BuildC2Sub(0xF3, 0x10, bytes);
     }
 
-    /// <summary>PMSG_ITEM_MOVE_SEND, C3:24 (ItemManager.h:121-127) -- CORREGIDO: <paramref name="result"/>
-    /// NO es un booleano genérico -- puerto exacto de <c>MoveItemToInventoryFromInventory</c>
-    /// (ItemManager.cpp:1920-1978), que devuelve <c>TargetFlag</c> (0 para Inventory, el único
-    /// container soportado acá) en éxito y <c>0xFF</c> en cualquier falla (ver doc-comment de
-    /// ClientProtocolHandler.OnItemMoveAsync para el detalle completo, incluyendo el bug de "swap"
-    /// que esto arregla). slot = destino real donde quedó el item, + ItemInfo[5]. Se manda cifrado
-    /// por bloques vía SendEncryptedAsync (de ahí el C3), armado acá como paquete "lógico" C1 sin
-    /// sub-código (head=0x24 directo, igual que MoveSend/0xD7).</summary>
+    /// <summary>PMSG_ITEM_MOVE_SEND, C3:24 (ItemManager.h:121-127) -- FIXED: <paramref name="result"/> is NOT a
+    /// generic boolean -- exact port of <c>MoveItemToInventoryFromInventory</c> (ItemManager.cpp:1920-1978),
+    /// which returns <c>TargetFlag</c> (0 for Inventory, the only container supported here) on success and
+    /// <c>0xFF</c> on any failure (see the doc-comment of ClientProtocolHandler.OnItemMoveAsync for the full
+    /// detail, including the "swap" bug this fixes). slot = real destination where the item ended up, +
+    /// ItemInfo[5]. It is sent block-encrypted via SendEncryptedAsync (hence the C3), built here as a "logical"
+    /// C1 packet without sub-code (head=0x24 directly, like MoveSend/0xD7).</summary>
     public static byte[] ItemMoveSend(byte result, byte slot, Item item)
     {
         var w = new PacketWriter();
@@ -1124,11 +1106,11 @@ public static class ItemPacketBuilder
         return PacketBuilder.BuildC1(0x24, w.ToArray());
     }
 
-    /// <summary>PMSG_ITEM_CHANGE_SEND, C1:25 (ItemManager.h:129-134) -- notifica a otros/al propio
-    /// cliente que el item de un slot cambió (usado acá tras un move/equip exitoso). Byte1 de
-    /// ItemInfo se pisa con slot*16 | ((level-1)/2)&0xF, puerto exacto de ItemManager.cpp:3445-3462.
-    /// Header + index[2] + ItemInfo[5], SIN byte "attribute" final -- ese campo no existe en este
-    /// build (era de una rama GAMESERVER_UPDATE de una temporada posterior que no aplica acá).</summary>
+    /// <summary>PMSG_ITEM_CHANGE_SEND, C1:25 (ItemManager.h:129-134) -- notifies others/the client itself that
+    /// the item in a slot changed (used here after a successful move/equip). Byte1 of ItemInfo is overwritten
+    /// with slot*16 | ((level-1)/2)&0xF, exact port of ItemManager.cpp:3445-3462. Header + index[2] +
+    /// ItemInfo[5], WITHOUT the final "attribute" byte -- that field does not exist in this build (it was from
+    /// a GAMESERVER_UPDATE branch of a later season that does not apply here).</summary>
     public static byte[] ItemChangeSend(int index, byte slot, Item item)
     {
         var w = new PacketWriter();
@@ -1143,10 +1125,9 @@ public static class ItemPacketBuilder
         return PacketBuilder.BuildC1(0x25, w.ToArray());
     }
 
-    /// <summary>PMSG_ITEM_EQUIPMENT_SEND, C1:F3:13 -- CharSet[13] actualizado del propio jugador (ver
-    /// PlayerObject.CharSet) (se manda al propio cliente tras equipar/desequipar; el resto de
-    /// jugadores ven el cambio vía un nuevo ViewportPlayerAppear, ver
-    /// ClientProtocolHandler.OnItemMoveAsync).</summary>
+    /// <summary>PMSG_ITEM_EQUIPMENT_SEND, C1:F3:13 -- updated CharSet[13] of the player themselves (see
+    /// PlayerObject.CharSet) (sent to the client itself after equipping/unequipping; the rest of the players
+    /// see the change via a new ViewportPlayerAppear, see ClientProtocolHandler.OnItemMoveAsync).</summary>
     public static byte[] ItemEquipmentSend(PlayerObject p)
     {
         var w = new PacketWriter();
@@ -1160,10 +1141,10 @@ public static class ItemPacketBuilder
     public static byte[] ItemRepairSend(uint money)
     {
         var w = new PacketWriter();
-        // PBMSG_HEAD (3 bytes) + DWORD money alineado a 4 -> MSVC mete 1 byte de relleno en el
-        // offset 3 (sizeof = 8, no 7). El original manda sizeof(pMsg), así que sin esto el cliente
-        // lee money desde el offset 4 y recibe un valor corrido un byte.
-        w.WriteByte(0); // relleno de alineación (offset 3 -> 4)
+        // PBMSG_HEAD (3 bytes) + DWORD money aligned to 4 -> MSVC inserts 1 padding byte at offset 3 (sizeof =
+        // 8, not 7). The original sends sizeof(pMsg), so without this the client reads money from offset 4 and
+        // receives a value shifted by one byte.
+        w.WriteByte(0); // alignment padding (offset 3 -> 4)
         w.WriteUInt32(money);
         return PacketBuilder.BuildC1(0x34, w.ToArray());
     }
@@ -1178,7 +1159,7 @@ public static class ItemPacketBuilder
         return PacketBuilder.BuildC1(0x2A, w.ToArray());
     }
 
-    /// <summary>PMSG_ITEM_DELETE_SEND, C1:28 (ItemManager.h:3464-3475) -- notifica la eliminación de un ítem consumido o usado.</summary>
+    /// <summary>PMSG_ITEM_DELETE_SEND, C1:28 (ItemManager.h:3464-3475) -- notifies the deletion of a consumed or used item.</summary>
     public static byte[] ItemDeleteSend(byte slot, byte flag = 1)
     {
         var w = new PacketWriter();
@@ -1187,7 +1168,7 @@ public static class ItemPacketBuilder
         return PacketBuilder.BuildC1(0x28, w.ToArray());
     }
 
-    /// <summary>PMSG_ITEM_MODIFY_SEND, C1:F3:14 (ItemManager.h:3564-3582) -- notifica que un ítem en un slot fue modificado (ej. con joya).</summary>
+    /// <summary>PMSG_ITEM_MODIFY_SEND, C1:F3:14 (ItemManager.h:3564-3582) -- notifies that an item in a slot was modified (e.g. with a jewel).</summary>
     public static byte[] ItemModifySend(byte slot, Item item)
     {
         var w = new PacketWriter();
@@ -1198,24 +1179,22 @@ public static class ItemPacketBuilder
         return PacketBuilder.BuildC1Sub(0xF3, 0x14, w.ToArray());
     }
 
-    /// <summary>PMSG_ITEM_GET_SEND reusado como "cambió el dinero", C3:22 (ItemManager.h:105-112,
-    /// result=0xFE es el marcador especial que usa la rama de dinero de CGItemGetRecv en vez de un
-    /// item real, ItemManager.cpp:2605-2669) -- los 4 bytes de money van empaquetados BIG-ENDIAN
-    /// dentro de ItemInfo[0..3] (SET_NUMBERHB/LB de cada mitad de 16 bits), no little-endian como el
-    /// resto del protocolo -- confirmado contra las macros SET_NUMBER* del original, no es un error
-    /// de puerto. ItemInfo[4] queda sin uso (relleno 0). Se manda cifrado por bloques (ver
-    /// ClientSession.SendEncryptedAsync). REVERTIDO: una nota anterior de este puerto afirmaba que
-    /// <c>GAMESERVER_EXTRA</c> "nunca se define como 1" en este árbol -- FALSO, `stdafx.h:9-10` del
-    /// árbol fuente correcto ("Emulator 0.99 (2.1.7)/GameServer" -- ver el doc-comment de
-    /// <see cref="World.Item"/>) tiene <c>#ifndef GAMESERVER_EXTRA #define GAMESERVER_EXTRA 1
-    /// #endif</c> incondicional, así que SÍ está activo, y el struct real
-    /// (<c>ItemManager.h:105-112</c>) SÍ tiene el DWORD final <c>ViewIndex</c>. La rama de dinero de
-    /// <c>CGItemGetRecv</c> no lo setea explícitamente (queda en lo que tenga el stack, replicado acá
-    /// como 0). CORREGIDO: faltaba el relleno de alineación antes del DWORD final -- PMSG_ITEM_GET_SEND
-    /// usa PBMSG_HEAD (3 bytes, es C3:22 directo sin sub-código, ver doc-comment de
-    /// CombatPacketBuilder.DamageSend para la explicación completa de PBMSG_HEAD vs PSBMSG_HEAD).
-    /// Offset tras result(1)+ItemInfo[5] = 3+1+5 = 9, no múltiplo de 4 -- hacen falta 3 bytes de
-    /// relleno para llegar a 12 antes de ViewIndex.</summary>
+    /// <summary>PMSG_ITEM_GET_SEND reused as "money changed", C3:22 (ItemManager.h:105-112, result=0xFE is the
+    /// special marker used by the money branch of CGItemGetRecv instead of a real item,
+    /// ItemManager.cpp:2605-2669) -- the 4 money bytes are packed BIG-ENDIAN inside ItemInfo[0..3]
+    /// (SET_NUMBERHB/LB of each 16-bit half), not little-endian like the rest of the protocol -- confirmed
+    /// against the original's SET_NUMBER* macros, it is not a port error. ItemInfo[4] stays unused (padding 0).
+    /// It is sent block-encrypted (see ClientSession.SendEncryptedAsync). REVERTED: an earlier note in this
+    /// port claimed that <c>GAMESERVER_EXTRA</c> is "never defined as 1" in this tree -- FALSE, `stdafx.h:9-10`
+    /// of the correct source tree ("Emulator 0.99 (2.1.7)/GameServer" -- see the doc-comment of <see
+    /// cref="World.Item"/>) has <c>#ifndef GAMESERVER_EXTRA #define GAMESERVER_EXTRA 1 #endif</c>
+    /// unconditionally, so it IS active, and the real struct (<c>ItemManager.h:105-112</c>) DOES have the final
+    /// DWORD <c>ViewIndex</c>. The money branch of <c>CGItemGetRecv</c> does not set it explicitly (it stays at
+    /// whatever the stack has, replicated here as 0). FIXED: the alignment padding before the final DWORD was
+    /// missing -- PMSG_ITEM_GET_SEND uses PBMSG_HEAD (3 bytes, it is C3:22 directly without sub-code, see the
+    /// doc-comment of CombatPacketBuilder.DamageSend for the full explanation of PBMSG_HEAD vs PSBMSG_HEAD).
+    /// Offset after result(1)+ItemInfo[5] = 3+1+5 = 9, not a multiple of 4 -- 3 padding bytes are needed to
+    /// reach 12 before ViewIndex.</summary>
     public static byte[] MoneySend(uint money)
     {
         var w = new PacketWriter();
@@ -1228,22 +1207,21 @@ public static class ItemPacketBuilder
         info[2] = (byte)((money >> 8) & 0xFF);
         info[3] = (byte)(money & 0xFF);
         w.WriteBytes(info.ToArray(), Item.WireByteSize);
-        w.WriteBytes(new byte[3], 3); // relleno de alineación (offset 9 -> 12)
+        w.WriteBytes(new byte[3], 3); // alignment padding (offset 9 -> 12)
         w.WriteUInt32(0); // ViewIndex (GAMESERVER_EXTRA==1) -- rama de dinero no lo setea en el original
 
         return PacketBuilder.BuildC1(0x22, w.ToArray());
     }
 
-    /// <summary>PMSG_ITEM_GET_SEND, C3:22 (ItemManager.h:105-112) -- misma estructura que
-    /// <see cref="MoneySend"/> (mismo head, el original literalmente reusa el struct), pero para el
-    /// caso "recogí un item real del piso" (CGItemGetRecv, ItemManager.cpp:3289-3528).
-    /// <paramref name="result"/>: 0xFF=falló (denegado por cualquiera de las validaciones -- fuera de
-    /// rango, bloqueado, sin espacio), 0-234ish=slot del inventario donde quedó (éxito). El caso
-    /// 0xFD ("se apiló con un item existente") del original NO está portado -- este puerto no tiene
-    /// lógica de apilado de items (flechas/pociones no se acumulan en un slot), así que ese código de
-    /// resultado nunca sale de acá. <paramref name="groundIndex"/> SÍ se envía como el DWORD final
-    /// <c>ViewIndex</c> (<c>pMsg.ViewIndex = index;</c> en el original, GAMESERVER_EXTRA==1 -- ver el
-    /// doc-comment de <see cref="MoneySend"/> para la corrección de por qué este campo está activo).</summary>
+    /// <summary>PMSG_ITEM_GET_SEND, C3:22 (ItemManager.h:105-112) -- same structure as <see cref="MoneySend"/>
+    /// (same head, the original literally reuses the struct), but for the "I picked up a real item from the
+    /// ground" case (CGItemGetRecv, ItemManager.cpp:3289-3528). <paramref name="result"/>: 0xFF=failed (denied
+    /// by any of the validations -- out of range, blocked, no space), 0-234ish=inventory slot where it ended up
+    /// (success). The original's 0xFD case ("it stacked with an existing item") is NOT ported -- this port has
+    /// no item stacking logic (arrows/potions do not accumulate in a slot), so that result code never comes out
+    /// of here. <paramref name="groundIndex"/> IS sent as the final DWORD <c>ViewIndex</c> (<c>pMsg.ViewIndex =
+    /// index;</c> in the original, GAMESERVER_EXTRA==1 -- see the doc-comment of <see cref="MoneySend"/> for
+    /// the correction of why this field is active).</summary>
     public static byte[] ItemGetSend(byte result, Item? item, int groundIndex)
     {
         var w = new PacketWriter();
@@ -1261,15 +1239,15 @@ public static class ItemPacketBuilder
         }
 
         w.WriteBytes(info.ToArray(), Item.WireByteSize);
-        w.WriteBytes(new byte[3], 3); // relleno de alineación (offset 9 -> 12, ver doc-comment de MoneySend)
+        w.WriteBytes(new byte[3], 3); // alignment padding (offset 9 -> 12, see the doc-comment of MoneySend)
         w.WriteUInt32((uint)groundIndex); // ViewIndex (GAMESERVER_EXTRA==1)
         return PacketBuilder.BuildC1(0x22, w.ToArray());
     }
 
-    /// <summary>PMSG_ITEM_DROP_SEND, C1:23 -- result: 0=falló (cualquiera de las validaciones de
-    /// CGItemDropRecv, ItemManager.cpp:3530-3718; este puerto solo implementa el subconjunto genérico
-    /// documentado en GroundItem.cs -- sin lucky/periodic/set/harmony/excelente-nivel-alto ni los
-    /// ítems especiales con efecto propio), 1=éxito.</summary>
+    /// <summary>PMSG_ITEM_DROP_SEND, C1:23 -- result: 0=failed (any of the CGItemDropRecv validations,
+    /// ItemManager.cpp:3530-3718; this port only implements the generic subset documented in GroundItem.cs --
+    /// without lucky/periodic/set/harmony/high-level excellent nor the special items with their own effect),
+    /// 1=success.</summary>
     public static byte[] ItemDropSend(byte result, byte slot)
     {
         var w = new PacketWriter();
@@ -1296,7 +1274,7 @@ public sealed record ItemUseRecv(byte SourceSlot, byte TargetSlot, byte Type)
 
 public static class TradePacketBuilder
 {
-    /// <summary>PMSG_TRADE_REQUEST_SEND, C3:36 -- envía solicitud de Trade al objetivo.</summary>
+    /// <summary>PMSG_TRADE_REQUEST_SEND, C3:36 -- sends a Trade request to the target.</summary>
     public static byte[] TradeRequestSend(string name)
     {
         var w = new PacketWriter();
@@ -1321,7 +1299,7 @@ public static class TradePacketBuilder
         return PacketBuilder.BuildC1(0x37, w.ToArray());
     }
 
-    /// <summary>PMSG_TRADE_ITEM_DEL_SEND, C1:38 -- notifica que se quitó un ítem del Trade.</summary>
+    /// <summary>PMSG_TRADE_ITEM_DEL_SEND, C1:38 -- notifies that an item was removed from the Trade.</summary>
     public static byte[] TradeItemDelSend(byte slot)
     {
         var w = new PacketWriter();
@@ -1329,7 +1307,7 @@ public static class TradePacketBuilder
         return PacketBuilder.BuildC1(0x38, w.ToArray());
     }
 
-    /// <summary>PMSG_TRADE_ITEM_ADD_SEND, C1:39 -- notifica que se añadió un ítem al Trade.</summary>
+    /// <summary>PMSG_TRADE_ITEM_ADD_SEND, C1:39 -- notifies that an item was added to the Trade.</summary>
     public static byte[] TradeItemAddSend(byte slot, Item item)
     {
         var w = new PacketWriter();
@@ -1347,12 +1325,12 @@ public static class TradePacketBuilder
         // PBMSG_HEAD (3 bytes) + DWORD money alineado a 4 -> 1 byte de relleno en el offset 3
         // (sizeof = 8, no 7). Verificado contra CTrade::GCTradeMoneySend (Trade.cpp:550-559), que
         // hace header.set(0x3B,sizeof(pMsg)) y manda esos 8 bytes.
-        w.WriteByte(0); // relleno de alineación (offset 3 -> 4)
+        w.WriteByte(0); // alignment padding (offset 3 -> 4)
         w.WriteUInt32(money);
         return PacketBuilder.BuildC1(0x3B, w.ToArray());
     }
 
-    /// <summary>PMSG_TRADE_OK_BUTTON_SEND, C1:3C -- notifica estado de botón OK (0=normal, 1=OK, 2=Yellow/Uncheck).</summary>
+    /// <summary>PMSG_TRADE_OK_BUTTON_SEND, C1:3C -- notifies the OK button state (0=normal, 1=OK, 2=Yellow/Uncheck).</summary>
     public static byte[] TradeOkButtonSend(byte flag)
     {
         var w = new PacketWriter();
@@ -1407,7 +1385,7 @@ public sealed record TradeOkRecv(byte Flag)
 
 public static class WarehousePacketBuilder
 {
-    /// <summary>PMSG_WAREHOUSE_STATE_SEND, C1:83 -- notifica el estado del baúl (0=desbloqueado, 1=bloqueado/contraseña, 10=pw incorrecta, 12=pw correcta).</summary>
+    /// <summary>PMSG_WAREHOUSE_STATE_SEND, C1:83 -- notifies the warehouse state (0=unlocked, 1=locked/password, 10=wrong pw, 12=correct pw).</summary>
     public static byte[] WarehouseStateSend(byte state)
     {
         var w = new PacketWriter();
@@ -1415,7 +1393,7 @@ public static class WarehousePacketBuilder
         return PacketBuilder.BuildC1(0x83, w.ToArray());
     }
 
-    /// <summary>PMSG_WAREHOUSE_MONEY_SEND, C1:81 -- notifica el dinero del inventario y del baúl tras un depósito/retiro.</summary>
+    /// <summary>PMSG_WAREHOUSE_MONEY_SEND, C1:81 -- notifies the inventory and warehouse money after a deposit/withdrawal.</summary>
     public static byte[] WarehouseMoneySend(byte result, uint inventoryMoney, uint warehouseMoney)
     {
         var w = new PacketWriter();
@@ -1425,7 +1403,7 @@ public static class WarehousePacketBuilder
         return PacketBuilder.BuildC1(0x81, w.ToArray());
     }
 
-    /// <summary>PMSG_SHOP_ITEM_LIST_SEND reusado para Warehouse, C2:31 -- lista de ítems en el baúl (Warehouse.cpp:250-291).</summary>
+    /// <summary>PMSG_SHOP_ITEM_LIST_SEND reused for Warehouse, C2:31 -- list of items in the warehouse (Warehouse.cpp:250-291).</summary>
     public static byte[] WarehouseListSend(PlayerObject player)
     {
         var w = new PacketWriter();
@@ -1490,12 +1468,12 @@ public sealed record TeleportMoveRecv(int MoveIndex)
     }
 }
 
-// ---------------------------------------------------------------- Fase 5: chat y whisper (primera pasada)
-// Puerto de CGChatRecv/CGChatWhisperRecv (Protocol.cpp) + GDGlobalWhisperRecv/DGGlobalWhisperRecv/
-// DGGlobalWhisperEchoRecv (DataServer/DSProtocol.cpp, ya implementado del lado DataServer). Esta
-// pasada cubre: chat público (sin sigilos ~/@/@@/@>/$ -- party/guild/gens quedan para cuando esas
-// fases existan, documentado en README) y whisper (local + cruzado entre GameServers vía
-// DataServer, mecanismo que el DataServer ya tenía completo desde antes de esta fase).
+// ---------------------------------------------------------------- Phase 5: chat and whisper (first pass) Port
+// of CGChatRecv/CGChatWhisperRecv (Protocol.cpp) + GDGlobalWhisperRecv/DGGlobalWhisperRecv/
+// DGGlobalWhisperEchoRecv (DataServer/DSProtocol.cpp, already implemented on the DataServer side). This pass
+// covers: public chat (without the ~/@/@@/@>/$ sigils -- party/guild/gens are left for when those phases exist,
+// documented in the README) and whisper (local + cross-GameServer via DataServer, a mechanism DataServer
+// already had complete from before this phase).
 
 /// <summary>PMSG_CHAT_RECV/SEND, C1:00 -- mismo layout en ambas direcciones (Protocol.h). El cliente
 /// manda su propio nombre (se verifica contra el real, anti-spoof) + el mensaje.</summary>
@@ -1525,9 +1503,9 @@ public sealed record ChatWhisperRecv(string TargetName, string Message)
 
 public static class ChatPacketBuilder
 {
-    /// <summary>C1:00 -- chat público, se manda tal cual al propio hablante (eco) y a todo el que lo
-    /// tenga en su VisibleTo (mismo mecanismo de viewport que ya usa movimiento, ver MsgSendV2 en el
-    /// brief de investigación de la Fase 5).</summary>
+    /// <summary>C1:00 -- public chat, sent as is to the speaker itself (echo) and to everyone who has them in
+    /// their VisibleTo (the same viewport mechanism movement already uses, see MsgSendV2 in the Phase 5
+    /// research brief).</summary>
     public static byte[] ChatSend(string name, string message)
     {
         var w = new PacketWriter();
@@ -1536,7 +1514,7 @@ public static class ChatPacketBuilder
         return PacketBuilder.BuildC1(0x00, w.ToArray());
     }
 
-    /// <summary>C1:02 -- entrega de un whisper al destinatario (local o vía DataServer).</summary>
+    /// <summary>C1:02 -- delivery of a whisper to the recipient (local or via DataServer).</summary>
     public static byte[] ChatWhisperSend(string sourceName, string message)
     {
         var w = new PacketWriter();
@@ -1557,14 +1535,14 @@ public static class ChatPacketBuilder
         w.WriteUInt32(0);    // color
         w.WriteByte(0);      // speed
         w.WriteBytes(textBytes, textBytes.Length);
-        w.WriteByte(0);      // null-terminator (evita el carácter parásito ý en el cliente)
+        w.WriteByte(0);      // null-terminator (avoids the stray ý character on the client)
         return PacketBuilder.BuildC1(0x0D, w.ToArray());
     }
 }
 
 public static class ChaosBoxPacketBuilder
 {
-    /// <summary>PMSG_SHOP_ITEM_LIST_SEND (C2:31), type=3 -- Abre la ventana de Chaos Box en el cliente y sincroniza sus ítems.</summary>
+    /// <summary>PMSG_SHOP_ITEM_LIST_SEND (C2:31), type=3 -- Opens the Chaos Box window on the client and syncs its items.</summary>
     public static byte[] ChaosBoxItemListSend(IReadOnlyList<Item> items)
     {
         using var body = new MemoryStream();
@@ -1611,14 +1589,14 @@ public static class ChaosBoxPacketBuilder
         return PacketBuilder.BuildC1(0x86, w.ToArray());
     }
 
-    /// <summary>PMSG_CHAOS_MIX_RATE_SEND (C1:88) -- Envía el % de éxito y costo en Zen a la UI de la Chaos Box.</summary>
+    /// <summary>PMSG_CHAOS_MIX_RATE_SEND (C1:88) -- Sends the success % and Zen cost to the Chaos Box UI.</summary>
     public static byte[] ChaosMixRateSend(int rate, int money)
     {
         var w = new PacketWriter();
-        // PBMSG_HEAD mide 3 bytes y el int rate necesita alineación a 4, así que MSVC inserta 1 byte
-        // de relleno en el offset 3 (sizeof = 12, no 11). El original manda sizeof(pMsg) entero
-        // (ChaosBox.cpp:1024), así que sin este byte rate y money le llegan corridos al cliente.
-        w.WriteByte(0); // relleno de alineación (offset 3 -> 4)
+        // PBMSG_HEAD is 3 bytes and the int rate needs 4-byte alignment, so MSVC inserts 1 padding byte at
+        // offset 3 (sizeof = 12, not 11). The original sends the whole sizeof(pMsg) (ChaosBox.cpp:1024), so
+        // without this byte rate and money reach the client shifted.
+        w.WriteByte(0); // alignment padding (offset 3 -> 4)
         w.WriteUInt32((uint)rate);
         w.WriteUInt32((uint)money);
         return PacketBuilder.BuildC1(0x88, w.ToArray());
@@ -1651,14 +1629,14 @@ public static class BloodCastlePacketBuilder
         w.WriteUInt16(curMonster);
         w.WriteUInt16(eventItemOwner);
         w.WriteByte(eventItemLevel);
-        // Relleno de cola: el struct alinea a 2 (por los WORD) y su último campo termina en el
-        // offset 12, así que sizeof = 14, no 13. Los campos caen bien sin esto, pero el tamaño
-        // declarado no coincide con el del original y un cliente que valide sizeof lo rechaza.
+        // Tail padding: the struct aligns to 2 (because of the WORDs) and its last field ends at offset 12, so
+        // sizeof = 14, not 13. The fields fall in the right place without this, but the declared size does not
+        // match the original's and a client that validates sizeof rejects it.
         w.WriteByte(0);
         return PacketBuilder.BuildC1(0x9B, w.ToArray());
     }
 
-    /// <summary>PMSG_BLOOD_CASTLE_SCORE_SEND (C1:93) -- Puntuación final y entrega de recompensa.</summary>
+    /// <summary>PMSG_BLOOD_CASTLE_SCORE_SEND (C1:93) -- Final score and reward delivery.</summary>
     public static byte[] BloodCastleScoreSend(byte type, byte flag, string name, uint score, uint exp, uint zen)
     {
         var w = new PacketWriter();
@@ -1677,10 +1655,10 @@ public static class BloodCastlePacketBuilder
 
 public static class SocialDataServerPacketBuilder
 {
-    /// <summary>SDHP_GLOBAL_WHISPER_SEND (GS->DS), C1:72 -- espejo exacto de lo que
-    /// MuServer.DataServer/Protocol/DataServerPackets.cs::GlobalWhisperRecv.Parse espera leer.
-    /// Puerto de GDGlobalWhisperSend (Protocol.cpp), usado cuando gObjFind no encuentra al
-    /// destinatario en ESTE GameServer.</summary>
+    /// <summary>SDHP_GLOBAL_WHISPER_SEND (GS->DS), C1:72 -- exact mirror of what
+    /// MuServer.DataServer/Protocol/DataServerPackets.cs::GlobalWhisperRecv.Parse expects to read. Port of
+    /// GDGlobalWhisperSend (Protocol.cpp), used when gObjFind does not find the recipient on THIS
+    /// GameServer.</summary>
     public static byte[] GlobalWhisperRequest(ushort index, string account, string name, string targetName, string message)
     {
         var w = new PacketWriter();
@@ -1693,10 +1671,10 @@ public static class SocialDataServerPacketBuilder
     }
 }
 
-/// <summary>SDHP_GLOBAL_WHISPER_SEND (DS->GS de vuelta al remitente), C1:72 -- espejo exacto de
-/// DataServerPacketBuilder.GlobalWhisperSend. Puerto de DGGlobalWhisperRecv (Protocol.cpp):
-/// result=0 -> "destinatario no encontrado en ningún GameServer" (GCServerMsgSend); result=1 ->
-/// ya se le entregó vía DGGlobalWhisperEchoRecv en el GameServer del destinatario.</summary>
+/// <summary>SDHP_GLOBAL_WHISPER_SEND (DS->GS back to the sender), C1:72 -- exact mirror of
+/// DataServerPacketBuilder.GlobalWhisperSend. Port of DGGlobalWhisperRecv (Protocol.cpp): result=0 ->
+/// "recipient not found on any GameServer" (GCServerMsgSend); result=1 -> it was already delivered via
+/// DGGlobalWhisperEchoRecv on the recipient's GameServer.</summary>
 public sealed record GlobalWhisperResultFromDataServer(ushort Index, string Account, string Name, byte Result, string TargetName, string Message)
 {
     public static GlobalWhisperResultFromDataServer Parse(byte[] p)
@@ -1712,10 +1690,10 @@ public sealed record GlobalWhisperResultFromDataServer(ushort Index, string Acco
     }
 }
 
-/// <summary>SDHP_GLOBAL_WHISPER_ECHO_SEND (DS->GS del destinatario), C1:73 -- espejo exacto de
-/// DataServerPacketBuilder.GlobalWhisperEchoSend. Puerto de DGGlobalWhisperEchoRecv
-/// (Protocol.cpp): llega al GameServer donde el destinatario está conectado de verdad, con su
-/// propio Index/Account/Name (no los del remitente) + el nombre de quien susurra + el mensaje.</summary>
+/// <summary>SDHP_GLOBAL_WHISPER_ECHO_SEND (DS->recipient's GS), C1:73 -- exact mirror of
+/// DataServerPacketBuilder.GlobalWhisperEchoSend. Port of DGGlobalWhisperEchoRecv (Protocol.cpp): it arrives at
+/// the GameServer where the recipient is really connected, with their own Index/Account/Name (not the sender's)
+/// + the name of whoever whispers + the message.</summary>
 public sealed record GlobalWhisperEchoFromDataServer(ushort Index, string Account, string Name, string SourceName, string Message)
 {
     public static GlobalWhisperEchoFromDataServer Parse(byte[] p)
@@ -1730,20 +1708,19 @@ public sealed record GlobalWhisperEchoFromDataServer(ushort Index, string Accoun
     }
 }
 
-// ---------------------------------------------------------------- Fase 5: amigos (primera pasada)
-// Puerto simplificado de GameServer/Friend.cpp (adaptador delgado hacia DataServer) + Friend.h
-// (opcodes/structs del lado cliente). El correo entre amigos (T_FriendMail) no está portado -- ver
-// comentario de db/postgres/004_friends.sql. El protocolo DataServer<->GameServer (head 0xB0) usa un
-// esquema de sub-códigos propio, más simple que el PSBMSG_HEAD 1-a-1 del original -- ver comentario
-// en MuServer.DataServer/Protocol/DataServerPackets.cs.
+// ---------------------------------------------------------------- Phase 5: friends (first pass) Simplified
+// port of GameServer/Friend.cpp (thin adapter towards DataServer) + Friend.h (client-side opcodes/structs).
+// Friend mail (T_FriendMail) is not ported -- see the comment of db/postgres/004_friends.sql. The
+// DataServer<->GameServer protocol (head 0xB0) uses a sub-code scheme of its own, simpler than the original's
+// 1-to-1 PSBMSG_HEAD -- see the comment in MuServer.DataServer/Protocol/DataServerPackets.cs.
 
-/// <summary>PMSG_FRIEND_LIST_RECV, C1:C0 -- sin cuerpo. No documentado explícitamente como opcode
-/// separado en Friend.h (el research solo confirma el _SEND), pero hace falta algún disparador para
-/// que el cliente pida la lista -- se asume que comparte head con el _SEND (mismo patrón ya usado en
-/// este puerto para CHARACTER_LIST y PARTY_LIST, ambos comparten un único head en las dos direcciones).</summary>
+/// <summary>PMSG_FRIEND_LIST_RECV, C1:C0 -- no body. Not documented explicitly as a separate opcode in Friend.h
+/// (the research only confirms the _SEND), but some trigger is needed for the client to ask for the list -- it
+/// is assumed to share the head with the _SEND (the same pattern already used in this port for CHARACTER_LIST
+/// and PARTY_LIST, both of which share a single head in both directions).</summary>
 public sealed record FriendListClientRecv;
 
-/// <summary>PMSG_FRIEND_REQUEST_RECV, C1:C1 -- Name[10] = a quién se quiere agregar.</summary>
+/// <summary>PMSG_FRIEND_REQUEST_RECV, C1:C1 -- Name[10] = who is to be added.</summary>
 public sealed record FriendRequestClientRecv(string TargetName)
 {
     public static FriendRequestClientRecv Parse(byte[] p)
@@ -1753,8 +1730,8 @@ public sealed record FriendRequestClientRecv(string TargetName)
     }
 }
 
-/// <summary>PMSG_FRIEND_RESULT_RECV, C1:C2 -- result=aceptar/rechazar, Name[10]=quien mandó la
-/// solicitud original.</summary>
+/// <summary>PMSG_FRIEND_RESULT_RECV, C1:C2 -- result=accept/reject, Name[10]=whoever sent the original
+/// request.</summary>
 public sealed record FriendResultClientRecv(byte Result, string RequesterName)
 {
     public static FriendResultClientRecv Parse(byte[] p)
@@ -1766,7 +1743,7 @@ public sealed record FriendResultClientRecv(byte Result, string RequesterName)
     }
 }
 
-/// <summary>PMSG_FRIEND_DELETE_RECV, C1:C3 -- Name[10] = a quién se quiere borrar.</summary>
+/// <summary>PMSG_FRIEND_DELETE_RECV, C1:C3 -- Name[10] = who is to be deleted.</summary>
 public sealed record FriendDeleteClientRecv(string TargetName)
 {
     public static FriendDeleteClientRecv Parse(byte[] p)
@@ -1795,8 +1772,8 @@ public static class FriendPacketBuilder
         return PacketBuilder.BuildC1(0xC0, w.ToArray());
     }
 
-    /// <summary>PMSG_FRIEND_REQUEST_SEND, C1:C1 -- push al DESTINATARIO avisándole que alguien lo
-    /// quiere agregar.</summary>
+    /// <summary>PMSG_FRIEND_REQUEST_SEND, C1:C1 -- push to the RECIPIENT telling them that someone wants to add
+    /// them.</summary>
     public static byte[] FriendRequestSend(byte result, string name, byte server)
     {
         var w = new PacketWriter();
@@ -1806,9 +1783,9 @@ public static class FriendPacketBuilder
         return PacketBuilder.BuildC1(0xC1, w.ToArray());
     }
 
-    /// <summary>PMSG_FRIEND_RESULT_SEND, C1:C2 -- confirmación de que ahora son amigos (se manda a
-    /// ambos lados: al que aceptó, con el nombre de quien pidió la amistad, y a quien la pidió, con
-    /// el nombre de quien la aceptó).</summary>
+    /// <summary>PMSG_FRIEND_RESULT_SEND, C1:C2 -- confirmation that they are now friends (sent to both sides:
+    /// to whoever accepted, with the name of whoever asked for the friendship, and to whoever asked, with the
+    /// name of whoever accepted it).</summary>
     public static byte[] FriendResultSend(string name)
     {
         var w = new PacketWriter();
@@ -1988,45 +1965,45 @@ public sealed record FriendStateFromDataServer(ushort OwnerIndex, string OwnerAc
     }
 }
 
-// ---------------------------------------------------------------- Fase 5: party (primera pasada)
-// Puerto de Party.h/Party.cpp -- invitar/aceptar/salir/expulsar/lista/vida periódica + reparto de
-// experiencia en grupo (ver ClientProtocolHandler.GrantPartyExperienceAsync). PartyMatching (tablón
-// de búsqueda de grupo) queda fuera de esta pasada -- ver nota de "safe to defer" en el brief de
-// investigación de la Fase 5 (no es una dependencia del party básico, es una UI de browsing aparte).
+// ---------------------------------------------------------------- Phase 5: party (first pass) Port of
+// Party.h/Party.cpp -- invite/accept/leave/kick/list/periodic life + party experience sharing (see
+// ClientProtocolHandler.GrantPartyExperienceAsync). PartyMatching (party search board) is left out of this pass
+// -- see the "safe to defer" note in the Phase 5 research brief (it is not a dependency of the basic party, it
+// is a separate browsing UI).
 
-/// <summary>PMSG_PARTY_REQUEST_RECV, C1:40 -- index = objetivo de la invitación.</summary>
+/// <summary>PMSG_PARTY_REQUEST_RECV, C1:40 -- index = target of the invitation.</summary>
 public sealed record PartyRequestRecv(int TargetIndex)
 {
     public static PartyRequestRecv Parse(byte[] p) => new((p[3] << 8) | p[4]);
 }
 
-/// <summary>PMSG_PARTY_REQUEST_RESULT_RECV, C1:41 -- result=aceptar/rechazar, index = quien invitó
-/// (para que el servidor valide que la respuesta corresponde a una invitación realmente pendiente).</summary>
+/// <summary>PMSG_PARTY_REQUEST_RESULT_RECV, C1:41 -- result=accept/reject, index = who invited (so that the
+/// server validates that the reply corresponds to a really pending invitation).</summary>
 public sealed record PartyRequestResultRecv(byte Result, int InviterIndex)
 {
     public static PartyRequestResultRecv Parse(byte[] p) => new(p[3], (p[4] << 8) | p[5]);
 }
 
-/// <summary>PMSG_PARTY_DEL_MEMBER_RECV, C1:43 -- number = slot propio (salir) o de otro miembro
-/// (expulsar, solo si quien lo manda es el líder).</summary>
+/// <summary>PMSG_PARTY_DEL_MEMBER_RECV, C1:43 -- number = own slot (leave) or another member's (kick, only if
+/// the sender is the leader).</summary>
 public sealed record PartyDelMemberRecv(byte Number)
 {
     public static PartyDelMemberRecv Parse(byte[] p) => new(p[3]);
 }
 
-/// <summary>Un renglón de PMSG_PARTY_LIST (24 bytes en el wire: 22 de campos + 2 de relleno de
-/// alineación que MSVC inserta antes de <c>CurLife</c>) -- puerto EXACTO de <c>Party.h</c> del árbol
-/// fuente correcto ("Emulator 0.99 (2.1.7)/GameServer" -- ver el doc-comment de
-/// <see cref="World.Item"/> para la explicación de por qué este repo tiene dos árboles de C++ y cuál
-/// es el real): <c>name[10],number,map,x,y,CurLife(DWORD),MaxLife(DWORD)</c>. REVERTIDO: no existe
-/// ServerCode ni mana en este struct -- eran campos fabricados de una pasada de porting anterior que
-/// investigó contra el árbol equivocado (una temporada posterior). Confirmado también contra el
-/// builder real <c>CParty::GCPartyListSend</c> (Party.cpp:594-650), que solo llena estos 7 campos.</summary>
+/// <summary>A row of PMSG_PARTY_LIST (24 bytes on the wire: 22 of fields + 2 of alignment padding that MSVC
+/// inserts before <c>CurLife</c>) -- EXACT port of <c>Party.h</c> of the correct source tree ("Emulator 0.99
+/// (2.1.7)/GameServer" -- see the doc-comment of <see cref="World.Item"/> for the explanation of why this repo
+/// has two C++ trees and which one is the real one):
+/// <c>name[10],number,map,x,y,CurLife(DWORD),MaxLife(DWORD)</c>. REVERTED: there is no ServerCode nor mana in
+/// this struct -- they were fabricated fields from an earlier porting pass that investigated against the wrong
+/// tree (a later season). Also confirmed against the real builder <c>CParty::GCPartyListSend</c>
+/// (Party.cpp:594-650), which only fills these 7 fields.</summary>
 public sealed record PartyListEntry(string Name, byte Number, byte Map, byte X, byte Y, uint CurLife, uint MaxLife);
 
 public static class PartyPacketBuilder
 {
-    /// <summary>PMSG_PARTY_REQUEST_SEND, C1:40 -- avisa al invitado quién lo está invitando.</summary>
+    /// <summary>PMSG_PARTY_REQUEST_SEND, C1:40 -- tells the invitee who is inviting them.</summary>
     public static byte[] PartyRequestSend(int inviterIndex)
     {
         var w = new PacketWriter();
@@ -2035,16 +2012,16 @@ public static class PartyPacketBuilder
         return PacketBuilder.BuildC1(0x40, w.ToArray());
     }
 
-    /// <summary>PMSG_PARTY_RESULT_SEND, C1:41 -- resultado al que invitó (0=falló/rechazado,
-    /// 2=grupo lleno/no se pudo crear, 4=el objetivo ya estaba en un grupo).</summary>
+    /// <summary>PMSG_PARTY_RESULT_SEND, C1:41 -- result to whoever invited (0=failed/rejected, 2=party
+    /// full/could not be created, 4=the target was already in a party).</summary>
     public static byte[] PartyResultSend(byte result)
     {
         return PacketBuilder.BuildC1(0x41, new[] { result });
     }
 
-    /// <summary>PMSG_PARTY_LIST_SEND, C1:42 -- result=0 (sin grupo) o 1 (con grupo) + lista de
-    /// miembros. Se manda a TODOS los miembros cada vez que la composición del grupo cambia (puerto
-    /// de GCPartyListSend), y también a quien la pida on-demand.</summary>
+    /// <summary>PMSG_PARTY_LIST_SEND, C1:42 -- result=0 (no party) or 1 (with party) + list of members. Sent to
+    /// ALL members every time the party composition changes (port of GCPartyListSend), and also to whoever asks
+    /// for it on demand.</summary>
     public static byte[] PartyListSend(byte result, IReadOnlyList<PartyListEntry> members)
     {
         var w = new PacketWriter();
@@ -2059,11 +2036,11 @@ public static class PartyPacketBuilder
             w.WriteByte(m.X);
             w.WriteByte(m.Y);
 
-            // Party.h no usa #pragma pack(1): tras name[10]+number+map+x+y vamos en el offset 14 y
-            // el DWORD CurLife necesita alineación a 4, así que MSVC inserta 2 bytes de relleno
-            // (sizeof(PMSG_PARTY_LIST) = 24, no 22). El original copia el struct entero por miembro
-            // (memcpy(&send[size],&info,sizeof(info)), Party.cpp:535), así que van en el wire.
-            w.WriteUInt16(0); // relleno de alineación (offset 14 -> 16)
+            // Party.h does not use #pragma pack(1): after name[10]+number+map+x+y we are at offset 14 and the
+            // DWORD CurLife needs 4-byte alignment, so MSVC inserts 2 padding bytes (sizeof(PMSG_PARTY_LIST) =
+            // 24, not 22). The original copies the whole struct per member
+            // (memcpy(&send[size],&info,sizeof(info)), Party.cpp:535), so they go on the wire.
+            w.WriteUInt16(0); // alignment padding (offset 14 -> 16)
 
             w.WriteUInt32(m.CurLife);
             w.WriteUInt32(m.MaxLife);
@@ -2072,20 +2049,19 @@ public static class PartyPacketBuilder
         return PacketBuilder.BuildC1(0x42, w.ToArray());
     }
 
-    /// <summary>PMSG_PARTY_DEL_MEMBER_SEND, C1:43 -- sin cuerpo, le dice al cliente REMOVIDO que
-    /// limpie su interfaz de grupo (puerto de GCPartyDelMemberSend).</summary>
+    /// <summary>PMSG_PARTY_DEL_MEMBER_SEND, C1:43 -- no body, tells the REMOVED client to clear its party
+    /// interface (port of GCPartyDelMemberSend).</summary>
     public static byte[] PartyDelMemberSend()
     {
         return PacketBuilder.BuildC1(0x43, Array.Empty<byte>());
     }
 
-    /// <summary>PMSG_PARTY_LIFE_SEND, C1:44 -- puerto EXACTO de <c>CParty::GCPartyLifeSend</c>
-    /// (Party.cpp:666-700 del árbol fuente correcto). REVERTIDO: una pasada anterior había fabricado
-    /// un formato de 13 bytes/miembro (vida%+maná%+nombre) investigando contra el árbol equivocado.
-    /// El real es 1 BYTE por miembro: nibble alto = slot (<c>número*16</c>), nibble bajo = vida en
-    /// "décimos" (<c>Life/((MaxLife+AddLife)/10)</c>, 0-9) -- sin maná, sin nombre (el cliente ya
-    /// tiene la lista de nombres de PMSG_PARTY_LIST y solo necesita refrescar la barra de vida por
-    /// slot).</summary>
+    /// <summary>PMSG_PARTY_LIFE_SEND, C1:44 -- EXACT port of <c>CParty::GCPartyLifeSend</c> (Party.cpp:666-700
+    /// of the correct source tree). REVERTED: an earlier pass had fabricated a 13-byte/member format
+    /// (life%+mana%+name) investigating against the wrong tree. The real one is 1 BYTE per member: high nibble
+    /// = slot (<c>number*16</c>), low nibble = life in "tenths" (<c>Life/((MaxLife+AddLife)/10)</c>, 0-9) -- no
+    /// mana, no name (the client already has the name list from PMSG_PARTY_LIST and only needs to refresh the
+    /// life bar per slot).</summary>
     public static byte[] PartyLifeSend(IReadOnlyList<(byte Number, uint Life, uint MaxLife)> members)
     {
         var w = new PacketWriter();
@@ -2102,12 +2078,12 @@ public static class PartyPacketBuilder
     }
 }
 
-// ---------------------------------------------------------------- Fase 6: Devil Square (primera pasada)
-// Puerto de DevilSquare.h/.cpp + la porción "Devil Square" de Protocol.h/.cpp (CGDevilSquareEnterRecv,
-// CGEventRemainTimeRecv) + DSProtocol.h (GDRankingDevilSquareSaveSend, head 0x3F -- el lado DataServer
-// ya estaba completo desde antes de esta fase, ver DataServerProtocolHandler.OnRankingScoreSaveAsync).
-// Motor de estados y toda la lógica de entrada/puntaje/recompensa viven en World/DevilSquareManager.cs;
-// acá solo el layout de paquetes, igual que el resto de este archivo.
+// ---------------------------------------------------------------- Phase 6: Devil Square (first pass) Port of
+// DevilSquare.h/.cpp + the "Devil Square" portion of Protocol.h/.cpp (CGDevilSquareEnterRecv,
+// CGEventRemainTimeRecv) + DSProtocol.h (GDRankingDevilSquareSaveSend, head 0x3F -- the DataServer side was
+// already complete from before this phase, see DataServerProtocolHandler.OnRankingScoreSaveAsync). The state
+// engine and all the entry/score/reward logic live in World/DevilSquareManager.cs; here only the packet
+// layouts, like the rest of this file.
 
 /// <summary>PMSG_DEVIL_SQUARE_ENTER_RECV, C1:90 -- level = bracket pedido (0-based), slot = slot de
 /// INVENTARIO COMPLETO (incluye equipo, el servidor resta INVENTORY_WEAR_SIZE=12 antes de usarlo).</summary>
@@ -2116,30 +2092,29 @@ public sealed record DevilSquareEnterRecv(byte Level, byte Slot)
     public static DevilSquareEnterRecv Parse(byte[] p) => new(p[3], p[4]);
 }
 
-/// <summary>PMSG_EVENT_REMAIN_TIME_RECV, C1:91 -- EventType=1 es Devil Square (2/3/4 son Blood/Chaos/
-/// Illusion Temple, no portados). El servidor ignora ItemLevel y recalcula el bracket del propio
-/// jugador (ver DevilSquareManager.HandleRemainTimeQueryAsync) -- se parsea igual para no romper el
-/// framing, aunque no se use.</summary>
+/// <summary>PMSG_EVENT_REMAIN_TIME_RECV, C1:91 -- EventType=1 is Devil Square (2/3/4 are Blood/Chaos/ Illusion
+/// Temple, not ported). The server ignores ItemLevel and recomputes the player's own bracket (see
+/// DevilSquareManager.HandleRemainTimeQueryAsync) -- it is parsed anyway so as not to break framing, even
+/// though it is unused.</summary>
 public sealed record EventRemainTimeRecv(byte EventType, byte ItemLevel)
 {
     public static EventRemainTimeRecv Parse(byte[] p) => new(p[3], p[4]);
 }
 
-/// <summary>Un renglón de PMSG_DEVIL_SQUARE_SCORE (24 bytes en el wire: name[10]+2 de relleno de
-/// alineación+score(4)+rewardExp(4)+
-/// rewardMoney(4)) -- ver DevilSquareManager.BuildScoreEntry.</summary>
+/// <summary>A row of PMSG_DEVIL_SQUARE_SCORE (24 bytes on the wire: name[10]+2 alignment
+/// padding+score(4)+rewardExp(4)+ rewardMoney(4)) -- see DevilSquareManager.BuildScoreEntry.</summary>
 public sealed record DevilSquareScoreEntry(string Name, uint Score, uint RewardExperience, uint RewardMoney);
 
 public static class DevilSquarePacketBuilder
 {
-    /// <summary>PMSG_DEVIL_SQUARE_ENTER_SEND, C1:90 -- result: 0=ok, 1=nivel/slot/item inválido,
-    /// 2=ventana cerrada, 3=personaje muy alto de nivel para este bracket, 4=muy bajo, 5=lleno.</summary>
+    /// <summary>PMSG_DEVIL_SQUARE_ENTER_SEND, C1:90 -- result: 0=ok, 1=invalid level/slot/item, 2=window
+    /// closed, 3=character level too high for this bracket, 4=too low, 5=full.</summary>
     public static byte[] EnterSend(byte result) => PacketBuilder.BuildC1(0x90, new[] { result });
 
-    /// <summary>PMSG_EVENT_REMAIN_TIME_SEND, C1:91 -- RemainTimeH = minutos restantes (hasta que abra,
-    /// si todavía está cerrado) O EnteredUser = participantes actuales (si ya está abierto) -- mutuamente
-    /// excluyentes, igual que el original (ver investigación de esta fase). RemainTimeL siempre 0 en la
-    /// rama de Devil Square (el original tampoco lo escribe ahí).</summary>
+    /// <summary>PMSG_EVENT_REMAIN_TIME_SEND, C1:91 -- RemainTimeH = minutes left (until it opens, if still
+    /// closed) OR EnteredUser = current participants (if already open) -- mutually exclusive, like the original
+    /// (see this phase's research). RemainTimeL is always 0 in the Devil Square branch (the original does not
+    /// write it there either).</summary>
     public static byte[] RemainTimeSend(byte eventType, byte remainTimeH, byte enteredUser)
     {
         var w = new PacketWriter();
@@ -2150,15 +2125,15 @@ public static class DevilSquarePacketBuilder
         return PacketBuilder.BuildC1(0x91, w.ToArray());
     }
 
-    /// <summary>PMSG_TIME_COUNT_SEND, C1:92 -- klaxon de 30 segundos, sin texto (el catálogo de
-    /// mensajes no está portado, ver deuda técnica documentada en DevilSquareManager). type: 0=fase
-    /// EMPTY (broadcast a TODO el server), 1=fase STAND, 2=fase START (broadcast solo a participantes).</summary>
+    /// <summary>PMSG_TIME_COUNT_SEND, C1:92 -- 30-second klaxon, without text (the message catalogue is not
+    /// ported, see the technical debt documented in DevilSquareManager). type: 0=EMPTY phase (broadcast to the
+    /// WHOLE server), 1=STAND phase, 2=START phase (broadcast only to participants).</summary>
     public static byte[] TimeCountSend(byte type) => PacketBuilder.BuildC1(0x92, new[] { type });
 
-    /// <summary>PMSG_DEVIL_SQUARE_SCORE_SEND, C1:93 -- rank = puesto final del receptor (1-based),
-    /// seguido de hasta MAX_DS_RANK(10) entradas donde la #0 es SIEMPRE el propio receptor (repetido
-    /// más abajo en su posición real si entra en el top 9 -- quirk documentado en la investigación,
-    /// ver DevilSquareManager.SendScoreListAsync).</summary>
+    /// <summary>PMSG_DEVIL_SQUARE_SCORE_SEND, C1:93 -- rank = final position of the receiver (1-based),
+    /// followed by up to MAX_DS_RANK(10) entries where #0 is ALWAYS the receiver themselves (repeated further
+    /// down at their real position if they make the top 9 -- a quirk documented in the research, see
+    /// DevilSquareManager.SendScoreListAsync).</summary>
     public static byte[] ScoreSend(byte rank, IReadOnlyList<DevilSquareScoreEntry> entries)
     {
         var w = new PacketWriter();
@@ -2168,11 +2143,11 @@ public static class DevilSquarePacketBuilder
         foreach (var e in entries)
         {
             w.WriteFixedString(e.Name, 10);
-            // DevilSquare.h no usa #pragma pack(1): tras name[10] vamos en el offset 10 y el DWORD
-            // score se alinea a 4, así que MSVC inserta 2 bytes de relleno (sizeof = 24, no 22). El
-            // original copia el struct entero por entrada (memcpy(&send[size],&info,sizeof(info)),
-            // DevilSquare.cpp:1307-1308), así que van en el wire.
-            w.WriteUInt16(0); // relleno de alineación (offset 10 -> 12)
+            // DevilSquare.h does not use #pragma pack(1): after name[10] we are at offset 10 and the DWORD
+            // score aligns to 4, so MSVC inserts 2 padding bytes (sizeof = 24, not 22). The original copies the
+            // whole struct per entry (memcpy(&send[size],&info,sizeof(info)), DevilSquare.cpp:1307-1308), so
+            // they go on the wire.
+            w.WriteUInt16(0); // alignment padding (offset 10 -> 12)
             w.WriteUInt32(e.Score);
             w.WriteUInt32(e.RewardExperience);
             w.WriteUInt32(e.RewardMoney);
@@ -2182,11 +2157,11 @@ public static class DevilSquarePacketBuilder
     }
 }
 
-/// <summary>GameServer -> DataServer, cabecera compartida por 0x3D/0x3E/0x3F/0x40 (Blood/Chaos/Devil/
-/// Illusion Temple -- ver DSProtocol.h) -- espejo exacto de lo que
-/// MuServer.DataServer/Protocol/DataServerPackets.cs::RankingScoreSaveRecv.Parse espera leer (ya
-/// implementado del lado DataServer para los 4 heads, ver DataServerProtocolHandler:62-65). Fire-and-
-/// forget, sin respuesta.</summary>
+/// <summary>GameServer -> DataServer, header shared by 0x3D/0x3E/0x3F/0x40 (Blood/Chaos/Devil/ Illusion Temple
+/// -- see DSProtocol.h) -- exact mirror of what
+/// MuServer.DataServer/Protocol/DataServerPackets.cs::RankingScoreSaveRecv.Parse expects to read (already
+/// implemented on the DataServer side for the 4 heads, see DataServerProtocolHandler:62-65). Fire-and- forget,
+/// no reply.</summary>
 public static class EventDataServerPacketBuilder
 {
     public const byte HeadDevilSquare = 0x3F;
@@ -2202,13 +2177,12 @@ public static class EventDataServerPacketBuilder
     }
 }
 
-// ---------------------------------------------------------------- Fase "skills": magia y maná
+// ---------------------------------------------------------------- "Skills" phase: magic and mana
 
-/// <summary>PMSG_SKILL_ATTACK_RECV (SkillManager.h:102-108), C3:19 -- pedido de casteo de un skill de
-/// ataque de un solo objetivo (CSkillManager::CGSkillAttackRecv). Igual que el resto de los C3 de
-/// este puerto: GameClientFramer ya lo sintetiza a un paquete lógico C1 antes de llegar acá (el tipo
-/// real 0xC3/cifrado por bloques queda resuelto en la capa de framing), así que se parsea con el
-/// mismo layout de 3 bytes de cabecera que un C1 normal.</summary>
+/// <summary>PMSG_SKILL_ATTACK_RECV (SkillManager.h:102-108), C3:19 -- request to cast a single-target attack
+/// skill (CSkillManager::CGSkillAttackRecv). Like the rest of this port's C3s: GameClientFramer already
+/// synthesises it into a logical C1 packet before it gets here (the real type 0xC3/block encryption is resolved
+/// in the framing layer), so it is parsed with the same 3-byte header layout as a normal C1.</summary>
 public sealed record SkillAttackRecv(byte Skill, int TargetIndex, byte Dis)
 {
     public static SkillAttackRecv Parse(byte[] p)
@@ -2262,11 +2236,11 @@ public sealed record MultiSkillAttackRecv(byte Skill, byte X, byte Y, byte Seria
 
 public static class SkillPacketBuilder
 {
-    /// <summary>PMSG_SKILL_ATTACK_SEND (SkillManager.h:144-150), C3:19 -- puerto de
-    /// CSkillManager::GCSkillAttackSend (SkillManager.cpp:2665-2685): se manda tanto al propio
-    /// casteador (unicast) como, por viewport, a los que lo estén viendo -- ver
-    /// ClientProtocolHandler.OnSkillAttackAsync para el fan-out. Cifrado por bloques
-    /// (ClientSession.SendEncryptedAsync), igual que WorldPacketBuilder.TeleportSend.</summary>
+    /// <summary>PMSG_SKILL_ATTACK_SEND (SkillManager.h:144-150), C3:19 -- port of
+    /// CSkillManager::GCSkillAttackSend (SkillManager.cpp:2665-2685): it is sent both to the caster itself
+    /// (unicast) and, by viewport, to those watching -- see ClientProtocolHandler.OnSkillAttackAsync for the
+    /// fan-out. Block-encrypted (ClientSession.SendEncryptedAsync), like
+    /// WorldPacketBuilder.TeleportSend.</summary>
     public static byte[] SkillAttackSend(byte skill, int casterIndex, int targetIndex)
     {
         var w = new PacketWriter();
@@ -2278,7 +2252,7 @@ public static class SkillPacketBuilder
         return PacketBuilder.BuildC1(0x19, w.ToArray());
     }
 
-    /// <summary>PMSG_DURATION_SKILL_ATTACK_SEND (C3:1E) -- Emite la animación y casteo del hechizo a los observadores del mapa.</summary>
+    /// <summary>PMSG_DURATION_SKILL_ATTACK_SEND (C3:1E) -- Emits the spell animation and cast to the map's observers.</summary>
     public static byte[] DurationSkillAttackSend(int casterIndex, byte skill, byte x, byte y, byte dir)
     {
         var w = new PacketWriter();
@@ -2311,7 +2285,7 @@ public static class SkillPacketBuilder
         return PacketBuilder.BuildC1Sub(0xF3, 0x11, w.ToArray());
     }
 
-    /// <summary>PMSG_SKILL_LIST_SEND (C1:F3:11) count=0xFE -- Agrega una habilidad a la barra del cliente en tiempo real.</summary>
+    /// <summary>PMSG_SKILL_LIST_SEND (C1:F3:11) count=0xFE -- Adds a skill to the client's bar in real time.</summary>
     public static byte[] SkillAddSend(byte slot, ushort skillIndex, byte level = 0)
     {
         var w = new PacketWriter();
@@ -2348,10 +2322,10 @@ public sealed record PositionRecv(byte X, byte Y)
 
 public static class LifePacketBuilder
 {
-    /// <summary>PMSG_LIFE_SEND (Protocol.h:364-373), C1:26 -- puerto de GCLifeSend (Protocol.cpp:1527):
-    /// type=0xFE (MaxLife), type=0xFF (Current Life). En C++, ViewHP (DWORD) está alineado a 4 bytes,
-    /// quedando en el offset 8 (1 byte de relleno tras flag). Sin ese byte de relleno, el cliente lee
-    /// ViewHP corrido 8 bits produciendo números basura negativos.</summary>
+    /// <summary>PMSG_LIFE_SEND (Protocol.h:364-373), C1:26 -- port of GCLifeSend (Protocol.cpp:1527): type=0xFE
+    /// (MaxLife), type=0xFF (Current Life). In C++, ViewHP (DWORD) is aligned to 4 bytes, landing at offset 8
+    /// (1 padding byte after flag). Without that padding byte, the client reads ViewHP shifted 8 bits producing
+    /// negative garbage numbers.</summary>
     public static byte[] LifeSend(byte type, int life)
     {
         var w = new PacketWriter();
@@ -2368,18 +2342,16 @@ public static class LifePacketBuilder
 
 public static class ManaPacketBuilder
 {
-    /// <summary>PMSG_MANA_SEND (Protocol.h:375-386), C1:27 -- puerto de GCManaSend (Protocol.cpp:1547):
-    /// mana/bp van empaquetados como WORD big-endian (SET_NUMBERHB/LB, igual que el resto de los
-    /// campos de 2 bytes "armados a mano" de este protocolo, NO como un WriteUInt16 little-endian
-    /// normal), clampeados a 0-65535 igual que GET_MAX_WORD_VALUE del original. GAMESERVER_EXTRA==1
-    /// en este build agrega ViewMP/ViewBP (DWORD) al final.
-    /// CORREGIDO (bug introducido en una pasada anterior de esta misma sesión): PMSG_MANA_SEND usa
-    /// PBMSG_HEAD (3 bytes: type+size+head, ver doc-comment de CombatPacketBuilder.DamageSend para la
-    /// explicación completa), NO PSBMSG_HEAD (4 bytes) -- es C1:27 directo, sin sub-código. Offset real
-    /// tras type+mana[2]+bp[2] = 3+1+2+2 = 8, que YA es múltiplo de 4 -- CERO bytes de relleno hacen
-    /// falta. Los 3 bytes que se agregaban de más corrían ViewMP/ViewBP y alargaban el paquete,
-    /// produciendo los mismos números de maná/BP basura que <see cref="CombatPacketBuilder.DamageSend"/>
-    /// producía con la vida/daño.</summary>
+    /// <summary>PMSG_MANA_SEND (Protocol.h:375-386), C1:27 -- port of GCManaSend (Protocol.cpp:1547): mana/bp
+    /// are packed as big-endian WORDs (SET_NUMBERHB/LB, like the rest of this protocol's hand-built 2-byte
+    /// fields, NOT as a normal little-endian WriteUInt16), clamped to 0-65535 like the original's
+    /// GET_MAX_WORD_VALUE. GAMESERVER_EXTRA==1 in this build adds ViewMP/ViewBP (DWORD) at the end. FIXED (bug
+    /// introduced in an earlier pass of this same session): PMSG_MANA_SEND uses PBMSG_HEAD (3 bytes:
+    /// type+size+head, see the doc-comment of CombatPacketBuilder.DamageSend for the full explanation), NOT
+    /// PSBMSG_HEAD (4 bytes) -- it is C1:27 directly, without sub-code. Real offset after type+mana[2]+bp[2] =
+    /// 3+1+2+2 = 8, which is ALREADY a multiple of 4 -- ZERO padding bytes are needed. The 3 bytes that were
+    /// added in excess shifted ViewMP/ViewBP and lengthened the packet, producing the same garbage mana/BP
+    /// numbers that <see cref="CombatPacketBuilder.DamageSend"/> produced with life/damage.</summary>
     public static byte[] ManaSend(byte type, int mana, int bp)
     {
         var w = new PacketWriter();
@@ -2396,14 +2368,14 @@ public static class ManaPacketBuilder
     }
 }
 
-// ---------------------------------------------------------------- Quest info / pet item info
-// (respuestas mínimas para que el cliente real no se quede reintentando -- sistemas de quests/pets
-// en sí no portados todavía, ver README).
+// ---------------------------------------------------------------- Quest info / pet item info (minimal replies
+// so that the real client does not keep retrying -- the quest/pet systems themselves are not ported yet, see
+// README).
 
-/// <summary>PMSG_PET_ITEM_INFO_RECV (Protocol.h:178-184), C1:A9 -- consulta de nivel/experiencia de
-/// un pet (Dark Horse/Dark Reaven) guardado en un slot de inventario. type: 0/1 (cuál de los dos
-/// pets), flag: 0=Inventory (único container soportado en esta pasada, igual que el resto del
-/// inventario -- ver ItemPacketBuilder), slot: índice dentro de ese container.</summary>
+/// <summary>PMSG_PET_ITEM_INFO_RECV (Protocol.h:178-184), C1:A9 -- query of the level/experience of a pet (Dark
+/// Horse/Dark Reaven) stored in an inventory slot. type: 0/1 (which of the two pets), flag: 0=Inventory (the
+/// only container supported in this pass, like the rest of the inventory -- see ItemPacketBuilder), slot: index
+/// within that container.</summary>
 public sealed record PetItemInfoRecv(byte Type, byte Flag, byte Slot)
 {
     public static PetItemInfoRecv Parse(byte[] p) => new(p[3], p[4], p[5]);
@@ -2411,11 +2383,11 @@ public sealed record PetItemInfoRecv(byte Type, byte Flag, byte Slot)
 
 public static class QuestPacketBuilder
 {
-    /// <summary>PMSG_QUEST_INFO_SEND (Quest.h:39-44), C1:A0 -- respuesta a CGQuestInfoRecv y a
-    /// GCQuestStateSend/NpcTalk (Quest.cpp:397-417,419-432: GCQuestStateSend siempre manda este
-    /// paquete primero). <paramref name="totalCount"/> es <c>m_QuestInfo.size()</c> real (total de
-    /// filas cargadas de Quest.txt, NO "1 misión disponible" -- ese hardcodeo de una pasada anterior
-    /// quedaba fijo en 1 sin importar cuántas misiones hubiera realmente).</summary>
+    /// <summary>PMSG_QUEST_INFO_SEND (Quest.h:39-44), C1:A0 -- reply to CGQuestInfoRecv and to
+    /// GCQuestStateSend/NpcTalk (Quest.cpp:397-417,419-432: GCQuestStateSend always sends this packet first).
+    /// <paramref name="totalCount"/> is the real <c>m_QuestInfo.size()</c> (total rows loaded from Quest.txt,
+    /// NOT "1 quest available" -- that hardcoding from an earlier pass stayed fixed at 1 no matter how many
+    /// quests there really were).</summary>
     public static byte[] QuestInfoSend(byte[] questBlob, int totalCount = 1)
     {
         var w = new PacketWriter();
@@ -2433,7 +2405,7 @@ public static class QuestPacketBuilder
         return PacketBuilder.BuildC1(0xA1, w.ToArray());
     }
 
-    /// <summary>PMSG_QUEST_RESULT_SEND (Quest.h:53-59), C1:A2 -- respuesta al diálogo de Sebina.</summary>
+    /// <summary>PMSG_QUEST_RESULT_SEND (Quest.h:53-59), C1:A2 -- reply to Sebina's dialog.</summary>
     public static byte[] QuestResultSend(byte questIndex, byte questResult, byte questState)
     {
         var w = new PacketWriter();
@@ -2443,14 +2415,14 @@ public static class QuestPacketBuilder
         return PacketBuilder.BuildC1(0xA2, w.ToArray());
     }
 
-    /// <summary>PMSG_QUEST_REWARD_SEND (Quest.h:61-70), C1:A3 -- puerto de CQuest::GCQuestRewardSend
-    /// (Quest.cpp:449-471), llamado desde CQuestReward::InsertQuestReward por cada recompensa
-    /// aplicada (POINT/CHANGE1/HERO/COMBO). <c>index</c> es el índice del propio jugador (no de la
-    /// misión); <paramref name="rewardType"/>/<paramref name="amount"/> son <c>lpInfo.Index</c>
-    /// (identifica QUÉ recompensa, ver <see cref="Config.QuestRewardType"/>) y el segundo parámetro
-    /// de cada llamada real (Quantity para POINT/COMBO, la clase recién armada para CHANGE1, el punto
-    /// calculado para HERO) respectivamente -- el original reusa el mismo paquete para los 4 tipos
-    /// con semántica distinta en <c>QuestAmount</c> según el tipo, replicado tal cual acá.</summary>
+    /// <summary>PMSG_QUEST_REWARD_SEND (Quest.h:61-70), C1:A3 -- port of CQuest::GCQuestRewardSend
+    /// (Quest.cpp:449-471), called from CQuestReward::InsertQuestReward for each reward applied
+    /// (POINT/CHANGE1/HERO/COMBO). <c>index</c> is the player's own index (not the quest's); <paramref
+    /// name="rewardType"/>/<paramref name="amount"/> are <c>lpInfo.Index</c> (identifies WHICH reward, see <see
+    /// cref="Config.QuestRewardType"/>) and the second parameter of each real call (Quantity for POINT/COMBO,
+    /// the class just built for CHANGE1, the computed point for HERO) respectively -- the original reuses the
+    /// same packet for the 4 types with different semantics in <c>QuestAmount</c> depending on the type,
+    /// replicated as is here.</summary>
     public static byte[] QuestRewardSend(int playerIndex, byte rewardType, byte amount, uint viewPoint)
     {
         var w = new PacketWriter();
@@ -2460,18 +2432,17 @@ public static class QuestPacketBuilder
         w.WriteByte(amount);
         // Tras header(3)+index[2]+QuestReward+QuestAmount vamos en el offset 7, y el DWORD ViewPoint
         // se alinea a 4 -> 1 byte de relleno (sizeof = 12, no 11).
-        w.WriteByte(0); // relleno de alineación (offset 7 -> 8)
+        w.WriteByte(0); // alignment padding (offset 7 -> 8)
         w.WriteUInt32(viewPoint); // GAMESERVER_EXTRA==1 (siempre en este build, ver stdafx.h)
         return PacketBuilder.BuildC1(0xA3, w.ToArray());
     }
 
-    /// <summary>PMSG_PET_ITEM_INFO_SEND (Protocol.h:462-470), C1:A9 -- eco de nivel/experiencia de un
-    /// pet. Este puerto no trackea PetItemLevel/PetItemExp todavía (ningún item de pet real llega a
-    /// spawnear con el balance actual), así que siempre contesta level=0/experience=0 -- suficiente
-    /// para que el cliente real no se quede esperando una respuesta que nunca llega. Nota: el propio
-    /// GCPetItemInfoSend original recibe un parámetro "durability" que NUNCA usa (no está en el
-    /// struct del paquete, Protocol.cpp:1779-1796) -- se omite acá por la misma razón, no es una
-    /// simplificación de este puerto.</summary>
+    /// <summary>PMSG_PET_ITEM_INFO_SEND (Protocol.h:462-470), C1:A9 -- echo of a pet's level/experience. This
+    /// port does not track PetItemLevel/PetItemExp yet (no real pet item spawns with the current balance), so
+    /// it always answers level=0/experience=0 -- enough for the real client not to keep waiting for a reply
+    /// that never arrives. Note: the original GCPetItemInfoSend itself receives a "durability" parameter that
+    /// it NEVER uses (it is not in the packet's struct, Protocol.cpp:1779-1796) -- it is omitted here for the
+    /// same reason, it is not a simplification of this port.</summary>
     public static byte[] PetItemInfoSend(byte type, byte flag, byte slot)
     {
         var w = new PacketWriter();
@@ -2481,20 +2452,20 @@ public static class QuestPacketBuilder
         w.WriteByte(0); // level
         // Tras header(3)+type+flag+slot+level vamos en el offset 7, y el UINT experience se alinea a
         // 4 -> 1 byte de relleno (sizeof = 12, no 11).
-        w.WriteByte(0); // relleno de alineación (offset 7 -> 8)
+        w.WriteByte(0); // alignment padding (offset 7 -> 8)
         w.WriteUInt32(0); // experience
         return PacketBuilder.BuildC1(0xA9, w.ToArray());
     }
 }
 
-// ---------------------------------------------------------------- NPCs y tiendas (primera pasada)
-// Puerto de NpcTalk.h/.cpp (solo CGNpcTalkRecv/CGNpcTalkCloseRecv, sin quests ni las clases
-// especiales de NPC -- Trainer/AngelKing/Charon/Warehouse/GuildMaster, ver README) + Shop.h/.cpp/
-// ShopManager.h/.cpp (comprar/vender, sin Trade/Warehouse/PersonalShop todavía).
+// ---------------------------------------------------------------- NPCs and shops (first pass) Port of
+// NpcTalk.h/.cpp (only CGNpcTalkRecv/CGNpcTalkCloseRecv, without quests nor the special NPC classes --
+// Trainer/AngelKing/Charon/Warehouse/GuildMaster, see README) + Shop.h/.cpp/ ShopManager.h/.cpp (buy/sell,
+// without Trade/Warehouse/PersonalShop yet).
 
-/// <summary>PMSG_NPC_TALK_RECV (NpcTalk.h:14-19), C1:30 -- index es el slot de <em>gObj[]</em> del
-/// NPC (el mismo espacio de índices que usa MonsterRegistry/PlayerRegistry en este puerto, ver
-/// comentario de Monster.ShopNumber), no un "número de tienda".</summary>
+/// <summary>PMSG_NPC_TALK_RECV (NpcTalk.h:14-19), C1:30 -- index is the <em>gObj[]</em> slot of the NPC (the
+/// same index space MonsterRegistry/PlayerRegistry use in this port, see the comment of Monster.ShopNumber),
+/// not a "shop number".</summary>
 public sealed record NpcTalkRecv(int NpcIndex)
 {
     public static NpcTalkRecv Parse(byte[] p) => new((p[3] << 8) | p[4]);
@@ -2528,10 +2499,10 @@ public static class ShopPacketBuilder
         return buff;
     }
 
-    /// <summary>PMSG_NPC_TALK_SEND (NpcTalk.h:21-25), C3:30 -- confirma que se puede hablar con el
-    /// NPC. result=0 siempre en esta pasada (solo se portó la rama "tienda" de CNpcTalk::NpcTalk,
-    /// que en el original manda result=0; las clases especiales -- Trainer/Charon/etc -- usan otros
-    /// valores de result que este puerto no genera porque no las implementa).</summary>
+    /// <summary>PMSG_NPC_TALK_SEND (NpcTalk.h:21-25), C3:30 -- confirms that the NPC can be talked to. result=0
+    /// always in this pass (only the "shop" branch of CNpcTalk::NpcTalk was ported, which in the original sends
+    /// result=0; the special classes -- Trainer/Charon/etc -- use other result values that this port does not
+    /// generate because it does not implement them).</summary>
     public static byte[] NpcTalkSend(byte result)
     {
         var w = new PacketWriter();
@@ -2539,17 +2510,17 @@ public static class ShopPacketBuilder
         return PacketBuilder.BuildC1(0x30, w.ToArray());
     }
 
-    /// <summary>PMSG_SHOP_ITEM_LIST_SEND (Shop.h:19-30), C2:31 (¡ojo!: mismo valor de head que
-    /// NpcTalkCloseRecv, pero es un paquete DISTINTO -- éste va server->client sin cifrar, C2 en vez
-    /// de C1, namespace de heads independiente por dirección igual que el resto del protocolo). type
-    /// siempre 0 en el original (no distingue variantes de tienda). count+repetido{slot,ItemInfo[5]}
-    /// -- mismo layout de 6 bytes por entrada que ItemListSend.</summary>
+    /// <summary>PMSG_SHOP_ITEM_LIST_SEND (Shop.h:19-30), C2:31 (watch out!: same head value as
+    /// NpcTalkCloseRecv, but it is a DIFFERENT packet -- this one goes server->client unencrypted, C2 instead
+    /// of C1, independent head namespace per direction like the rest of the protocol). type always 0 in the
+    /// original (it does not distinguish shop variants). count+repeated{slot,ItemInfo[5]} -- the same
+    /// 6-byte-per-entry layout as ItemListSend.</summary>
     public static byte[] ShopItemListSend(ShopInfo shop)
     {
         using var body = new MemoryStream();
         body.WriteByte(0); // type
         var countPos = body.Position;
-        body.WriteByte(0); // se corrige más abajo
+        body.WriteByte(0); // corrected further below
         int count = 0;
 
         Span<byte> info = stackalloc byte[Item.WireByteSize];
@@ -2575,10 +2546,10 @@ public static class ShopPacketBuilder
         return BuildC2NoSub(0x31, bytes);
     }
 
-    /// <summary>PMSG_ITEM_BUY_SEND (ItemManager.h:151-157), C1:32 -- result=0xFF es el marcador de
-    /// fallo (igual que CGItemBuyRecv del original: todas las validaciones fallidas mandan este mismo
-    /// paquete con result=0xFF en vez de cerrar la conexión o no responder). result de éxito = el
-    /// slot del inventario donde quedó el item.</summary>
+    /// <summary>PMSG_ITEM_BUY_SEND (ItemManager.h:151-157), C1:32 -- result=0xFF is the failure marker (like
+    /// the original's CGItemBuyRecv: all the failed validations send this same packet with result=0xFF instead
+    /// of closing the connection or not answering). Success result = the inventory slot where the item ended
+    /// up.</summary>
     public static byte[] ItemBuySend(byte result, Item item)
     {
         var w = new PacketWriter();
@@ -2589,9 +2560,8 @@ public static class ShopPacketBuilder
         return PacketBuilder.BuildC1(0x32, w.ToArray());
     }
 
-    /// <summary>PMSG_ITEM_SELL_SEND (ItemManager.h:159-163), C1:33 -- result=0 fallo/1 éxito (igual
-    /// que el resto de los booleanos de este protocolo), money=dinero TOTAL tras la venta (no el
-    /// delta).</summary>
+    /// <summary>PMSG_ITEM_SELL_SEND (ItemManager.h:159-163), C1:33 -- result=0 failure/1 success (like the rest
+    /// of this protocol's booleans), money=TOTAL money after the sale (not the delta).</summary>
     public static byte[] ItemSellSend(byte result, uint money)
     {
         var w = new PacketWriter();

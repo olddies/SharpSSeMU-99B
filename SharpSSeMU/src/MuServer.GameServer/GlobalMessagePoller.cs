@@ -4,11 +4,11 @@ using MuServer.GameServer.World;
 
 namespace MuServer.GameServer;
 
-/// <summary>Comando "mandar mensaje global" que MuServer.AdminPanel deja tirado como archivo --
-/// mismo espíritu que <see cref="StatusWriter"/> pero en la otra dirección (el panel escribe, el
-/// GameServer lee). Un archivo en vez de un socket/HTTP porque es un comando de baja frecuencia y
-/// de un solo tipo; si en el futuro se necesitan más comandos desde el panel, esto es candidato a
-/// generalizarse a una cola real -- no hace falta antes de tener un segundo caso de uso.</summary>
+/// <summary>"Send global message" command that MuServer.AdminPanel leaves lying around as a file -- same spirit
+/// as <see cref="StatusWriter"/> but in the other direction (the panel writes, the GameServer reads). A file
+/// instead of a socket/HTTP because it is a low-frequency, single-type command; if more commands are needed
+/// from the panel in the future, this is a candidate to be generalised into a real queue -- there is no need
+/// before having a second use case.</summary>
 public sealed record GlobalMessageCommand(string Id, string Message, byte Type);
 
 public sealed class GlobalMessagePoller
@@ -38,8 +38,8 @@ public sealed class GlobalMessagePoller
             }
             catch (Exception)
             {
-                // Un comando mal formado no debe tumbar el servidor -- se ignora y se reintenta en
-                // el próximo poll (si el panel lo reescribe corregido, se recoge normalmente).
+                // A malformed command must not take the server down -- it is ignored and retried on the next
+                // poll (if the panel rewrites it corrected, it is picked up normally).
             }
 
             try
@@ -79,8 +79,8 @@ public sealed class GlobalMessagePoller
             await player.Session.SendAsync(packet, ct);
         }
 
-        // Se borra para que un GameServer que arranca después no reenvíe un mensaje viejo que el
-        // panel ya dio por mandado -- el panel no necesita leer de vuelta este archivo, sólo escribirlo.
+        // It is deleted so that a GameServer that starts later does not resend an old message the panel already
+        // considered sent -- the panel does not need to read this file back, only write it.
         try
         {
             File.Delete(_path);

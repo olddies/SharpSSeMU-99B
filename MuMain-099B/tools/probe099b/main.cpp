@@ -1,15 +1,9 @@
-// Sonda del protocolo 0.99B contra un GameServer vivo.
-//
-// No es un test: los tests de tests/protocol099b/ verifican bytes y cifrado sin
-// red, y tienen que poder correr en CI sin servidor. Esta herramienta cubre lo
-// que aquellos no pueden -- que las claves, el cifrado de flujo, el de bloque y
-// el ofuscado se combinen bien contra el servidor real -- y por eso se ejecuta
-// a mano.
-//
-//   probe099b <host> <puerto> <cuenta> <clave> [serial]
-//
-// Hace login, pide la lista de personajes e imprime lo que llega. Si el cifrado
-// estuviera mal, el servidor cortaría la conexión sin responder nada.
+// Probe of the 0.99B protocol against a live GameServer. It is not a test: the tests in tests/protocol099b/
+// verify bytes and encryption without a network, and have to be able to run in CI without a server. This tool
+// covers what those cannot -- that the keys, the stream cipher, the block cipher and the obfuscation combine
+// correctly against the real server -- and that is why it is run by hand. probe099b <host> <port> <account>
+// <password> [serial] It logs in, asks for the character list and prints what arrives. If the encryption were
+// wrong, the server would cut the connection without answering anything.
 
 #include <winsock2.h>
 
@@ -25,8 +19,8 @@
 namespace
 {
 
-/// Nombre legible de los opcodes que esta sonda espera ver. Cualquier otro sale
-/// en crudo: la idea es reconocer el camino feliz, no decodificar todo.
+/// Readable name of the opcodes this probe expects to see. Any other comes out raw: the idea is to recognise
+/// the happy path, not to decode everything.
 const char* OpcodeName(uint8_t head, uint8_t sub)
 {
     if (head == 0xF1 && sub == 0x00) return "handshake / bienvenida";
@@ -46,8 +40,8 @@ const char* OpcodeName(uint8_t head, uint8_t sub)
     return nullptr;
 }
 
-/// Desarma PMSG_ITEM_LIST_SEND: el conteo y despues seis bytes por slot
-/// ocupado. Es lo que verifica que DecodeItemInfo entienda al servidor real.
+/// Unpacks PMSG_ITEM_LIST_SEND: the count and then six bytes per occupied slot. It is what verifies that
+/// DecodeItemInfo understands the real server.
 void DumpInventory(const std::vector<uint8_t>& bytes)
 {
     // C2 lleva el tamano en dos bytes, asi que el cuerpo empieza en el 5.
@@ -92,8 +86,8 @@ void DumpPacket(const Mu099B::DecodedPacket& packet)
         return;
     }
 
-    // El sub-opcode existe sólo en las cabeceras extendidas (0xF1 y siguientes);
-    // para el resto el byte 3 es ya carga util.
+    // The sub-opcode only exists in the extended headers (0xF1 onwards); for the rest byte 3 is already
+    // payload.
     const size_t headIndex = (bytes[0] == 0xC1 || bytes[0] == 0xC3) ? 2 : 3;
     const uint8_t head = headIndex < bytes.size() ? bytes[headIndex] : 0;
     const uint8_t sub = headIndex + 1 < bytes.size() ? bytes[headIndex + 1] : 0;
@@ -120,9 +114,8 @@ void DumpPacket(const Mu099B::DecodedPacket& packet)
     }
 }
 
-/// Consulta el socket hasta que llegue algo o se agote la espera. Devuelve
-/// false si la conexión se cortó, que es como se manifiesta un error de
-/// cifrado: el servidor no contesta, cierra.
+/// Polls the socket until something arrives or the wait runs out. Returns false if the connection was cut,
+/// which is how an encryption error shows up: the server does not answer, it closes.
 bool WaitForPackets(Mu099B::GameSocket& socket, int milliseconds)
 {
     const int stepMs = 50;
@@ -177,8 +170,8 @@ int main(int argc, char** argv)
     }
     std::printf("conectado.\n\n");
 
-    // El servidor saluda primero; ese saludo ya viaja cifrado, asi que leerlo
-    // bien es la primera prueba real de que las claves sirven.
+    // The server greets first; that greeting already travels encrypted, so reading it correctly is the first
+    // real proof that the keys work.
     std::printf("[saludo del servidor]\n");
     if (!WaitForPackets(socket, 3000))
     {
@@ -213,13 +206,11 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    // Entrar al mundo es lo que ejercita los campos de 32 bits del paquete de
-    // join, que en este dialecto son de 32 y no de 16.
-    // Crear un personaje es lo que ejercita el byte de clase, que tiene un
-    // empaquetado distinto al del CharSet. Si estuviera mal, el servidor
-    // contesta result=2 ("cuenta llena") aunque la cuenta esté vacía.
-    // Un guion en el nombre significa "no crear nada": los argumentos son
-    // posicionales y hay que poder saltear este paso.
+    // Entering the world is what exercises the 32-bit fields of the join packet, which in this dialect are 32
+    // and not 16. Creating a character is what exercises the class byte, which has a different packing from the
+    // CharSet's. If it were wrong, the server answers result=2 ("account full") even though the account is
+    // empty. A dash in the name means "create nothing": the arguments are positional and this step has to be
+    // skippable.
     const bool wantsCreate = argc > 7 && argv[6][0] != 0 && argv[6][0] != '-';
     if (wantsCreate)
     {
@@ -240,8 +231,8 @@ int main(int argc, char** argv)
         }
     }
 
-    // Si se pidió crear un personaje se entra con ese; si no, con el que diga
-    // argv[8], y en último caso con el nombre de siempre.
+    // If a character creation was requested, it enters with that one; otherwise, with the one argv[8] says, and
+    // lastly with the usual name.
     const char* enterName = argc > 8 ? argv[8] : (wantsCreate ? argv[6] : "Hero1");
     std::printf("\n[entrar al mundo como \"%s\"]\n", enterName);
     const auto select = Mu099B::BuildCharacterSelectRequest(enterName);
@@ -251,9 +242,8 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    // Al entrar, el servidor manda varios paquetes seguidos (datos del
-    // personaje, inventario, vista), asi que se sigue leyendo un rato en vez
-    // de cortar con el primero.
+    // On entering, the server sends several packets in a row (character data, inventory, view), so it keeps
+    // reading for a while instead of stopping at the first.
     for (int round = 0; round < 4; ++round)
     {
         if (!WaitForPackets(socket, 2000))
@@ -268,7 +258,7 @@ int main(int argc, char** argv)
         const auto to = static_cast<Mu099B::BYTE>(std::atoi(argv[10]));
         std::printf("\n[mover item del slot %u al %u]\n", from, to);
 
-        // El servidor ignora el ItemInfo del pedido: sólo mira los slots.
+        // The server ignores the request's ItemInfo: it only looks at the slots.
         const auto move = Mu099B::BuildItemMoveRequest(
             Mu099B::ItemContainer::Inventory, from, nullptr,
             Mu099B::ItemContainer::Inventory, to);

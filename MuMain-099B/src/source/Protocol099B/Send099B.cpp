@@ -11,12 +11,11 @@ namespace Mu099B
 namespace
 {
 
-/// Los campos de nombre del protocolo miden 10 bytes; con el terminador alcanza
-/// un buffer de 11 para convertir sin recortar de más.
+/// The protocol's name fields are 10 bytes; with the terminator, an 11-byte buffer is enough to convert without
+/// over-trimming.
 constexpr size_t NameFieldSize = 10;
 
-/// Los mensajes de chat tienen su propio largo, bastante mayor que el de los
-/// nombres.
+/// Chat messages have their own length, quite a bit longer than names.
 constexpr size_t MessageFieldSize = 60;
 
 template <typename TPacket>
@@ -25,9 +24,8 @@ void SendPacket(Connection& connection, const TPacket& packet)
     connection.Send(reinterpret_cast<const BYTE*>(&packet), sizeof(packet));
 }
 
-/// Pasa una cadena del cliente (UTF-16) a los bytes que espera el wire. El
-/// largo del campo es parte del tipo para que no se pueda mezclar el buffer de
-/// un nombre con el de un mensaje.
+/// Converts a client string (UTF-16) into the bytes the wire expects. The field length is part of the type so
+/// that a name's buffer cannot be mixed up with a message's.
 template <size_t FieldSize>
 struct NarrowText
 {
@@ -95,8 +93,7 @@ void SendCharacterSelect(Connection& connection, const wchar_t* name)
 void SendMove(Connection& connection, BYTE x, BYTE y, BYTE direction, const BYTE* steps,
               size_t stepCount)
 {
-    // El pedido es de largo variable, así que se manda exactamente lo que ocupa
-    // en vez del tamaño del struct.
+    // The request is variable-length, so exactly what it occupies is sent instead of the struct size.
     const auto request = BuildMoveRequest(x, y, direction, steps, stepCount);
     connection.Send(request.Data, request.Length);
 }
@@ -220,7 +217,7 @@ void SendTradeResponse(Connection& connection, bool accepted)
 
 void SendTradeMoney(Connection& connection, DWORD money)
 {
-    // No es un struct: se manda el largo declarado, no sizeof del contenedor.
+    // It is not a struct: the declared length is sent, not sizeof of the container.
     const auto request = BuildTradeMoneyRequest(money);
     connection.Send(request.Data, static_cast<int32_t>(TradeMoneyRequest::Length));
 }
@@ -255,7 +252,7 @@ void SendWarehousePassword(Connection& connection, BYTE type, WORD password,
 void SendMultiSkill(Connection& connection, BYTE skill, BYTE x, BYTE y, BYTE serial,
                     const WORD* targets, size_t targetCount)
 {
-    // Largo variable: se manda lo que ocupa, no el tamaño del contenedor.
+    // Variable length: what it occupies is sent, not the size of the container.
     const auto request = BuildMultiSkillRequest(skill, x, y, serial, targets, targetCount);
     connection.Send(request.Data, static_cast<int32_t>(request.Length));
 }
@@ -297,7 +294,7 @@ void SendGuildMasterOpen(Connection& connection, BYTE result)
 
 void SendGuildCreate(Connection& connection, const wchar_t* guildName, const BYTE* mark)
 {
-    // El nombre de gremio son ocho caracteres, no diez como los de personaje.
+    // A guild name is eight characters, not ten like character names.
     const NarrowText<8> narrowName(guildName);
     SendPacket(connection, BuildGuildCreateRequest(narrowName.Value, mark));
 }
@@ -380,7 +377,7 @@ void SendQuestInfo(Connection& connection)
 
 void SendHardwareId(Connection& connection, const wchar_t* hardwareId)
 {
-    // El campo mide 45 bytes, mucho más que un nombre.
+    // The field is 45 bytes, much more than a name.
     const NarrowText<45> narrowId(hardwareId);
     SendPacket(connection, BuildHardwareIdRequest(narrowId.Value));
 }

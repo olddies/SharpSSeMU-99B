@@ -15,27 +15,27 @@ builder.Services.AddRazorComponents()
 
 builder.Services.AddMudServices();
 
-// Rutas a los archivos de datos reales del GameServer -- el panel lee y escribe esos mismos
-// archivos, no una copia. Por defecto asume que este proyecto vive al lado de MuServer.GameServer
-// (src/MuServer.AdminPanel y src/MuServer.GameServer), como está en el repo; GameServer:DataPath en
-// appsettings.json lo puede pisar para otros despliegues.
+// Paths to the GameServer's real data files -- the panel reads and writes those same files, not a copy. By
+// default it assumes this project lives next to MuServer.GameServer (src/MuServer.AdminPanel and
+// src/MuServer.GameServer), as in the repo; GameServer:DataPath in appsettings.json can override it for other
+// deployments.
 var dataPath = builder.Configuration["GameServer:DataPath"]
     ?? Path.Combine(builder.Environment.ContentRootPath, "..", "MuServer.GameServer", "bin", "Debug", "net10.0", "Data");
 builder.Services.AddSingleton(new GameDataPaths(Path.GetFullPath(dataPath)));
 builder.Services.AddScoped<ServerStatusRepository>();
 
-// El editor de personajes habla directo con la base de DataServer (no hay archivo de por medio para
-// un personaje) -- misma cadena de conexión que ya usa el DataServer real, leída de su propio
-// DataServer.ini para no repetirla a mano en dos lugares; Database:ConnectionString en
-// appsettings.json la puede pisar para otro despliegue.
+// The character editor talks directly to the DataServer's database (there is no file in between for a
+// character) -- the same connection string the real DataServer already uses, read from its own DataServer.ini
+// so as not to repeat it by hand in two places; Database:ConnectionString in appsettings.json can override it
+// for another deployment.
 var dataServerIniPath = builder.Configuration["DataServer:IniPath"]
     ?? Path.Combine(builder.Environment.ContentRootPath, "..", "MuServer.DataServer", "bin", "Debug", "net10.0", "DataServer.ini");
 var pgConnectionString = builder.Configuration["Database:ConnectionString"]
     ?? MuServer.DataServer.Config.DataServerConfig.Load(dataServerIniPath).PostgresConnectionString;
 builder.Services.AddScoped(_ => new CharacterEditRepository(pgConnectionString));
 
-// El panel escribe la configuración del servidor, así que va detrás de una contraseña -- ver
-// Auth/AdminPassword.cs para de dónde sale.
+// The panel writes the server configuration, so it sits behind a password -- see Auth/AdminPassword.cs for
+// where it comes from.
 builder.Services.AddSingleton<AdminPassword>();
 builder.Services.AddScoped<Localizer>();
 builder.Services.AddHttpContextAccessor();
@@ -58,8 +58,8 @@ builder.Services.AddCascadingAuthenticationState();
 
 var app = builder.Build();
 
-// Se instancia al arrancar (y no en el primer request) para que el aviso con la contraseña generada
-// salga en la consola apenas se levanta el panel, no recién cuando alguien entra.
+// It is instantiated at start-up (and not on the first request) so that the notice with the generated password
+// appears on the console as soon as the panel is started, not only when someone logs in.
 _ = app.Services.GetRequiredService<AdminPassword>();
 
 if (!app.Environment.IsDevelopment())
@@ -79,9 +79,9 @@ app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
-// El login tiene que ser un POST normal: la cookie se escribe en la respuesta HTTP, y un circuito de
-// Blazor ya no puede tocar los headers cuando está corriendo. Va bajo /auth/ y no bajo /login porque
-// esa ruta ya la ocupa la página Razor del formulario, y dos endpoints en la misma ruta chocan.
+// The login has to be a normal POST: the cookie is written on the HTTP response, and a Blazor circuit can no
+// longer touch the headers while it is running. It lives under /auth/ and not under /login because that route
+// is already taken by the Razor page of the form, and two endpoints on the same route clash.
 app.MapPost("/auth/login", async (HttpContext http, AdminPassword adminPassword) =>
 {
     var form = await http.Request.ReadFormAsync();
@@ -104,8 +104,8 @@ app.MapPost("/auth/login", async (HttpContext http, AdminPassword adminPassword)
         CookieAuthenticationDefaults.AuthenticationScheme,
         new ClaimsPrincipal(identity));
 
-    // Sólo se acepta volver a una ruta local, para que un returnUrl armado a mano no pueda usar el
-    // login como redirector a otro sitio.
+    // Only returning to a local route is accepted, so that a hand-crafted returnUrl cannot use the login as a
+    // redirector to another site.
     var target = !string.IsNullOrEmpty(returnUrl) && Uri.IsWellFormedUriString(returnUrl, UriKind.Relative)
         ? returnUrl
         : "/";

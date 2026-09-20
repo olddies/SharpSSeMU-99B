@@ -7,16 +7,15 @@
 
 #include "Protocol099B/GameSocket099B.h"
 
-// Se declara sin tamaño a propósito: la constante vive en WSclient.h, que a su
-// vez incluye este header, y no vale la pena crear la dependencia circular sólo
-// por un número.
+// Declared without a size on purpose: the constant lives in WSclient.h, which in turn includes this header, and
+// it is not worth creating the circular dependency just for a number.
 extern BYTE Serial[];
 
 namespace
 {
 
-/// El host viene como wchar_t del cliente; getaddrinfo lo quiere en bytes. Las
-/// direcciones son ASCII, así que alcanza con truncar.
+/// The host comes as wchar_t from the client; getaddrinfo wants bytes. Addresses are ASCII, so truncating is
+/// enough.
 std::string NarrowHost(const wchar_t* host)
 {
     std::string result;
@@ -129,14 +128,13 @@ Connection::Connection(const wchar_t* host, int32_t port, bool isEncrypted, void
 
     if (isEncrypted)
     {
-        // Conexión de juego: transporte nativo. Las claves salen del Data/ del
-        // propio cliente y el serial tiene que ser el mismo que el ServerSerial
-        // del .ini del servidor, porque de ahí se deriva el cifrado de flujo.
+        // Game connection: native transport. The keys come from the client's own Data/ and the serial has to be
+        // the same as the server's ServerSerial in its .ini, because the stream cipher is derived from it.
         auto* native = new Mu099B::GameSocket();
 
         const std::string hostUtf8 = NarrowHost(host);
-        // Los 16 caracteres del serial; FromServerSerial los completa hasta los
-        // 17 bytes del campo, que es sobre lo que el servidor deriva la clave.
+        // The 16 characters of the serial; FromServerSerial pads them to the 17 bytes of the field, which is
+        // what the server derives the key from.
         constexpr size_t ProtocolSerialSize = 16;
         const std::string serial(reinterpret_cast<const char*>(Serial), ProtocolSerialSize);
 
@@ -144,7 +142,7 @@ Connection::Connection(const wchar_t* host, int32_t port, bool isEncrypted, void
                             "Data/Enc1.dat", "Data/Dec2.dat"))
         {
             _nativeSocket = native;
-            this->_handle = 1;  // handle simbólico: el transporte nativo no usa la tabla del C#
+            this->_handle = 1;  // symbolic handle: the native transport does not use the C# table
         }
         else
         {
@@ -177,8 +175,8 @@ Connection::Connection(const wchar_t* host, int32_t port, bool isEncrypted, void
         _chatServer->SetHandle(this->_handle);
         _connectServer->SetHandle(this->_handle);
         _gameServer->SetHandle(this->_handle);
-        // Sólo la conexión de juego tiene transporte nativo; el ConnectServer y
-        // el chat siguen yendo por la librería C#.
+        // Only the game connection has a native transport; the ConnectServer and chat still go through the C#
+        // library.
         _gameServer->SetNativeTransport(_nativeSocket != nullptr);
     }
 }

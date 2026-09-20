@@ -1,8 +1,6 @@
-// Cifrado de flujo del socket de GameServer (HackCheck EncryptData/DecryptData).
-//
-// Las claves esperadas se calcularon con una implementación independiente del
-// mismo algoritmo, no copiando este código: si la transcripción a C++ se
-// hubiera desviado, estos valores no darían.
+// Stream cipher of the GameServer socket (HackCheck EncryptData/DecryptData). The expected keys were computed
+// with an independent implementation of the same algorithm, not by copying this code: if the transcription to
+// C++ had deviated, these values would not match.
 
 #include <doctest.h>
 
@@ -25,15 +23,14 @@ Mu099B::StreamCipher FromSerial(const std::string& serial)
 
 TEST_CASE("Las claves salen del ServerSerial igual que en InitHackCheck")
 {
-    // 'SharpSSeMU99B-v1' es el serial que usan los tests end-to-end del servidor.
-    // Estos dos valores no salen de leer el código: salen de descifrar el saludo
-    // que manda un GameServer real, que es la única fuente que no puede estar de
-    // acuerdo con un error nuestro.
+    // 'SharpSSeMU99B-v1' is the serial used by the server's end-to-end tests. These two values do not come from
+    // reading the code: they come from decrypting the greeting sent by a real GameServer, which is the only
+    // source that cannot agree with a mistake of ours.
     const auto cipher = FromSerial("SharpSSeMU99B-v1");
     CHECK(cipher.Key1() == 0xE1);
     CHECK(cipher.Key2() == 0xD5);
 
-    // Un serial vacío deja las constantes desnudas del original (0xBB / 0xCC).
+    // An empty serial leaves the original's bare constants (0xBB / 0xCC).
     const auto empty = FromSerial("");
     CHECK(empty.Key1() == 0xBB);
     CHECK(empty.Key2() == 0xCC);
@@ -45,10 +42,9 @@ TEST_CASE("Las claves salen del ServerSerial igual que en InitHackCheck")
 
 TEST_CASE("El serial se rellena hasta los 17 bytes del campo")
 {
-    // La derivación cicla sobre el campo completo, no sobre lo que se escribió.
-    // Escribir el relleno a mano tiene que dar exactamente lo mismo que dejar
-    // que lo complete la función: si no, el largo del texto se cuela en la clave
-    // y el flujo entero sale corrido.
+    // The derivation cycles over the whole field, not over what was written. Writing the padding by hand has to
+    // give exactly the same as letting the function complete it: otherwise the text length leaks into the key
+    // and the whole stream comes out shifted.
     std::string padded("SharpSSeMU99B-v1");
     padded.resize(Mu099B::ServerSerialFieldSize);  // completa con nulos
     REQUIRE(padded.size() == 17);
@@ -80,9 +76,8 @@ TEST_CASE("Cifrar y descifrar devuelve el original")
 
 TEST_CASE("El cifrado es sin estado: no importa cómo se parta el flujo")
 {
-    // El framer alimenta lo que llegue del socket, que puede cortarse en
-    // cualquier lado. Si el cifrado tuviera estado, descifrar por pedazos daría
-    // distinto que descifrar todo junto.
+    // The framer feeds whatever comes from the socket, which can be cut anywhere. If the cipher had state,
+    // decrypting in pieces would give a different result than decrypting everything together.
     const auto cipher = FromSerial("SharpSSeMU99B-v1");
 
     std::vector<uint8_t> whole(64);

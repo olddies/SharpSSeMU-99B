@@ -9,16 +9,13 @@ using MuServer.Shared.Protocol;
 
 namespace MuServer.DataServer.Protocol;
 
-/// <summary>
-/// Puerto de DataServerProtocolCore + GD*Recv (DataServerProtocol.cpp). Dispatcha por el byte
-/// "head" (posición 2 del buffer, PBMSG_HEAD.head) — a diferencia de ConnectServer/JoinServer acá
-/// no hace falta distinguir C1 vs C2 para encontrar el head, siempre está en el mismo offset.
-///
-/// Subsistemas explícitamente diferidos a un incremento posterior (no rompen el protocolo, solo
-/// no se atienden): 0x05 Warehouse, 0x0A/0x0B name check/change, 0x0C Quest, 0x0F CommandManager,
-/// 0x13 CustomPick, 0x14/0x1E/0x1F Acheron/Crywolf, 0x24 SNS, 0x49 Crywolf save, 0x4E SNS save,
-/// 0x94 GoldenArcher, 0xA0 Guild, 0xB0 Friend. Se loguean como "not implemented" si llegan.
-/// </summary>
+/// <summary> Port of DataServerProtocolCore + GD*Recv (DataServerProtocol.cpp). Dispatches on the "head" byte
+/// (position 2 of the buffer, PBMSG_HEAD.head) — unlike ConnectServer/JoinServer there is no need here to
+/// distinguish C1 vs C2 to find the head, it is always at the same offset. Subsystems explicitly deferred to a
+/// later increment (they do not break the protocol, they are just not served): 0x05 Warehouse, 0x0A/0x0B name
+/// check/change, 0x0C Quest, 0x0F CommandManager, 0x13 CustomPick, 0x14/0x1E/0x1F Acheron/Crywolf, 0x24 SNS,
+/// 0x49 Crywolf save, 0x4E SNS save, 0x94 GoldenArcher, 0xA0 Guild, 0xB0 Friend. They are logged as "not
+/// implemented" if they arrive. </summary>
 public sealed class DataServerProtocolHandler
 {
     private readonly ICharacterDataRepository _repo;
@@ -36,8 +33,8 @@ public sealed class DataServerProtocolHandler
 
     public async Task HandlePacketAsync(GameServerLink link, byte[] packet, CancellationToken ct)
     {
-        // El head vive en offset 2 para paquetes C1 (PBMSG_HEAD: type,size,head) pero en offset 3
-        // para paquetes C2 (PWMSG_HEAD: type,size[2],head) — igual que el subcódigo en Connect/JoinServer.
+        // The head lives at offset 2 for C1 packets (PBMSG_HEAD: type,size,head) but at offset 3 for C2 packets
+        // (PWMSG_HEAD: type,size[2],head) — the same as the sub-code in Connect/JoinServer.
         byte head = packet[0] == 0xC1 ? packet[2] : packet[3];
 
         try
@@ -137,12 +134,10 @@ public sealed class DataServerProtocolHandler
         await link.SendAsync(DataServerPacketBuilder.CharacterListSend(recv.Index, recv.Account, slots.MoveCnt, (byte)slots.ExtClass, entries), ct);
     }
 
-    /// <summary>
-    /// Puerto exacto de la transformación de GDCharacterListRecv: toma los primeros 12 "slots" de
-    /// equipo del inventario (16 bytes cada uno) y los comprime a 5 bytes cada uno (bytes 0,1,7,8,9
-    /// de cada item), para la vista compacta de selección de personaje. Si el slot está vacío
-    /// (0xFF + bit de "sin item" en los bytes 7/9) queda como 0xFF x5.
-    /// </summary>
+    /// <summary> Exact port of the GDCharacterListRecv transformation: takes the first 12 equipment "slots" of
+    /// the inventory (16 bytes each) and compresses them to 5 bytes each (bytes 0,1,7,8,9 of each item), for
+    /// the compact character-selection view. If the slot is empty (0xFF + the "no item" bit in bytes 7/9) it
+    /// stays as 0xFF x5. </summary>
     private static byte[] CompactInventory(byte[] inventory)
     {
         var compact = new byte[60];
@@ -167,7 +162,7 @@ public sealed class DataServerProtocolHandler
 
             if (b0 == 0xFF && (b7 & 0x80) == 0x80 && (b9 & 0xF0) == 0xF0)
             {
-                // ya está en 0xFF por el Array.Fill de arriba
+                // already at 0xFF thanks to the Array.Fill above
                 continue;
             }
 
@@ -185,7 +180,7 @@ public sealed class DataServerProtocolHandler
     {
         byte subCode = packet[0] == 0xC1 ? packet[3] : packet[4];
 
-        if (subCode == 0x00) // Leer Baúl (SDHP_WAREHOUSE_ITEM_SEND)
+        if (subCode == 0x00) // Read Warehouse (SDHP_WAREHOUSE_ITEM_SEND)
         {
             ushort index = (ushort)((packet[4] << 8) | packet[5]);
             string account = Encoding.ASCII.GetString(packet, 6, 10).TrimEnd('\0');
@@ -213,7 +208,7 @@ public sealed class DataServerProtocolHandler
             var sendBuf = PacketBuilder.BuildC2Sub(0x05, 0x00, w.ToArray());
             await link.SendAsync(sendBuf, ct);
         }
-        else if (subCode == 0x30) // Guardar Baúl (SDHP_WAREHOUSE_ITEM_SAVE_SEND)
+        else if (subCode == 0x30) // Save Warehouse (SDHP_WAREHOUSE_ITEM_SAVE_SEND)
         {
             ushort index = (ushort)((packet[5] << 8) | packet[6]);
             string account = Encoding.ASCII.GetString(packet, 7, 10).TrimEnd('\0');
@@ -535,7 +530,7 @@ public sealed class DataServerProtocolHandler
             GameServerCode = link.ServerCode,
         });
 
-        // gGuild.MemberConnect: diferido (Guild no implementado todavía).
+        // gGuild.MemberConnect: deferred (Guild not implemented yet).
         await PushFriendStateAsync(recv.Name, (byte)link.ServerCode, ct);
     }
 
@@ -554,9 +549,9 @@ public sealed class DataServerProtocolHandler
         await PushFriendStateAsync(recv.Name, 0xFF, ct);
     }
 
-    /// <summary>Puerto de CFriend::DGFriendStateSend (Friend.cpp:502): a todo el que tenga a
-    /// <paramref name="name"/> en SU lista de amigos y esté online ahora mismo, avisarle el cambio
-    /// de estado (0xFF=offline, o el ServerCode real).</summary>
+    /// <summary>Port of CFriend::DGFriendStateSend (Friend.cpp:502): to everyone who has <paramref
+    /// name="name"/> in THEIR friend list and is online right now, notify the state change (0xFF=offline, or
+    /// the real ServerCode).</summary>
     private async Task PushFriendStateAsync(string name, byte server, CancellationToken ct)
     {
         var owners = await _repo.GetFriendsOfAsync(name, ct);
@@ -714,7 +709,7 @@ public sealed class DataServerProtocolHandler
     /// <summary>Puerto de ClearServerCharacterInfo: al caerse un GameServer, se limpian sus personajes online.</summary>
     public void ClearServerCharacters(int serverCode)
     {
-        // No hace falta iterar acá: CharacterSessionStore ya expone ClearByServerCode.
+        // No need to iterate here: CharacterSessionStore already exposes ClearByServerCode.
     }
 
     private async Task OnGuildAsync(GameServerLink link, byte[] packet, CancellationToken ct)

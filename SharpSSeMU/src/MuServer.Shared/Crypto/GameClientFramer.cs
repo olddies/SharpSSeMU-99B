@@ -1,24 +1,18 @@
 using MuServer.Shared.Localization;
 namespace MuServer.Shared.Crypto;
 
-/// <summary>
-/// Framer completo del protocolo cliente-real del GameServer original (mucho más complejo que
-/// PacketFramer.cs, que solo sirve para ConnectServer/JoinServer/DataServer). Replica exactamente
-/// CSocketManager::OnRecv + DataRecv + CPacketManager::ExtractPacket:
-///
-///   1) Los bytes crudos recién leídos del socket se descifran en el lugar con GameStreamCipher
-///      (cifrado de flujo sin estado, byte a byte — no importa en qué chunk llegan).
-///   2) Se separan paquetes por cabecera C1/C2 (planos) o C3/C4 (cifrados por bloques).
-///   3) Los paquetes C3/C4 se descifran con PacketCipher (bloques de 11→8 bytes) y se "sintetizan"
-///      de vuelta a un paquete lógico C1/C2 (el primer byte descifrado es un número de serie, no
-///      el head real — se descarta/registra pero no se valida todavía, ver nota HackCheck).
-///   4) A TODOS los paquetes (ya sean C1/C2 originales o el resultado sintetizado de C3/C4) se les
-///      aplica XorData: una des-ofuscación XOR encadenada sobre los bytes después de la cabecera.
-///
-/// Solo C1 y C3 están realmente en uso en este paquete original (no hay ningún struct C2/C4 del
-/// lado cliente-servidor en Protocol.h) — el soporte C2/C4 se implementa por completitud pero no
-/// tiene el mismo nivel de verificación que C1/C3.
-/// </summary>
+/// <summary> Full framer of the real-client protocol of the original GameServer (much more complex than
+/// PacketFramer.cs, which only serves ConnectServer/JoinServer/DataServer). It exactly replicates
+/// CSocketManager::OnRecv + DataRecv + CPacketManager::ExtractPacket: 1) The raw bytes just read from the
+/// socket are decrypted in place with GameStreamCipher (stateless stream cipher, byte by byte — it does not
+/// matter in which chunk they arrive). 2) Packets are separated by header C1/C2 (plain) or C3/C4
+/// (block-encrypted). 3) C3/C4 packets are decrypted with PacketCipher (11→8 byte blocks) and "synthesised"
+/// back into a logical C1/C2 packet (the first decrypted byte is a serial number, not the real head — it is
+/// discarded/recorded but not validated yet, see the HackCheck note). 4) To ALL packets (whether original C1/C2
+/// or the synthesised result of C3/C4) XorData is applied: a chained XOR de-obfuscation over the bytes after
+/// the header. Only C1 and C3 are really in use in this original package (there is no C2/C4 struct on the
+/// client-server side in Protocol.h) — C2/C4 support is implemented for completeness but does not have the same
+/// level of verification as C1/C3. </summary>
 public sealed class GameClientFramer
 {
     public sealed record DecodedPacket(byte[] Data, int Serial, bool WasEncrypted);
@@ -89,7 +83,7 @@ public sealed class GameClientFramer
 
             if (count + size > _size)
             {
-                break; // paquete incompleto, esperar más datos
+                break; // incomplete packet, wait for more data
             }
 
             if (type == 0xC1 || type == 0xC2)
@@ -101,9 +95,9 @@ public sealed class GameClientFramer
             }
             else
             {
-                // El cifrado por bloques arranca justo después de type+size (igual que DataRecv original:
-                // Decrypt(&DecBuff[1],&lpMsg[count+2],(size-2)) para C3, offset+3/size-3 para C4 -- SIN
-                // bytes extra de por medio). El primer byte YA DESCIFRADO es el "serial", no el head real.
+                // The block cipher starts right after type+size (same as the original DataRecv:
+                // Decrypt(&DecBuff[1],&lpMsg[count+2],(size-2)) for C3, offset+3/size-3 for C4 -- WITHOUT extra
+                // bytes in between). The ALREADY DECRYPTED first byte is the "serial", not the real head.
                 int cipherOffset = count + headerLen;
                 int cipherLen = size - headerLen;
 

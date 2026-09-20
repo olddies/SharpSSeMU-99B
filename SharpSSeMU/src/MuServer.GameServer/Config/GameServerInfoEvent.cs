@@ -2,32 +2,25 @@ using MuServer.Shared.Config;
 
 namespace MuServer.GameServer.Config;
 
-/// <summary>
-/// Puerto de cobertura COMPLETA de <c>GameServerInfo - Event.dat</c> (parte de <c>CServerInfo</c>,
-/// ServerInfo.h/.cpp del árbol correcto -- ver doc-comment de <see cref="ServerInfoConfig"/> para la
-/// explicación completa de por qué ese es el árbol correcto). A diferencia de las clases "curadas"
-/// existentes (<see cref="ServerInfoConfig"/>, <see cref="CharacterBalanceConfig"/>, que solo cargan
-/// los campos con un consumidor real ya portado), esta clase carga TODOS los 16 campos de
-/// este archivo (25 claves de .ini, algunos son arrays por AccountLevel 0-3 o por clase
-/// DW/DK/FE/MG/DL) -- incluyendo los que todavía no tiene ningún sistema portado detrás. El objetivo
-/// es que ningún valor de este archivo quede hardcodeado en C#: si el .dat real está presente en
-/// <c>Data/</c>, todo lo que contenga se lee tal cual (mismos nombres de clave que
-/// <c>GetPrivateProfileInt</c> usa en el original); si falta el archivo, cada campo cae al default 0,
-/// que es EXACTAMENTE el default que usa <c>GetPrivateProfileInt(section,"Clave",0,path)</c> en el
-/// C++ real (confirmado leyendo ServerInfo.cpp completo -- todos los defaults ahí son literalmente 0,
-/// los valores "reales" de fábrica viven enteramente en el .dat shippeado, no en el código fuente).
-///
-/// Nombres de propiedad = nombre del campo real de <c>CServerInfo</c> sin el prefijo <c>m_</c> (para
-/// poder diffear 1:1 contra ServerInfo.h). Arrays <c>[MAX_ACCOUNT_LEVEL=4]</c> quedan como
-/// <c>int[4]</c> indexado 0-3 (AL0..AL3); arrays por clase quedan <c>int[5]</c> indexado
-/// DW=0,DK=1,FE=2,MG=3,DL=4 (mismo orden que <see cref="World.PlayerObject"/>); las pocas matrices
-/// <c>[clase][clase]</c> o <c>[nivel][AL]</c> quedan como <c>int[,]</c>.
-///
-/// Un campo estando cargado acá NO implica que el sistema que lo usaría en el original ya esté
-/// portado -- ver el catálogo de sistemas faltantes documentado en <see cref="ServerInfoConfig"/> y en
-/// el README. Esta clase es la capa de datos; conectarla a un sistema de juego nuevo es trabajo
-/// aparte, sistema por sistema.
-/// </summary>
+/// <summary> Port with FULL coverage of <c>GameServerInfo - Event.dat</c> (part of <c>CServerInfo</c>,
+/// ServerInfo.h/.cpp of the correct tree -- see the doc-comment of <see cref="ServerInfoConfig"/> for the full
+/// explanation of why that is the correct tree). Unlike the existing "curated" classes (<see
+/// cref="ServerInfoConfig"/>, <see cref="CharacterBalanceConfig"/>, which only load the fields with a real
+/// consumer already ported), this class loads ALL 16 fields of this file (25 .ini keys, some are arrays per
+/// AccountLevel 0-3 or per class DW/DK/FE/MG/DL) -- including those that no ported system sits behind yet. The
+/// goal is that no value from this file stays hardcoded in C#: if the real .dat is present in <c>Data/</c>,
+/// whatever it contains is read as is (same key names that <c>GetPrivateProfileInt</c> uses in the original);
+/// if the file is missing, each field falls back to the default 0, which is EXACTLY the default
+/// <c>GetPrivateProfileInt(section,"Key",0,path)</c> uses in the real C++ (confirmed by reading the whole
+/// ServerInfo.cpp -- all the defaults there are literally 0, the "real" factory values live entirely in the
+/// shipped .dat, not in the source code). Property names = name of the real <c>CServerInfo</c> field without
+/// the <c>m_</c> prefix (so that it can be diffed 1:1 against ServerInfo.h). Arrays
+/// <c>[MAX_ACCOUNT_LEVEL=4]</c> stay as <c>int[4]</c> indexed 0-3 (AL0..AL3); per-class arrays stay as
+/// <c>int[5]</c> indexed DW=0,DK=1,FE=2,MG=3,DL=4 (same order as <see cref="World.PlayerObject"/>); the few
+/// <c>[class][class]</c> or <c>[level][AL]</c> matrices stay as <c>int[,]</c>. A field being loaded here does
+/// NOT imply that the system that would use it in the original is already ported -- see the catalogue of
+/// missing systems documented in <see cref="ServerInfoConfig"/> and in the README. This class is the data
+/// layer; wiring it to a new game system is separate work, system by system. </summary>
 public sealed class GameServerInfoEvent
 {
     private const string Section = "GameServerInfo";

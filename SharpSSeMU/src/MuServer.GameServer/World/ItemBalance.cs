@@ -3,17 +3,13 @@ using MuServer.Shared.Scripting;
 
 namespace MuServer.GameServer.World;
 
-/// <summary>
-/// Puerto de ITEM_INFO (ItemManager.h) -- una fila de balance de Data/Item/Item.txt (Fase 4, segunda
-/// pasada: balance real de combate). El layout de columnas varía por sección (0-15 = categoría del
-/// item, ver comentario de cabecera de <see cref="ItemBalanceTable.Load"/>); esta clase junta todos
-/// los campos posibles de cualquier sección en un solo tipo (como MonsterInfo), dejando en 0/vacío
-/// los que no aplican a la sección de esa fila en particular.
-///
-/// OJO con <see cref="Level"/>: es la columna "Level" de la FILA de balance (una especie de "nivel de
-/// poder" fijo del tipo de item, ej. "Kris" Level=6), completamente distinto de <see cref="Item.Level"/>
-/// (el nivel de mejora +0..+15 de la instancia concreta del item en el inventario de un jugador).
-/// </summary>
+/// <summary> Port of ITEM_INFO (ItemManager.h) -- a balance row of Data/Item/Item.txt (Phase 4, second pass:
+/// real combat balance). The column layout varies by section (0-15 = item category, see the header comment of
+/// <see cref="ItemBalanceTable.Load"/>); this class gathers all possible fields of any section into a single
+/// type (like MonsterInfo), leaving at 0/empty those that do not apply to that particular row's section. WATCH
+/// OUT for <see cref="Level"/>: it is the "Level" column of the balance ROW (a kind of fixed "power level" of
+/// the item type, e.g. "Kris" Level=6), completely different from <see cref="Item.Level"/> (the +0..+15 upgrade
+/// level of the concrete instance of the item in a player's inventory). </summary>
 public sealed class ItemBalance
 {
     public required int Index { get; init; } // Item.GetItem(Section, Sub)
@@ -32,14 +28,14 @@ public sealed class ItemBalance
     public int DamageMin { get; init; }
     public int DamageMax { get; init; }
     public int AttackSpeed { get; init; }
-    public int Durability { get; init; } // durabilidad de fábrica (no confundir con Item.Durability, la actual)
+    public int Durability { get; init; } // factory durability (not to be confused with Item.Durability, the current one)
     public int MagicDurability { get; init; }
     public int MagicDamageRate { get; init; }
     public int Defense { get; init; }
     public int DefenseSuccessRate { get; init; }
     public int MagicDefense { get; init; }
     public int WalkSpeed { get; init; }
-    public int Value { get; init; } // sección 14 (joyas/pociones): precio de tienda
+    public int Value { get; init; } // section 14 (jewels/potions): shop price
 
     public int RequireLevel { get; init; }
     public int RequireStrength { get; init; }
@@ -49,12 +45,11 @@ public sealed class ItemBalance
     public int RequireLeadership { get; init; }
     public int BuyMoney { get; init; }
     public int SetAttr { get; init; }
-    public int[] Resistance { get; init; } = new int[7]; // sección 13: hielo/veneno/rayo/fuego/tierra/viento/agua
+    public int[] Resistance { get; init; } = new int[7]; // section 13: ice/poison/lightning/fire/earth/wind/water
 
-    /// <summary>Uso por clase (DW,DK,FE,MG,DL, en ese orden) -- el archivo trae valores 0/1/2 (0=no
-    /// puede usarlo, 1/2=sí, el 2 aparece en alas/joyas de 2da generación). Se guarda crudo tal cual
-    /// para cuando la validación de equipo se porte de verdad; el balance de daño/defensa de esta
-    /// pasada no lo necesita.</summary>
+    /// <summary>Usage per class (DW,DK,FE,MG,DL, in that order) -- the file carries values 0/1/2 (0=cannot use
+    /// it, 1/2=can, the 2 appears on 2nd-generation wings/jewels). It is stored raw as is for when equipment
+    /// validation is really ported; this pass's damage/defense balance does not need it.</summary>
     public int[] RequireClass { get; init; } = new int[5];
 
     public bool IsWeapon => Section is >= 0 and <= 5;
@@ -64,20 +59,18 @@ public sealed class ItemBalance
     /// sentido para armas (secciones 0-5).</summary>
     public bool TwoHand => IsWeapon && Width >= 2;
 
-    /// <summary>Munición (flecha/perno, sección 4 pero sin daño propio: DamageMin=DamageMax=0 en
-    /// Item.txt) -- se equipa en la mano izquierda junto a un arco/ballesta y NO cuenta como "arma"
-    /// para las reglas de doble-empuñadura/daño de mano izquierda; su nivel de mejora sí aporta un
-    /// bono porcentual al daño del arco (ver PlayerObject.RecalcCombatStats).</summary>
+    /// <summary>Ammunition (arrow/bolt, section 4 but with no damage of its own: DamageMin=DamageMax=0 in
+    /// Item.txt) -- it is equipped in the left hand together with a bow/crossbow and does NOT count as a
+    /// "weapon" for the dual-wield/left-hand damage rules; its upgrade level does contribute a percentage bonus
+    /// to the bow's damage (see PlayerObject.RecalcCombatStats).</summary>
     public bool IsAmmo => Section == 4 && DamageMin == 0 && DamageMax == 0;
 }
 
-/// <summary>
-/// Puerto de CItemManager::Load (ItemManager.cpp:52-259) -- lee Data/Item/Item.txt (formato MemScript,
-/// 16 secciones numeradas 0-15, cada una con su propio layout de columnas después de las 9 columnas
-/// comunes; layout confirmado línea por línea contra los comentarios de cabecera del archivo real).
-/// No incluye el sistema de niveles de excelencia/opciones (ItemOption.txt/SetItemOption.txt) ni el
-/// escalado por nivel +0..+15 (eso vive en <see cref="ItemCombatMath"/>, aplicado sobre esta tabla).
-/// </summary>
+/// <summary> Port of CItemManager::Load (ItemManager.cpp:52-259) -- reads Data/Item/Item.txt (MemScript format,
+/// 16 numbered sections 0-15, each with its own column layout after the 9 common columns; layout confirmed line
+/// by line against the real file's header comments). It does not include the excellent levels/options system
+/// (ItemOption.txt/SetItemOption.txt) nor the +0..+15 level scaling (that lives in <see
+/// cref="ItemCombatMath"/>, applied over this table). </summary>
 public sealed class ItemBalanceTable
 {
     private readonly Dictionary<int, ItemBalance> _byIndex = new();
@@ -138,7 +131,7 @@ public sealed class ItemBalanceTable
 
                 switch (section)
                 {
-                    case >= 0 and <= 5: // armas: espada/hacha/maza/lanza/arco/báculo
+                    case >= 0 and <= 5: // weapons: sword/axe/mace/spear/bow/staff
                     {
                         int level = script.GetAsNumber();
                         int damageMin = script.GetAsNumber();
@@ -198,7 +191,7 @@ public sealed class ItemBalanceTable
                         break;
                     }
 
-                    case 7 or 8 or 9: // casco/armadura/pantalón
+                    case 7 or 8 or 9: // helm/armor/pants
                     {
                         int level = script.GetAsNumber();
                         int defense = script.GetAsNumber();
@@ -308,7 +301,7 @@ public sealed class ItemBalanceTable
                         break;
                     }
 
-                    case 13: // mascotas/joyas de anillo-pendiente/misceláneo
+                    case 13: // pets/ring-pendant jewels/miscellaneous
                     {
                         int level = script.GetAsNumber();
                         int durability = script.GetAsNumber();
@@ -367,8 +360,8 @@ public sealed class ItemBalanceTable
                     }
 
                     default:
-                        // Sección desconocida (el archivo real solo trae 0-15) -- se descarta el resto de la
-                        // fila token por token para no desincronizar el resto del parseo.
+                        // Unknown section (the real file only carries 0-15) -- the rest of the row is discarded
+                        // token by token so as not to desynchronise the rest of the parsing.
                         while (true)
                         {
                             var s = script.GetAsString();
@@ -386,18 +379,15 @@ public sealed class ItemBalanceTable
         return _byIndex.Count;
     }
 
-    /// <summary>
-    /// Puerto simplificado de CMonsterManager::GetMonsterItem (MonsterManager.cpp:284-320): entre
-    /// todos los items con <c>DropItem=true</c> cuyo <see cref="ItemBalance.Level"/> "encaja" con el
-    /// nivel del monstruo (<c>(ItemLevel+4) >= MonsterLevel &amp;&amp; (ItemLevel-2) &lt;= MonsterLevel</c>,
-    /// fórmula exacta del original), elige uno al azar de forma uniforme. Simplificado: el original
-    /// pre-arma una tabla de candidatos por nivel de monstruo al cargar Item.txt (m_MonsterItemInfo,
-    /// hasta 100 candidatos/nivel) y filtra excelente/socket-elegibilidad en el momento del roll; acá
-    /// se recalcula la lista de candidatos en cada roll con una pasada lineal sobre todos los items
-    /// cargados (unas pocas centenas en un Item.txt real, insignificante en costo) y NO se filtra por
-    /// elegibilidad excelente/socket (ese sistema de rareza-extra no está portado en esta pasada, ver
-    /// README) -- cualquier item candidato puede salir como drop normal.
-    /// </summary>
+    /// <summary> Simplified port of CMonsterManager::GetMonsterItem (MonsterManager.cpp:284-320): among all the
+    /// items with <c>DropItem=true</c> whose <see cref="ItemBalance.Level"/> "fits" the monster's level
+    /// (<c>(ItemLevel+4) >= MonsterLevel &amp;&amp; (ItemLevel-2) &lt;= MonsterLevel</c>, exact formula of the
+    /// original), it picks one at random uniformly. Simplified: the original pre-builds a table of candidates
+    /// per monster level on loading Item.txt (m_MonsterItemInfo, up to 100 candidates/level) and filters
+    /// excellent/socket eligibility at roll time; here the candidate list is recomputed on each roll with a
+    /// linear pass over all the loaded items (a few hundred in a real Item.txt, negligible cost) and it does
+    /// NOT filter by excellent/socket eligibility (that extra-rarity system is not ported in this pass, see
+    /// README) -- any candidate item can come out as a normal drop. </summary>
     public ItemBalance? PickRandomDropItem(int monsterLevel, Random rng)
     {
         var candidates = new List<ItemBalance>();

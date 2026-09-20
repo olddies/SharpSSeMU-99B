@@ -10,11 +10,9 @@ using MuServer.Shared.Protocol;
 
 namespace MuServer.GameServer.Protocol;
 
-/// <summary>
-/// Puerto de ProtocolCore (Protocol.cpp) — Fase 1 (login) + Fase 2 (selección de personaje, entrar
-/// al mundo, viewport de jugadores, movimiento). El resto de los códigos (chat, items, ataque,
-/// gremios...) se agregan en fases posteriores; por ahora solo se loguean si llegan.
-/// </summary>
+/// <summary> Port of ProtocolCore (Protocol.cpp) — Phase 1 (login) + Phase 2 (character selection, entering the
+/// world, player viewport, movement). The rest of the codes (chat, items, attack, guilds...) are added in later
+/// phases; for now they are only logged if they arrive. </summary>
 public sealed class ClientProtocolHandler
 {
     private readonly GameServerConfig _config;
@@ -43,18 +41,18 @@ public sealed class ClientProtocolHandler
     private readonly ConcurrentDictionary<int, ClientSession> _pendingCharacterCreate = new();
     private static readonly Random Rng = Random.Shared;
 
-    /// <summary>Puerto de MAX_PARTY_DISTANCE (Party.h) -- rango (en tiles, no viewport) usado para
-    /// decidir qué miembros del grupo participan del reparto de experiencia al matar un monstruo.</summary>
+    /// <summary>Port of MAX_PARTY_DISTANCE (Party.h) -- range (in tiles, not viewport) used to decide which
+    /// party members take part in the experience share when a monster is killed.</summary>
     private const int MaxPartyDistance = 10;
 
-    /// <summary>Puerto de <c>gServerInfo.m_ItemDropTime</c> (<c>GameServerInfo - Common.dat</c>, ver
-    /// <see cref="ServerInfoConfig.ItemDropTimeSeconds"/>) -- tiempo de vida de un item tirado
-    /// en el piso antes de desaparecer solo. Calculado (no <c>readonly</c>) para leer el valor real
-    /// seteado en <c>WorldPacketBuilder.ServerInfo</c> por Program.cs al arrancar.</summary>
+    /// <summary>Port of <c>gServerInfo.m_ItemDropTime</c> (<c>GameServerInfo - Common.dat</c>, see <see
+    /// cref="ServerInfoConfig.ItemDropTimeSeconds"/>) -- lifetime of an item dropped on the ground before it
+    /// disappears on its own. Computed (not <c>readonly</c>) so as to read the real value set in
+    /// <c>WorldPacketBuilder.ServerInfo</c> by Program.cs at start-up.</summary>
     private static TimeSpan GroundItemLifetime => TimeSpan.FromSeconds(WorldPacketBuilder.ServerInfo.ItemDropTimeSeconds);
 
-    /// <summary>Puerto exacto de <c>m_ItemDropTime*500</c> (MapItem.cpp:29-99) -- la mitad del tiempo
-    /// de vida total en milisegundos, mismo cálculo que el original.</summary>
+    /// <summary>Exact port of <c>m_ItemDropTime*500</c> (MapItem.cpp:29-99) -- half the total lifetime in
+    /// milliseconds, the same calculation as the original.</summary>
     private static TimeSpan GroundItemLootLock => TimeSpan.FromMilliseconds(WorldPacketBuilder.ServerInfo.ItemDropTimeSeconds * 500);
 
     private readonly MessageTable? _messages;
@@ -112,15 +110,13 @@ public sealed class ClientProtocolHandler
         await session.SendAsync(packet, ct);
     }
 
-    /// <summary>
-    /// Puerto de ObjectManager.cpp (bloque OBJECT_USER de CloseClient/DelClient): SIEMPRE avisa a
-    /// JoinServer de la desconexión (GJDisconnectAccountSend), incluso si la cuenta quedó vacía (login
-    /// no llegó a completarse) — el original lo manda incondicionalmente para el slot de usuario, no
-    /// solo tras un login exitoso. Sin esto, JoinServer sigue creyendo la cuenta "conectada" y el
-    /// siguiente intento de login del mismo cliente devuelve resultado 3 (ya conectada) en vez del
-    /// resultado real. Si el jugador había entrado al mundo, también se lo saca del registro y se
-    /// avisa a DataServer (0x71) para que libere el slot en memoria.
-    /// </summary>
+    /// <summary> Port of ObjectManager.cpp (OBJECT_USER block of CloseClient/DelClient): ALWAYS notifies
+    /// JoinServer of the disconnection (GJDisconnectAccountSend), even if the account was left empty (login did
+    /// not complete) — the original sends it unconditionally for the user slot, not only after a successful
+    /// login. Without this, JoinServer keeps believing the account is "connected" and the same client's next
+    /// login attempt returns result 3 (already connected) instead of the real result. If the player had entered
+    /// the world, they are also removed from the registry and DataServer is notified (0x71) so that it frees
+    /// the slot in memory. </summary>
     public async Task OnDisconnectAsync(ClientSession session, CancellationToken ct)
     {
         _pendingLogins.TryRemove(session.Index, out _);
@@ -130,18 +126,18 @@ public sealed class ClientProtocolHandler
 
         if (session.Player != null)
         {
-            // Puerto de CloseClient -> CParty::DelMember (el original también saca al jugador de su
-            // grupo al desconectarse, no solo cuando manda PMSG_PARTY_DEL_MEMBER_RECV explícito).
-            // notifyRemoved=false: no tiene sentido mandarle un paquete a un socket que se está cerrando.
+            // Port of CloseClient -> CParty::DelMember (the original also removes the player from their party
+            // on disconnecting, not only when they send an explicit PMSG_PARTY_DEL_MEMBER_RECV).
+            // notifyRemoved=false: there is no point sending a packet to a socket that is closing.
             await RemovePlayerFromPartyAsync(session.Player, ct, notifyRemoved: false);
 
             _players.Remove(session.Index);
 
-            // Puerto exacto del orden real (ObjectManager.cpp:623-627, DelCharacterInfo):
-            // GDCharacterInfoSaveSend SIEMPRE se manda justo ANTES de GDDisconnectCharacterSend, sin
-            // excepción ni throttle -- es el guardado incondicional de "me estoy yendo, grabá mi
-            // estado actual ya" (a diferencia del guardado periódico/por combate, que sí tienen
-            // throttle). Ver doc-comment de DataServerCharacterPacketBuilder.CharacterInfoSaveSend.
+            // Exact port of the real order (ObjectManager.cpp:623-627, DelCharacterInfo):
+            // GDCharacterInfoSaveSend is ALWAYS sent right BEFORE GDDisconnectCharacterSend, with no exception
+            // or throttle -- it is the unconditional "I'm leaving, save my current state now" save (unlike the
+            // periodic/combat save, which do have a throttle). See the doc-comment of
+            // DataServerCharacterPacketBuilder.CharacterInfoSaveSend.
             await SaveCharacterAsync(session.Player, ct);
 
             await _dataServer.SendAsync(
@@ -156,18 +152,15 @@ public sealed class ClientProtocolHandler
         }
     }
 
-    /// <summary>
-    /// Puerto de GDCharacterInfoSaveSend (DSProtocol.cpp:991-1047): manda a DataServer el snapshot
-    /// completo del personaje (stats, inventario, skill, quest, efectos, PK, y crucialmente
-    /// Map/X/Y/Dir) para que <c>NpgsqlCharacterDataRepository.SaveCharacterAsync</c> lo persista.
-    /// Sin llamar a esto en algún lado, la fila de <c>character</c> nunca se actualiza después de
-    /// creada -- este método es el ÚNICO productor del paquete C2:0x30, así que cualquier llamador
-    /// nuevo (comandos GM, Trade, PersonalShop, etc. cuando se porten) debería reusarlo en vez de
-    /// construir el paquete a mano. Sin throttle acá adentro a propósito -- cada llamador decide su
-    /// propia condición (incondicional en desconexión, 60s en <see cref="ApplyExperienceGainAsync"/>,
-    /// 10min en el autoguardado periódico de <see cref="World.ViewportTicker"/>), igual que el
-    /// original reparte esa lógica entre los call sites en vez de centralizarla.
-    /// </summary>
+    /// <summary> Port of GDCharacterInfoSaveSend (DSProtocol.cpp:991-1047): sends DataServer the full snapshot
+    /// of the character (stats, inventory, skill, quest, effects, PK, and crucially Map/X/Y/Dir) so that
+    /// <c>NpgsqlCharacterDataRepository.SaveCharacterAsync</c> persists it. Without calling this somewhere, the
+    /// <c>character</c> row is never updated after being created -- this method is the ONLY producer of the
+    /// C2:0x30 packet, so any new caller (GM commands, Trade, PersonalShop, etc. when they are ported) should
+    /// reuse it instead of building the packet by hand. No throttle in here on purpose -- each caller decides
+    /// its own condition (unconditional on disconnect, 60s in <see cref="ApplyExperienceGainAsync"/>, 10min in
+    /// the periodic autosave of <see cref="World.ViewportTicker"/>), just as the original spreads that logic
+    /// across the call sites instead of centralising it. </summary>
     public async Task SaveCharacterAsync(PlayerObject player, CancellationToken ct)
     {
         await _dataServer.SendAsync(DataServerCharacterPacketBuilder.CharacterInfoSaveSend(player), ct);
@@ -266,13 +259,13 @@ public sealed class ClientProtocolHandler
                     await OnTradeResponseAsync(session, p, ct);
                     break;
 
-                // El zen del trade es 0x3A: así lo despacha el original (Protocol.cpp:124,
-                // CGTradeMoneyRecv) y así lo declara el header generado desde esas fuentes
-                // (PMSG_TRADE_MONEY_RECV::kHead). El 0x3B viene de un comentario equivocado en
-                // Trade.h del original ("// C1:3B"), que se transcribió a mano tanto acá como en el
-                // builder del cliente (Wire099B.cpp), así que cliente y servidor de este proyecto se
-                // entendían entre ellos pero ninguno de los dos hablaba el protocolo real. Se aceptan
-                // los dos para no romper los clientes ya compilados con el valor viejo.
+                // The trade zen is 0x3A: that is how the original dispatches it (Protocol.cpp:124,
+                // CGTradeMoneyRecv) and how the header generated from those sources declares it
+                // (PMSG_TRADE_MONEY_RECV::kHead). The 0x3B comes from a wrong comment in the original's Trade.h
+                // ("// C1:3B"), which was transcribed by hand both here and in the client's builder
+                // (Wire099B.cpp), so this project's client and server understood each other but neither spoke
+                // the real protocol. Both are accepted so as not to break clients already compiled with the old
+                // value.
                 case 0x3A:
                 case 0x3B:
                     await OnTradeMoneyAsync(session, p, ct);
@@ -339,13 +332,13 @@ public sealed class ClientProtocolHandler
                     break;
 
                 case 0x1B:
-                    // Puerto de CGSkillCancelRecv (SkillManager.cpp:2591-2601): en el original cancela
-                    // un efecto activo del skill (gEffectManager.DelEffect) -- este puerto no tiene
-                    // gestor de efectos todavía (los duration-skills de 0x1E son sólo la animación/
-                    // proyectil, sin daño-en-el-tiempo persistente que cancelar), así que no hay nada
-                    // que deshacer y el no-op es fiel al alcance actual, no un placeholder. Se agrega el
-                    // case explícito (en vez de caer al default) para no ensuciar el log con "no
-                    // implementado" por un paquete que en los hechos ya está atendido.
+                    // Port of CGSkillCancelRecv (SkillManager.cpp:2591-2601): in the original it cancels an
+                    // active skill effect (gEffectManager.DelEffect) -- this port has no effect manager yet
+                    // (the 0x1E duration-skills are only the animation/ projectile, with no persistent
+                    // damage-over-time to cancel), so there is nothing to undo and the no-op is faithful to the
+                    // current scope, not a placeholder. The explicit case is added (instead of falling into the
+                    // default) so as not to pollute the log with "not implemented" for a packet that is in fact
+                    // already handled.
                     break;
 
                 case 0x1D:
@@ -471,16 +464,16 @@ public sealed class ClientProtocolHandler
                 break;
 
             case 0x12:
-                // PMSG_CHARACTER_MOVE_VIEWPORT_ENABLE -- sin cuerpo. Puerto EXACTO de
-                // CGCharacterMoveViewportEnableRecv (Protocol.cpp:1300-1310): en el original esto
-                // SOLO hace "RegenOk = (RegenOk==1) ? 2 : RegenOk" -- es decir, es un ack de que el
-                // cliente terminó de cargar el mapa DESPUÉS de un teleport/gate (que es lo único que
-                // pone RegenOk en 1, ver User.cpp:2114/2144/2168/2220/2259). En el login inicial
-                // RegenOk ya vale 0 desde gObjCharZeroSet (User.cpp:368, llamado en gObjAdd al
-                // aceptar la conexión) y esta recepción es un no-op. Como el mundo real todavía no
-                // tiene portales/gates portados en este build (ver World/DevilSquareManager.cs, el
-                // único lugar que manda TeleportSend, tampoco setea RegenOk=true), este handler queda
-                // como no-op idempotente -- ver PlayerObject.RegenOk para el default correcto.
+                // PMSG_CHARACTER_MOVE_VIEWPORT_ENABLE -- no body. EXACT port of
+                // CGCharacterMoveViewportEnableRecv (Protocol.cpp:1300-1310): in the original this ONLY does
+                // "RegenOk = (RegenOk==1) ? 2 : RegenOk" -- that is, it is an ack that the client finished
+                // loading the map AFTER a teleport/gate (which is the only thing that sets RegenOk to 1, see
+                // User.cpp:2114/2144/2168/2220/2259). On the initial login RegenOk is already 0 since
+                // gObjCharZeroSet (User.cpp:368, called in gObjAdd when accepting the connection) and this
+                // receive is a no-op. Since the real world does not have portals/gates ported in this build yet
+                // (see World/DevilSquareManager.cs, the only place that sends TeleportSend, does not set
+                // RegenOk=true either), this handler remains an idempotent no-op -- see PlayerObject.RegenOk
+                // for the correct default.
                 if (session.Player != null)
                 {
                     session.Player.RegenOk = false;
@@ -498,11 +491,11 @@ public sealed class ClientProtocolHandler
         }
     }
 
-    /// <summary>Puerto de CGLevelUpPointRecv (Protocol.cpp:1253-1298) + CObjectManager::
-    /// CharacterLevelUpPointAdd (ObjectManager.cpp:1043-1090) -- agrega 1 punto de level-up a un stat
-    /// (type: 0=Strength,1=Dexterity,2=Vitality,3=Energy,4=Leadership). Dispara un recálculo completo
-    /// de combate igual que el original (CharacterCalcAttribute se llama synchronamente tras aplicar
-    /// el punto). El tope usa CharacterBalanceConfig.MaxStatPoint[player.AccountLevel] -- ver
+    /// <summary>Port of CGLevelUpPointRecv (Protocol.cpp:1253-1298) + CObjectManager:: CharacterLevelUpPointAdd
+    /// (ObjectManager.cpp:1043-1090) -- adds 1 level-up point to a stat (type:
+    /// 0=Strength,1=Dexterity,2=Vitality,3=Energy,4=Leadership). It triggers a full combat recalculation just
+    /// like the original (CharacterCalcAttribute is called synchronously after applying the point). The cap
+    /// uses CharacterBalanceConfig.MaxStatPoint[player.AccountLevel] -- see
     /// PlayerObject.AccountLevel.</summary>
     private async Task OnLevelUpPointAsync(ClientSession session, byte[] p, CancellationToken ct)
     {
@@ -579,7 +572,7 @@ public sealed class ClientProtocolHandler
 
         if (session.LoginMessageSent)
         {
-            return; // el original ignora reintentos del mismo login mientras uno está en curso
+            return; // the original ignores retries of the same login while one is in progress
         }
 
         session.LoginMessageSent = true;
@@ -592,7 +585,7 @@ public sealed class ClientProtocolHandler
             ct);
     }
 
-    /// <summary>Callback desde JoinServerConnection cuando llega el resultado del login (0x01 JGConnectAccountRecv).</summary>
+    /// <summary>Callback from JoinServerConnection when the login result arrives (0x01 JGConnectAccountRecv).</summary>
     public async Task OnJoinAccountResultAsync(JoinAccountResultRecv msg, CancellationToken ct)
     {
         if (!_pendingLogins.TryGetValue(msg.Index, out var session) || !session.Connected)
@@ -600,25 +593,25 @@ public sealed class ClientProtocolHandler
             return;
         }
 
-        // result: 1=ok, 0=cuenta/clave inválida, 2=ya conectada, 3=llena, 4=bloqueada (ver
-        // JoinServerProtocolHandler.OnConnectAccountAsync, que ya implementa este mismo orden).
+        // result: 1=ok, 0=invalid account/password, 2=already connected, 3=full, 4=blocked (see
+        // JoinServerProtocolHandler.OnConnectAccountAsync, which already implements this same order).
         await session.SendAsync(ClientPacketBuilder.ConnectAccountSend(msg.Result), ct);
 
-        // Puerto de JGConnectAccountRecv (JSProtocol.cpp:85): gObj[index].AccountLevel = AccountLevel,
-        // sin clamp en el original porque confía en lo que ya validó WZ_GetAccountLevel. Acá se
-        // recorta a 0-3 igual como red de seguridad -- los arrays de tasas de este puerto (AddExperienceRate,
-        // MoneyAmountDropRate, MaxStatPoint, etc.) son arrays C# de largo fijo 4, así que un valor fuera
-        // de rango tiraría un IndexOutOfRange en vez de leer una fila inventada como haría el original.
+        // Port of JGConnectAccountRecv (JSProtocol.cpp:85): gObj[index].AccountLevel = AccountLevel, with no
+        // clamp in the original because it trusts what WZ_GetAccountLevel already validated. Here it is clamped
+        // to 0-3 anyway as a safety net -- this port's rate arrays (AddExperienceRate, MoneyAmountDropRate,
+        // MaxStatPoint, etc.) are fixed-length-4 C# arrays, so an out-of-range value would throw an
+        // IndexOutOfRange instead of reading an invented row as the original would.
         session.AccountLevel = Math.Clamp((int)msg.AccountLevel, 0, 3);
 
         Log.Add(LogColor.Blue, "[Protocol][{0}] Login '{1}' -> result={2}", msg.Index, session.Account, msg.Result);
     }
 
-    /// <summary>Puerto de CGCharacterListRecv (Protocol.cpp:1134-1144) -- pide a DataServer la
-    /// lista de personajes de la cuenta para la pantalla de selección. El cliente real la manda
-    /// automáticamente apenas el login da result=1, ANTES de elegir personaje (0xF3:0x03); sin
-    /// esto se queda esperando para siempre en la pantalla de selección -- WorldTestClient no lo
-    /// necesitaba porque simula un cliente que ya "sabe" el nombre y manda 0xF3:0x03 directo.</summary>
+    /// <summary>Port of CGCharacterListRecv (Protocol.cpp:1134-1144) -- asks DataServer for the account's
+    /// character list for the selection screen. The real client sends it automatically as soon as the login
+    /// gives result=1, BEFORE choosing a character (0xF3:0x03); without this it waits forever on the selection
+    /// screen -- WorldTestClient did not need it because it simulates a client that already "knows" the name
+    /// and sends 0xF3:0x03 directly.</summary>
     private async Task OnCharacterListRequestAsync(ClientSession session, CancellationToken ct)
     {
         if (!session.LoginMessageSent)
@@ -632,14 +625,11 @@ public sealed class ClientProtocolHandler
             DataServerCharacterPacketBuilder.CharacterListRequest((ushort)session.Index, session.Account ?? string.Empty), ct);
     }
 
-    /// <summary>
-    /// Callback desde DataServerConnection cuando llega SDHP_CHARACTER_LIST_RECV (0x01). Puerto de
-    /// DGCharacterListRecv (DSProtocol.cpp:181-365): convierte el Inventory compacto de 60 bytes de
-    /// cada personaje a CharSet[13] reconstruyendo items reales con Item.FromCompactPreviewBytes +
-    /// PlayerObject.BuildCharSet -- el mismo camino que ya usa un jugador una vez dentro del mundo
-    /// (RebuildCharSet), solo que alimentado desde el formato compacto en vez de Items[] real -- y
-    /// manda PMSG_CHARACTER_LIST_SEND al cliente.
-    /// </summary>
+    /// <summary> Callback from DataServerConnection when SDHP_CHARACTER_LIST_RECV (0x01) arrives. Port of
+    /// DGCharacterListRecv (DSProtocol.cpp:181-365): converts each character's compact 60-byte Inventory into
+    /// CharSet[13], rebuilding real items with Item.FromCompactPreviewBytes + PlayerObject.BuildCharSet -- the
+    /// same path a player already uses once inside the world (RebuildCharSet), only fed from the compact format
+    /// instead of real Items[] -- and sends PMSG_CHARACTER_LIST_SEND to the client. </summary>
     public async Task OnCharacterListFromDataServerAsync(CharacterListFromDataServer msg, CancellationToken ct)
     {
         if (!_pendingCharacterList.TryRemove(msg.Index, out var session) || !session.Connected)
@@ -661,14 +651,13 @@ public sealed class ClientProtocolHandler
                     entry.CompactInventory[off + 2], entry.CompactInventory[off + 3], entry.CompactInventory[off + 4]);
             }
 
-            // entry.Class viene en formato crudo de DB (0/16/32/48/64 = DW/DK/FE/MG/DL, con el nibble
-            // bajo reservado para ChangeUp -- ver el mismo patrón ya portado en
-            // OnCharacterCreateResultFromDataServerAsync). BuildCharSet necesita el índice compacto
-            // 0-4 (Class/16) y el ChangeUp real (Class%16), NO la clase cruda con changeUp=0 fijo --
-            // CORREGIDO: antes se pasaba entry.Class directo, lo que hacía overflow de byte en
-            // cls*32 para cualquier clase que no fuera DW (0*32=0 por casualidad coincide con el
-            // caso vacío) y mostraba a TODOS los personajes como Dark Wizard en la pantalla de
-            // selección.
+            // entry.Class comes in raw DB format (0/16/32/48/64 = DW/DK/FE/MG/DL, with the low nibble reserved
+            // for ChangeUp -- see the same pattern already ported in
+            // OnCharacterCreateResultFromDataServerAsync). BuildCharSet needs the compact index 0-4 (Class/16)
+            // and the real ChangeUp (Class%16), NOT the raw class with a fixed changeUp=0 -- FIXED: before,
+            // entry.Class was passed directly, which overflowed a byte in cls*32 for any class other than DW
+            // (0*32=0 coincides by chance with the empty case) and showed ALL characters as Dark Wizard on the
+            // selection screen.
             var charSet = PlayerObject.BuildCharSet((byte)(entry.Class / 16), (byte)(entry.Class % 16), wear);
             characters.Add(new CharacterListItem(entry.Slot, entry.Name, entry.Level, entry.CtlCode, charSet));
         }
@@ -678,11 +667,11 @@ public sealed class ClientProtocolHandler
         Log.Add(LogColor.Blue, "[Protocol][{0}] Character list sent ({1} character(s))", msg.Index, characters.Count);
     }
 
-    /// <summary>Puerto de CGCharacterCreateRecv (Protocol.cpp:2095-2153) -- pide a DataServer crear
-    /// el personaje. La validación previa de clase/CARD_CODE del original no se replica acá (ver
-    /// comentario de <c>DataServerCharacterPacketBuilder.CharacterCreateRequest</c>): se reenvía
-    /// directo y DataServer, que ya es la autoridad real sobre qué clases existen
-    /// (<c>default_class_type</c>), rechaza cualquier clase no habilitada con result=2.</summary>
+    /// <summary>Port of CGCharacterCreateRecv (Protocol.cpp:2095-2153) -- asks DataServer to create the
+    /// character. The original's prior class/CARD_CODE validation is not replicated here (see the comment of
+    /// <c>DataServerCharacterPacketBuilder.CharacterCreateRequest</c>): it is forwarded directly and
+    /// DataServer, which is already the real authority on which classes exist (<c>default_class_type</c>),
+    /// rejects any non-enabled class with result=2.</summary>
     private async Task OnCharacterCreateRequestAsync(ClientSession session, byte[] p, CancellationToken ct)
     {
         if (!session.LoginMessageSent)
@@ -697,13 +686,11 @@ public sealed class ClientProtocolHandler
             DataServerCharacterPacketBuilder.CharacterCreateRequest((ushort)session.Index, session.Account ?? string.Empty, recv.Name, recv.Class), ct);
     }
 
-    /// <summary>
-    /// Callback desde DataServerConnection cuando llega SDHP_CHARACTER_CREATE_RECV (0x02). Puerto de
-    /// DGCharacterCreateRecv (DSProtocol.cpp:1148-1176): aplica la misma conversión de bytes de Class
-    /// (formato de almacenamiento en DB -&gt; formato que espera el cliente) y manda
-    /// PMSG_CHARACTER_CREATE_SEND. El cliente real reacciona a esto refrescando la pantalla de
-    /// selección -- normalmente sigue pidiendo la lista actualizada (0xF3:0x00) por su cuenta.
-    /// </summary>
+    /// <summary> Callback from DataServerConnection when SDHP_CHARACTER_CREATE_RECV (0x02) arrives. Port of
+    /// DGCharacterCreateRecv (DSProtocol.cpp:1148-1176): applies the same Class byte conversion (DB storage
+    /// format -&gt; format the client expects) and sends PMSG_CHARACTER_CREATE_SEND. The real client reacts to
+    /// this by refreshing the selection screen -- it normally keeps asking for the updated list (0xF3:0x00) on
+    /// its own. </summary>
     public async Task OnCharacterCreateResultFromDataServerAsync(CharacterCreateResultFromDataServer msg, CancellationToken ct)
     {
         if (!_pendingCharacterCreate.TryRemove(msg.Index, out var session) || !session.Connected)
@@ -723,12 +710,11 @@ public sealed class ClientProtocolHandler
         Log.Add(LogColor.Blue, "[Protocol][{0}] Create character '{1}' -> result={2}", msg.Index, msg.Name, msg.Result);
     }
 
-    /// <summary>Puerto de CConnectionManager::CGHardwareIdRecv (ConnectionManager.cpp:132-162) --
-    /// valida que el HardwareId tenga formato de GUID (44 chars, '-' en las posiciones 8/17/26/35)
-    /// y desconecta si viene mal formado, igual que el original (gObjDel). La blacklist de HWID y
-    /// el chequeo de duplicados de cuenta (CheckHardwareId) no están portados todavía -- de momento
-    /// se acepta cualquier HWID bien formado sin más validación (no afecta el flujo normal, solo no
-    /// detecta multi-cuentas todavía).</summary>
+    /// <summary>Port of CConnectionManager::CGHardwareIdRecv (ConnectionManager.cpp:132-162) -- validates that
+    /// the HardwareId has GUID format (44 chars, '-' at positions 8/17/26/35) and disconnects if it comes
+    /// malformed, like the original (gObjDel). The HWID blacklist and the duplicate account check
+    /// (CheckHardwareId) are not ported yet -- for now any well-formed HWID is accepted with no further
+    /// validation (it does not affect the normal flow, it just does not detect multi-accounting yet).</summary>
     private void OnHardwareIdRecv(ClientSession session, byte[] p)
     {
         var hardwareId = PacketBuilder.ReadFixedString(p.AsSpan(4, 45));
@@ -758,13 +744,11 @@ public sealed class ClientProtocolHandler
             DataServerCharacterPacketBuilder.CharacterInfoRequest((ushort)session.Index, session.Account, recv.Name), ct);
     }
 
-    /// <summary>
-    /// Callback desde DataServerConnection cuando llega SDHP_CHARACTER_INFO_RECV (0x04). Puerto de
-    /// DGCharacterInfoRecv (DSProtocol.cpp): puebla el estado del jugador, lo marca online, y manda
-    /// los paquetes de entrada al mundo. La visibilidad mutua con otros jugadores no es instantánea
-    /// acá tampoco -- se resuelve en el próximo tick de ViewportTicker (igual que el original, ver
-    /// nota en gObjViewportListProtocolCreate del brief de investigación).
-    /// </summary>
+    /// <summary> Callback from DataServerConnection when SDHP_CHARACTER_INFO_RECV (0x04) arrives. Port of
+    /// DGCharacterInfoRecv (DSProtocol.cpp): populates the player's state, marks them online, and sends the
+    /// world-entry packets. Mutual visibility with other players is not instantaneous here either -- it is
+    /// resolved on the next ViewportTicker tick (same as the original, see the note in
+    /// gObjViewportListProtocolCreate of the research brief). </summary>
     public async Task OnCharacterInfoFromDataServerAsync(CharacterInfoFromDataServer msg, CancellationToken ct)
     {
         if (!_pendingCharacterInfo.TryRemove(msg.Index, out var session) || !session.Connected)
@@ -785,14 +769,13 @@ public sealed class ClientProtocolHandler
             Account = msg.Account,
             Name = msg.Name,
             AccountLevel = session.AccountLevel,
-            // msg.Class viene en formato crudo de DB (0/16/32/48/64 = DW/DK/FE/MG/DL + ChangeUp en el
-            // nibble bajo) -- ver el mismo patrón en OnCharacterListFromDataServerAsync más arriba.
-            // Todo el resto del puerto (RecalcCombatStats, DevilSquareManager, ViewportTicker,
-            // CharacterBalanceConfig, BuildCharSet) espera el índice compacto 0-4, así que se
-            // descompone acá, en el único punto de entrada real. CORREGIDO: antes se guardaba
-            // msg.Class crudo y ChangeUp quedaba siempre en 0 -- además de romper CharSet (ver
-            // BuildCharSet), esto hacía que las comparaciones Class==ClassFe/ClassMg nunca dieran
-            // true para un personaje real (solo Class==0, Dark Wizard, coincidía por casualidad).
+            // msg.Class comes in raw DB format (0/16/32/48/64 = DW/DK/FE/MG/DL + ChangeUp in the low nibble) --
+            // see the same pattern in OnCharacterListFromDataServerAsync above. All the rest of the port
+            // (RecalcCombatStats, DevilSquareManager, ViewportTicker, CharacterBalanceConfig, BuildCharSet)
+            // expects the compact index 0-4, so it is decomposed here, at the single real entry point. FIXED:
+            // before, the raw msg.Class was stored and ChangeUp stayed at 0 forever -- besides breaking CharSet
+            // (see BuildCharSet), this made the Class==ClassFe/ClassMg comparisons never come out true for a
+            // real character (only Class==0, Dark Wizard, matched by chance).
             Class = (byte)(msg.Class / 16),
             ChangeUp = (byte)(msg.Class % 16),
             Level = msg.Level,
@@ -855,13 +838,12 @@ public sealed class ClientProtocolHandler
             player.TY = 125;
         }
 
-        // Puerto de gObjSetCharacter (ObjectManager.cpp:2739-2745): un personaje que entra al mundo
-        // con Life == 0 se manda al flujo de muerte (OBJECT_DYING + DieRegen), que es el que lo
-        // revive. Sin esto el personaje quedaba vivo pero en cero para siempre: se guarda así cuando
-        // muere y se desconecta antes de reaparecer, y al volver a entrar nada lo recuperaba --
-        // IsDying es estado de runtime, así que RespawnDyingPlayersAsync ni lo miraba. Con 0 de vida
-        // los monstruos además lo ignoran por completo (la IA filtra Life > 0), así que el personaje
-        // quedaba en un limbo: no podía pelear y nada lo atacaba.
+        // Port of gObjSetCharacter (ObjectManager.cpp:2739-2745): a character entering the world with Life == 0
+        // is sent to the death flow (OBJECT_DYING + DieRegen), which is what revives them. Without this the
+        // character stayed alive but at zero forever: it is saved like that when they die and disconnect before
+        // respawning, and on re-entering nothing recovered them -- IsDying is runtime state, so
+        // RespawnDyingPlayersAsync did not even look at them. With 0 life monsters also ignore them completely
+        // (the AI filters Life > 0), so the character was in limbo: it could not fight and nothing attacked it.
         if (player.Life == 0)
         {
             player.IsDying = true;
@@ -881,18 +863,17 @@ public sealed class ClientProtocolHandler
         await session.SendAsync(WorldPacketBuilder.NewCharacterInfoSend(player), ct);
         await session.SendAsync(WorldPacketBuilder.NewCharacterCalcSend(player), ct);
 
-        // Puerto de DGCharacterInfoRecv (DSProtocol.cpp:414-499): la lista completa de inventario
-        // (C4:F3:10) se manda como paquete aparte, después de CHARACTER_INFO/NEW_CHARACTER_INFO.
+        // Port of DGCharacterInfoRecv (DSProtocol.cpp:414-499): the full inventory list (C4:F3:10) is sent as a
+        // separate packet, after CHARACTER_INFO/NEW_CHARACTER_INFO.
         await session.SendEncryptedC4Async(ItemPacketBuilder.ItemListSend(player), ct);
         await SendSkillListAsync(player, ct);
 
-        // Puerto de DSProtocol.cpp:503 (DGCharacterInfoRecv): gQuest.GCQuestInfoSend(lpObj->Index) se
-        // manda PROACTIVAMENTE al entrar al mundo, junto con el resto de la ráfaga inicial (item/skill
-        // list). Antes este puerto no lo mandaba nunca en el world-enter -- solo reactivamente cuando
-        // el jugador hablaba con un NPC de misión -- lo que dejaba al cliente sin el blob de 50 bytes
-        // de estado de TODAS las misiones antes de tiempo. Se marca SendQuestInfo=true acá para que
-        // OnNpcTalkAsync/OnQuestInfoAsync repliquen el guard real (GCQuestInfoSend es no-op después de
-        // la primera vez por sesión).
+        // Port of DSProtocol.cpp:503 (DGCharacterInfoRecv): gQuest.GCQuestInfoSend(lpObj->Index) is sent
+        // PROACTIVELY on entering the world, together with the rest of the initial burst (item/skill list).
+        // Before, this port never sent it on world-enter -- only reactively when the player talked to a quest
+        // NPC -- which left the client without the 50-byte state blob of ALL quests ahead of time.
+        // SendQuestInfo=true is set here so that OnNpcTalkAsync/OnQuestInfoAsync replicate the real guard
+        // (GCQuestInfoSend is a no-op after the first time per session).
         if (!player.SendQuestInfo)
         {
             await session.SendAsync(QuestPacketBuilder.QuestInfoSend(player.Quest!, _quests.Entries.Count), ct);
@@ -997,13 +978,10 @@ public sealed class ClientProtocolHandler
         return 0;
     }
 
-    /// <summary>
-    /// Puerto simplificado de CGMoveRecv (Protocol.cpp:901-1076): valida contra el mapa (caja
-    /// ±15, tiles bloqueados) y difunde PMSG_MOVE_SEND. El anti-speedhack basado en contador de
-    /// Protocol.cpp no se porta -- viene apagado por defecto en el paquete original
-    /// (CheckMoveHack=0 en GameServerInfo - Common.dat), así que omitirlo no cambia el
-    /// comportamiento default.
-    /// </summary>
+    /// <summary> Simplified port of CGMoveRecv (Protocol.cpp:901-1076): validates against the map (±15 box,
+    /// blocked tiles) and broadcasts PMSG_MOVE_SEND. The counter-based anti-speedhack of Protocol.cpp is not
+    /// ported -- it comes off by default in the original package (CheckMoveHack=0 in GameServerInfo -
+    /// Common.dat), so omitting it does not change the default behaviour. </summary>
     private async Task OnMoveAsync(ClientSession session, byte[] p, CancellationToken ct)
     {
         var player = session.Player;
@@ -1019,14 +997,14 @@ public sealed class ClientProtocolHandler
         int rawCount = recv.Path[0] & 0x0F;
         int pathCount = rawCount > 0 ? rawCount + 1 : 0; // puerto exacto de Protocol.cpp:972-983
 
-        // RoadPathTable (Util.cpp) -- 8 direcciones, dx/dy por par, orden N,NE,E,SE,S,SW,W,NW.
-        // (arrays normales, no Span/stackalloc: este método es async y stackalloc no está permitido ahí)
+        // RoadPathTable (Util.cpp) -- 8 directions, dx/dy per pair, order N,NE,E,SE,S,SW,W,NW. (plain arrays,
+        // not Span/stackalloc: this method is async and stackalloc is not allowed there)
         int[] dx = { -1, 0, 1, 1, 1, 0, -1, -1 };
         int[] dy = { -1, -1, -1, 0, 1, 1, 1, 0 };
 
-        // TX/TY arrancan en el ancla (x,y) del paquete -- el primer nibble de dirección (path[0]>>4)
-        // es solo la orientación (Dir), NO desplaza la posición (puerto exacto de Protocol.cpp:980-987:
-        // TX=x,TY=y de entrada, recién el loop desde n=1 va sumando offsets de RoadPathTable).
+        // TX/TY start at the packet's anchor (x,y) -- the first direction nibble (path[0]>>4) is only the
+        // orientation (Dir), it does NOT shift the position (exact port of Protocol.cpp:980-987: TX=x,TY=y on
+        // input, only the loop from n=1 adds RoadPathTable offsets).
         int prevX = recv.X;
         int prevY = recv.Y;
         int tx = recv.X;
@@ -1051,30 +1029,28 @@ public sealed class ClientProtocolHandler
 
         if (!withinRange || blocked)
         {
-            // Corrección: re-mandarle al cliente su posición actual (equivalente a gObjSetPosition).
+            // Correction: re-send the client its current position (equivalent to gObjSetPosition).
             await session.SendAsync(WorldPacketBuilder.PositionSend(player.Index, player.X, player.Y), ct);
             return;
         }
 
         map!.DelStandAttr(player.OldX, player.OldY);
 
-        // BUG corregido: acá antes se guardaba player.X/Y = recv.X/Y (el ANCLA del paquete, o sea la
-        // posición de ARRANQUE del movimiento), en vez de la posición de LLEGADA (tx,ty). En el
-        // original, lpObj->X (posición confirmada) NO lo toca CGMoveRecv en absoluto (Protocol.cpp:
-        // 901-987 solo escribe TX/TY/PathX/PathY/PathCount) -- lpObj->X se actualiza gradualmente,
-        // tile por tile, por un tick periódico separado (CObjectManager::ObjectMoveProc,
-        // ObjectManager.cpp:419-482, con velocidad distinta según diagonal/recto) a medida que el
-        // personaje "camina" visualmente. Este puerto resuelve el movimiento de forma instantánea (sin
-        // ese tick de por medio) y NINGÚN otro lugar del código avanza X hacia TX -- por lo tanto X
-        // tiene que quedar en la posición de LLEGADA ya mismo, o si no todo lo que usa player.X como
-        // "posición actual" (este mismo chequeo de rango en el próximo movimiento, el rango de ataque
-        // en OnAttackAsync, el rango de visión de ViewportTicker) queda comparando contra una posición
-        // vieja de un movimiento atrás. Ese desfase de "un movimiento de atraso" es exactamente lo que
-        // causaba que, tras caminar para atacar a un monstruo, el siguiente movimiento casi siempre
-        // cayera fuera del radio de 15 tiles permitido (medido contra la posición vieja) y el servidor
-        // le contestara con PositionSend(player.X,player.Y) -- la posición vieja, frecuentemente muy
-        // cerca de donde el personaje apareció originalmente -- lo que el cliente real mostraba como
-        // "me manda de vuelta a mi sitio de aparición" al intentar acercarse para atacar.
+        // BUG fixed: here player.X/Y used to be stored as recv.X/Y (the packet's ANCHOR, that is, the START
+        // position of the movement), instead of the ARRIVAL position (tx,ty). In the original, lpObj->X
+        // (confirmed position) is NOT touched at all by CGMoveRecv (Protocol.cpp: 901-987 only writes
+        // TX/TY/PathX/PathY/PathCount) -- lpObj->X is updated gradually, tile by tile, by a separate periodic
+        // tick (CObjectManager::ObjectMoveProc, ObjectManager.cpp:419-482, with different speed for
+        // diagonal/straight) as the character visually "walks". This port resolves the movement instantly
+        // (without that tick in between) and NOWHERE else does the code advance X towards TX -- therefore X has
+        // to be left at the ARRIVAL position right away, or else everything that uses player.X as "current
+        // position" (this same range check on the next movement, the attack range in OnAttackAsync,
+        // ViewportTicker's view range) ends up comparing against an old position from one movement back. That
+        // "one movement behind" lag is exactly what caused that, after walking to attack a monster, the next
+        // movement almost always fell outside the allowed 15-tile radius (measured against the old position)
+        // and the server answered with PositionSend(player.X,player.Y) -- the old position, often very close to
+        // where the character originally appeared -- which the real client showed as "it sends me back to my
+        // spawn spot" when trying to approach to attack.
         player.X = (byte)tx;
         player.Y = (byte)ty;
         player.TX = (byte)tx;
@@ -1220,34 +1196,25 @@ public sealed class ClientProtocolHandler
             WorldPacketBuilder.TeleportSend(1, player.Map, player.X, player.Y, player.Dir), ct);
     }
 
-    /// <summary>
-    /// Puerto simplificado de CGItemMoveRecv (ItemManager.cpp:2853-3025) para el único container
-    /// soportado por ahora: Inventory→Inventory (mover de un slot a otro, incluye equipar/
-    /// desequipar cuando el slot destino/origen cae en el rango de equipo 0-11). Trade/Warehouse/
-    /// ChaosBox/PersonalShop (SourceFlag/TargetFlag distintos de 0) quedan fuera de esta pasada de
-    /// la Fase 3 -- se rechazan con result=0xFF en vez de implementarse a medias.
-    ///
-    /// CORREGIDOS dos bugs reales encontrados esta sesión (causa de "los items desaparecen al
-    /// moverlos"):
-    ///
-    /// 1) <c>result</c> NO es un booleano genérico "0=falla/1=éxito" -- el original
-    /// (<c>MoveItemToInventoryFromInventory</c>, ItemManager.cpp:1920-1978) devuelve
-    /// <c>TargetFlag</c> (0 para Inventory) en éxito y <c>0xFF</c> en cualquier falla (todas las
-    /// ramas de validación devuelven <c>0xFF</c> explícitamente, y <c>pMsg.result</c> arranca en
-    /// <c>0xFF</c> por default antes de intentar nada). Este puerto tenía la semántica invertida
-    /// (0=falla, 1=éxito) -- con <c>0</c> de "falla" el cliente real probablemente interpreta
-    /// "éxito con TargetFlag=Inventory" (ya que solo chequea <c>!= 0xFF</c>), aceptando un move que
-    /// el servidor en realidad rechazó, un desincronismo directo entre lo que el cliente cree que
-    /// pasó y lo que el servidor realmente hizo.
-    ///
-    /// 2) <c>InventoryAddItem</c> (ItemManager.cpp:1052-1102) rechaza el move con <c>0xFF</c> si el
-    /// slot destino YA tiene un item (<c>if(lpObj->Inventory[slot].IsItem() != 0) return 0xFF;</c>)
-    /// -- NO HAY intercambio/swap a nivel de protocolo. <c>PMSG_ITEM_MOVE_SEND</c> solo tiene lugar
-    /// para UN item (el que quedó en <c>TargetSlot</c>); si el servidor swapea igual (como hacía
-    /// este puerto) el cliente nunca se entera qué pasó con el item que estaba en destino -- lo
-    /// pierde de la UI aunque el servidor lo siga trackeando en el slot origen. Corregido: si el
-    /// slot destino tiene un item, se rechaza el move entero (igual que el original), sin swap.
-    /// </summary>
+    /// <summary> Simplified port of CGItemMoveRecv (ItemManager.cpp:2853-3025) for the only container supported
+    /// for now: Inventory→Inventory (moving from one slot to another, including equipping/ unequipping when the
+    /// destination/source slot falls in the equipment range 0-11). Trade/Warehouse/ ChaosBox/PersonalShop
+    /// (SourceFlag/TargetFlag other than 0) are left out of this pass of Phase 3 -- they are rejected with
+    /// result=0xFF instead of being half-implemented. Two real bugs FIXED, found this session (cause of "items
+    /// disappear when moved"): 1) <c>result</c> is NOT a generic boolean "0=fail/1=success" -- the original
+    /// (<c>MoveItemToInventoryFromInventory</c>, ItemManager.cpp:1920-1978) returns <c>TargetFlag</c> (0 for
+    /// Inventory) on success and <c>0xFF</c> on any failure (all the validation branches explicitly return
+    /// <c>0xFF</c>, and <c>pMsg.result</c> starts at <c>0xFF</c> by default before trying anything). This port
+    /// had the semantics inverted (0=fail, 1=success) -- with <c>0</c> as "fail" the real client probably
+    /// interprets "success with TargetFlag=Inventory" (since it only checks <c>!= 0xFF</c>), accepting a move
+    /// that the server actually rejected, a direct desync between what the client thinks happened and what the
+    /// server really did. 2) <c>InventoryAddItem</c> (ItemManager.cpp:1052-1102) rejects the move with
+    /// <c>0xFF</c> if the destination slot ALREADY has an item (<c>if(lpObj->Inventory[slot].IsItem() != 0)
+    /// return 0xFF;</c>) -- there is NO exchange/swap at protocol level. <c>PMSG_ITEM_MOVE_SEND</c> only has
+    /// room for ONE item (the one that ended up in <c>TargetSlot</c>); if the server swaps anyway (as this port
+    /// did) the client never learns what happened to the item that was at the destination -- it loses it from
+    /// the UI even though the server still tracks it in the source slot. Fixed: if the destination slot has an
+    /// item, the whole move is rejected (like the original), with no swap. </summary>
     private async Task OnItemMoveAsync(ClientSession session, byte[] p, CancellationToken ct)
     {
         var player = session.Player;
@@ -1259,7 +1226,7 @@ public sealed class ClientProtocolHandler
 
         var recv = ItemMoveRecv.Parse(p);
 
-        // Manejo de movimientos de ítems con Trade (Flag 1 = Trade Window)
+        // Handling of item moves with Trade (Flag 1 = Trade Window)
         if (recv.SourceFlag == 0 && recv.TargetFlag == 1) // Inventario -> Trade
         {
             if (!player.InTrade || recv.SourceSlot >= Item.InventorySize || recv.TargetSlot >= 32)
@@ -1351,8 +1318,8 @@ public sealed class ClientProtocolHandler
             return;
         }
 
-        // Manejo de movimientos de ítems con Warehouse (Flag 2 = Warehouse)
-        if (recv.SourceFlag == 0 && recv.TargetFlag == 2) // Inventario -> Baúl
+        // Handling of item moves with Warehouse (Flag 2 = Warehouse)
+        if (recv.SourceFlag == 0 && recv.TargetFlag == 2) // Inventory -> Warehouse
         {
             if (!player.InWarehouse || player.WarehouseLock != 0 || recv.SourceSlot >= Item.InventorySize || recv.TargetSlot >= 120)
             {
@@ -1373,7 +1340,7 @@ public sealed class ClientProtocolHandler
             return;
         }
 
-        if (recv.SourceFlag == 2 && recv.TargetFlag == 0) // Baúl -> Inventario
+        if (recv.SourceFlag == 2 && recv.TargetFlag == 0) // Warehouse -> Inventory
         {
             if (!player.InWarehouse || player.WarehouseLock != 0 || recv.SourceSlot >= 120 || recv.TargetSlot >= Item.InventorySize)
             {
@@ -1394,7 +1361,7 @@ public sealed class ClientProtocolHandler
             return;
         }
 
-        if (recv.SourceFlag == 2 && recv.TargetFlag == 2) // Baúl -> Baúl
+        if (recv.SourceFlag == 2 && recv.TargetFlag == 2) // Warehouse -> Warehouse
         {
             if (!player.InWarehouse || player.WarehouseLock != 0 || recv.SourceSlot >= 120 || recv.TargetSlot >= 120)
             {
@@ -1415,7 +1382,7 @@ public sealed class ClientProtocolHandler
             return;
         }
 
-        // Movimiento de Ítems en Chaos Box (Flag 3 = Chaos Box)
+        // Item moves in the Chaos Box (Flag 3 = Chaos Box)
         if (recv.SourceFlag == 0 && recv.TargetFlag == 3) // Inventario -> Chaos Box
         {
             if (!player.InChaosBox || recv.SourceSlot >= Item.InventorySize || recv.TargetSlot >= 32)
@@ -1507,8 +1474,8 @@ public sealed class ClientProtocolHandler
             return;
         }
 
-        // Puerto de CheckItemMoveToInventory (ItemManager.cpp:711-780): valida nivel, fuerza, agilidad,
-        // vitalidad, energía, liderazgo, clase del personaje y compatibilidad de slot antes de equipar.
+        // Port of CheckItemMoveToInventory (ItemManager.cpp:711-780): validates level, strength, agility,
+        // vitality, energy, command, character class and slot compatibility before equipping.
         var info = _itemBalance.Get(sourceItem.Index);
 
         if (recv.TargetSlot < Item.InventoryWearSize && (info == null || !ItemCombatMath.CheckItemMoveToInventory(player, sourceItem, recv.TargetSlot, info, _itemBalance)))
@@ -1520,8 +1487,8 @@ public sealed class ClientProtocolHandler
         player.SetItem(recv.TargetSlot, sourceItem);
         player.SetItem(recv.SourceSlot, Item.Empty());
 
-        // result = TargetFlag (siempre 0 acá, único container soportado es Inventory) -- puerto
-        // exacto de "return TargetFlag;" en MoveItemToInventoryFromInventory.
+        // result = TargetFlag (always 0 here, the only supported container is Inventory) -- exact port of
+        // "return TargetFlag;" in MoveItemToInventoryFromInventory.
         await session.SendEncryptedAsync(ItemPacketBuilder.ItemMoveSend(0, recv.TargetSlot, sourceItem), ct);
 
         bool touchedEquip = recv.SourceSlot < Item.InventoryWearSize || recv.TargetSlot < Item.InventoryWearSize;
@@ -1531,16 +1498,16 @@ public sealed class ClientProtocolHandler
             return;
         }
 
-        // Puerto simplificado de CItemManager::UpdateInventoryViewport (ItemManager.cpp:1759-1779):
-        // rearmar CharSet, avisarle al propio cliente (ITEM_EQUIPMENT_SEND) y refrescar la
-        // apariencia para los observadores actuales re-mandando un VIEWPORT_PLAYER_APPEAR -- el
-        // original usa un paquete dedicado de "cambio" de viewport (gObjViewportListProtocolCreate)
-        // que no se portó todavía; reaparecer con los datos nuevos logra el mismo resultado visual.
+        // Simplified port of CItemManager::UpdateInventoryViewport (ItemManager.cpp:1759-1779): rebuild the
+        // CharSet, tell the client itself (ITEM_EQUIPMENT_SEND) and refresh the appearance for the current
+        // observers by re-sending a VIEWPORT_PLAYER_APPEAR -- the original uses a dedicated viewport "change"
+        // packet (gObjViewportListProtocolCreate) that has not been ported yet; reappearing with the new data
+        // achieves the same visual result.
         player.RebuildCharSet();
 
-        // Puerto de la llamada a CharacterCalcAttribute que dispara el original al equipar/desequipar
-        // (ObjectManager.cpp, dentro de CGItemMoveRecv) -- el daño/defensa del jugador tienen que
-        // reflejar el cambio de inmediato, no solo al volver a entrar al mundo.
+        // Port of the CharacterCalcAttribute call the original triggers on equipping/unequipping
+        // (ObjectManager.cpp, inside CGItemMoveRecv) -- the player's damage/defense have to reflect the change
+        // immediately, not only on re-entering the world.
         player.RecalcCombatStats(_itemBalance, _characterBalance);
         await session.SendAsync(WorldPacketBuilder.NewCharacterCalcSend(player), ct);
 
@@ -1558,9 +1525,8 @@ public sealed class ClientProtocolHandler
         }
     }
 
-    /// <summary>
-    /// Puerto de CGItemRepairRecv (ItemManager.cpp:3373-3428) -- reparar un ítem o reparar todos (slot=0xFF).
-    /// </summary>
+    /// <summary> Port of CGItemRepairRecv (ItemManager.cpp:3373-3428) -- repair one item or repair all
+    /// (slot=0xFF). </summary>
     private async Task OnItemRepairAsync(ClientSession session, byte[] p, CancellationToken ct)
     {
         var player = session.Player;
@@ -1633,15 +1599,13 @@ public sealed class ClientProtocolHandler
         await session.SendAsync(ItemPacketBuilder.ItemRepairSend(player.Money), ct);
     }
 
-    /// <summary>
-    /// Puerto simplificado de CGItemGetRecv (ItemManager.cpp:3289-3528) -- recoger un item del piso.
-    /// Ver World/GroundItem.cs para el modelo de datos. Simplificaciones documentadas (fuera de esta
-    /// pasada): sin quest-items/event-items/Muun (CItem::IsEventItem/IsMuunItem, sistemas no
-    /// portados), sin el reparto de dinero por grupo completo (acá el que junta la plata se la queda
-    /// entero -- el reparto de dinero de grupo, gServerInfo.m_PartyMoneyDistribute, es una config de
-    /// servidor no portada), sin apilado de flechas/pociones existentes (InventoryInsertItemStack,
-    /// resultado 0xFD -- este puerto no tiene mecánica de apilado, cada slot es un item entero).
-    /// </summary>
+    /// <summary> Simplified port of CGItemGetRecv (ItemManager.cpp:3289-3528) -- picking up an item from the
+    /// ground. See World/GroundItem.cs for the data model. Documented simplifications (outside this pass): no
+    /// quest-items/event-items/Muun (CItem::IsEventItem/IsMuunItem, unported systems), no full party money
+    /// split (here whoever picks up the money keeps all of it -- the party money split,
+    /// gServerInfo.m_PartyMoneyDistribute, is an unported server config), no stacking onto existing
+    /// arrows/potions (InventoryInsertItemStack, result 0xFD -- this port has no stacking mechanic, each slot
+    /// is a whole item). </summary>
     private async Task OnItemGetAsync(ClientSession session, byte[] p, CancellationToken ct)
     {
         var player = session.Player;
@@ -1654,8 +1618,8 @@ public sealed class ClientProtocolHandler
         var recv = ItemGetRecv.Parse(p);
         var ground = _groundItems?.Get(player.Map, recv.GroundIndex);
 
-        // Puerto de CMap::CheckItemGive (Map.cpp:363-419): rango de 2 tiles en cada eje (una caja de
-        // 5x5, no distancia euclídea) + loot-lock (dueño/grupo del dueño hasta que venza LootLockUntil).
+        // Port of CMap::CheckItemGive (Map.cpp:363-419): range of 2 tiles on each axis (a 5x5 box, not
+        // Euclidean distance) + loot-lock (owner/owner's party until LootLockUntil expires).
         bool inRange = ground != null
             && Math.Abs(ground.X - player.X) <= 2 && Math.Abs(ground.Y - player.Y) <= 2;
 
@@ -1693,23 +1657,20 @@ public sealed class ClientProtocolHandler
 
         await session.SendEncryptedAsync(ItemPacketBuilder.ItemGetSend((byte)freeSlot, ground.Item, ground.Index), ct);
 
-        // Avisarle a todos los que veían el item de piso que ya no está (CMap::ItemGive lo saca del
-        // barrido de viewport de todo el mundo, no solo del que lo recogió) -- el próximo tick de
-        // ViewportTicker ya lo hace solo (Live=false), pero mandar el destroy acá también para el
-        // que lo recogió evita esperar hasta el próximo tick (~200ms) para que su propio cliente lo
-        // borre del piso.
+        // Tell everyone who saw the ground item that it is gone (CMap::ItemGive removes it from everybody's
+        // viewport sweep, not only the one who picked it up) -- the next ViewportTicker tick already does it by
+        // itself (Live=false), but sending the destroy here also for the one who picked it up avoids waiting
+        // until the next tick (~200ms) for their own client to remove it from the ground.
         await session.SendAsync(WorldPacketBuilder.ViewportItemDestroy(new[] { ground.Index }), ct);
     }
 
-    /// <summary>
-    /// Puerto simplificado de CGItemDropRecv (ItemManager.cpp:3530-3718) -- tirar un item del
-    /// inventario al piso. Simplificaciones documentadas (fuera de esta pasada): sin las reglas
-    /// anti-dupe/anti-scam de nivel alto (bloquear +5/+6 no-alas, excelente, set, JewelOfHarmony --
-    /// <c>IsExcItem/IsSetItem/IsJewelOfHarmonyItem</c> no relevantes porque este puerto no genera esos
-    /// items todavía), sin lucky/periodic-item checks (esos flags siempre están en false/default en
-    /// este puerto), sin los ítems especiales con efecto propio (Siege Summon, Life Stone, Lost Map,
-    /// etc. -- CGItemDropRecv cadena de casos especiales, ItemManager.cpp:3620-3701).
-    /// </summary>
+    /// <summary> Simplified port of CGItemDropRecv (ItemManager.cpp:3530-3718) -- dropping an inventory item on
+    /// the ground. Documented simplifications (outside this pass): without the high-level anti-dupe/anti-scam
+    /// rules (blocking +5/+6 non-wings, excellent, set, JewelOfHarmony --
+    /// <c>IsExcItem/IsSetItem/IsJewelOfHarmonyItem</c> not relevant because this port does not generate those
+    /// items yet), without lucky/periodic-item checks (those flags are always false/default in this port),
+    /// without the special items with their own effect (Siege Summon, Life Stone, Lost Map, etc. --
+    /// CGItemDropRecv chain of special cases, ItemManager.cpp:3620-3701). </summary>
     private async Task OnItemDropAsync(ClientSession session, byte[] p, CancellationToken ct)
     {
         var player = session.Player;
@@ -1777,10 +1738,8 @@ public sealed class ClientProtocolHandler
         }
     }
 
-    /// <summary>
-    /// Puerto de CGItemUseRecv (ItemManager.cpp:3038-3179) -- uso de pociones, town portal scroll,
-    /// antídoto y joyas (Bless, Soul, Life).
-    /// </summary>
+    /// <summary> Port of CGItemUseRecv (ItemManager.cpp:3038-3179) -- use of potions, town portal scroll,
+    /// antidote and jewels (Bless, Soul, Life). </summary>
     private async Task OnItemUseAsync(ClientSession session, byte[] p, CancellationToken ct)
     {
         var player = session.Player;
@@ -1796,7 +1755,7 @@ public sealed class ClientProtocolHandler
         int section = item.Index / 32;
         int sub = item.Index % 32;
 
-        // 1. Pociones HP / MP (Categoría 14, sub 0..6)
+        // 1. HP / MP potions (Category 14, sub 0..6)
         if (section == 14 && sub >= 0 && sub <= 6)
         {
             int hpPercent = sub switch
@@ -1830,13 +1789,13 @@ public sealed class ClientProtocolHandler
                 await session.SendAsync(ManaPacketBuilder.ManaSend(0xFF, (int)player.Mana, (int)player.BP), ct);
             }
 
-            // Consumir poción
+            // Consume potion
             player.SetItem(recv.SourceSlot, Item.Empty());
             await session.SendAsync(ItemPacketBuilder.ItemDeleteSend(recv.SourceSlot, 1), ct);
             return;
         }
 
-        // 2. Antídoto (14,8)
+        // 2. Antidote (14,8)
         if (section == 14 && sub == 8)
         {
             // Limpia veneno/hielo
@@ -1918,7 +1877,7 @@ public sealed class ClientProtocolHandler
             int successRate = 50;
             if (targetItem.Option1 != 0 || targetItem.Option2 != 0)
             {
-                successRate += 25; // 75% si tiene Opción de Luck
+                successRate += 25; // 75% if it has the Luck option
             }
 
             bool success = Rng.Next(100) < successRate;
@@ -1963,7 +1922,7 @@ public sealed class ClientProtocolHandler
             var targetItem = player.Items[recv.TargetSlot];
             if (!targetItem.IsItem()) return;
 
-            if (targetItem.Option3 >= 4) return; // Máximo +16 opción (+4 x 4)
+            if (targetItem.Option3 >= 4) return; // Maximum +16 option (+4 x 4)
 
             bool success = Rng.Next(100) < 50;
 
@@ -1973,7 +1932,7 @@ public sealed class ClientProtocolHandler
             }
             else
             {
-                targetItem.Option3 = 0; // Si falla, se pierde la opción adicional
+                targetItem.Option3 = 0; // If it fails, the additional option is lost
             }
 
             player.SetItem(recv.TargetSlot, targetItem);
@@ -2004,7 +1963,7 @@ public sealed class ClientProtocolHandler
                 return;
             }
 
-            // Verificar requerimientos de nivel, energía, liderazgo y clase
+            // Check level, energy, command and class requirements
             var skillInfo = _skills?.Get((ushort)skillId);
             if (skillInfo != null)
             {
@@ -2025,7 +1984,7 @@ public sealed class ClientProtocolHandler
                 player.SetItem(recv.SourceSlot, Item.Empty());
                 await session.SendAsync(ItemPacketBuilder.ItemDeleteSend(recv.SourceSlot, 1), ct);
 
-                // Notificar al cliente la adición de la habilidad en la barra
+                // Notify the client of the skill being added to the bar
                 await session.SendAsync(SkillPacketBuilder.SkillAddSend((byte)learnedSlot, (ushort)skillId, item.Level), ct);
                 await SaveCharacterAsync(player, ct);
                 Log.Add(LogColor.Blue, "[Skill][{0}] '{1}' learned skill #{2} (slot {3}) from item ({4},{5})",
@@ -2278,32 +2237,25 @@ public sealed class ClientProtocolHandler
 
     private const int ClassFe = 2; // DB_CLASS_FE/16 -- ver nota de Class/ChangeUp en PlayerObject.RebuildCharSet
 
-    /// <summary>
-    /// Puerto simplificado de CAttack::CGAttackRecv + CAttack::Attack (Attack.cpp:44-581) -- SOLO
-    /// ataque cuerpo a cuerpo básico de jugador contra monstruo (sin skills, sin PvP, sin combo).
-    /// Fórmula de daño fiel a la investigación de esta fase (miss/dodge, defensa, piso de daño por
-    /// nivel), salvo por dos simplificaciones documentadas explícitamente:
-    ///   1) PhysiDamageMin/Max/Defense/AttackSuccessRate/DefenseSuccessRate del jugador salen de
-    ///      PlayerObject.RecalcCombatStats() -- Fase 4 segunda pasada: ya es el puerto real de
-    ///      CharacterCalcAttribute + balance real de Item.txt (arma/armadura equipada SÍ importa),
-    ///      ver el comentario de esa función para las simplificaciones que quedan (crítico/excelente/
-    ///      set-item, velocidad, magia, PvP).
-    ///   2) Sin crítico/excelente (dependen de %s que vienen de ItemOption.txt/SetItemOption.txt,
-    ///      todavía no portados).
-    /// Monstruo-ataca-jugador y la IA de persecución/patrulla quedan para la siguiente pasada de
-    /// esta fase (confirmado seguro a nivel de protocolo dejar los monstruos estáticos por ahora,
-    /// ver comentario de clase en World/Monster.cs).
-    /// </summary>
-    /// <summary>Puerto de CGActionRecv (Protocol.cpp:611-666) -- pose/emote/sentarse. Validación
-    /// mínima igual que el original (solo "está conectado", sin chequeo de distancia/estado ni rate
-    /// limit); persiste dir/ActionNumber en el jugador y reenvía tal cual a quien lo tenga en su
-    /// viewport. A diferencia del original, acá también se manda de vuelta al propio emisor (el
-    /// original NO hace eco al que lo originó, asume que el cliente reproduce su propia animación
-    /// Puerto de CGActionRecv (Protocol.cpp:611-666) -- pose/emote/sentarse. Puerto exacto de
-    /// GCActionSend (Protocol.cpp:1488-1507): difunde PMSG_ACTION_SEND (0x18) vía MsgSendV2 ÚNICAMENTE
-    /// a los observadores en el viewport del emisor, NUNCA al propio emisor (enviar 0x18 de vuelta
-    /// al propio cliente hace que main.exe interrumpa su animación/movimiento local y resetee
-    /// posición).
+    /// <summary> Simplified port of CAttack::CGAttackRecv + CAttack::Attack (Attack.cpp:44-581) -- ONLY basic
+    /// player melee attack against a monster (no skills, no PvP, no combo). Damage formula faithful to this
+    /// phase's research (miss/dodge, defense, per-level damage floor), except for two explicitly documented
+    /// simplifications: 1) The player's PhysiDamageMin/Max/Defense/AttackSuccessRate/DefenseSuccessRate come
+    /// from PlayerObject.RecalcCombatStats() -- Phase 4 second pass: it is already the real port of
+    /// CharacterCalcAttribute + the real Item.txt balance (the equipped weapon/armor DO matter), see the
+    /// comment of that function for the simplifications that remain (critical/excellent/ set-item, speed,
+    /// magic, PvP). 2) No critical/excellent (they depend on %s that come from
+    /// ItemOption.txt/SetItemOption.txt, not ported yet). Monster-attacks-player and the chase/patrol AI are
+    /// left for the next pass of this phase (confirmed safe at protocol level to leave monsters static for now,
+    /// see the class comment in World/Monster.cs). </summary> <summary>Port of CGActionRecv
+    /// (Protocol.cpp:611-666) -- pose/emote/sit. Minimal validation like the original (only "is connected", no
+    /// distance/state check or rate limit); it persists dir/ActionNumber on the player and forwards as is to
+    /// whoever has them in their viewport. Unlike the original, here it is also sent back to the sender itself
+    /// (the original does NOT echo to whoever originated it, it assumes the client plays its own animation.
+    /// Port of CGActionRecv (Protocol.cpp:611-666) -- pose/emote/sit. Exact port of GCActionSend
+    /// (Protocol.cpp:1488-1507): broadcasts PMSG_ACTION_SEND (0x18) via MsgSendV2 ONLY to the observers in the
+    /// sender's viewport, NEVER to the sender itself (sending 0x18 back to the client itself makes main.exe
+    /// interrupt its local animation/movement and reset the position).
     private async Task OnActionAsync(ClientSession session, byte[] p, CancellationToken ct)
     {
         var player = session.Player;
@@ -2328,10 +2280,10 @@ public sealed class ClientProtocolHandler
         }
     }
 
-    /// <summary>Puerto de CQuest::CGQuestInfoRecv (Quest.cpp:221-231) -&gt; GCQuestInfoSend
-    /// (Quest.cpp:397-417): no-op si ya se mandó el blob completo esta sesión (ver
-    /// <see cref="PlayerObject.SendQuestInfo"/>, normalmente ya en true por el push proactivo de
-    /// world-enter en <c>OnCharacterInfoFromDataServerAsync</c>, DSProtocol.cpp:503).</summary>
+    /// <summary>Port of CQuest::CGQuestInfoRecv (Quest.cpp:221-231) -&gt; GCQuestInfoSend (Quest.cpp:397-417):
+    /// no-op if the full blob was already sent this session (see <see cref="PlayerObject.SendQuestInfo"/>,
+    /// normally already true thanks to the proactive world-enter push in
+    /// <c>OnCharacterInfoFromDataServerAsync</c>, DSProtocol.cpp:503).</summary>
     private async Task OnQuestInfoAsync(ClientSession session, CancellationToken ct)
     {
         var player = session.Player;
@@ -2345,11 +2297,10 @@ public sealed class ClientProtocolHandler
         player.SendQuestInfo = true;
     }
 
-    /// <summary>Puerto de CGPetItemInfoRecv (Protocol.cpp:797-819) -- solo la rama flag==0
-    /// (Inventory); Warehouse/Trade/ChaosBox (flag 1+) no están portados todavía y, igual que el
-    /// original ante cualquier validación fallida, simplemente no responden nada (confirmado en la
-    /// investigación previa que el cliente real tolera la ausencia de respuesta acá, a diferencia de
-    /// QuestInfo).</summary>
+    /// <summary>Port of CGPetItemInfoRecv (Protocol.cpp:797-819) -- only the flag==0 branch (Inventory);
+    /// Warehouse/Trade/ChaosBox (flag 1+) are not ported yet and, like the original on any failed validation,
+    /// simply do not answer (confirmed in the earlier research that the real client tolerates the absence of an
+    /// answer here, unlike QuestInfo).</summary>
     private async Task OnPetItemInfoAsync(ClientSession session, byte[] p, CancellationToken ct)
     {
         var player = session.Player;
@@ -2369,26 +2320,23 @@ public sealed class ClientProtocolHandler
         await session.SendAsync(QuestPacketBuilder.PetItemInfoSend(recv.Type, recv.Flag, recv.Slot), ct);
     }
 
-    /// <summary>Puerto de CNpcTalk::CGNpcTalkRecv (NpcTalk.cpp:1416-1524) -- SOLO la rama "tienda"
-    /// (result de <c>NpcTalk()</c> siempre 0 en este puerto, ya que no hay NPCs de quest/clase
-    /// especial -- Trainer/Charon/GuildMaster/etc -- implementados, ver README). Simplificaciones
-    /// deliberadas frente al original:
-    /// <list type="bullet">
-    /// <item>El chequeo de distancia real del original es <c>gObjCalcDistance(lpObj,lpObj)</c> --
-    /// literalmente la distancia de el jugador A SÍ MISMO, que siempre da 0 y por lo tanto SIEMPRE
-    /// pasa. Es un bug del original (probablemente debía ser <c>gObjCalcDistance(lpObj,lpNpc)</c>);
-    /// se replica tal cual (sin chequeo real de distancia) para mantener fidelidad de comportamiento.</item>
-    /// <item>PKLevel/AccountLevel/GameMasterLevel no se trackean en este puerto todavía, así que los
-    /// chequeos <c>m_PKLimitShop</c>/<c>CheckShopGameMasterLevel</c>/<c>CheckShopAccountLevel</c> del
-    /// original se omiten (equivale a tenerlos siempre permisivos, el default de un server sin
-    /// restricciones configuradas).</item>
-    /// <item><c>GCShopItemPriceSendByIndex</c>/<c>GCTaxInfoSend</c> del original NO se portan porque
-    /// son no-ops en este build real: <c>GAMESERVER_SHOP==0</c> en stdafx.h (confirmado en el código
-    /// fuente) hace que <c>GCShopItemPriceSend</c>/<c>GCShopItemCoinPriceSend</c> compilen vacíos
-    /// (todo el sistema es de tiendas con moneda alternativa "Coin", no usado en esta build), y
-    /// <c>GCTaxInfoSend</c> es pura UI de impuestos de Castle Siege (sistema no portado). El cliente
-    /// real calcula el precio a mostrar en la ventana de tienda con su propia copia de Item.bmd, no
-    /// necesita que el servidor se lo mande para tiendas normales de Zen.</item>
+    /// <summary>Port of CNpcTalk::CGNpcTalkRecv (NpcTalk.cpp:1416-1524) -- ONLY the "shop" branch (the
+    /// <c>NpcTalk()</c> result is always 0 in this port, since there are no quest/special-class NPCs --
+    /// Trainer/Charon/GuildMaster/etc -- implemented, see README). Deliberate simplifications compared to the
+    /// original: <list type="bullet"> <item>The original's real distance check is
+    /// <c>gObjCalcDistance(lpObj,lpObj)</c> -- literally the distance of the player TO THEMSELVES, which is
+    /// always 0 and therefore ALWAYS passes. It is a bug in the original (probably meant to be
+    /// <c>gObjCalcDistance(lpObj,lpNpc)</c>); it is replicated as is (no real distance check) to keep
+    /// behavioural fidelity.</item> <item>PKLevel/AccountLevel/GameMasterLevel are not tracked in this port
+    /// yet, so the original's <c>m_PKLimitShop</c>/<c>CheckShopGameMasterLevel</c>/<c>CheckShopAccountLevel</c>
+    /// checks are omitted (equivalent to having them always permissive, the default of a server with no
+    /// restrictions configured).</item> <item>The original's
+    /// <c>GCShopItemPriceSendByIndex</c>/<c>GCTaxInfoSend</c> are NOT ported because they are no-ops in this
+    /// real build: <c>GAMESERVER_SHOP==0</c> in stdafx.h (confirmed in the source code) makes
+    /// <c>GCShopItemPriceSend</c>/<c>GCShopItemCoinPriceSend</c> compile empty (the whole system is about shops
+    /// with an alternative "Coin" currency, not used in this build), and <c>GCTaxInfoSend</c> is pure Castle
+    /// Siege tax UI (unported system). The real client computes the price to show in the shop window with its
+    /// own copy of Item.bmd, it does not need the server to send it for normal Zen shops.</item>
     /// </list></summary>
     private async Task OnNpcTalkAsync(ClientSession session, byte[] p, CancellationToken ct)
     {
@@ -2415,15 +2363,15 @@ public sealed class ClientProtocolHandler
             return;
         }
 
-        // Puerto EXACTO de CQuest::NpcTalk (Quest.cpp:195-219), llamado desde CNpcTalk::NpcTalk ANTES
-        // que el switch(lpNpc->Class) de casos especiales (NpcTalk.cpp:55-58) -- reemplaza una versión
-        // anterior que hardcodeaba "Sebina"(235)/"Marlon"(229) con un nivel mínimo fijo (150) y un
-        // modelo ad-hoc de 2 misiones, en vez de leer los requisitos reales de Quest.txt. Esa versión
-        // vieja mandaba QuestResultSend(...,0xFF,...) para CUALQUIER jugador que no calzara el nivel
-        // 150 exacto o la clase esperada -- el cliente real interpreta ese paquete como "conversación
-        // terminada" (bug reportado: "Conversation is over" al hablar con la Priest). El original NO
-        // manda ningún paquete cuando no hay ninguna misión disponible para ese NPC/jugador (GetInfoByIndex
-        // devuelve null -> NpcTalk devuelve false -> sigue al switch de casos especiales de abajo, y si
+        // EXACT port of CQuest::NpcTalk (Quest.cpp:195-219), called from CNpcTalk::NpcTalk BEFORE the
+        // switch(lpNpc->Class) of special cases (NpcTalk.cpp:55-58) -- it replaces an earlier version that
+        // hardcoded "Sebina"(235)/"Marlon"(229) with a fixed minimum level (150) and an ad-hoc 2-quest model,
+        // instead of reading the real requirements of Quest.txt. That old version sent
+        // QuestResultSend(...,0xFF,...) for ANY player who did not match exactly level 150 or the expected
+        // class -- the real client interprets that packet as "conversation over" (reported bug: "Conversation
+        // is over" when talking to the Priest). The original sends NO packet when there is no quest available
+        // for that NPC/player (GetInfoByIndex returns null -> NpcTalk returns false -> it continues to the
+        // switch of special cases below, and if
         var questMatch = _quests.NpcTalk(npc.MonsterClass, player.Quest!, player.Level, player.Class, player.ChangeUp);
 
         Log.Add(LogColor.Blue, "[Quest][{0}] OnNpcTalk: npc.Class={1} level={2} class={3} changeUp={4} => questMatch={5}",
@@ -2432,10 +2380,10 @@ public sealed class ClientProtocolHandler
 
         if (questMatch != null)
         {
-            // Puerto EXACTO de CQuest::GCQuestStateSend (Quest.cpp:419-432): siempre llama a
-            // GCQuestInfoSend primero, pero esa función es no-op si ya se mandó una vez esta sesión
-            // (ver PlayerObject.SendQuestInfo -- normalmente ya se mandó proactivamente al entrar al
-            // mundo, DSProtocol.cpp:503). El C1:A1 de estado SIEMPRE se manda.
+            // EXACT port of CQuest::GCQuestStateSend (Quest.cpp:419-432): it always calls GCQuestInfoSend
+            // first, but that function is a no-op if it was already sent once this session (see
+            // PlayerObject.SendQuestInfo -- normally already sent proactively on entering the world,
+            // DSProtocol.cpp:503). The C1:A1 state packet is ALWAYS sent.
             if (!player.SendQuestInfo)
             {
                 await session.SendAsync(QuestPacketBuilder.QuestInfoSend(player.Quest!, _quests.Entries.Count), ct);
@@ -2470,14 +2418,14 @@ public sealed class ClientProtocolHandler
 
         if (npc.MonsterClass == 238) // Chaos Goblin (Chaos Machine NPC en Noria)
         {
-            // OJO: antes acá se llamaba a ClearChaosBox(), que BORRA lo que hubiera quedado en la
-            // caja. Como mover un ítem del inventario a la caja lo saca del inventario
-            // (MoveItemToChaosBoxFromInventory hace InventoryDelItem en el original, y este puerto lo
-            // replica), cualquier ítem que quedara adentro --por ejemplo al cerrar la ventana con el
-            // 0x31 genérico, que no estaba portado-- se perdía al volver a abrir la máquina.
-            // NpcChaosGoblin del original no limpia nada al abrir: los ítems siguen en la caja. Acá se
-            // devuelven al inventario en vez de dejarlos en la caja porque este puerto no persiste la
-            // Chaos Box en el DataServer, así que dejarlos adentro los perdería igual al desconectar.
+            // WATCH OUT: here ClearChaosBox() used to be called, which DELETES whatever was left in the box.
+            // Since moving an item from the inventory to the box takes it out of the inventory
+            // (MoveItemToChaosBoxFromInventory does InventoryDelItem in the original, and this port replicates
+            // it), any item left inside --for example on closing the window with the generic 0x31, which was
+            // not ported-- was lost when reopening the machine. The original's NpcChaosGoblin does not clear
+            // anything on opening: the items stay in the box. Here they are returned to the inventory instead
+            // of being left in the box because this port does not persist the Chaos Box in the DataServer, so
+            // leaving them inside would lose them anyway on disconnecting.
             await ReturnChaosBoxItemsToInventoryAsync(session, player, ct);
 
             player.InChaosBox = true;
@@ -2488,8 +2436,8 @@ public sealed class ClientProtocolHandler
 
         if (npc.MonsterClass == 240) // Vault Keeper (Warehouse NPC)
         {
-            // Puerto del guard de NpcWarehouse (NpcTalk.cpp:189-198): el baúl no abre si hay ítems
-            // en la Chaos Box, para no poder tener el mismo ítem "en dos lados" a la vez.
+            // Port of the NpcWarehouse guard (NpcTalk.cpp:189-198): the warehouse does not open if there are
+            // items in the Chaos Box, so that the same item cannot be "in two places" at once.
             if (player.ChaosBoxItems.Any(i => i.IsItem()))
             {
                 await session.SendAsync(ChatPacketBuilder.NoticeSend(Loc.T("Take the items out of the Chaos Machine first.")), ct);
@@ -2531,16 +2479,15 @@ public sealed class ClientProtocolHandler
         await session.SendAsync(ShopPacketBuilder.ShopItemListSend(shop), ct);
     }
 
-    /// <summary>Puerto de CNpcTalk::CGNpcTalkCloseRecv (NpcTalk.cpp:325-360) -- libera el estado de
-    /// interfaz del jugador al cerrar la ventana del NPC. El original no manda ninguna respuesta.
-    ///
-    /// <para>La Chaos Box necesita un paso extra que antes faltaba: mover un ítem del inventario a la
-    /// caja lo SACA del inventario (el original hace <c>InventoryDelItem</c> en
-    /// <c>MoveItemToChaosBoxFromInventory</c>, y este puerto lo replica), así que si el jugador cerraba
-    /// la ventana con algo adentro el ítem quedaba sólo en <c>ChaosBoxItems</c> -- y al volver a hablar
-    /// con el Chaos Goblin se borraba. Ahora se devuelve al inventario. El original no hace esto (no
-    /// tiene case para INTERFACE_CHAOS_BOX acá, los ítems se quedan en la caja), pero allá la caja se
-    /// persiste y acá no, así que dejarlos adentro los perdería igual al desconectar.</para></summary>
+    /// <summary>Port of CNpcTalk::CGNpcTalkCloseRecv (NpcTalk.cpp:325-360) -- releases the player's interface
+    /// state when the NPC window is closed. The original sends no answer. <para>The Chaos Box needs an extra
+    /// step that used to be missing: moving an item from the inventory to the box TAKES IT OUT of the inventory
+    /// (the original does <c>InventoryDelItem</c> in <c>MoveItemToChaosBoxFromInventory</c>, and this port
+    /// replicates it), so if the player closed the window with something inside the item stayed only in
+    /// <c>ChaosBoxItems</c> -- and was deleted when talking to the Chaos Goblin again. Now it is returned to
+    /// the inventory. The original does not do this (it has no case for INTERFACE_CHAOS_BOX here, the items
+    /// stay in the box), but there the box is persisted and here it is not, so leaving them inside would lose
+    /// them anyway on disconnecting.</para></summary>
     private async Task OnNpcTalkCloseAsync(ClientSession session, CancellationToken ct)
     {
         var player = session.Player;
@@ -2679,16 +2626,15 @@ public sealed class ClientProtocolHandler
     }
 
 
-    /// <summary>Puerto de CItemManager::CGItemBuyRecv (ItemManager.cpp:4309-4519) -- SOLO la rama de
-    /// dinero normal (Zen): el original también soporta comprar con "Coin" alternativa (type 1-3) y
-    /// dos ítems especiales con lógica propia (Dark Horse/Dark Reaven "instantáneos" vía
-    /// GDCreateItemSend, e ítems de gacha "Random Item" vía CMossMerchant) -- ninguno de los dos
-    /// sistemas está portado (fuera del alcance de esta pasada, ver README), así que esos índices se
-    /// compran como cualquier ítem normal (van al inventario en vez de generarse aparte). Tampoco se
-    /// porta <c>InventoryInsertItemStack</c> (apilado de pociones/flechas ya existentes en el
-    /// inventario) -- siempre busca un slot vacío nuevo, igual que si el jugador no tuviera nada
-    /// apilable todavía. El impuesto de Castle Siege (<c>tax</c> en el original) es siempre 0 acá
-    /// (sistema no portado, equivale a tener el castillo sin dueño).</summary>
+    /// <summary>Port of CItemManager::CGItemBuyRecv (ItemManager.cpp:4309-4519) -- ONLY the normal money (Zen)
+    /// branch: the original also supports buying with an alternative "Coin" (type 1-3) and two special items
+    /// with their own logic (Dark Horse/Dark Reaven "instant" via GDCreateItemSend, and gacha "Random Item"
+    /// items via CMossMerchant) -- neither system is ported (outside the scope of this pass, see README), so
+    /// those indices are bought like any normal item (they go to the inventory instead of being generated
+    /// separately). <c>InventoryInsertItemStack</c> (stacking onto potions/arrows already in the inventory) is
+    /// not ported either -- it always looks for a new empty slot, as if the player had nothing stackable yet.
+    /// The Castle Siege tax (<c>tax</c> in the original) is always 0 here (unported system, equivalent to
+    /// having the castle without an owner).</summary>
     private async Task OnItemBuyAsync(ClientSession session, byte[] p, CancellationToken ct)
     {
         var player = session.Player;
@@ -2751,13 +2697,13 @@ public sealed class ClientProtocolHandler
         await session.SendEncryptedAsync(ItemPacketBuilder.MoneySend(player.Money), ct);
     }
 
-    /// <summary>Puerto de CItemManager::CGItemSellRecv (ItemManager.cpp:4521-4623) -- a diferencia de
-    /// la compra, el slot es del INVENTARIO propio del jugador (rango completo 0-107, incluye equipo
-    /// puesto -- <c>INVENTORY_FULL_RANGE</c> en el original, no <c>INVENTORY_RANGE</c>) y no depende
-    /// de qué tienda esté abierta, solo de que haya UNA tienda abierta. <c>gItemMove.CheckItemMoveAllowSell</c>
-    /// (flag "no vendible" de algunos ítems especiales) y <c>gServerInfo.m_TradeItemBlockSell</c> no
-    /// están portados (equivale a permitir vender cualquier ítem, el default sin restricciones
-    /// configuradas). Precio: <see cref="ComputeShopSellPrice"/>, puerto de CItem::Value().</summary>
+    /// <summary>Port of CItemManager::CGItemSellRecv (ItemManager.cpp:4521-4623) -- unlike buying, the slot is
+    /// from the player's OWN INVENTORY (full range 0-107, including worn equipment --
+    /// <c>INVENTORY_FULL_RANGE</c> in the original, not <c>INVENTORY_RANGE</c>) and does not depend on which
+    /// shop is open, only that ONE shop is open. <c>gItemMove.CheckItemMoveAllowSell</c> ("not sellable" flag
+    /// of some special items) and <c>gServerInfo.m_TradeItemBlockSell</c> are not ported (equivalent to
+    /// allowing any item to be sold, the default with no restrictions configured). Price: <see
+    /// cref="ComputeShopSellPrice"/>, port of CItem::Value().</summary>
     private async Task OnItemSellAsync(ClientSession session, byte[] p, CancellationToken ct)
     {
         var player = session.Player;
@@ -2799,11 +2745,11 @@ public sealed class ClientProtocolHandler
 
         await session.SendAsync(ShopPacketBuilder.ItemSellSend(1, player.Money), ct);
 
-        // Puerto de CItemManager::UpdateInventoryViewport (ItemManager.cpp:2062-2084) -- el original
-        // SOLO hace algo acá si el slot vendido era de EQUIPO puesto (INVENTORY_WEAR_RANGE); para el
-        // caso común (vender desde la mochila) no manda ningún paquete extra más allá del 0x33 de
-        // arriba -- el cliente real limpia su propio slot de inventario a partir de ese mismo result=1
-        // (recuerda qué slot pidió vender), sin necesidad de eco del servidor.
+        // Port of CItemManager::UpdateInventoryViewport (ItemManager.cpp:2062-2084) -- the original ONLY does
+        // something here if the sold slot was WORN equipment (INVENTORY_WEAR_RANGE); for the common case
+        // (selling from the backpack) it sends no extra packet beyond the 0x33 above -- the real client clears
+        // its own inventory slot from that same result=1 (it remembers which slot it asked to sell), with no
+        // need for a server echo.
         if (recv.Slot < Item.InventoryWearSize)
         {
             player.RebuildCharSet();
@@ -2823,12 +2769,12 @@ public sealed class ClientProtocolHandler
         }
     }
 
-    /// <summary>Puerto de la porción "sin BuyMoney explícito" de CItem::Value() (Item.cpp:916-975) --
-    /// usado para comprar. Precio final igual al original: si <see cref="ItemBalance.BuyMoney"/> está
-    /// seteado (alas/orbes en este puerto, ver ItemBalanceTable) se usa directo con el redondeo de
-    /// 2 etapas del original (≥100 → múltiplo de 10, luego ≥1000 → múltiplo de 100); si no, se cae a
-    /// <see cref="ComputeShopSellPrice"/>*3 (el original computa Buy y Sell juntos en la misma
-    /// función; acá se separan por claridad pero el valor es idéntico).</summary>
+    /// <summary>Port of the "without explicit BuyMoney" portion of CItem::Value() (Item.cpp:916-975) -- used
+    /// for buying. Final price the same as the original: if <see cref="ItemBalance.BuyMoney"/> is set
+    /// (wings/orbs in this port, see ItemBalanceTable) it is used directly with the original's 2-stage rounding
+    /// (≥100 → multiple of 10, then ≥1000 → multiple of 100); if not, it falls back to <see
+    /// cref="ComputeShopSellPrice"/>*3 (the original computes Buy and Sell together in the same function; here
+    /// they are separated for clarity but the value is identical).</summary>
     private uint ComputeShopBuyPrice(Item item, ItemBalance? info)
     {
         if (info == null)
@@ -2851,29 +2797,25 @@ public sealed class ClientProtocolHandler
         return ComputeGeneralPrice(item, info).buy;
     }
 
-    /// <summary>El precio explícito de Data/Item/ItemValue.txt, si el archivo menciona este item.
-    ///
-    /// <para>Va después de <see cref="ItemBalance.BuyMoney"/> y antes de la fórmula general. El
-    /// orden frente a BuyMoney es indistinto en la práctica --ninguna de las 72 filas del archivo
-    /// corresponde a un item con BuyMoney distinto de 0-- y así el precio de alas y orbes, que ya
-    /// estaba bien, no se toca. Frente a la fórmula general el orden sí importa: cinco filas
-    /// (las dos Siege Potion, Ale, Bless y Soul) apuntan a items que además traen la columna
-    /// <c>Value</c>, y es el archivo el que tiene el número correcto -- por Value, el Jewel of
-    /// Bless daba 18.700 en lugar de 9.000.000.</para>
-    ///
-    /// <para>El "grado" es la máscara de opciones especiales del item. Hoy la usa sólo el Horn of
-    /// Dinorant.</para></summary>
+    /// <summary>The explicit price from Data/Item/ItemValue.txt, if the file mentions this item. <para>It goes
+    /// after <see cref="ItemBalance.BuyMoney"/> and before the general formula. The order relative to BuyMoney
+    /// is immaterial in practice --none of the file's 72 rows corresponds to an item with a BuyMoney other than
+    /// 0-- and this way the price of wings and orbs, which was already right, is not touched. Relative to the
+    /// general formula the order does matter: five rows (the two Siege Potions, Ale, Bless and Soul) point to
+    /// items that also carry the <c>Value</c> column, and it is the file that has the correct number -- by
+    /// Value, the Jewel of Bless gave 18,700 instead of 9,000,000.</para> <para>The "grade" is the item's
+    /// special-options mask. Today only the Horn of Dinorant uses it.</para></summary>
     private int? LookupItemValue(Item item, ItemBalance info)
     {
         return _itemValues.Get(info.Index, item.Level, item.NewOption);
     }
 
-    /// <summary>Puerto de CItem::Value() (Item.cpp:916-975) -- rama de venta. Simplificaciones
-    /// deliberadas frente al original (fuera del alcance de esta pasada, ver README): items Muun,
-    /// items Pentagram, sockets, ítems "380" (bonus de nivel de build), joyas/alas custom vía Lua, y
-    /// los bonos de precio por opción especial (Luck/Skill/Excelente/Adicional) -- se calcula el
-    /// precio "base" de un ítem sin ninguna de esas opciones. Suficiente para una economía de tienda
-    /// funcional; el signo del precio (más caro cuanto mejor el ítem base) es correcto.</summary>
+    /// <summary>Port of CItem::Value() (Item.cpp:916-975) -- sell branch. Deliberate simplifications compared
+    /// to the original (outside the scope of this pass, see README): Muun items, Pentagram items, sockets,
+    /// "380" items (build level bonus), custom jewels/wings via Lua, and the price bonuses for special options
+    /// (Luck/Skill/Excellent/Additional) -- the "base" price of an item is computed without any of those
+    /// options. Enough for a functional shop economy; the sign of the price (dearer the better the base item)
+    /// is correct.</summary>
     private uint ComputeShopSellPrice(Item item, ItemBalance? info)
     {
         if (info == null)
@@ -2904,8 +2846,8 @@ public sealed class ClientProtocolHandler
         {
             long price = ((long)info.Value * info.Value * 10) / 12;
 
-            // Joyas (sección 14, sub 0-8) -- rama especial del original que escala por nivel/durabilidad
-            // y usa un redondeo de 1 sola etapa (≥10 → múltiplo de 10, sin la 2da etapa de ≥1000).
+            // Jewels (section 14, sub 0-8) -- special branch of the original that scales by level/durability
+            // and uses a single-stage rounding (≥10 → multiple of 10, without the 2nd stage of ≥1000).
             if (info.Section == 14 && info.Sub is >= 0 and <= 8)
             {
                 if (info.Sub == 3 || info.Sub == 6)
@@ -2924,8 +2866,8 @@ public sealed class ClientProtocolHandler
             return (RoundPriceTwoStage(price), RoundPriceTwoStage(price / 3));
         }
 
-        // Fórmula general basada en ItemLevel (Item.cpp:1008-1125) -- solo la rama sin opciones
-        // especiales (ver doc-comment de ComputeShopSellPrice).
+        // General formula based on ItemLevel (Item.cpp:1008-1125) -- only the branch without special options
+        // (see the doc-comment of ComputeShopSellPrice).
         int itemLevel = info.Level + (Math.Clamp((int)item.Level, 0, 15) * 3);
 
         itemLevel += item.Level switch
@@ -2936,12 +2878,12 @@ public sealed class ClientProtocolHandler
 
         long generalPrice;
 
-        if (info.Section == 13) // mascotas/joyas de anillo-pendiente/misceláneo -- fórmula cúbica simple
+        if (info.Section == 13) // pets/ring-pendant jewels/miscellaneous -- simple cubic formula
         {
             generalPrice = ((long)itemLevel * itemLevel * itemLevel) + 100;
         }
         else if (info.Section == 12) // alas -- en este puerto normalmente ya tienen BuyMoney seteado,
-                                      // se mantiene por robustez ante filas sin BuyMoney en el archivo
+                                      // kept for robustness against rows without BuyMoney in the file
         {
             generalPrice = ((((long)itemLevel + 40) * itemLevel) * itemLevel * 11) + 40_000_000;
         }
@@ -2959,8 +2901,8 @@ public sealed class ClientProtocolHandler
         return (RoundPriceTwoStage(generalPrice), RoundPriceTwoStage(generalPrice / 3));
     }
 
-    /// <summary>Redondeo de 2 etapas de CItem::Value() -- primero múltiplo de 10 si ≥100, LUEGO
-    /// múltiplo de 100 si el resultado (ya redondeado) es ≥1000.</summary>
+    /// <summary>2-stage rounding of CItem::Value() -- first a multiple of 10 if ≥100, THEN a multiple of 100 if
+    /// the (already rounded) result is ≥1000.</summary>
     private static uint RoundPriceTwoStage(long v)
     {
         if (v >= 100)
@@ -2976,8 +2918,8 @@ public sealed class ClientProtocolHandler
         return (uint)Math.Max(v, 0);
     }
 
-    /// <summary>Redondeo de 1 sola etapa (solo múltiplo de 10 si ≥10) -- usado por la rama especial de
-    /// joyas de CItem::Value().</summary>
+    /// <summary>Single-stage rounding (only a multiple of 10 if ≥10) -- used by the special jewel branch of
+    /// CItem::Value().</summary>
     private static uint RoundPriceOneStage(long v)
     {
         if (v >= 10)
@@ -2988,10 +2930,10 @@ public sealed class ClientProtocolHandler
         return (uint)Math.Max(v, 0);
     }
 
-    /// <summary>Puerto simplificado de InventoryRectCheck/InventoryInsertItem (ItemManager.cpp:1226-1256)
-    /// -- primer-hueco-libre escaneando la grilla principal de inventario (8 columnas, filas 12-107)
-    /// con el mismo algoritmo de <see cref="ShopManagerTable"/> (no hay apilado de consumibles
-    /// existentes, ver doc-comment de OnItemBuyAsync).</summary>
+    /// <summary>Simplified port of InventoryRectCheck/InventoryInsertItem (ItemManager.cpp:1226-1256) --
+    /// first-free-spot scanning the main inventory grid (8 columns, rows 12-107) with the same algorithm as
+    /// <see cref="ShopManagerTable"/> (there is no stacking of existing consumables, see the doc-comment of
+    /// OnItemBuyAsync).</summary>
     private static bool TryFindEmptyInventoryRect(PlayerObject player, int width, int height, out int slot)
     {
         const int columns = 8;
@@ -3042,10 +2984,10 @@ public sealed class ClientProtocolHandler
 
         var recv = AttackRecv.Parse(p);
 
-        // ShopNumber != null => es un NPC de tienda, no un monstruo real -- el original nunca deja
-        // que uno termine ahí porque OBJECT_NPC no es un objetivo válido de ataque (CAttack::Attack
-        // valida lpTarget->Type == OBJECT_MONSTER), acá se replica con el mismo campo que ya usa
-        // OnNpcTalkAsync para identificar NPCs (ver comentario de Monster.ShopNumber).
+        // ShopNumber != null => it is a shop NPC, not a real monster -- the original never lets one end up here
+        // because OBJECT_NPC is not a valid attack target (CAttack::Attack validates lpTarget->Type ==
+        // OBJECT_MONSTER), here it is replicated with the same field OnNpcTalkAsync already uses to identify
+        // NPCs (see the comment of Monster.ShopNumber).
         if (!_monsters.TryGet(recv.TargetIndex, out var monster) || monster.IsDead || monster.ShopNumber != null)
         {
             return;
@@ -3058,8 +3000,8 @@ public sealed class ClientProtocolHandler
 
         var map = _maps.GetMap(player.Map);
 
-        // Puerto de CGAttackRecv (Attack.cpp:1565): no se puede atacar parado en zona segura (bit 1),
-        // ni a un objetivo que esté parado en una.
+        // Port of CGAttackRecv (Attack.cpp:1565): you cannot attack while standing in a safe zone (bit 1), nor
+        // a target that is standing in one.
         if ((map?.CheckAttr(player.X, player.Y, 1) ?? false) || (map?.CheckAttr(monster.X, monster.Y, 1) ?? false))
         {
             return;
@@ -3075,10 +3017,10 @@ public sealed class ClientProtocolHandler
 
         player.Dir = recv.Dir;
 
-        // Broadcast de la animación de ataque (0x18) -- puerto exacto de GCActionSend (Protocol.cpp:
-        // 1488-1507): difunde PMSG_ACTION_SEND (0x18) vía MsgSendV2 ÚNICAMENTE a los observadores en
-        // el viewport del atacante, NUNCA al propio atacante (enviar 0x18 de vuelta al propio cliente
-        // hace que main.exe interrumpa su animación/movimiento local y resetee posición).
+        // Broadcast of the attack animation (0x18) -- exact port of GCActionSend (Protocol.cpp: 1488-1507):
+        // broadcasts PMSG_ACTION_SEND (0x18) via MsgSendV2 ONLY to the observers in the attacker's viewport,
+        // NEVER to the attacker itself (sending 0x18 back to the client itself makes main.exe interrupt its
+        // local animation/movement and reset the position).
         var actionPacket = CombatPacketBuilder.ActionSend(player.Index, player.Dir, recv.Action, monster.Index);
 
         foreach (var viewer in _players.All)
@@ -3092,7 +3034,7 @@ public sealed class ClientProtocolHandler
         // ---- Paso 1: miss/dodge (puerto de CAttack::MissCheck, Attack.cpp:987-1031) ----
         int attackSuccess = Math.Max(player.AttackSuccessRate, 0);
         int defenseSuccess = Math.Max(monster.DefenseSuccessRate, 0);
-        bool graze = false; // "miss=1 pero no se anuló" -- ver comentario de la fórmula abajo
+        bool graze = false; // "miss=1 but it was not cancelled" -- see the formula comment below
 
         if (attackSuccess < defenseSuccess)
         {
@@ -3115,12 +3057,12 @@ public sealed class ClientProtocolHandler
             }
         }
 
-        // ---- Paso 2: defensa del objetivo (CAttack::GetTargetDefense, Attack.cpp:1117-1154) ----
-        // Sin la mitad de reducción que aplica cuando el objetivo es OBJECT_USER -- acá el objetivo
-        // siempre es un monstruo, así que se usa su Defense tal cual.
+        // ---- Step 2: target defense (CAttack::GetTargetDefense, Attack.cpp:1117-1154) ---- Without the
+        // halving reduction that applies when the target is an OBJECT_USER -- here the target is always a
+        // monster, so its Defense is used as is.
         int targetDefense = Math.Max(monster.Defense, 0);
 
-        // ---- Paso 3: daño crudo (CAttack::GetAttackDamage, Attack.cpp:1156-1307, rama jugador) ----
+        // ---- Step 3: raw damage (CAttack::GetAttackDamage, Attack.cpp:1156-1307, player branch) ----
         int range = Math.Max(player.PhysiDamageMax - player.PhysiDamageMin, 1);
         int damage = player.PhysiDamageMin + Rng.Next(range);
 
@@ -3132,7 +3074,7 @@ public sealed class ClientProtocolHandler
         damage -= targetDefense;
         damage = Math.Max(damage, 0);
 
-        // ---- Paso 4: piso de daño por nivel (Attack.cpp:365-366) ----
+        // ---- Step 4: per-level damage floor (Attack.cpp:365-366) ----
         int minDamage = Math.Max(player.Level / 10, 1);
 
         if (damage < minDamage)
@@ -3140,8 +3082,8 @@ public sealed class ClientProtocolHandler
             damage = minDamage + Rng.Next(minDamage);
         }
 
-        // Multiplicadores globales (m_GeneralDamageRatePvM, DamageTable por mapa/nivel) no portados
-        // todavía -- equivalen a 100% (sin cambio), que es el default de un paquete sin tocar.
+        // Global multipliers (m_GeneralDamageRatePvM, per map/level DamageTable) not ported yet -- equivalent
+        // to 100% (no change), which is the default of an untouched package.
 
         monster.Life = Math.Max(monster.Life - damage, 0);
         monster.DamageByAttacker.TryGetValue(player.Index, out var accumulated);
@@ -3160,33 +3102,26 @@ public sealed class ClientProtocolHandler
         await OnMonsterDeathAsync(player, monster, ct);
     }
 
-    /// <summary>
-    /// Puerto simplificado de CSkillManager::CGSkillAttackRecv + UseAttackSkill + CAttack::
-    /// GetAttackDamageWizard (SkillManager.cpp:2418-2515,770-832; Attack.cpp:1309-1384) -- SOLO
-    /// casteo de skill de ataque de un solo objetivo (C3:19) de jugador contra monstruo (sin PvP, sin
-    /// skills de área/duración C3:1E, sin multi-hit C3:1D, sin Teleport Ally). Simplificaciones
-    /// documentadas explícitamente frente al original:
-    ///   1) Sin sistema de "skills aprendidos" (CSkillManager::GetSkill busca en lpObj->Skill[], una
-    ///      lista poblada por un flujo de aprendizaje/árbol de skills que no está portado) -- acá se
-    ///      valida directamente contra SkillList.txt en el momento del casteo (clase+nivel), en vez
-    ///      de contra una lista de skills previamente aprendidos. Cualquier jugador de la clase/nivel
-    ///      correctos puede castear cualquier skill que le corresponda sin haberlo "aprendido" antes.
-    ///   2) CheckSkillRequireClass sigue el mismo chequeo (RequireClass[clase] != 0 &&
-    ///      ChangeUp+1 >= RequireClass[clase]) -- <see cref="PlayerObject.ChangeUp"/> ahora se
-    ///      deriva del valor real de DB (ver OnCharacterInfoFromDataServerAsync), pero con los datos
-    ///      de semilla actuales (todos los personajes en 1ra clase) sigue valiendo 0 en la práctica,
-    ///      así que solo son alcanzables los skills con RequireClass==1 para la clase del jugador
-    ///      hasta que haya datos de un personaje con cambio de clase real para probarlo.
-    ///   3) Sin SkillUseArea.txt (restricción de mapas por skill) -- solo se reusa el chequeo de zona
-    ///      segura (map.CheckAttr bit 1) ya usado por el ataque cuerpo a cuerpo.
-    ///   4) Sin crítico/excelente/daño PvP/combo de Dark Knight (mismas razones que el ataque cuerpo
-    ///      a cuerpo -- dependen de sistemas no portados).
-    ///   5) MPConsumptionRate/BPConsumptionRate (reducción de costo por item/efecto) se asumen 100%
-    ///      siempre -- no hay sistema de opciones de item ni de efectos activos todavía.
-    ///   6) El acierto/esquiva y la defensa del objetivo reusan exactamente el mismo cálculo que el
-    ///      ataque cuerpo a cuerpo (AttackSuccessRate/DefenseSuccessRate/Defense) -- el original no
-    ///      documenta una fórmula de "acierto mágico" separada en las partes revisadas de Attack.cpp.
-    /// </summary>
+    /// <summary> Simplified port of CSkillManager::CGSkillAttackRecv + UseAttackSkill + CAttack::
+    /// GetAttackDamageWizard (SkillManager.cpp:2418-2515,770-832; Attack.cpp:1309-1384) -- ONLY the casting of
+    /// a single-target attack skill (C3:19) by a player against a monster (no PvP, no area/duration skills
+    /// C3:1E, no multi-hit C3:1D, no Teleport Ally). Explicitly documented simplifications compared to the
+    /// original: 1) No "learned skills" system (CSkillManager::GetSkill looks in lpObj->Skill[], a list
+    /// populated by a learning flow/skill tree that is not ported) -- here it is validated directly against
+    /// SkillList.txt at cast time (class+level), instead of against a list of previously learned skills. Any
+    /// player of the right class/level can cast any skill that applies to them without having "learned" it
+    /// first. 2) CheckSkillRequireClass follows the same check (RequireClass[class] != 0 && ChangeUp+1 >=
+    /// RequireClass[class]) -- <see cref="PlayerObject.ChangeUp"/> is now derived from the real DB value (see
+    /// OnCharacterInfoFromDataServerAsync), but with the current seed data (all characters in 1st class) it
+    /// still is 0 in practice, so only the skills with RequireClass==1 for the player's class are reachable
+    /// until there is data for a character with a real class change to test it. 3) No SkillUseArea.txt
+    /// (per-skill map restriction) -- only the safe-zone check (map.CheckAttr bit 1) already used by the melee
+    /// attack is reused. 4) No critical/excellent/PvP damage/Dark Knight combo (same reasons as the melee
+    /// attack -- they depend on unported systems). 5) MPConsumptionRate/BPConsumptionRate (cost reduction by
+    /// item/effect) are assumed 100% always -- there is no item-option system or active effects yet. 6)
+    /// Hit/dodge and the target's defense reuse exactly the same calculation as the melee attack
+    /// (AttackSuccessRate/DefenseSuccessRate/Defense) -- the original does not document a separate "magic hit"
+    /// formula in the parts of Attack.cpp that were reviewed. </summary>
     private async Task OnSkillAttackAsync(ClientSession session, byte[] p, CancellationToken ct)
     {
         var player = session.Player;
@@ -3198,7 +3133,7 @@ public sealed class ClientProtocolHandler
 
         var recv = SkillAttackRecv.Parse(p);
 
-        // Ver comentario equivalente en OnAttackAsync -- un NPC de tienda no es un objetivo válido.
+        // See the equivalent comment in OnAttackAsync -- a shop NPC is not a valid target.
         if (!_monsters.TryGet(recv.TargetIndex, out var monster) || monster.IsDead || monster.ShopNumber != null)
         {
             return;
@@ -3211,8 +3146,8 @@ public sealed class ClientProtocolHandler
 
         var map = _maps.GetMap(player.Map);
 
-        // Puerto de CGSkillAttackRecv (SkillManager.cpp:2456-2472, simplificado sin SkillUseArea.txt):
-        // no se puede castear parado en zona segura, ni contra un objetivo parado en una.
+        // Port of CGSkillAttackRecv (SkillManager.cpp:2456-2472, simplified without SkillUseArea.txt): you
+        // cannot cast while standing in a safe zone, nor against a target standing in one.
         if ((map?.CheckAttr(player.X, player.Y, 1) ?? false) || (map?.CheckAttr(monster.X, monster.Y, 1) ?? false))
         {
             return;
@@ -3225,8 +3160,8 @@ public sealed class ClientProtocolHandler
             return;
         }
 
-        // ---- Validación de clase/nivel (sustituye el chequeo de "skill aprendido", ver punto 1 del
-        // doc-comment de este método) ----
+        // ---- Class/level validation (replaces the "learned skill" check, see point 1 of this method's
+        // doc-comment) ----
         if (!skill.CanUse(player.Class, player.ChangeUp) || player.Level < skill.RequireLevel)
         {
             return;
@@ -3245,12 +3180,12 @@ public sealed class ClientProtocolHandler
 
         if (distance > Math.Max(skill.Range, 1))
         {
-            return; // fuera de rango: "casteo gratis" en el original (no consume maná, ver punto 5)
+            return; // out of range: "free cast" in the original (consumes no mana, see point 5)
         }
 
         player.SkillDelay[skill.Index] = now;
 
-        // ---- Maná/BP (CheckSkillMana/CheckSkillBP, SkillManager.cpp:333-365) ----
+        // ---- Mana/BP (CheckSkillMana/CheckSkillBP, SkillManager.cpp:333-365) ----
         if ((int)player.Mana < skill.Mana || (int)player.BP < skill.BP)
         {
             return; // insuficiente: casteo totalmente silencioso, igual que el original (ver punto 5)
@@ -3261,7 +3196,7 @@ public sealed class ClientProtocolHandler
 
         await session.SendAsync(ManaPacketBuilder.ManaSend(0xFF, (int)player.Mana, (int)player.BP), ct);
 
-        // ---- Paso 1: miss/dodge (mismo cálculo que CAttack::MissCheck usado en OnAttackAsync) ----
+        // ---- Step 1: miss/dodge (same calculation as CAttack::MissCheck used in OnAttackAsync) ----
         int attackSuccess = Math.Max(player.AttackSuccessRate, 0);
         int defenseSuccess = Math.Max(monster.DefenseSuccessRate, 0);
         bool graze = false;
@@ -3284,7 +3219,7 @@ public sealed class ClientProtocolHandler
             return;
         }
 
-        // ---- Paso 2: daño mágico crudo (CAttack::GetAttackDamageWizard, Attack.cpp:1309-1384) ----
+        // ---- Step 2: raw magic damage (CAttack::GetAttackDamageWizard, Attack.cpp:1309-1384) ----
         int damageMin = player.MagicDamageMin + skill.DamageMin;
         int damageMax = player.MagicDamageMax + skill.DamageMax;
         int range = Math.Max(damageMax - damageMin, 1);
@@ -3298,7 +3233,7 @@ public sealed class ClientProtocolHandler
         damage -= Math.Max(monster.Defense, 0);
         damage = Math.Max(damage, 0);
 
-        // ---- Paso 3: piso de daño por nivel (mismo que el ataque cuerpo a cuerpo, Attack.cpp:365-366) ----
+        // ---- Step 3: per-level damage floor (same as the melee attack, Attack.cpp:365-366) ----
         int minDamage = Math.Max(player.Level / 10, 1);
 
         if (damage < minDamage)
@@ -3306,7 +3241,7 @@ public sealed class ClientProtocolHandler
             damage = minDamage + Rng.Next(minDamage);
         }
 
-        // ---- Paso 4: multiplicador opcional por skill (SkillDamage.txt -- no-op con los datos reales) ----
+        // ---- Step 4: optional per-skill multiplier (SkillDamage.txt -- no-op with the real data) ----
         damage = _skillDamage.Apply(skill.Index, damage);
 
         monster.Life = Math.Max(monster.Life - damage, 0);
@@ -3315,8 +3250,8 @@ public sealed class ClientProtocolHandler
 
         await session.SendAsync(CombatPacketBuilder.DamageSend(monster.Index, damage, 0, missFlag: false, monster.Life), ct);
 
-        // Puerto de GCSkillAttackSend (SkillManager.cpp:2665-2685): unicast al propio casteador +
-        // fan-out por viewport a quienes lo estén viendo, cifrado por bloques (C3).
+        // Port of GCSkillAttackSend (SkillManager.cpp:2665-2685): unicast to the caster itself + fan-out by
+        // viewport to whoever is watching, block-encrypted (C3).
         var skillPacket = SkillPacketBuilder.SkillAttackSend((byte)skill.Index, player.Index, monster.Index);
         await session.SendEncryptedAsync(skillPacket, ct);
 
@@ -3488,8 +3423,7 @@ public sealed class ClientProtocolHandler
         }
     }
 
-    /// <summary>
-    /// Puerto de CGPositionRecv (Protocol.cpp:557-610) -- sincronización de posición de jugador (0xD0).
+    /// <summary> Port of CGPositionRecv (Protocol.cpp:557-610) -- player position synchronisation (0xD0).
     /// </summary>
     private async Task OnPositionAsync(ClientSession session, byte[] p, CancellationToken ct)
     {
@@ -3515,25 +3449,22 @@ public sealed class ClientProtocolHandler
         }
     }
 
-    /// <summary>
-    /// Puerto simplificado de CObjectManager::CharacterLifeCheck (la rama de muerte de monstruo,
+    /// <summary> Simplified port of CObjectManager::CharacterLifeCheck (the monster death branch,
     /// ObjectManager.cpp:2815-2929) + CharacterCalcExperienceSplit/Alone (789-865) + CharacterLevelUp
-    /// (983-1041). Solo reparto individual (sin grupo -- Social/Party no portado todavía): cada
-    /// atacante se lleva experiencia proporcional a SU daño acumulado sobre este monstruo, igual que
-    /// el original hace incluso fuera de un grupo.
-    /// </summary>
+    /// (983-1041). Individual split only (no party -- Social/Party not ported yet): each attacker takes
+    /// experience proportional to THEIR accumulated damage on this monster, just as the original does even
+    /// outside a party. </summary>
     private async Task OnMonsterDeathAsync(PlayerObject killer, Monster monster, CancellationToken ct)
     {
         monster.Live = false;
         monster.DiedAt = DateTime.UtcNow;
 
-        // Puerto de CObjectManager::CharacterLifeCheck (ObjectManager.cpp:2893-2903): al morir, el
-        // original SOLO pone Live=0/State=OBJECT_DYING y manda el paquete de muerte (GCUserDieSend) --
-        // NO saca al objeto del viewport todavía. El cadáver se sigue viendo (jugando su animación de
-        // muerte) hasta que el timer de respawn cumple y gObjMonsterRegen llama gObjClearViewport, que
-        // recién ahí lo saca de la vista de todos (ver RespawnDeadMonsters en ViewportTicker). Sacarlo
-        // acá de inmediato -- como hacía este método antes -- es lo que causaba que los monstruos
-        // "desaparecieran" sin ningún efecto de muerte visible.
+        // Port of CObjectManager::CharacterLifeCheck (ObjectManager.cpp:2893-2903): on dying, the original ONLY
+        // sets Live=0/State=OBJECT_DYING and sends the death packet (GCUserDieSend) -- it does NOT remove the
+        // object from the viewport yet. The corpse is still seen (playing its death animation) until the
+        // respawn timer elapses and gObjMonsterRegen calls gObjClearViewport, which only then removes it from
+        // everybody's view (see RespawnDeadMonsters in ViewportTicker). Removing it immediately here -- as this
+        // method used to do -- is what made monsters "vanish" with no visible death effect.
         var dieSend = CombatPacketBuilder.UserDieSend(monster.Index, 0, killer.Index);
         var viewers = monster.VisibleTo.ToList();
 
@@ -3549,18 +3480,17 @@ public sealed class ClientProtocolHandler
 
         await TryDropLootAsync(killer, monster, viewers, ct);
 
-        // Puerto de CDevilSquare::MonsterDieProc (Fase 6) -- independiente del reparto de experiencia
-        // de abajo, solo aplica si el monstruo pertenece a una corrida activa de Devil Square.
+        // Port of CDevilSquare::MonsterDieProc (Phase 6) -- independent of the experience share below, it only
+        // applies if the monster belongs to an active Devil Square run.
         if (_devilSquare != null)
         {
             await _devilSquare.OnMonsterKilledAsync(monster, ct);
         }
 
-        // Puerto de la parte de CObjectManager::CharacterLifeCheck que decide entre reparto solo vs.
-        // en grupo (ObjectManager.cpp:4817): cuando el atacante está en un grupo con >=2 miembros, el
-        // reparto de experiencia de TODO el grupo se calcula una sola vez por grupo (no por
-        // atacante) -- de ahí processedParties, para no procesar el mismo grupo dos veces si más de
-        // un miembro pegó al monstruo.
+        // Port of the part of CObjectManager::CharacterLifeCheck that decides between solo vs. party share
+        // (ObjectManager.cpp:4817): when the attacker is in a party with >=2 members, the experience share of
+        // the WHOLE party is computed only once per party (not per attacker) -- hence processedParties, so as
+        // not to process the same party twice if more than one member hit the monster.
         var processedParties = new HashSet<int>();
 
         foreach (var (attackerIndex, damageDealt) in monster.DamageByAttacker)
@@ -3584,27 +3514,23 @@ public sealed class ClientProtocolHandler
         }
     }
 
-    /// <summary>
-    /// Puerto MUY simplificado de gObjMonsterDieGiveItem (Monster.cpp:54-284) -- de la cascada real de
-    /// ~13 subsistemas de drop (ItemBag por clase de monstruo, drop-tables de boss/evento, drop-events
-    /// programados, set-item aleatorio, etc., ver investigación), esta pasada SOLO porta el camino
-    /// "genérico" que cubre la enorme mayoría de monstruos de campo comunes: un roll de item (según
-    /// <see cref="Monster.ItemRate"/>, reusando <see cref="ItemBalanceTable.PickRandomDropItem"/> --
-    /// mismos datos de Item.txt/DropItem que ya carga la Fase 4 de balance) O, si no salió item, un
-    /// roll de dinero (según <see cref="Monster.MoneyRate"/>). Ambos ratees se interpretan como
-    /// "1 en N" (<c>Rng.Next(rate)==0</c>), la interpretación estándar de estas dos columnas en
-    /// MonsterList.txt. Fuera de esta pasada (documentado en detalle en el README): ItemBagManager
-    /// (drops especiales por clase de monstruo/evento), sets aleatorios, opciones aleatorias de
-    /// nivel/excelente/socket en el item dropeado (sale "de fábrica", +0 sin opciones), serial
-    /// persistente único vía DataServer (se deja en 0, igual que los items comprados en tienda de
-    /// Fase 8 -- mismo nivel de simplificación ya aceptado ahí).
-    /// </summary>
-    /// <summary>Puerto de CQuestObjective::MonsterItemDrop (QuestObjective.cpp:213-269) -- enganchado
-    /// en TryDropLootAsync ANTES del roll de item/dinero genérico (igual que Monster.cpp:59-67).
-    /// Se evalúa contra quien más daño le hizo al monstruo (gObjMonsterGetTopHitDamageUser), no
-    /// necesariamente el que dio el golpe final. La variante de reparto en grupo
-    /// (MonsterItemDropParty, gServerInfo.m_QuestMonsterItemDropParty) no está portada -- se evalúa
-    /// solo contra el top-damager, simplificación documentada.</summary>
+    /// <summary> VERY simplified port of gObjMonsterDieGiveItem (Monster.cpp:54-284) -- of the real cascade of
+    /// ~13 drop subsystems (per-monster-class ItemBag, boss/event drop tables, scheduled drop-events, random
+    /// set item, etc., see the research), this pass ONLY ports the "generic" path that covers the vast majority
+    /// of common field monsters: an item roll (according to <see cref="Monster.ItemRate"/>, reusing <see
+    /// cref="ItemBalanceTable.PickRandomDropItem"/> -- the same Item.txt/DropItem data Phase 4 of balance
+    /// already loads) OR, if no item came out, a money roll (according to <see cref="Monster.MoneyRate"/>).
+    /// Both rates are interpreted as "1 in N" (<c>Rng.Next(rate)==0</c>), the standard interpretation of these
+    /// two columns in MonsterList.txt. Outside this pass (documented in detail in the README): ItemBagManager
+    /// (special drops per monster class/event), random sets, random level/excellent/socket options on the
+    /// dropped item (it comes out "from the factory", +0 with no options), unique persistent serial via
+    /// DataServer (left at 0, the same as items bought in the Phase 8 shop -- the same level of simplification
+    /// already accepted there). </summary> <summary>Port of CQuestObjective::MonsterItemDrop
+    /// (QuestObjective.cpp:213-269) -- hooked into TryDropLootAsync BEFORE the generic item/money roll (the
+    /// same as Monster.cpp:59-67). It is evaluated against whoever did the most damage to the monster
+    /// (gObjMonsterGetTopHitDamageUser), not necessarily who dealt the final blow. The party-share variant
+    /// (MonsterItemDropParty, gServerInfo.m_QuestMonsterItemDropParty) is not ported -- it is evaluated only
+    /// against the top-damager, a documented simplification.</summary>
     private GroundItem? TryQuestItemDrop(PlayerObject killer, Monster monster)
     {
         if (_groundItems == null || _questObjectives.Entries.Count == 0)
@@ -3641,8 +3567,8 @@ public sealed class ClientProtocolHandler
                 continue;
             }
 
-            // Puerto EXACTO de QuestObjective.cpp:236-244 (incluye el caso especial: si sólo hay
-            // DropMaxLevel y no DropMinLevel, se compara contra monster.Class en vez del nivel).
+            // EXACT port of QuestObjective.cpp:236-244 (includes the special case: if there is only
+            // DropMaxLevel and no DropMinLevel, it is compared against monster.Class instead of the level).
             if (info.DropMinLevel != -1 && info.DropMinLevel > monster.Level)
             {
                 continue;
@@ -3695,16 +3621,16 @@ public sealed class ClientProtocolHandler
 
         int? ownerParty = killer.PartyNumber == -1 ? null : killer.PartyNumber;
 
-        // Puerto de Monster.cpp:59-67: gQuestObjective.MonsterItemDrop se chequea ANTES que el drop
-        // genérico de item/dinero (que sigue abajo) -- si un ítem de misión cae, ESE es el drop de
-        // este kill, ninguno de los otros dos rolls corre (ver el guard "dropped == null" que sigue).
+        // Port of Monster.cpp:59-67: gQuestObjective.MonsterItemDrop is checked BEFORE the generic item/money
+        // drop (which follows below) -- if a quest item drops, THAT is this kill's drop, and neither of the
+        // other two rolls runs (see the "dropped == null" guard that follows).
         GroundItem? dropped = TryQuestItemDrop(killer, monster);
 
         int itemRate = monster.ItemRate <= 0 ? 10 : monster.ItemRate;
         int moneyRate = monster.MoneyRate <= 0 ? 10 : monster.MoneyRate;
 
-        // En C++ (Monster.cpp:121,157): ItemRate/MoneyRate de MonsterList.txt definen la tirada.
-        // Si Rng.Next(ItemRate) < 10 (ItemDropRate base 10), hay drop de ítem.
+        // In C++ (Monster.cpp:121,157): ItemRate/MoneyRate of MonsterList.txt define the roll. If
+        // Rng.Next(ItemRate) < 10 (base ItemDropRate 10), there is an item drop.
         if (dropped == null && Rng.Next(itemRate) < 10)
         {
             var pick = _itemBalance.PickRandomDropItem(monster.Level, Rng);
@@ -3729,7 +3655,7 @@ public sealed class ClientProtocolHandler
                 }
 
                 byte newOption = 0;
-                if (monster.Level >= 25 && Rng.Next(1500) == 0) // Roll de ítem Excelente
+                if (monster.Level >= 25 && Rng.Next(1500) == 0) // Excellent item roll
                 {
                     byte[] excOpts = { 1, 2, 4, 8, 16, 32 };
                     newOption = excOpts[Rng.Next(excOpts.Length)];
@@ -3786,13 +3712,13 @@ public sealed class ClientProtocolHandler
 
         if (!viewerIndexes.Contains(killer.Index))
         {
-            // El propio matador también tiene que verlo aunque por algún motivo no estuviera en la
-            // lista de "viewers" del monstruo (ej. lo remató de un golpe a distancia justo al límite
-            // del rango de visión) -- se manda una vez más de forma directa, sin duplicar si ya estaba.
+            // The killer must also see it even if for some reason they were not in the monster's "viewers" list
+            // (e.g. they finished it with a ranged hit right at the edge of view range) -- it is sent once more
+            // directly, without duplicating if it was already there.
             await killer.Session.SendAsync(appearPacket, ct);
         }
 
-        dropped.JustDropped = false; // ya se mandó la aparición "recién caído" una vez
+        dropped.JustDropped = false; // the "just fallen" appearance was already sent once
     }
 
     private async Task GrantExperienceAsync(PlayerObject attacker, Monster monster, int damageDealt, CancellationToken ct)
@@ -3813,27 +3739,23 @@ public sealed class ClientProtocolHandler
         int damageCredit = Math.Min(damageDealt, (int)monster.MaxLife);
         long baseExperience = level + (level / 4);
         long experience = monster.MaxLife <= 0 ? 0 : (damageCredit * baseExperience) / (long)monster.MaxLife;
-        // Puerto de CharacterCalcExperienceAlone (ObjectManager.cpp:845): m_AddExperienceRate es un
-        // multiplicador DIRECTO (no porcentaje) indexado por AccountLevel. Los otros multiplicadores
-        // globales que sí aplican /100 (mapa, bonus, reset) leen de sistemas no portados y siguen
-        // equivaliendo a 100% (sin cambio).
+        // Port of CharacterCalcExperienceAlone (ObjectManager.cpp:845): m_AddExperienceRate is a DIRECT
+        // multiplier (not a percentage) indexed by AccountLevel. The other global multipliers that do apply
+        // /100 (map, bonus, reset) read from unported systems and still equal 100% (no change).
         experience *= WorldPacketBuilder.ServerInfo.AddExperienceRate[attacker.AccountLevel];
 
         await ApplyExperienceGainAsync(attacker, monster.Index, experience, damageCredit, ct);
     }
 
-    /// <summary>
-    /// Puerto de CharacterCalcExperienceParty (ObjectManager.cpp:1345): a diferencia del reparto
-    /// solo (por daño propio), acá el "botín" de experiencia se calcula sobre el daño TOTAL que le
-    /// hizo el grupo entero al monstruo (sumando el de todos los miembros, no solo de quien dio el
-    /// golpe final), y se reparte entre los miembros que estén en el MISMO mapa y a <=
-    /// <see cref="MaxPartyDistance"/> tiles del monstruo (no del atacante) -- proporcional al nivel
-    /// de cada uno, NO al daño que haya hecho cada uno individualmente (así que un miembro que no
-    /// llegó a pegarle igual se lleva su parte si está en rango). Las tablas de bonus por tamaño y
-    /// diversidad de clases del grupo (m_PartyGeneralExperience/m_PartySpecialExperience) no están
-    /// portadas todavía -- equivalen a sin bonus (documentado en README, misma clase de deuda técnica
-    /// que el resto de multiplicadores globales de esta fase).
-    /// </summary>
+    /// <summary> Port of CharacterCalcExperienceParty (ObjectManager.cpp:1345): unlike the solo split (by own
+    /// damage), here the experience "pot" is computed over the TOTAL damage the whole party did to the monster
+    /// (adding up that of all members, not only of whoever dealt the final blow), and shared among the members
+    /// who are on the SAME map and within <= <see cref="MaxPartyDistance"/> tiles of the monster (not of the
+    /// attacker) -- proportional to each one's level, NOT to the damage each one did individually (so a member
+    /// who did not manage to hit it still takes their share if in range). The bonus tables by party size and
+    /// class diversity (m_PartyGeneralExperience/m_PartySpecialExperience) are not ported yet -- equivalent to
+    /// no bonus (documented in the README, the same kind of technical debt as the rest of this phase's global
+    /// multipliers). </summary>
     private async Task GrantPartyExperienceAsync(PartyGroup group, Monster monster, CancellationToken ct)
     {
         var members = new List<PlayerObject>();
@@ -3898,12 +3820,11 @@ public sealed class ClientProtocolHandler
         }
     }
 
-    /// <summary>Cola común de ambos caminos de arriba (solo y grupo): sumar experiencia, resolver
-    /// subidas de nivel en cadena (CharacterLevelUp, ObjectManager.cpp:983-1041) y mandar los
-    /// paquetes correspondientes. <paramref name="monsterIndex"/> es solo para el campo informativo
-    /// del paquete (qué mató para ganar esto) -- Fase 6 lo reusa para recompensa de experiencia de
-    /// evento (Devil Square), que no tiene un monstruo real asociado, con el sentinel -1 (0xFFFF en
-    /// el wire, ningún monstruo/jugador real usa ese índice).</summary>
+    /// <summary>Common tail of both paths above (solo and party): add experience, resolve chained level-ups
+    /// (CharacterLevelUp, ObjectManager.cpp:983-1041) and send the corresponding packets. <paramref
+    /// name="monsterIndex"/> is only for the packet's informational field (what was killed to gain this) --
+    /// Phase 6 reuses it for event experience rewards (Devil Square), which has no associated real monster,
+    /// with the sentinel -1 (0xFFFF on the wire, no real monster/player uses that index).</summary>
     private async Task ApplyExperienceGainAsync(PlayerObject member, int monsterIndex, long experience, int damageCredit, CancellationToken ct)
     {
         long addExperience = Math.Max(experience, 0);
@@ -3914,8 +3835,8 @@ public sealed class ClientProtocolHandler
 
         if (member.Level >= maxLevel)
         {
-            // Puerto de CharacterLevelUp (ObjectManager.cpp:985-989): al tope, la experiencia
-            // ganada ni siquiera se guarda -- se descarta entera.
+            // Port of CharacterLevelUp (ObjectManager.cpp:985-989): at the cap, the experience gained is not
+            // even saved -- it is discarded entirely.
         }
         else if (member.Experience + addExperience < WorldPacketBuilder.NextExperience(member.Level))
         {
@@ -3930,9 +3851,8 @@ public sealed class ClientProtocolHandler
                 member.LevelUpPoint += (uint)pointsPerLevel;
                 leveledUp = true;
 
-                // Puerto exacto de ObjectManager.cpp:1005: al agotar el tope de niveles por
-                // evento (MaxLevelUp), lo que sobre de experiencia se descarta -- no queda
-                // guardado para el próximo kill.
+                // Exact port of ObjectManager.cpp:1005: when the per-event level cap (MaxLevelUp) is exhausted,
+                // whatever experience is left over is discarded -- it is not saved for the next kill.
                 if (--maxLevelUp == 0)
                 {
                     addExperience = 0;
@@ -3958,9 +3878,9 @@ public sealed class ClientProtocolHandler
             }
         }
 
-        // Puerto de ObjectManager.cpp:857-864: si hubo level-up, el popup de experiencia de este
-        // paquete manda 0 (el aviso ya lo da GCLevelUpSend/LevelUpSend más abajo) -- si no, manda
-        // la experiencia real ganada.
+        // Port of ObjectManager.cpp:857-864: if there was a level-up, this packet's experience popup sends 0
+        // (the notice is already given by GCLevelUpSend/LevelUpSend further below) -- otherwise, it sends the
+        // real experience gained.
         await member.Session.SendAsync(
             CombatPacketBuilder.MonsterDieSend(monsterIndex, leveledUp ? 0u : (uint)Math.Max(experience, 0), damageCredit,
                 (uint)Math.Min(member.Experience, uint.MaxValue), WorldPacketBuilder.NextExperience(member.Level)),
@@ -3984,14 +3904,12 @@ public sealed class ClientProtocolHandler
 
     // ---------------------------------------------------------------- Fase 5: chat y whisper (primera pasada)
 
-    /// <summary>
-    /// Puerto simplificado de CGChatRecv (Protocol.cpp:1164) para el chat público sin sigilo: eco al
-    /// propio hablante + broadcast a todo el que lo tenga en su VisibleTo (mismo mecanismo de
-    /// viewport que ya usa movimiento -- confirmado que el original hace exactamente esto vía
-    /// MsgSendV2/VpPlayer2[], ver brief de investigación de la Fase 5). Comandos ('/') y los demás
-    /// canales por sigilo (party '~', guild '@'/'@@'/'@>', gens '$') no están portados todavía --
-    /// se ignoran en silencio en vez de tratarse como chat público (igual que el original, que los
-    /// excluye del branch "sin sigilo" y los rutea a sistemas aparte).
+    /// <summary> Simplified port of CGChatRecv (Protocol.cpp:1164) for public chat without a sigil: echo to the
+    /// speaker + broadcast to everyone who has them in their VisibleTo (the same viewport mechanism movement
+    /// already uses -- confirmed that the original does exactly this via MsgSendV2/VpPlayer2[], see the Phase 5
+    /// research brief). Commands ('/') and the other sigil channels (party '~', guild '@'/'@@'/'@>', gens '$')
+    /// are not ported yet -- they are silently ignored instead of being treated as public chat (like the
+    /// original, which excludes them from the "no sigil" branch and routes them to separate systems).
     /// </summary>
     private async Task OnChatAsync(ClientSession session, byte[] p, CancellationToken ct)
     {
@@ -4004,8 +3922,7 @@ public sealed class ClientProtocolHandler
 
         var recv = ChatRecv.Parse(p);
 
-        // Anti-spoof: el cliente siempre manda su propio nombre real (puerto de la verificación al
-        // principio de CGChatRecv).
+        // Anti-spoof: the client always sends its own real name (port of the check at the start of CGChatRecv).
         if (!string.Equals(recv.Name, player.Name, StringComparison.Ordinal))
         {
             return;
@@ -4018,12 +3935,11 @@ public sealed class ClientProtocolHandler
 
         char first = recv.Message[0];
 
-        // Puerto de la parte de CGChatRecv que multiplexa por sigilo inicial (Protocol.cpp:1164):
-        // '~' = chat de grupo (manda el mensaje TAL CUAL, sigilo incluido, a cada miembro vía
-        // DataSend directo -- NO pasa por el viewport, así que llega sin importar mapa/distancia,
-        // igual que el original iterando m_PartyInfo[...].Index[0..4]). '/' (comandos de
-        // GM/usuario), '@'/'@@'/'@>' (guild) y '$' (Gens) no están portados todavía -- se ignoran en
-        // silencio en vez de tratarse como chat público.
+        // Port of the part of CGChatRecv that multiplexes by initial sigil (Protocol.cpp:1164): '~' = party
+        // chat (sends the message AS IS, sigil included, to each member via direct DataSend -- it does NOT go
+        // through the viewport, so it arrives regardless of map/distance, just like the original iterating
+        // m_PartyInfo[...].Index[0..4]). '/' (GM/user commands), '@'/'@@'/'@>' (guild) and '$' (Gens) are not
+        // ported yet -- they are silently ignored instead of being treated as public chat.
         if (first == '/')
         {
             await OnCommandAsync(session, recv.Message, ct);
@@ -4247,12 +4163,10 @@ public sealed class ClientProtocolHandler
         await session.SendAsync(ChatPacketBuilder.NoticeSend(Loc.F("[Server] Command '/{0}' not recognised.", cmd)), ct);
     }
 
-    /// <summary>
-    /// Puerto de CGChatWhisperRecv (Protocol.cpp:1290): busca al destinatario primero en ESTE
-    /// GameServer (equivalente a gObjFind, un scan lineal de jugadores online); si no está acá, le
-    /// pregunta a DataServer (whisper cruzado entre GameServers, protocolo 0x72/0x73 ya implementado
-    /// del lado DataServer desde antes de esta fase).
-    /// </summary>
+    /// <summary> Port of CGChatWhisperRecv (Protocol.cpp:1290): looks for the recipient first on THIS
+    /// GameServer (equivalent to gObjFind, a linear scan of online players); if not here, it asks DataServer
+    /// (cross-GameServer whisper, protocol 0x72/0x73 already implemented on the DataServer side since before
+    /// this phase). </summary>
     private async Task OnChatWhisperAsync(ClientSession session, byte[] p, CancellationToken ct)
     {
         var player = session.Player;
@@ -4266,8 +4180,8 @@ public sealed class ClientProtocolHandler
 
         if (string.Equals(recv.TargetName, player.Name, StringComparison.OrdinalIgnoreCase))
         {
-            // Auto-whisper: el original lo rechaza con notice code 270 (GCServerMsgSend); ese sistema
-            // de notificaciones cortas no está portado todavía, así que acá simplemente no se manda nada.
+            // Self-whisper: the original rejects it with notice code 270 (GCServerMsgSend); that
+            // short-notification system is not ported yet, so here nothing is simply sent.
             return;
         }
 
@@ -4285,8 +4199,8 @@ public sealed class ClientProtocolHandler
                 (ushort)player.Index, player.Account, player.Name, recv.TargetName, recv.Message), ct);
     }
 
-    /// <summary>Callback desde DataServerConnection cuando llega SDHP_GLOBAL_WHISPER_SEND de vuelta
-    /// (0x72) -- confirma al REMITENTE si el whisper se pudo entregar en algún GameServer.</summary>
+    /// <summary>Callback from DataServerConnection when SDHP_GLOBAL_WHISPER_SEND comes back (0x72) -- confirms
+    /// to the SENDER whether the whisper could be delivered on some GameServer.</summary>
     public async Task OnGlobalWhisperResultFromDataServerAsync(GlobalWhisperResultFromDataServer msg, CancellationToken ct)
     {
         if (!_players.TryGet(msg.Index, out var sender))
@@ -4296,9 +4210,9 @@ public sealed class ClientProtocolHandler
 
         if (msg.Result == 0)
         {
-            // Destinatario no encontrado en ningún GameServer -- el original manda un notice code
-            // (270 vía GCServerMsgSend); ese sistema de notificaciones cortas no está portado
-            // todavía, así que por ahora el remitente solo nota que no le llegó respuesta.
+            // Recipient not found on any GameServer -- the original sends a notice code (270 via
+            // GCServerMsgSend); that short-notification system is not ported yet, so for now the sender just
+            // notices no answer arrived.
             Log.Add(LogColor.Black, "[Chat][{0}] Whisper from '{1}' to '{2}' -- recipient not found",
                 sender.Index, sender.Name, msg.TargetName);
         }
@@ -4306,8 +4220,8 @@ public sealed class ClientProtocolHandler
         await Task.CompletedTask;
     }
 
-    /// <summary>Callback desde DataServerConnection cuando llega SDHP_GLOBAL_WHISPER_ECHO_SEND
-    /// (0x73) -- este GameServer SÍ tiene conectado al destinatario real; se le entrega el whisper.</summary>
+    /// <summary>Callback from DataServerConnection when SDHP_GLOBAL_WHISPER_ECHO_SEND (0x73) arrives -- this
+    /// GameServer DOES have the real recipient connected; the whisper is delivered to them.</summary>
     public async Task OnGlobalWhisperEchoFromDataServerAsync(GlobalWhisperEchoFromDataServer msg, CancellationToken ct)
     {
         if (!_players.TryGet(msg.Index, out var target))
@@ -4320,14 +4234,12 @@ public sealed class ClientProtocolHandler
 
     // ---------------------------------------------------------------- Fase 5: party (primera pasada)
 
-    /// <summary>
-    /// Puerto de CGPartyRequestRecv (Party.cpp:332): valida que el objetivo exista, no sea uno mismo,
-    /// no esté ya en un grupo, y que ninguno de los dos lados tenga otra invitación pendiente (versión
-    /// simplificada del chequeo de Interface.use ocupada del original). El chequeo de diferencia de
-    /// nivel máxima (m_PartyMaxGapLevel) y el de Gens-lock no están portados todavía -- no bloquean
-    /// nada por ahora (equivalen a tenerlos desactivados). AutoAcceptPartyRequest (el camino de
-    /// PartyMatching) tampoco -- ver nota de "safe to defer" del brief de investigación.
-    /// </summary>
+    /// <summary> Port of CGPartyRequestRecv (Party.cpp:332): validates that the target exists, is not oneself,
+    /// is not already in a party, and that neither side has another pending invitation (simplified version of
+    /// the original's busy Interface.use check). The maximum level difference check (m_PartyMaxGapLevel) and
+    /// the Gens-lock one are not ported yet -- they block nothing for now (equivalent to having them disabled).
+    /// AutoAcceptPartyRequest (the PartyMatching path) neither -- see the "safe to defer" note of the research
+    /// brief. </summary>
     private async Task OnPartyRequestAsync(ClientSession session, byte[] p, CancellationToken ct)
     {
         var player = session.Player;
@@ -4347,7 +4259,7 @@ public sealed class ClientProtocolHandler
         if (player.PartyInviteTargetIndex != -1 || player.PartyInviterIndex != -1
             || target.PartyInviteTargetIndex != -1 || target.PartyInviterIndex != -1)
         {
-            return; // alguno de los dos ya tiene una invitación de party pendiente
+            return; // one of the two already has a pending party invitation
         }
 
         if (target.PartyNumber != -1)
@@ -4369,13 +4281,11 @@ public sealed class ClientProtocolHandler
         await target.Session.SendAsync(PartyPacketBuilder.PartyRequestSend(player.Index), ct);
     }
 
-    /// <summary>
-    /// Puerto de CGPartyRequestResultRecv (Party.cpp:439): valida que la respuesta corresponda a una
-    /// invitación realmente pendiente (recv.InviterIndex debe matchear lo que se guardó al invitar),
-    /// crea el grupo si el invitador todavía no tenía uno, agrega al invitado, y retransmite la lista
-    /// a todos los miembros. Limpia el estado de invitación de ambos lados al final pase lo que pase
-    /// (equivalente al CLEAR_JUMP del original).
-    /// </summary>
+    /// <summary> Port of CGPartyRequestResultRecv (Party.cpp:439): validates that the reply corresponds to a
+    /// really pending invitation (recv.InviterIndex must match what was stored when inviting), creates the
+    /// party if the inviter did not have one yet, adds the invitee, and re-broadcasts the list to all members.
+    /// It clears the invitation state on both sides at the end no matter what (equivalent to the original's
+    /// CLEAR_JUMP). </summary>
     private async Task OnPartyRequestResultAsync(ClientSession session, byte[] p, CancellationToken ct)
     {
         var invitee = session.Player;
@@ -4456,10 +4366,8 @@ public sealed class ClientProtocolHandler
         await session.SendAsync(PartyPacketBuilder.PartyListSend(1, BuildPartyListEntries(group)), ct);
     }
 
-    /// <summary>
-    /// Puerto de CGPartyDelMemberRecv (Party.cpp:599): number = slot propio (salir) o de otro miembro
-    /// (expulsar -- solo si quien lo manda es el líder, slot 0).
-    /// </summary>
+    /// <summary> Port of CGPartyDelMemberRecv (Party.cpp:599): number = own slot (leave) or another member's
+    /// (kick -- only if the sender is the leader, slot 0). </summary>
     private async Task OnPartyDelMemberAsync(ClientSession session, byte[] p, CancellationToken ct)
     {
         var player = session.Player;
@@ -4481,7 +4389,7 @@ public sealed class ClientProtocolHandler
 
         if (targetPlayerIndex != player.Index && !isLeader)
         {
-            return; // solo el líder puede expulsar a otros
+            return; // only the leader can kick others
         }
 
         if (!_players.TryGet(targetPlayerIndex, out var target))
@@ -4493,15 +4401,13 @@ public sealed class ClientProtocolHandler
         await RemovePlayerFromPartyAsync(target, ct);
     }
 
-    /// <summary>
-    /// Núcleo compartido de "sacar a un jugador de su grupo actual" -- usado tanto por
-    /// PMSG_PARTY_DEL_MEMBER_RECV (salir/expulsar) como por la desconexión (el original también saca
-    /// al jugador de su grupo al desconectarse, CloseClient -> CParty::DelMember). Puerto de
-    /// CParty::DelMember/ChangeLeader (Party.cpp:246,599+): si el grupo queda en &lt;=1 miembro tras
-    /// la remoción se disuelve entero (mismo umbral que el original: pasar de 2 a 1 miembro siempre
-    /// disuelve el grupo); si no, el nuevo líder es automáticamente el que haya quedado en el slot 0
-    /// (List&lt;int&gt;.Remove ya corre los índices restantes, no hace falta un paso de "ascenso"
-    /// aparte como en el array plano con huecos del original).
+    /// <summary> Shared core of "remove a player from their current party" -- used both by
+    /// PMSG_PARTY_DEL_MEMBER_RECV (leave/kick) and by disconnection (the original also removes the player from
+    /// their party on disconnecting, CloseClient -> CParty::DelMember). Port of CParty::DelMember/ChangeLeader
+    /// (Party.cpp:246,599+): if the party is left with &lt;=1 member after the removal it is dissolved entirely
+    /// (same threshold as the original: going from 2 to 1 member always dissolves the party); if not, the new
+    /// leader is automatically whoever is left in slot 0 (List&lt;int&gt;.Remove already shifts the remaining
+    /// indices, there is no need for a separate "promotion" step as in the original's flat array with gaps).
     /// </summary>
     private async Task RemovePlayerFromPartyAsync(PlayerObject player, CancellationToken ct, bool notifyRemoved = true)
     {
@@ -4552,8 +4458,8 @@ public sealed class ClientProtocolHandler
         return entries;
     }
 
-    /// <summary>Puerto de GCPartyListSend: se manda a TODOS los miembros cada vez que la composición
-    /// del grupo cambia (join/leave/kick/leader migration).</summary>
+    /// <summary>Port of GCPartyListSend: sent to ALL members every time the party composition changes
+    /// (join/leave/kick/leader migration).</summary>
     private async Task BroadcastPartyListAsync(PartyGroup group, CancellationToken ct)
     {
         var entries = BuildPartyListEntries(group);
@@ -4568,9 +4474,9 @@ public sealed class ClientProtocolHandler
         }
     }
 
-    /// <summary>Puerto de GCPartyLifeSend (Party.cpp, llamado periódicamente desde User.cpp:3488) --
-    /// invocado desde ViewportTicker cada ~2s (ver ViewportTicker.TickPartyLifeAsync) para todos los
-    /// grupos con >1 miembro.</summary>
+    /// <summary>Port of GCPartyLifeSend (Party.cpp, called periodically from User.cpp:3488) -- invoked from
+    /// ViewportTicker every ~2s (see ViewportTicker.TickPartyLifeAsync) for all parties with >1
+    /// member.</summary>
     public async Task BroadcastPartyLifeAsync(PartyGroup group, CancellationToken ct)
     {
         var members = new List<(byte Number, uint Life, uint MaxLife)>();
@@ -4600,10 +4506,10 @@ public sealed class ClientProtocolHandler
         }
     }
 
-    // ---------------------------------------------------------------- Fase 5: amigos (primera pasada)
-    // Puerto delgado de GameServer/Friend.cpp: casi toda la lógica real vive en DataServer (ver
-    // DataServerProtocolHandler.HandleFriendAsync) -- acá solo se reempaqueta la solicitud del
-    // cliente hacia DataServer y viceversa, igual que hace el original.
+    // ---------------------------------------------------------------- Phase 5: friends (first pass) Thin port
+    // of GameServer/Friend.cpp: almost all the real logic lives in DataServer (see
+    // DataServerProtocolHandler.HandleFriendAsync) -- here the client's request is only repackaged towards
+    // DataServer and vice versa, as the original does.
 
     private async Task OnFriendListRequestClientAsync(ClientSession session, CancellationToken ct)
     {
@@ -4663,8 +4569,8 @@ public sealed class ClientProtocolHandler
             FriendDataServerPacketBuilder.FriendDeleteRequest((ushort)player.Index, player.Account, player.Name, recv.TargetName), ct);
     }
 
-    /// <summary>Callback desde DataServerConnection para cualquier paquete con head 0xB0 (amigos) --
-    /// despacha por el sub-código igual que HandleF3Async del lado cliente.</summary>
+    /// <summary>Callback from DataServerConnection for any packet with head 0xB0 (friends) -- dispatches by
+    /// sub-code just like HandleF3Async on the client side.</summary>
     public async Task OnFriendFromDataServerAsync(byte[] packet, CancellationToken ct)
     {
         byte subh = packet[3];
@@ -4702,7 +4608,7 @@ public sealed class ClientProtocolHandler
 
                 if (msg.Result == 1 && _players.TryGet(msg.Index, out var accepter))
                 {
-                    // Confirmación al que ACEPTÓ: ahora es amigo de RequesterName.
+                    // Confirmation to whoever ACCEPTED: they are now a friend of RequesterName.
                     await accepter.Session.SendAsync(FriendPacketBuilder.FriendResultSend(msg.RequesterName), ct);
                 }
 
@@ -4715,7 +4621,7 @@ public sealed class ClientProtocolHandler
 
                 if (msg.Result == 1 && _players.TryGet(msg.RequesterIndex, out var requester))
                 {
-                    // Aviso simétrico al que mandó la solicitud ORIGINAL: se la aceptaron.
+                    // Symmetric notice to whoever sent the ORIGINAL request: it was accepted.
                     await requester.Session.SendAsync(FriendPacketBuilder.FriendResultSend(msg.AccepterName), ct);
                 }
 
@@ -4746,16 +4652,16 @@ public sealed class ClientProtocolHandler
                 break;
             }
 
-            // sub 0x01 (FriendRequestResultFromDataServer, ack al que MANDÓ la solicitud) no tiene
-            // hoy un opcode C->G dedicado -- el original tampoco define uno más allá de las
-            // notificaciones cortas (GCServerMsgSend) que todavía no están portadas, mismo caso ya
-            // documentado para whisper (ver OnGlobalWhisperResultFromDataServerAsync).
+            // sub 0x01 (FriendRequestResultFromDataServer, ack to whoever SENT the request) has no dedicated
+            // C->G opcode today -- the original does not define one either beyond the short notifications
+            // (GCServerMsgSend) that are not ported yet, the same case already documented for whisper (see
+            // OnGlobalWhisperResultFromDataServerAsync).
         }
     }
 
-    // ---------------------------------------------------------------- Fase 6: Devil Square (primera pasada)
-    // Todo el motor de estados/entrada/puntaje/recompensa vive en World/DevilSquareManager.cs -- acá
-    // solo se parsean los paquetes de cliente y se delega, mismo patrón que Party/Friend de arriba.
+    // ---------------------------------------------------------------- Phase 6: Devil Square (first pass) The
+    // whole state/entry/score/reward engine lives in World/DevilSquareManager.cs -- here only the client
+    // packets are parsed and delegated, the same pattern as Party/Friend above.
 
     private async Task OnDevilSquareEnterAsync(ClientSession session, byte[] p, CancellationToken ct)
     {
@@ -4783,12 +4689,12 @@ public sealed class ClientProtocolHandler
         await _devilSquare.HandleRemainTimeQueryAsync(session, player, recv.EventType, ct);
     }
 
-    // ---------------------------------------------------------------- Fase 4: Máquina de Chaos (Chaos Box / Combinaciones)
+    // ---------------------------------------------------------------- Phase 4: Chaos Machine (Chaos Box / Combinations)
 
-    /// <summary>Precio de compra ACTUAL de un item -- la misma fórmula que usa la tienda
-    /// (<see cref="ComputeShopBuyPrice"/>), reutilizada por <see cref="ChaosMixLogic"/> para las
-    /// mezclas que suman el valor de lo que hay en la Chaos Box. Un item sin fila de balance (no
-    /// debería pasar para nada que entra a la caja, pero por las dudas) vale 0 en vez de reventar.</summary>
+    /// <summary>CURRENT purchase price of an item -- the same formula the shop uses (<see
+    /// cref="ComputeShopBuyPrice"/>), reused by <see cref="ChaosMixLogic"/> for the mixes that add up the value
+    /// of what is in the Chaos Box. An item with no balance row (it should not happen for anything entering the
+    /// box, but just in case) is worth 0 instead of blowing up.</summary>
     private int GetChaosBoxItemBuyMoney(Item item)
     {
         var info = _itemBalance.Get(item.Index);
@@ -4808,12 +4714,11 @@ public sealed class ClientProtocolHandler
 
         if (result.Success && result.DeliverViaInventory && result.Item != null)
         {
-            // El original entrega estos items por GDCreateItemSend (un mensaje al DataServer, no el
-            // mismo paquete de la mezcla) -- acá el equivalente es el mismo camino que ya usa el
-            // comando de depuración "item": buscar hueco libre y notificar por ItemMoveSend. El
-            // PMSG_CHAOS_MIX_SEND de abajo no lleva el item en este caso (ver doc-comment de
-            // ChaosMixResult.DeliverViaInventory); resultado 1 igual para que la ventana sepa que
-            // paso algo y vaya a mirar el inventario.
+            // The original delivers these items through GDCreateItemSend (a message to DataServer, not the same
+            // packet as the mix) -- here the equivalent is the same path the "item" debug command already uses:
+            // find a free slot and notify via ItemMoveSend. The PMSG_CHAOS_MIX_SEND below does not carry the
+            // item in this case (see the doc-comment of ChaosMixResult.DeliverViaInventory); result 1 anyway so
+            // that the window knows something happened and goes to look at the inventory.
             var info = _itemBalance.Get(result.Item.Index);
             int width = info?.Width ?? 1;
             int height = info?.Height ?? 1;
@@ -4848,12 +4753,11 @@ public sealed class ClientProtocolHandler
         }
     }
 
-    /// <summary>Devuelve al inventario lo que haya quedado en la Chaos Box y la vacía. Devuelve true
-    /// si movió algo (y ya mandó la lista de inventario actualizada al cliente).
-    ///
-    /// <para>Si el inventario está lleno el ítem se queda en la caja en vez de descartarse: perder un
-    /// ítem es mucho peor que dejar la ventana con algo adentro, y el guard del baúl
-    /// (<c>CheckItemInChaosBox</c>) ya impide que eso habilite tener el mismo ítem en dos lados.</para></summary>
+    /// <summary>Returns to the inventory whatever was left in the Chaos Box and empties it. Returns true if it
+    /// moved something (and already sent the updated inventory list to the client). <para>If the inventory is
+    /// full the item stays in the box instead of being discarded: losing an item is much worse than leaving the
+    /// window with something inside, and the warehouse guard (<c>CheckItemInChaosBox</c>) already prevents that
+    /// from enabling having the same item in two places.</para></summary>
     private async Task<bool> ReturnChaosBoxItemsToInventoryAsync(ClientSession session, PlayerObject player, CancellationToken ct)
     {
         bool movedAny = false;
@@ -4884,13 +4788,13 @@ public sealed class ClientProtocolHandler
         return movedAny;
     }
 
-    /// <summary>0x88: preguntar la tasa de éxito antes de decidir si combinar. Pasa
-    /// <c>execute: false</c> -- antes llamaba a <see cref="ChaosMixLogic.CalculateAndExecuteMix"/> sin
-    /// eso, que es la misma función que ejecuta la combinación real (0x86): cada vez que un cliente
-    /// preguntaba la tasa, cobraba el zen, vaciaba la Chaos Box y tiraba el dado como si ya hubiera
-    /// combinado. Este cliente (MuMain) todavía no llama a este opcode -- su ventana de combinar es
-    /// la de Season 6 (recetas de mix.bmd, nunca cargado en 0.99B) y no la porté -- pero el bug
-    /// existía igual para cualquier otro cliente 0.99B que sí pregunte antes de combinar.</summary>
+    /// <summary>0x88: ask the success rate before deciding whether to combine. It passes <c>execute: false</c>
+    /// -- it used to call <see cref="ChaosMixLogic.CalculateAndExecuteMix"/> without that, which is the same
+    /// function that executes the real combination (0x86): every time a client asked for the rate, it charged
+    /// the zen, emptied the Chaos Box and rolled the dice as if it had already combined. This client (MuMain)
+    /// does not call this opcode yet -- its combine window is Season 6's (mix.bmd recipes, never loaded in
+    /// 0.99B) and I did not port it -- but the bug existed all the same for any other 0.99B client that does
+    /// ask before combining.</summary>
     private async Task OnChaosMixRateAsync(ClientSession session, byte[] p, CancellationToken ct)
     {
         var player = session.Player;
@@ -4927,7 +4831,7 @@ public sealed class ClientProtocolHandler
             return;
         }
 
-        // C1:55 -- Abre la ventana de creación de Guild en el cliente main.exe
+        // C1:55 -- Opens the Guild creation window in the main.exe client
         await session.SendAsync(PacketBuilder.BuildC1(0x55, Array.Empty<byte>()), ct);
     }
 
@@ -4971,7 +4875,7 @@ public sealed class ClientProtocolHandler
 
         await _dataServer.SendAsync(PacketBuilder.BuildC2Sub(0xA0, 0x00, w.ToArray()), ct);
 
-        // C1:56:01 -- Éxito al crear Guild
+        // C1:56:01 -- Guild created successfully
         await session.SendAsync(PacketBuilder.BuildC1(0x56, new byte[] { 1 }), ct);
         await session.SendAsync(ChatPacketBuilder.NoticeSend(Loc.F("Guild [{0}] created successfully!", guildName)), ct);
 
@@ -5010,17 +4914,15 @@ public sealed class ClientProtocolHandler
         await session.SendAsync(PacketBuilder.BuildC1(0x52, w.ToArray()), ct);
     }
 
-    /// <summary>
-    /// Puerto EXACTO de CQuest::CGQuestStateRecv (Quest.cpp:233-290) -- botón de "aceptar/continuar"
-    /// del diálogo de misión. Reemplaza una versión anterior que hardcodeaba dos misiones ad-hoc
-    /// (Pergamino del Emperador / ítem específico de clase con nivel-150 e items adivinados) por el
-    /// motor real data-driven: <see cref="Config.QuestTable.GetInfoByIndex"/> encuentra la fila que
-    /// coincide con el ÍNDICE pedido Y el estado actual guardado del jugador (si no hay ninguna, el
-    /// original no contesta nada -- <c>lpInfo==0 -&gt; return</c> -- replicado acá); si la hay, se
-    /// valida el objetivo (Zen o ítem, según <c>QuestObjective.txt</c>), se cobra/consume, se aplica
-    /// la recompensa (<c>QuestReward.txt</c> -- acá es donde vive el cambio real de 2da clase, tipo
-    /// CHANGE1) y se avanza el estado (NORMAL-&gt;ACCEPT-&gt;FINISH, o CANCEL-&gt;ACCEPT).
-    /// </summary>
+    /// <summary> EXACT port of CQuest::CGQuestStateRecv (Quest.cpp:233-290) -- "accept/continue" button of the
+    /// quest dialog. It replaces an earlier version that hardcoded two ad-hoc quests (Emperor's Scroll / a
+    /// class-specific item with level 150 and guessed items) with the real data-driven engine: <see
+    /// cref="Config.QuestTable.GetInfoByIndex"/> finds the row that matches the requested INDEX AND the
+    /// player's current stored state (if there is none, the original answers nothing -- <c>lpInfo==0 -&gt;
+    /// return</c> -- replicated here); if there is one, the objective (Zen or item, according to
+    /// <c>QuestObjective.txt</c>) is validated, charged/consumed, the reward is applied (<c>QuestReward.txt</c>
+    /// -- this is where the real 2nd-class change lives, type CHANGE1) and the state advances
+    /// (NORMAL-&gt;ACCEPT-&gt;FINISH, or CANCEL-&gt;ACCEPT). </summary>
     private async Task OnQuestStateAsync(ClientSession session, byte[] p, CancellationToken ct)
     {
         var player = session.Player;
@@ -5107,11 +5009,11 @@ public sealed class ClientProtocolHandler
         _ => 0,
     };
 
-    /// <summary>Puerto simplificado de CItemManager::GetInventoryItemCount (ItemManager.cpp:548-571) --
-    /// SOLO la rama no-apilable (cuenta instancias completas). Los 4 ítems de misión reales
-    /// (471-474) no son apilables en Item.txt, así que esta simplificación no cambia el resultado
-    /// para el único consumidor real de esta función; la rama apilable (contar por Durability) no
-    /// está portada porque este build no modela stacks de items en ningún otro lado todavía.</summary>
+    /// <summary>Simplified port of CItemManager::GetInventoryItemCount (ItemManager.cpp:548-571) -- ONLY the
+    /// non-stackable branch (counts whole instances). The 4 real quest items (471-474) are not stackable in
+    /// Item.txt, so this simplification does not change the result for the only real consumer of this function;
+    /// the stackable branch (counting by Durability) is not ported because this build does not model item
+    /// stacks anywhere else yet.</summary>
     private static int CountInventoryItem(PlayerObject player, int index, int level)
     {
         int count = 0;
@@ -5190,10 +5092,10 @@ public sealed class ClientProtocolHandler
         }
     }
 
-    /// <summary>Puerto EXACTO de CQuestReward::InsertQuestReward (QuestReward.cpp:116-171). El tipo
-    /// CHANGE1 es el cambio real de 1ra a 2da clase (ver <see cref="PlayerObject.ChangeUp"/>); HERO
-    /// usa <c>PlusStatMinLevel</c>/<c>PlusStatPoint</c> reales de Common.dat (<see cref="_gsiCommon"/>,
-    /// ya cargados desde antes pero sin consumidor -- éste es el primero).</summary>
+    /// <summary>EXACT port of CQuestReward::InsertQuestReward (QuestReward.cpp:116-171). The CHANGE1 type is
+    /// the real change from 1st to 2nd class (see <see cref="PlayerObject.ChangeUp"/>); HERO uses the real
+    /// <c>PlusStatMinLevel</c>/<c>PlusStatPoint</c> from Common.dat (<see cref="_gsiCommon"/>, already loaded
+    /// from before but without a consumer -- this is the first).</summary>
     private async Task InsertQuestRewardAsync(PlayerObject player, int questIndex, ClientSession session, CancellationToken ct)
     {
         foreach (var info in _questRewards.Entries)
@@ -5225,7 +5127,7 @@ public sealed class ClientProtocolHandler
                 player.RebuildCharSet();
                 player.RecalcCombatStats(_itemBalance, _characterBalance);
 
-                // Puerto exacto de QuestReward.cpp:147-149 (aritmética de byte con overflow intencional).
+                // Exact port of QuestReward.cpp:147-149 (byte arithmetic with intentional overflow).
                 byte classByte = (byte)(player.ChangeUp * 16);
                 classByte -= (byte)(classByte / 32);
                 classByte += (byte)(player.Class * 32);

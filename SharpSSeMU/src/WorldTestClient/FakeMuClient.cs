@@ -5,23 +5,21 @@ using MuServer.Shared.Protocol;
 
 namespace WorldTestClient;
 
-/// <summary>
-/// Cliente MU simulado (para pruebas) que reproduce fielmente el protocolo del cliente real: usa
-/// las claves de cifrado reales (Enc1.dat/Dec2.dat) para el login (C3, con la ofuscación XorData
-/// "de ida" deducida matemáticamente -- ya validada en TestClient/Program.cs), y decodifica lo que
-/// manda el servidor SIN esperar ofuscación XorData en esa dirección: se confirmó leyendo
-/// SocketManager.cpp::DataSend que el servidor original NUNCA aplica XorData al enviar (solo al
-/// recibir) -- así que para que el protocolo funcione de punta a punta, el cliente real tampoco
-/// puede estar esperando esa capa en los paquetes que le llegan del servidor. Ver notas en
-/// GameServer/Net/ClientSession.cs::SendEncryptedAsync (el lado servidor de este mismo contrato).
-/// </summary>
+/// <summary> Simulated MU client (for tests) that faithfully reproduces the real client's protocol: it uses the
+/// real encryption keys (Enc1.dat/Dec2.dat) for the login (C3, with the "outgoing" XorData obfuscation deduced
+/// mathematically -- already validated in TestClient/Program.cs), and decodes what the server sends WITHOUT
+/// expecting XorData obfuscation in that direction: it was confirmed by reading SocketManager.cpp::DataSend
+/// that the original server NEVER applies XorData when sending (only when receiving) -- so for the protocol to
+/// work end to end, the real client cannot be expecting that layer in the packets it receives from the server
+/// either. See the notes in GameServer/Net/ClientSession.cs::SendEncryptedAsync (the server side of this same
+/// contract). </summary>
 public sealed class FakeMuClient
 {
     public sealed record DecodedPacket(byte Type, byte Head, byte SubHead, byte[] Full);
 
     private readonly Socket _socket = new(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
     private readonly GameStreamCipher _streamCipher;
-    private readonly PacketCipher _packetCipher; // Enc1=cifra lo que manda el cliente, Dec2=descifra lo que manda el server
+    private readonly PacketCipher _packetCipher; // Enc1=encrypts what the client sends, Dec2=decrypts what the server sends
     private readonly byte[] _serverSerial;
     private readonly byte[] _clientVersion;
     private readonly Channel<DecodedPacket> _incoming = Channel.CreateUnbounded<DecodedPacket>();
@@ -70,7 +68,7 @@ public sealed class FakeMuClient
 
                 var chunk = new byte[n];
                 Array.Copy(buffer, chunk, n);
-                _streamCipher.Decrypt(chunk); // descifrado de flujo sobre TODO lo que llega, apenas llega
+                _streamCipher.Decrypt(chunk); // stream decryption over EVERYTHING that arrives, as soon as it arrives
 
                 Array.Copy(chunk, 0, _recvBuf, _recvSize, n);
                 _recvSize += n;
@@ -80,7 +78,7 @@ public sealed class FakeMuClient
         }
         catch (Exception)
         {
-            // conexión cerrada -- ok para el arnés de pruebas
+            // connection closed -- ok for the test harness
         }
         finally
         {
@@ -120,7 +118,7 @@ public sealed class FakeMuClient
             }
             else
             {
-                // Desincronizado -- no debería pasar en un flujo bien formado.
+                // Out of sync -- it should not happen in a well-formed stream.
                 _recvSize = 0;
                 return;
             }
@@ -139,7 +137,7 @@ public sealed class FakeMuClient
             }
             else
             {
-                // C3/C4: descifrar por bloques. Sin XorData -- ver comentario de la clase.
+                // C3/C4: block-decrypt. Without XorData -- see the class comment.
                 int cipherOffset = count + headerLen;
                 int cipherLen = size - headerLen;
                 var plainWithSerial = _packetCipher.Decrypt(_recvBuf.AsSpan(cipherOffset, cipherLen));
@@ -212,11 +210,10 @@ public sealed class FakeMuClient
     {
         var copy = (byte[])logicalC1OrC2.Clone();
 
-        // El servidor aplica XorData-deofuscación a TODO paquete recibido, no solo a los C3/C4
-        // post-descifrado (ver ExtractPacket/GameClientFramer: el branch C1/C2 también la corre).
-        // Descubierto en esta prueba -- Fase 1 nunca lo necesitó porque el único paquete que manda
-        // el cliente ahí es el login (C3). Acá hay que replicar la contraparte "de ida" también
-        // para cualquier paquete C1/C2 que mande el cliente.
+        // The server applies XorData de-obfuscation to EVERY received packet, not only to C3/C4 post-decryption
+        // (see ExtractPacket/GameClientFramer: the C1/C2 branch runs it too). Discovered in this test -- Phase
+        // 1 never needed it because the only packet the client sends there is the login (C3). Here the
+        // "outgoing" counterpart has to be replicated for any C1/C2 packet the client sends as well.
         int headerLen = copy[0] == 0xC1 ? 2 : 3;
         MuServer.Shared.Crypto.PacketCipher.ObfuscateInPlace(copy, copy.Length, headerLen);
 
@@ -226,8 +223,8 @@ public sealed class FakeMuClient
 
     public Task SendMoveViewportEnableAsync() => SendRawAsync(PacketBuilder.BuildC1Sub(0xF3, 0x12, Array.Empty<byte>()));
 
-    /// <summary>PMSG_CHARACTER_LIST_RECV, C1:F3:00 -- sin cuerpo. El cliente real lo manda apenas
-    /// el login da result=1, antes de elegir personaje (0xF3:0x03).</summary>
+    /// <summary>PMSG_CHARACTER_LIST_RECV, C1:F3:00 -- no body. The real client sends it as soon as the login
+    /// gives result=1, before choosing a character (0xF3:0x03).</summary>
     public Task SendCharacterListRequestAsync() => SendRawAsync(PacketBuilder.BuildC1Sub(0xF3, 0x00, Array.Empty<byte>()));
 
     /// <summary>PMSG_CHARACTER_CREATE_RECV, C1:F3:01 -- name[10]+Class(1).</summary>
@@ -258,11 +255,11 @@ public sealed class FakeMuClient
         return SendRawAsync(PacketBuilder.BuildC1(0xD7, w.ToArray()));
     }
 
-    /// <summary>Igual que <see cref="SendMoveAsync"/> pero mandando el path TRUNCADO a 1 solo byte
-    /// (en vez de los 8 completos) -- reproduce exactamente lo que manda el cliente real (confirmado
-    /// con logs de producción: PMSG_MOVE_RECV declara path[8] fijo en el struct C++ pero el cliente
-    /// solo manda los bytes de path que realmente necesita según la cantidad de pasos, no los 8
-    /// siempre). Sirve para probar el fix de MoveRecv.Parse contra un paquete corto real.</summary>
+    /// <summary>Same as <see cref="SendMoveAsync"/> but sending the path TRUNCATED to a single byte (instead of
+    /// the full 8) -- it reproduces exactly what the real client sends (confirmed with production logs:
+    /// PMSG_MOVE_RECV declares a fixed path[8] in the C++ struct but the client only sends the path bytes it
+    /// really needs according to the number of steps, not always 8). It serves to test the MoveRecv.Parse fix
+    /// against a real short packet.</summary>
     public Task SendMoveShortPathAsync(byte x, byte y, byte dir)
     {
         var w = new PacketWriter();
@@ -272,10 +269,10 @@ public sealed class FakeMuClient
         return SendRawAsync(PacketBuilder.BuildC1(0xD7, w.ToArray()));
     }
 
-    /// <summary>PMSG_ITEM_MOVE_RECV, C1:24: SourceFlag/SourceSlot/ItemInfo[5](ignorado por el
-    /// servidor)/TargetFlag/TargetSlot. flag=0 en ambos lados = Inventory (único container
-    /// soportado por el servidor en esta pasada de la Fase 3). Paquete de 12 bytes total
-    /// (ItemManager.h:63-71) -- ver el doc-comment de ItemMoveRecv.Parse en WorldPackets.cs.</summary>
+    /// <summary>PMSG_ITEM_MOVE_RECV, C1:24: SourceFlag/SourceSlot/ItemInfo[5](ignored by the
+    /// server)/TargetFlag/TargetSlot. flag=0 on both sides = Inventory (the only container supported by the
+    /// server in this pass of Phase 3). 12-byte packet in total (ItemManager.h:63-71) -- see the doc-comment of
+    /// ItemMoveRecv.Parse in WorldPackets.cs.</summary>
     public Task SendItemMoveAsync(byte sourceSlot, byte targetSlot)
     {
         var w = new PacketWriter();
@@ -287,8 +284,8 @@ public sealed class FakeMuClient
         return SendRawAsync(PacketBuilder.BuildC1(0x24, w.ToArray()));
     }
 
-    /// <summary>PMSG_CHAT_RECV, C1:00 -- chat público (name=nombre propio, verificado por el
-    /// servidor contra el real).</summary>
+    /// <summary>PMSG_CHAT_RECV, C1:00 -- public chat (name=own name, verified by the server against the real
+    /// one).</summary>
     public Task SendChatAsync(string name, string message)
     {
         var w = new PacketWriter();
@@ -343,7 +340,7 @@ public sealed class FakeMuClient
         return SendRawAsync(PacketBuilder.BuildC1(0x40, w.ToArray()));
     }
 
-    /// <summary>PMSG_PARTY_REQUEST_RESULT_RECV, C1:41 -- responder a una invitación (result=1 acepta).</summary>
+    /// <summary>PMSG_PARTY_REQUEST_RESULT_RECV, C1:41 -- answering an invitation (result=1 accepts).</summary>
     public Task SendPartyRequestResultAsync(byte result, int inviterIndex)
     {
         var w = new PacketWriter();
@@ -353,13 +350,13 @@ public sealed class FakeMuClient
         return SendRawAsync(PacketBuilder.BuildC1(0x41, w.ToArray()));
     }
 
-    /// <summary>PMSG_PARTY_DEL_MEMBER_RECV, C1:43 -- salir (number=slot propio) o expulsar (líder).</summary>
+    /// <summary>PMSG_PARTY_DEL_MEMBER_RECV, C1:43 -- leave (number=own slot) or kick (leader).</summary>
     public Task SendPartyDelMemberAsync(byte number)
     {
         return SendRawAsync(PacketBuilder.BuildC1(0x43, new[] { number }));
     }
 
-    /// <summary>PMSG_ATTACK_RECV (Attack.h:13-19), C1:D9 -- ataque cuerpo a cuerpo básico, sin skill.</summary>
+    /// <summary>PMSG_ATTACK_RECV (Attack.h:13-19), C1:D9 -- basic melee attack, without a skill.</summary>
     public Task SendAttackAsync(int targetIndex, byte action, byte dir)
     {
         var w = new PacketWriter();
@@ -370,10 +367,10 @@ public sealed class FakeMuClient
         return SendRawAsync(PacketBuilder.BuildC1(0xD9, w.ToArray()));
     }
 
-    /// <summary>PMSG_SKILL_ATTACK_RECV (SkillManager.h:102-108), C3:19 en el original -- acá mandado
-    /// como C1 lógico igual que el resto de los paquetes de este arnés de pruebas (el servidor lo
-    /// procesa idéntico: GameClientFramer sintetiza cualquier C3 real a este mismo formato antes de
-    /// llegar al dispatcher, ver GameClientFramer.cs).</summary>
+    /// <summary>PMSG_SKILL_ATTACK_RECV (SkillManager.h:102-108), C3:19 in the original -- here sent as a
+    /// logical C1 like the rest of this test harness's packets (the server processes it identically:
+    /// GameClientFramer synthesises any real C3 into this same format before reaching the dispatcher, see
+    /// GameClientFramer.cs).</summary>
     public Task SendSkillAttackAsync(byte skill, int targetIndex, byte dis = 3)
     {
         var w = new PacketWriter();
@@ -417,7 +414,7 @@ public sealed class FakeMuClient
     /// <summary>PMSG_LEVEL_UP_POINT_RECV, C1:F3:06 -- type: 0=Str,1=Dex,2=Vit,3=Ene,4=Lead.</summary>
     public Task SendLevelUpPointAsync(byte type) => SendRawAsync(PacketBuilder.BuildC1Sub(0xF3, 0x06, new[] { type }));
 
-    /// <summary>PMSG_NPC_TALK_RECV, C1:30 -- index del NPC (índice de gObj[]/MonsterRegistry).</summary>
+    /// <summary>PMSG_NPC_TALK_RECV, C1:30 -- the NPC's index (index of gObj[]/MonsterRegistry).</summary>
     public Task SendNpcTalkAsync(int npcIndex)
     {
         var w = new PacketWriter();
@@ -435,8 +432,8 @@ public sealed class FakeMuClient
     /// <summary>PMSG_ITEM_SELL_RECV, C1:33 -- slot del inventario PROPIO (rango completo 0-107).</summary>
     public Task SendItemSellAsync(byte inventorySlot) => SendRawAsync(PacketBuilder.BuildC1(0x33, new[] { inventorySlot }));
 
-    /// <summary>PMSG_ITEM_GET_RECV, C1:22 -- índice del item de piso (dentro del array de 300 slots
-    /// del mapa, ver GroundItem.Index), NO un índice global de objeto.</summary>
+    /// <summary>PMSG_ITEM_GET_RECV, C1:22 -- index of the ground item (within the map's 300-slot array, see
+    /// GroundItem.Index), NOT a global object index.</summary>
     public Task SendItemGetAsync(int groundIndex)
     {
         var w = new PacketWriter();

@@ -36,16 +36,15 @@ try:
     for terrain in ("Terrain10.att", "Terrain4.att"):
         dep.copy_server_data("Terrain", terrain)
 
-    # Monstruos: el de prueba del mapa 0 (flujo compartido) más el pool REAL de
-    # posiciones Type==4 que DevilSquareManager usa para instanciar en runtime.
+    # Monsters: the map 0 test one (shared flow) plus the REAL pool of Type==4 positions that DevilSquareManager
+    # uses to instantiate at runtime.
     dep.seed_test_monster()
     dep.copy_server_data("Monster", "Spawn", "009 - Devil Square 1.txt")
 
-    # Datos de evento reales (brackets y clases) + un DevilSquare.dat de prueba con
-    # NotifyTime=EventTime=CloseTime=1 minuto (el mínimo representable: el formato
-    # real es siempre en minutos enteros) para que el ciclo entero corra en un par
-    # de minutos en vez de ~25. El horario de la sección 1 es un placeholder lejano
-    # -- la apertura la dispara 'ds forcestart', que inyecta su propia entrada.
+    # Real event data (brackets and classes) + a test DevilSquare.dat with NotifyTime=EventTime=CloseTime=1
+    # minute (the minimum representable: the real format is always in whole minutes) so that the whole cycle
+    # runs in a couple of minutes instead of ~25. The section 1 schedule is a distant placeholder -- the opening
+    # is triggered by 'ds forcestart', which injects its own entry.
     dep.copy_server_data("Event", "EventEntryLevel.dat")
     dep.copy_server_data("Event", "EventStageSpawn.dat")
     (dep.game_dir / "Data" / "Event" / "DevilSquare.dat").write_text(
@@ -67,13 +66,11 @@ try:
     dep.place_heroes()
     dep.seed_equippable_weapon("Hero1")
 
-    # Hero3 va DEDICADO a la sección de Devil Square, en su propia cuenta, para no
-    # alterar la temporización de combate que el flujo compartido (fases 4/5) asume.
-    # Nivel 15 cae dentro de [10,99], el rango "Common" de Devil Square 1 en
-    # EventEntryLevel.dat. Strength alto porque los monstruos reales del evento
-    # (Skeleton Archer / Cyclops: HP 850-1100, Defense 35-45) son intratables con el
-    # Strength de un personaje recién creado bajo la fórmula de daño placeholder de
-    # esta fase -- deuda técnica ya documentada en el README.
+    # Hero3 goes DEDICATED to the Devil Square section, in its own account, so as not to alter the combat timing
+    # that the shared flow (phases 4/5) assumes. Level 15 falls within [10,99], the "Common" range of Devil
+    # Square 1 in EventEntryLevel.dat. High Strength because the event's real monsters (Skeleton Archer /
+    # Cyclops: HP 850-1100, Defense 35-45) are unbeatable with the Strength of a newly created character under
+    # this phase's placeholder damage formula -- technical debt already documented in the README.
     pg.sql("UPDATE character SET map_number=0, map_pos_x=210, map_pos_y=150, "
            "clevel=15, strength=800, inventory = decode('"
            + _env.inventory_hex({13: _env.item_bytes(DEVIL_INVITATION, level=1, durability=1)})
@@ -81,8 +78,8 @@ try:
 
     dep.start_game()
 
-    # El GameServer lee comandos de su consola; 'ds forcestart' inyecta un horario
-    # inmediato en vez de hacer al test esperar al próximo del archivo.
+    # The GameServer reads commands from its console; 'ds forcestart' injects an immediate schedule instead of
+    # making the test wait for the next one in the file.
     game = dep.servers.procs["game"]
     time.sleep(1.0)
     game.stdin.write("ds forcestart\n")

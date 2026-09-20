@@ -5,11 +5,9 @@ using MuServer.Shared.Protocol;
 
 namespace MuServer.GameServer.Net;
 
-/// <summary>
-/// Puerto mínimo de la porción "cliente de DataServer" (DataServerConnect/DataServerMsgProc de
-/// GameServer.cpp + DSProtocol.cpp). Fase 1 solo necesita el handshake 0x00 (info de servidor);
-/// el resto del protocolo (lista/crear/borrar personaje, guardado, etc.) se agrega en Fase 2.
-/// </summary>
+/// <summary> Minimal port of the "DataServer client" portion (DataServerConnect/DataServerMsgProc of
+/// GameServer.cpp + DSProtocol.cpp). Phase 1 only needs the 0x00 handshake (server info); the rest of the
+/// protocol (list/create/delete character, saving, etc.) is added in Phase 2. </summary>
 public sealed class DataServerConnection
 {
     private readonly string _address;

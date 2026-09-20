@@ -1,6 +1,6 @@
 namespace MuServer.DataServer.Util;
 
-/// <summary>Puerto de la función suelta CheckTextSyntax de DataServer/Util.cpp.</summary>
+/// <summary>Port of the standalone CheckTextSyntax function of DataServer/Util.cpp.</summary>
 public static class DataServerUtil
 {
     /// <summary>Rechaza espacio, comilla doble o comilla simple en nombres de personaje.</summary>

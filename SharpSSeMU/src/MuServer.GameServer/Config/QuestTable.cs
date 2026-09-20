@@ -3,35 +3,27 @@ using MuServer.Shared.Scripting;
 
 namespace MuServer.GameServer.Config;
 
-/// <summary>
-/// Puerto de QUEST_INFO (Quest.h:122-132) -- una fila de <c>Data/Quest/Quest.txt</c>. Cada índice de
-/// misión (<see cref="Index"/>) aparece MÚLTIPLES veces en el archivo, una por cada
-/// <see cref="CurrentState"/> posible (0=NORMAL,1=ACCEPT,2=FINISH,3=CANCEL) -- el motor real
-/// (<c>CQuest::GetInfoByIndex</c>/<c>NpcTalk</c>) busca la fila cuyo <see cref="CurrentState"/>
-/// coincide con el estado ACTUAL guardado del jugador para ese índice, y ahí aplica el resto de los
-/// requisitos (nivel, clase, prerequisito). <c>-1</c> en <see cref="RequireIndex"/>/
-/// <see cref="RequireMinLevel"/>/<see cref="RequireMaxLevel"/> es el <c>"*"</c> del archivo ("sin
-/// restricción"), tokenizado por <see cref="MemScript"/> igual que el resto de los .txt de Data/.
-/// </summary>
+/// <summary> Port of QUEST_INFO (Quest.h:122-132) -- a row of <c>Data/Quest/Quest.txt</c>. Each quest index
+/// (<see cref="Index"/>) appears MULTIPLE times in the file, once for each possible <see cref="CurrentState"/>
+/// (0=NORMAL,1=ACCEPT,2=FINISH,3=CANCEL) -- the real engine (<c>CQuest::GetInfoByIndex</c>/<c>NpcTalk</c>)
+/// looks for the row whose <see cref="CurrentState"/> matches the player's stored CURRENT state for that index,
+/// and there applies the rest of the requirements (level, class, prerequisite). <c>-1</c> in <see
+/// cref="RequireIndex"/>/ <see cref="RequireMinLevel"/>/<see cref="RequireMaxLevel"/> is the file's <c>"*"</c>
+/// ("no restriction"), tokenised by <see cref="MemScript"/> like the rest of the Data/ .txt files. </summary>
 public sealed record QuestInfo(
     int Index, int MonsterClass, int CurrentState, int RequireIndex, int RequireState,
     int RequireMinLevel, int RequireMaxLevel, int[] RequireClass);
 
-/// <summary>
-/// Puerto de CQuest (Quest.h/.cpp) -- SOLO la parte de datos + los chequeos de elegibilidad
-/// (<see cref="CheckQuestRequisite"/>/<see cref="CheckQuestListState"/>/<see cref="GetInfoByIndex"/>/
-/// <see cref="NpcTalk"/>), que es lo que <c>ClientProtocolHandler.OnNpcTalkAsync</c>/
-/// <c>OnQuestStateAsync</c> necesitan. El resto de <c>CQuest</c> (envío de paquetes,
-/// <c>CGQuestNpcWarewolfRecv</c>/<c>CGQuestNpcKeeperRecv</c> -- gates de otras misiones no
-/// relacionadas al cambio de 2da clase) sigue en <c>ClientProtocolHandler</c>/sin portar, como el
-/// resto de los sistemas de paquetes de este proyecto.
-///
-/// Reemplaza una implementación anterior que hardcodeaba "Sebina"/"Marlon" con un nivel mínimo fijo
-/// (150) y dos slots de misión ad-hoc en C# -- esta clase carga el <c>Quest.txt</c> REAL (16 filas,
-/// misiones 0-1 = Sebina/235 = cambio a 2da clase, misiones 2-3 = Marlon/229 = otra recompensa a
-/// nivel 220) en vez de adivinar los valores, cumpliendo el mismo estándar de "nada hardcodeado" que
-/// el resto de <c>GameServerInfo - *.dat</c>.
-/// </summary>
+/// <summary> Port of CQuest (Quest.h/.cpp) -- ONLY the data part + the eligibility checks (<see
+/// cref="CheckQuestRequisite"/>/<see cref="CheckQuestListState"/>/<see cref="GetInfoByIndex"/>/ <see
+/// cref="NpcTalk"/>), which is what <c>ClientProtocolHandler.OnNpcTalkAsync</c>/ <c>OnQuestStateAsync</c> need.
+/// The rest of <c>CQuest</c> (packet sending, <c>CGQuestNpcWarewolfRecv</c>/<c>CGQuestNpcKeeperRecv</c> --
+/// gates of other quests unrelated to the 2nd-class change) stays in <c>ClientProtocolHandler</c>/unported,
+/// like the rest of this project's packet systems. It replaces an earlier implementation that hardcoded
+/// "Sebina"/"Marlon" with a fixed minimum level (150) and two ad-hoc quest slots in C# -- this class loads the
+/// REAL <c>Quest.txt</c> (16 rows, quests 0-1 = Sebina/235 = change to 2nd class, quests 2-3 = Marlon/229 =
+/// another reward at level 220) instead of guessing the values, meeting the same "nothing hardcoded" standard
+/// as the rest of <c>GameServerInfo - *.dat</c>. </summary>
 public sealed class QuestTable
 {
     public IReadOnlyList<QuestInfo> Entries { get; }
@@ -84,10 +76,9 @@ public sealed class QuestTable
         return new QuestTable(entries);
     }
 
-    /// <summary>Puerto de CQuest::CheckQuestListState (Quest.cpp:165-178): ¿el estado guardado del
-    /// jugador para <paramref name="questIndex"/> es exactamente <paramref name="state"/>? (empaquetado
-    /// 2 bits por índice, 4 índices por byte -- mismo layout que
-    /// ClientProtocolHandler.GetQuestState/SetQuestState, reutilizados acá).</summary>
+    /// <summary>Port of CQuest::CheckQuestListState (Quest.cpp:165-178): is the player's stored state for
+    /// <paramref name="questIndex"/> exactly <paramref name="state"/>? (packed 2 bits per index, 4 indices per
+    /// byte -- same layout as ClientProtocolHandler.GetQuestState/SetQuestState, reused here).</summary>
     public static bool CheckQuestListState(byte[] questBlob, int questIndex, int state)
     {
         if (questIndex < 0 || questIndex >= 200)
@@ -156,9 +147,9 @@ public sealed class QuestTable
         return true;
     }
 
-    /// <summary>Puerto EXACTO de CQuest::GetInfoByIndex (Quest.cpp:91-111): la fila de
-    /// <paramref name="questIndex"/> cuyo <see cref="QuestInfo.CurrentState"/> coincide con el
-    /// estado actual del jugador Y cuyos demás requisitos se cumplen, o null si ninguna.</summary>
+    /// <summary>EXACT port of CQuest::GetInfoByIndex (Quest.cpp:91-111): the row of <paramref
+    /// name="questIndex"/> whose <see cref="QuestInfo.CurrentState"/> matches the player's current state AND
+    /// whose other requirements are met, or null if none.</summary>
     public QuestInfo? GetInfoByIndex(int questIndex, byte[] quest, int level, int playerClass, int changeUp)
     {
         foreach (var info in Entries)
@@ -177,13 +168,12 @@ public sealed class QuestTable
         return null;
     }
 
-    /// <summary>Puerto EXACTO de CQuest::NpcTalk (Quest.cpp:195-219): la PRIMERA fila (en orden del
-    /// archivo) cuyo <see cref="QuestInfo.MonsterClass"/> coincide con el NPC Y cuyos requisitos se
-    /// cumplen para el estado ACTUAL del jugador. Si no hay ninguna, devuelve null -- el llamador NO
-    /// debe mandar ningún paquete en ese caso (ver doc-comment de
-    /// ClientProtocolHandler.OnNpcTalkAsync: el original no contesta nada cuando no hay misión
-    /// disponible, a diferencia de la versión anterior de este puerto que mandaba QuestResultSend con
-    /// 0xFF y el cliente real lo mostraba como "Conversation is over").</summary>
+    /// <summary>EXACT port of CQuest::NpcTalk (Quest.cpp:195-219): the FIRST row (in file order) whose <see
+    /// cref="QuestInfo.MonsterClass"/> matches the NPC AND whose requirements are met for the player's CURRENT
+    /// state. If there is none, it returns null -- the caller must NOT send any packet in that case (see the
+    /// doc-comment of ClientProtocolHandler.OnNpcTalkAsync: the original answers nothing when there is no quest
+    /// available, unlike this port's earlier version that sent QuestResultSend with 0xFF and the real client
+    /// showed it as "Conversation is over").</summary>
     public QuestInfo? NpcTalk(int npcMonsterClass, byte[] quest, int level, int playerClass, int changeUp)
     {
         foreach (var info in Entries)

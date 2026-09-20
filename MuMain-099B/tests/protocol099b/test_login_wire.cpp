@@ -1,9 +1,6 @@
-// Paquetes de login y de gestión de personajes.
-//
-// El caso central va hasta el final: se arma el login, se codifica con las tres
-// capas de salida y se decodifica con las reglas del servidor, incluido el XOR
-// de argumentos. Es lo más cerca que se puede estar de un login real sin
-// levantar el servidor.
+// Login and character management packets. The central case goes all the way: the login is built, encoded with
+// the three outgoing layers and decoded with the server's rules, including the argument XOR. It is as close as
+// one can get to a real login without starting the server.
 
 #include <doctest.h>
 
@@ -32,7 +29,7 @@ constexpr Mu099B::BlockCipher::KeyTable Dec1 = {
 
 const std::string kSerial = "SharpSSeMU99B-v1";
 
-// Lo que espera el servidor de pruebas: ServerVersion "10200" y el mismo serial.
+// What the test server expects: ServerVersion "10200" and the same serial.
 constexpr Mu099B::BYTE kVersion[5] = {'1', '0', '2', '0', '0'};
 
 Mu099B::StreamCipher MakeStream()
@@ -41,7 +38,7 @@ Mu099B::StreamCipher MakeStream()
         reinterpret_cast<const uint8_t*>(kSerial.data()), kSerial.size());
 }
 
-/// Decodifica como el emulador al recibir del cliente.
+/// Decodes as the emulator does on receiving from the client.
 std::vector<uint8_t> ServerDecode(std::vector<uint8_t> wire)
 {
     MakeStream().Decrypt(wire.data(), wire.size());
@@ -94,7 +91,7 @@ TEST_CASE("El login viaja cifrado y con cuenta y contraseña protegidas")
     // La cuenta NO puede viajar en claro.
     CHECK(std::memcmp(packet.account, "test", 4) != 0);
 
-    // Y con el mismo XOR se recupera: es involutivo.
+    // And with the same XOR it is recovered: it is an involution.
     Mu099B::BYTE account[10];
     std::memcpy(account, packet.account, sizeof(account));
     Mu099B::ApplyArgumentCipher(account, sizeof(account));
@@ -117,7 +114,7 @@ TEST_CASE("El login llega al servidor con las credenciales correctas")
     CHECK(decoded[2] == 0xF1);
     CHECK(decoded[3] == 0x01);
 
-    // El servidor deshace el XOR de argumentos sobre los campos en su offset.
+    // The server undoes the argument XOR over the fields at their offset.
     Mu099B::BYTE account[10];
     Mu099B::BYTE password[10];
     std::memcpy(account, decoded.data() + 4, sizeof(account));
@@ -129,7 +126,7 @@ TEST_CASE("El login llega al servidor con las credenciales correctas")
     // "secreto123" tiene 10 caracteres: entra justo, sin terminador.
     CHECK(ReadFixed(password, sizeof(password)) == "secreto123");
 
-    // Versión y serial tienen que llegar intactos o el servidor rebota el login.
+    // Version and serial have to arrive intact or the server bounces the login.
     CHECK(std::memcmp(decoded.data() + 28, kVersion, sizeof(kVersion)) == 0);
     CHECK(std::memcmp(decoded.data() + 33, clientSerial, sizeof(clientSerial)) == 0);
 }
@@ -164,7 +161,7 @@ TEST_CASE("Seleccionar personaje manda sólo el nombre")
     CHECK(packet.header.subh == 0x03);
     CHECK(ReadFixed(reinterpret_cast<const Mu099B::BYTE*>(packet.name), sizeof(packet.name)) ==
           "Hero1");
-    // Lo que sobra del campo queda en cero, no con basura de la pila.
+    // What is left over in the field stays at zero, not with stack garbage.
     for (size_t i = 5; i < sizeof(packet.name); ++i)
     {
         CHECK(packet.name[i] == '\0');
@@ -185,9 +182,9 @@ TEST_CASE("Borrar personaje lleva nombre y código personal")
 
 TEST_CASE("La lista de personajes que llega tiene renglones de 28 bytes")
 {
-    // El renglón NO usa #pragma pack(1): tras slot + Name[10] queda un byte de
-    // relleno antes del WORD Level. Sin él, del segundo personaje en adelante
-    // todo se lee corrido -- el bug de "solo veo el primero que creé".
+    // The row does NOT use #pragma pack(1): after slot + Name[10] a padding byte remains before the WORD Level.
+    // Without it, from the second character on everything is read shifted -- the "I only see the first one I
+    // created" bug.
     CHECK(sizeof(Mu099B::PMSG_CHARACTER_LIST_SEND) == 7);
     CHECK(offsetof(Mu099B::PMSG_CHARACTER_LIST_SEND, count) == 6);
 

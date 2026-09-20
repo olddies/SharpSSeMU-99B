@@ -137,8 +137,8 @@ bool CNewUINPCQuest::UpdateSelTextMouseEvent()
                 else if (2 == nAnswer)
                     g_pNewUISystem->Hide(SEASON3B::INTERFACE_NPCQUEST);
                 else if (3 == nAnswer)
-                    // CORREGIDO: mismo bug que en CSQuest.cpp -- capa Dotnet vieja en vez de
-                    // Mu099B::SendQuestState (ver ese comentario para el porqué del valor fijo).
+                    // FIXED: same bug as in CSQuest.cpp -- old Dotnet layer instead of Mu099B::SendQuestState
+                    // (see that comment for the reason for the fixed value).
                     Mu099B::SendQuestState(*SocketClient, byCurQuestIndex, 1);
 
                 ::PlayBuffer(SOUND_INTERFACE01);
@@ -487,8 +487,8 @@ bool CNewUINPCQuest::ProcessBtns()
     {
         if (m_btnComplete.UpdateMouseEvent())
         {
-            // CORREGIDO: mismo bug que en CSQuest.cpp -- capa Dotnet vieja en vez de
-            // Mu099B::SendQuestState (ver ese comentario para el porqué del valor fijo).
+            // FIXED: same bug as in CSQuest.cpp -- old Dotnet layer instead of Mu099B::SendQuestState (see that
+            // comment for the reason for the fixed value).
             Mu099B::SendQuestState(*SocketClient, g_csQuest.GetCurrQuestIndex(), 1);
             PlayBuffer(SOUND_INTERFACE01);
             return true;

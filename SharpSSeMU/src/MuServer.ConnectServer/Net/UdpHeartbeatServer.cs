@@ -6,10 +6,8 @@ using MuServer.Shared.Protocol;
 
 namespace MuServer.ConnectServer.Net;
 
-/// <summary>
-/// Puerto de CSocketManagerUdp (lado servidor): recibe por UDP los "heartbeat" que cada
-/// GameServer (0xA1, cada pocos segundos) y el JoinServer (0xA2) envían para anunciarse vivos.
-/// </summary>
+/// <summary> Port of CSocketManagerUdp (server side): receives over UDP the "heartbeats" that each GameServer
+/// (0xA1, every few seconds) and the JoinServer (0xA2) send to announce themselves alive. </summary>
 public sealed class UdpHeartbeatServer
 {
     private readonly ushort _port;

@@ -8,7 +8,7 @@ namespace Mu099B
 namespace
 {
 
-/// Mínimo para poder leer tipo + tamaño + head de un paquete C1/C3.
+/// Minimum needed to read type + size + head of a C1/C3 packet.
 constexpr size_t MinPacketSize = 3;
 
 std::string ToHex(uint8_t value)
@@ -39,9 +39,8 @@ bool GameFramer::Feed(const uint8_t* data, size_t length, std::vector<DecodedPac
                     "sin completar un paquete válido");
     }
 
-    // Descifrar SÓLO lo recién llegado: el cifrado de flujo no tiene estado, así
-    // que lo ya acumulado quedó descifrado en su momento y volver a pasarlo lo
-    // rompería.
+    // Decrypt ONLY what just arrived: the stream cipher has no state, so what was already accumulated was
+    // decrypted at the time and passing it through again would break it.
     std::memcpy(_buffer.data() + _size, data, length);
     _streamCipher.Decrypt(_buffer.data() + _size, length);
     _size += length;
@@ -80,7 +79,7 @@ bool GameFramer::Feed(const uint8_t* data, size_t length, std::vector<DecodedPac
 
         if (count + size > _size)
         {
-            break;  // paquete incompleto: esperar más datos
+            break;  // incomplete packet: wait for more data
         }
 
         if (type == 0xC1 || type == 0xC2)
@@ -91,9 +90,8 @@ bool GameFramer::Feed(const uint8_t* data, size_t length, std::vector<DecodedPac
         }
         else
         {
-            // El cifrado por bloques arranca justo después de tipo+tamaño, sin
-            // bytes extra de por medio. El primer byte descifrado es el número
-            // de serie, no el head real.
+            // The block cipher starts right after type+size, with no extra bytes in between. The first
+            // decrypted byte is the serial number, not the real head.
             const auto decrypted =
                 _blockCipher.Decrypt(_buffer.data() + count + headerLen, size - headerLen);
 

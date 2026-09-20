@@ -42,7 +42,7 @@ BUX = bytes([0xFC, 0xCF, 0xAB])
 REGISTRO = 108           # SKILL_ATTRIBUTE_FILE: nombre de 50 mas los campos
 MAX_SKILLS = 650
 LARGO_NOMBRE = 50
-CLAVE_CHECKSUM = 0x1F2E  # ver abajo: se detecta sola si no es esta
+CLAVE_CHECKSUM = 0x1F2E  # see below: it detects itself if it is not this one
 
 # Offsets de SKILL_ATTRIBUTE_FILE con la alineacion natural de MSVC.
 CAMPOS = {
@@ -68,16 +68,15 @@ COLUMNAS = {
     "DL": "Clase4",
 }
 
-# Las que el cliente interpreta distinto. Se informan aparte y con el motivo,
-# en vez de mezclarlas con las diferencias que si son diferencias.
+# The ones the client interprets differently. They are reported separately and with the reason, instead of being
+# mixed with the differences that really are differences.
 SEMANTICA = {
     "Range": "el servidor pone 0 en las de area; el cliente lo usa como "
              "distancia de lanzamiento",
 }
 
-# Campos que el cliente carga y despues no mira nunca. Una diferencia aca no
-# cambia nada en pantalla, y perseguirla es tiempo perdido -- por eso van
-# separadas. Sale de buscar quien lee cada campo de SKILL_ATTRIBUTE:
+# Fields the client loads and then never looks at. A difference here changes nothing on screen, and chasing it
+# is wasted time -- that is why they are separate. It comes from searching who reads each SKILL_ATTRIBUTE field:
 INERTES = {
     "Effect": "SKILL_ATTRIBUTE::Effect solo aparece en los metadatos del "
               "editor; en el juego no lo lee nadie",
@@ -173,9 +172,8 @@ def main():
     filas = [(i, f, cliente[i]) for i, f in sorted(servidor.items())
              if i < MAX_SKILLS and nombre(cliente[i])]
 
-    # Una columna que vale 0 en las N habilidades no dice nada: no es que el
-    # cliente este mal, es que el servidor no la llena. Se detecta sola para que
-    # el informe no la cuente como diferencia.
+    # A column that is 0 in all N skills says nothing: it is not that the client is wrong, it is that the server
+    # does not fill it. It detects itself so that the report does not count it as a difference.
     vacias = []
     for columna in COLUMNAS:
         valores = [f.get(columna) for _, f, _ in filas]
@@ -212,9 +210,8 @@ def main():
                 continue
             actual = campo(registro, destino)
             if actual != esperado:
-                # La excusa del "0 es de area" solo vale cuando el 0 lo pone el
-                # servidor. Si los dos lados dicen un numero y no es el mismo,
-                # es un desacuerdo de verdad y va con los otros.
+                # The "0 means area" excuse only holds when the server sets the 0. If both sides state a number
+                # and it is not the same, it is a real disagreement and goes with the others.
                 if columna in SEMANTICA and esperado == 0:
                     bolsa = semanticas
                 elif columna in INERTES:

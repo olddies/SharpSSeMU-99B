@@ -2,8 +2,8 @@ using System.Collections.Concurrent;
 
 namespace MuServer.GameServer.World;
 
-/// <summary>Reemplazo idiomático del recorte "usuarios" de gObj[10000] (índices 9000-9999,
-/// OBJECT_START_USER..MAX_OBJECT) -- acá simplemente un diccionario de jugadores online.</summary>
+/// <summary>Idiomatic replacement for the "users" slice of gObj[10000] (indices 9000-9999,
+/// OBJECT_START_USER..MAX_OBJECT) -- here simply a dictionary of online players.</summary>
 public sealed class PlayerRegistry
 {
     private readonly ConcurrentDictionary<int, PlayerObject> _players = new();

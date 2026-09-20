@@ -8,11 +8,9 @@ public enum LogColor
     Blue,
 }
 
-/// <summary>
-/// Logger de consola equivalente a LogAdd()/CLog::Output() del original (que escribía en la
-/// ventana del servidor con colores + timestamp HH:mm:ss). Aquí se imprime a consola con color
-/// y opcionalmente a un archivo de log rotativo por día, igual que el "LOG/" de cada proceso original.
-/// </summary>
+/// <summary> Console logger equivalent to the original's LogAdd()/CLog::Output() (which wrote to the server
+/// window with colours + HH:mm:ss timestamp). Here it is printed to the console with colour and optionally to a
+/// daily-rotating log file, like the "LOG/" of each original process. </summary>
 public static class Log
 {
     private static readonly object Sync = new();
@@ -54,7 +52,7 @@ public static class Log
                 }
                 catch
                 {
-                    // Igual que el original: si falla la escritura a disco, no se interrumpe el servidor.
+                    // Same as the original: if writing to disk fails, the server is not interrupted.
                 }
             }
         }

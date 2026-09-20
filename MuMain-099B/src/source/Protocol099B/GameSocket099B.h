@@ -1,15 +1,9 @@
-// Socket nativo del GameServer en el protocolo 0.99B.
-//
-// Reemplaza a la conexión de la librería C# para el socket de juego. No es una
-// preferencia de estilo: el cifrado de flujo de 0.99B tapa también los bytes de
-// tipo y tamaño, así que ningún framer que trabaje sobre el flujo cifrado puede
-// separar paquetes. El framing tiene que ocurrir después de descifrar, y eso
-// obliga a manejar el socket acá.
-//
-// Modelo de uso: socket no bloqueante, consultado una vez por cuadro con
-// Poll(). Sin hilos ni callbacks -- el cliente ya drena su cola de paquetes en
-// el bucle principal, así que sumar un hilo sólo agregaría sincronización sin
-// ganar nada.
+// Native GameServer socket for the 0.99B protocol. Replaces the C# library's connection for the game socket.
+// This is not a style preference: the 0.99B stream cipher also covers the type and size bytes, so no framer
+// working on the encrypted stream can split packets. Framing has to happen after decrypting, and that forces
+// handling the socket here. Usage model: non-blocking socket, polled once per frame with Poll(). No threads or
+// callbacks -- the client already drains its packet queue in the main loop, so adding a thread would only add
+// synchronisation for no gain.
 
 #pragma once
 
@@ -33,31 +27,30 @@ public:
     GameSocket(const GameSocket&) = delete;
     GameSocket& operator=(const GameSocket&) = delete;
 
-    /// Conecta cargando las claves de disco. `serverSerial` es el del .ini del
-    /// servidor; `encryptionKeyPath` y `decryptionKeyPath` son Enc1.dat y
-    /// Dec2.dat del cliente. Devuelve false si no se pudo conectar o si falta
-    /// alguna clave -- nunca sigue con claves a medias.
+    /// Connects, loading the keys from disk. `serverSerial` is the one in the server's .ini;
+    /// `encryptionKeyPath` and `decryptionKeyPath` are the client's Enc1.dat and Dec2.dat. Returns false if it
+    /// could not connect or if any key is missing -- it never carries on with half a set of keys.
     bool Connect(const std::string& host, uint16_t port, const std::string& serverSerial,
                  const std::string& encryptionKeyPath, const std::string& decryptionKeyPath);
 
-    /// Conecta con las capas de cifrado ya armadas. Es el camino que usa el
-    /// test de bucle local y sirve para reusar claves ya cargadas.
+    /// Connects with the cipher layers already built. It is the path the local loop test uses and serves to
+    /// reuse already loaded keys.
     bool Connect(const std::string& host, uint16_t port, const StreamCipher& streamCipher,
                  const BlockCipher& blockCipher);
 
-    /// Codifica y manda un paquete lógico. Devuelve false si la conexión se
-    /// cortó o el paquete no se pudo escribir entero.
+    /// Encodes and sends a logical packet. Returns false if the connection was cut or the packet could not be
+    /// written whole.
     bool Send(const uint8_t* logicalPacket, size_t length);
 
-    /// Lee lo que haya llegado y agrega los paquetes completos a `packets`.
-    /// Devuelve false si la conexión se cerró o el flujo quedó desincronizado;
-    /// en ese caso hay que cerrar, igual que hace el servidor.
+    /// Reads whatever has arrived and appends the complete packets to `packets`. Returns false if the
+    /// connection closed or the stream got out of sync; in that case it has to be closed, just as the server
+    /// does.
     bool Poll(std::vector<DecodedPacket>& packets);
 
     void Close();
     bool IsConnected() const;
 
-    /// Motivo del último fallo, para el log.
+    /// Reason for the last failure, for the log.
     const std::string& LastError() const { return _lastError; }
 
 private:

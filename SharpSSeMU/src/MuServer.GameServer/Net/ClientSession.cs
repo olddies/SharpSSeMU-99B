@@ -4,9 +4,9 @@ using MuServer.GameServer.World;
 
 namespace MuServer.GameServer.Net;
 
-/// <summary>Puerto de la porción "conexión de cliente real" de OBJECTSTRUCT (User.h) — solo lo
-/// necesario para el ciclo de vida de la conexión y el login (Fase 1). Los ~300 campos de
-/// personaje/inventario/combate de OBJECTSTRUCT se agregan en fases posteriores.</summary>
+/// <summary>Port of the "real client connection" portion of OBJECTSTRUCT (User.h) — only what is needed for the
+/// connection lifecycle and login (Phase 1). The ~300 character/inventory/combat fields of OBJECTSTRUCT are
+/// added in later phases.</summary>
 public sealed class ClientSession
 {
     public required int Index { get; init; }
@@ -21,14 +21,14 @@ public sealed class ClientSession
     public string Account { get; set; } = string.Empty;
     public bool Connected { get; set; } = true;
 
-    /// <summary>Nivel de cuenta (0-3, AL0..AL3) que devuelve JoinServer al conectar
-    /// (JoinAccountResultRecv.AccountLevel, puerto de WZ_GetAccountLevel -- ver
-    /// JoinServerProtocolHandler.OnConnectAccountAsync). Se guarda acá porque llega ANTES de que
-    /// exista el PlayerObject (el login todavía no eligió personaje); World/PlayerObject.AccountLevel
-    /// lo copia recién al entrar al mundo.</summary>
+    /// <summary>Account level (0-3, AL0..AL3) that JoinServer returns on connecting
+    /// (JoinAccountResultRecv.AccountLevel, port of WZ_GetAccountLevel -- see
+    /// JoinServerProtocolHandler.OnConnectAccountAsync). It is stored here because it arrives BEFORE the
+    /// PlayerObject exists (the login has not yet chosen a character); World/PlayerObject.AccountLevel copies
+    /// it only on entering the world.</summary>
     public int AccountLevel { get; set; }
 
-    /// <summary>No nulo una vez que el jugador entra al mundo (tras 0xF3:03) -- ver World/PlayerObject.cs.</summary>
+    /// <summary>Not null once the player enters the world (after 0xF3:03) -- see World/PlayerObject.cs.</summary>
     public PlayerObject? Player { get; set; }
 
     private readonly SemaphoreSlim _sendLock = new(1, 1);
@@ -36,22 +36,20 @@ public sealed class ClientSession
 
     public async Task SendAsync(byte[] logicalPacket, CancellationToken ct)
     {
-        // El GameServer original nunca aplica XorData/serial al enviar paquetes C1/C2 (ver
-        // PacketCipher.cs) -- solo el cifrado de flujo de socket (GameStreamCipher) envuelve la
-        // salida. Para C3/C4 usar SendEncryptedAsync.
+        // The original GameServer never applies XorData/serial when sending C1/C2 packets (see PacketCipher.cs)
+        // -- only the socket stream cipher (GameStreamCipher) wraps the output. For C3/C4 use
+        // SendEncryptedAsync.
         var copy = (byte[])logicalPacket.Clone();
         StreamCipher.Encrypt(copy);
 
         await RawSendAsync(copy, ct);
     }
 
-    /// <summary>
-    /// Puerto exacto de CSocketManager::DataSend para el caso C3 (SocketManager.cpp:437-451):
-    /// el paquete "lógico" ya viene con type=0xC3 puesto -- se toma el byte de tamaño (offset 1) y
-    /// se reemplaza TEMPORALMENTE por un número de serie antes de cifrar por bloques (el original
-    /// hace exactamente este intercambio y lo restaura después, pero acá como es un buffer nuevo no
-    /// hace falta restaurar nada). A diferencia de la recepción, el envío NUNCA aplica XorData --
-    /// eso está confirmado leyendo el DataSend real, no es una suposición.
+    /// <summary> Exact port of CSocketManager::DataSend for the C3 case (SocketManager.cpp:437-451): the
+    /// "logical" packet already comes with type=0xC3 set -- the size byte (offset 1) is taken and TEMPORARILY
+    /// replaced by a serial number before block encryption (the original does exactly this swap and restores it
+    /// afterwards, but here, since it is a new buffer, nothing needs restoring). Unlike receiving, sending
+    /// NEVER applies XorData -- this is confirmed by reading the real DataSend, it is not an assumption.
     /// </summary>
     public async Task SendEncryptedAsync(byte[] logicalC3Packet, CancellationToken ct)
     {
@@ -73,16 +71,12 @@ public sealed class ClientSession
         await RawSendAsync(wire, ct);
     }
 
-    /// <summary>
-    /// Variante C4 (tamaño de 2 bytes big-endian) de <see cref="SendEncryptedAsync"/> -- mismo
-    /// contrato (cifrado por bloques + serial reemplazando el primer byte del plaintext, sin
-    /// XorData de salida), pero con cabecera de 3 bytes (type+size_hi+size_lo) en vez de 2. Se
-    /// necesita a partir de la Fase 3 porque PMSG_ITEM_LIST_SEND (inventario completo, hasta 108
-    /// slots) puede superar los 255 bytes que entran en el tamaño de 1 byte de C3. El paquete
-    /// "lógico" de entrada debe venir armado con PacketBuilder.BuildC2Sub (cabecera de 2 bytes de
-    /// tamaño) -- el byte de tipo real (0xC4) lo pone esta función, igual que SendEncryptedAsync
-    /// hace con C3.
-    /// </summary>
+    /// <summary> C4 variant (2-byte big-endian size) of <see cref="SendEncryptedAsync"/> -- same contract
+    /// (block encryption + serial replacing the first plaintext byte, no outgoing XorData), but with a 3-byte
+    /// header (type+size_hi+size_lo) instead of 2. It is needed from Phase 3 on because PMSG_ITEM_LIST_SEND
+    /// (the full inventory, up to 108 slots) can exceed the 255 bytes that fit in C3's 1-byte size. The input
+    /// "logical" packet must be built with PacketBuilder.BuildC2Sub (2-byte size header) -- the real type byte
+    /// (0xC4) is set by this function, just as SendEncryptedAsync does for C3. </summary>
     public async Task SendEncryptedC4Async(byte[] logicalC2Packet, CancellationToken ct)
     {
         int size = logicalC2Packet.Length;

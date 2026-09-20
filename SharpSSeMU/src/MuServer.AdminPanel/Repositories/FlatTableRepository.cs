@@ -2,14 +2,13 @@ using System.Text;
 
 namespace MuServer.AdminPanel.Repositories;
 
-/// <summary>Tipo de columna de una tabla plana de Data/. Casi todo es numérico; lo único que hay que
-/// distinguir de verdad es si el valor va entre comillas, porque ahí puede tener espacios adentro y
-/// no se puede partir por espacios.</summary>
+/// <summary>Column type of a flat Data/ table. Almost everything is numeric; the only thing that really has to
+/// be distinguished is whether the value is quoted, because then it can have spaces inside and cannot be split
+/// on spaces.</summary>
 public enum FlatColumnKind
 {
-    /// <summary>Número, o "*" (que en estos archivos significa "cualquiera"/"sin límite"). Se guarda
-    /// como texto crudo para no perder el "*" ni convertirlo a un -1 que después habría que traducir
-    /// de vuelta.</summary>
+    /// <summary>Number, or "*" (which in these files means "any"/"no limit"). It is stored as raw text so as
+    /// not to lose the "*" or turn it into a -1 that would then have to be translated back.</summary>
     Number,
 
     /// <summary>Texto entre comillas dobles en el archivo.</summary>
@@ -18,7 +17,7 @@ public enum FlatColumnKind
 
 public sealed record FlatColumn(string Title, FlatColumnKind Kind = FlatColumnKind.Number, int Width = 12);
 
-/// <summary>Una fila, como lista de valores crudos en el mismo orden que las columnas del esquema.</summary>
+/// <summary>A row, as a list of raw values in the same order as the schema's columns.</summary>
 public sealed class FlatRow
 {
     public required string[] Values { get; init; }
@@ -36,15 +35,13 @@ public sealed class FlatRow
     }
 }
 
-/// <summary>Lector/escritor genérico de las tablas planas de Data/ (SkillList, Gate, Message, Quest,
-/// QuestObjective, QuestReward...). Todas comparten la misma forma: un bloque de comentarios de
-/// cabecera, una fila por línea con columnas separadas por espacios, y "end" al final. En vez de
-/// escribir un repositorio por archivo --que fue lo que se hizo para Item.txt/MonsterList.txt, donde
-/// el layout sí es especial-- acá alcanza con declarar el esquema de columnas.</summary>
-/// <summary>El contenido de una tabla más lo que hace falta para volver a escribirla igual: el
-/// bloque de comentarios de cabecera y la sangría con la que el archivo indenta sus filas (unos
-/// archivos usan 3 espacios y otros arrancan en la columna 0; se toma la del propio archivo en vez
-/// de configurarla a mano tabla por tabla).</summary>
+/// <summary>Generic reader/writer of the flat Data/ tables (SkillList, Gate, Message, Quest, QuestObjective,
+/// QuestReward...). They all share the same shape: a header comment block, one row per line with
+/// space-separated columns, and "end" at the bottom. Instead of writing one repository per file --which is what
+/// was done for Item.txt/MonsterList.txt, where the layout is special-- here it is enough to declare the column
+/// schema.</summary> <summary>The content of a table plus what is needed to write it back the same: the header
+/// comment block and the indentation the file uses for its rows (some files use 3 spaces and others start at
+/// column 0; the file's own is taken instead of configuring it by hand table by table).</summary>
 public sealed record FlatTable(string Header, string RowIndent, List<FlatRow> Rows);
 
 public static class FlatTableRepository
@@ -128,7 +125,7 @@ public static class FlatTableRepository
 
         sb.AppendLine("end");
 
-        // Escritura atómica -- el GameServer lee estos archivos al arrancar.
+        // Atomic write -- the GameServer reads these files at start-up.
         var tmpPath = path + ".tmp";
         File.WriteAllText(tmpPath, sb.ToString());
         File.Copy(tmpPath, path, overwrite: true);

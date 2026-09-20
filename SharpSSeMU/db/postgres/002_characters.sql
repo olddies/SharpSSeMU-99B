@@ -1,7 +1,7 @@
--- Esquema PostgreSQL para las tablas que usa DataServer (personajes, inventario, rankings, etc).
--- Traducción de las tablas correspondientes de MuServer99B/DB/MuOnline.sql (SQL Server) a Postgres.
--- Los blobs binarios (inventario/skills/quest/efectos) se guardan tal cual como bytea — mismo
--- layout de bytes que usa el cliente/GameServer, así que no hay que tocar su formato interno.
+-- PostgreSQL schema for the tables DataServer uses (characters, inventory, rankings, etc). Translation of the
+-- corresponding tables of MuServer99B/DB/MuOnline.sql (SQL Server) to Postgres. The binary blobs
+-- (inventory/skills/quest/effects) are stored as they are as bytea — same byte layout the client/GameServer
+-- uses, so their internal format does not have to be touched.
 
 CREATE TABLE IF NOT EXISTS account_character (
     id           SERIAL PRIMARY KEY,
@@ -143,15 +143,15 @@ CREATE TABLE IF NOT EXISTS ranking_devil_square (
     score INTEGER NOT NULL DEFAULT 0
 );
 
--- No existía en el MuOnline.sql original (el binario del DataServer la referencia pero el dump de
--- SQL Server no la incluye — probablemente una feature agregada después sin actualizar el script).
--- Se agrega igual para que la función quede realmente operativa en este puerto.
+-- It did not exist in the original MuOnline.sql (the DataServer binary references it but the SQL Server dump
+-- does not include it — probably a feature added later without updating the script). It is added anyway so that
+-- the function is actually operational in this port.
 CREATE TABLE IF NOT EXISTS ranking_illusion_temple (
     name  VARCHAR(10) PRIMARY KEY,
     score INTEGER NOT NULL DEFAULT 0
 );
 
--- Tampoco existía en el MuOnline.sql original, mismo caso que ranking_illusion_temple.
+-- It did not exist in the original MuOnline.sql either, same case as ranking_illusion_temple.
 CREATE TABLE IF NOT EXISTS monster_kill_count (
     name           VARCHAR(10) NOT NULL,
     monster_class  INTEGER NOT NULL,
@@ -165,7 +165,7 @@ CREATE TABLE IF NOT EXISTS pet_item_info (
     pet_exp     BIGINT NOT NULL DEFAULT 0
 );
 
--- Fila única (number=0) usada como contador global de series de items (WZ_GetItemSerial).
+-- Single row (number=0) used as the global counter of item serials (WZ_GetItemSerial).
 CREATE TABLE IF NOT EXISTS game_server_info (
     number         INTEGER PRIMARY KEY DEFAULT 0,
     item_count     BIGINT NOT NULL DEFAULT 0,

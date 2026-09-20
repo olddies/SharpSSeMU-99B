@@ -3,10 +3,10 @@ using System.Text;
 
 namespace MuServer.AdminPanel.Repositories;
 
-/// <summary>Una fila de Data/Monster/MonsterList.txt, mutable -- la versión editable de
-/// <c>MuServer.GameServer.World.MonsterInfo</c> (que es de sólo lectura, con todo <c>init</c>).
-/// El orden de columnas está verificado contra <c>MonsterInfoTable.Load</c>, que es lo que el
-/// GameServer usa de verdad.</summary>
+/// <summary>A row of Data/Monster/MonsterList.txt, mutable -- the editable version of
+/// <c>MuServer.GameServer.World.MonsterInfo</c> (which is read-only, with everything <c>init</c>). The column
+/// order is verified against <c>MonsterInfoTable.Load</c>, which is what the GameServer actually
+/// uses.</summary>
 public sealed class MonsterRow
 {
     public required int Index { get; set; }
@@ -36,9 +36,8 @@ public sealed class MonsterRow
     public int[] Resistance { get; set; } = new int[7];
 }
 
-/// <summary>Lee y escribe Data/Monster/MonsterList.txt entero, conservando el bloque de comentarios
-/// de cabecera tal cual (incluye los créditos del emulador original y la línea de nombres de
-/// columna).</summary>
+/// <summary>Reads and writes the whole Data/Monster/MonsterList.txt, keeping the header comment block as is (it
+/// includes the original emulator's credits and the column name line).</summary>
 public static class MonsterFileRepository
 {
     public static (string Header, List<MonsterRow> Rows) Load(string path)
@@ -115,8 +114,8 @@ public static class MonsterFileRepository
         return row;
     }
 
-    /// <summary>Igual que en Item.txt: el nombre va entre comillas y puede tener espacios
-    /// ("Bull Fighter"), así que no alcanza con partir por espacios.</summary>
+    /// <summary>As in Item.txt: the name is quoted and can have spaces ("Bull Fighter"), so splitting on spaces
+    /// is not enough.</summary>
     private static List<string> Tokenize(string line)
     {
         var tokens = new List<string>();
@@ -207,7 +206,7 @@ public static class MonsterFileRepository
 
         sb.AppendLine("end");
 
-        // Escritura atómica -- el GameServer lee este archivo al arrancar.
+        // Atomic write -- the GameServer reads this file at start-up.
         var tmpPath = path + ".tmp";
         File.WriteAllText(tmpPath, sb.ToString());
         File.Copy(tmpPath, path, overwrite: true);

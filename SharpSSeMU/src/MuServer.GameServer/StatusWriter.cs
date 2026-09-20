@@ -2,14 +2,13 @@ using System.Text.Json;
 
 namespace MuServer.GameServer;
 
-/// <summary>Estado en vivo del servidor, en un JSON chico que otros procesos pueden leer sin
-/// acoplarse al GameServer. Se eligió un archivo en vez de abrir un puerto HTTP acá: el GameServer
-/// ya tiene su propio ciclo de vida y su propio socket de juego, y agregarle un servidor web propio
-/// para esto es más riesgo del que vale un status de lectura. El panel de administración
-/// (MuServer.AdminPanel) lo lee por polling.</summary>
-/// <summary>Una fila de la lista de "Cuentas conectadas" del panel -- <c>Class</c> es el índice 0-4
-/// (DW/DK/FE/MG/DL) que ya usa <see cref="World.PlayerObject.Class"/>, no el byte crudo de
-/// evolución del protocolo real (este servidor no distingue 2da/3ra clase todavía).</summary>
+/// <summary>Live state of the server, in a small JSON that other processes can read without coupling to the
+/// GameServer. A file was chosen instead of opening an HTTP port here: the GameServer already has its own life
+/// cycle and its own game socket, and adding its own web server for this is more risk than a read-only status
+/// is worth. The administration panel (MuServer.AdminPanel) reads it by polling.</summary> <summary>A row of
+/// the panel's "Connected accounts" list -- <c>Class</c> is the 0-4 index (DW/DK/FE/MG/DL) that <see
+/// cref="World.PlayerObject.Class"/> already uses, not the raw evolution byte of the real protocol (this server
+/// does not distinguish 2nd/3rd class yet).</summary>
 public sealed record OnlinePlayerInfo(string Account, string Name, int Level, int Reset, byte Class, byte Map);
 
 public sealed record GameServerStatus(
@@ -49,17 +48,17 @@ public sealed class StatusWriter
                 var status = new GameServerStatus(
                     _serverName, _getPlayerCount(), _maxPlayers, _startedAt, DateTime.UtcNow, _getPlayers());
                 var json = JsonSerializer.Serialize(status, new JsonSerializerOptions { WriteIndented = true });
-                // Escritura atómica: un panel leyendo justo en el medio de un write directo podría
-                // encontrar un JSON a mitad de escribir. Se escribe a un archivo temporal y se
-                // reemplaza, que en la mayoría de los filesystems es una operación atómica.
+                // Atomic write: a panel reading right in the middle of a direct write could find a half-written
+                // JSON. It is written to a temporary file and replaced, which on most filesystems is an atomic
+                // operation.
                 var tmpPath = _path + ".tmp";
                 await File.WriteAllTextAsync(tmpPath, json, ct);
                 File.Move(tmpPath, _path, overwrite: true);
             }
             catch (Exception)
             {
-                // Un fallo al escribir el status no debe tirar abajo el servidor -- es información
-                // secundaria, no algo de lo que dependa el juego.
+                // A failure writing the status must not bring the server down -- it is secondary information,
+                // not something the game depends on.
             }
 
             try

@@ -31,13 +31,13 @@ try:
     dep.start_infra()
     dep.seed_characters((9100, "test", "Hero1"), (9101, "admin", "Hero2"))
 
-    # Mismo mapa y a 2 tiles: el viewport (rango 12) los ve mutuamente sin
-    # depender del spawn por defecto.
+    # Same map and 2 tiles apart: the viewport (range 12) sees them mutually without depending on the default
+    # spawn.
     dep.place_heroes()
 
-    # Sembrar la espada para poder probar equipar sin depender todavía de recoger
-    # del suelo. Sobrescribe el inventario entero, así que el equipo por defecto
-    # de la clase desaparece: el único item es el que el test va a mover.
+    # Seed the sword so as to be able to test equipping without yet depending on picking up from the ground. It
+    # overwrites the whole inventory, so the class's default equipment disappears: the only item is the one the
+    # test is going to move.
     dep.seed_equippable_weapon("Hero1", FIRST_BACKPACK_SLOT)
 
     r = pg.sql("SELECT name,map_number,map_pos_x,map_pos_y FROM character;")

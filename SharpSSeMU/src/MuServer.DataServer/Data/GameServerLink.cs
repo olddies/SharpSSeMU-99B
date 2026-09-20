@@ -3,7 +3,7 @@ using MuServer.Shared.Protocol;
 
 namespace MuServer.DataServer.Data;
 
-/// <summary>Puerto de CServerManager (por-conexión), igual patrón que en JoinServer.</summary>
+/// <summary>Port of CServerManager (per connection), same pattern as in JoinServer.</summary>
 public sealed class GameServerLink
 {
     public Guid Id { get; } = Guid.NewGuid();

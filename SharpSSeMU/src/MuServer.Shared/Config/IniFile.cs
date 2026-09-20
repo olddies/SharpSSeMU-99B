@@ -1,10 +1,8 @@
 namespace MuServer.Shared.Config;
 
-/// <summary>
-/// Lector de archivos .ini equivalente a GetPrivateProfileInt/GetPrivateProfileString de Win32,
-/// para poder seguir usando los mismos .ini que el servidor original (ConnectServer.ini,
-/// JoinServer.ini, DataServer.ini) sin cambiar el formato de despliegue.
-/// </summary>
+/// <summary> .ini file reader equivalent to Win32's GetPrivateProfileInt/GetPrivateProfileString, so that the
+/// same .ini files as the original server (ConnectServer.ini, JoinServer.ini, DataServer.ini) can keep being
+/// used without changing the deployment format. </summary>
 public class IniFile
 {
     private readonly Dictionary<string, Dictionary<string, string>> _sections =

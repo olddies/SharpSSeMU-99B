@@ -118,9 +118,8 @@ MASTER_LEVEL_VALUE	Master_Level_Data;
 //BYTE Version[SIZE_PROTOCOLVERSION] = {'1'+1, '0'+2, '4'+3, '0'+4, '5'+5};
 //BYTE Serial[SIZE_PROTOCOLSERIAL+1] = {"TbYehR2hFUPBKgZj"};
 
-// Version y Serial tienen que coincidir EXACTO con ServerVersion/ServerSerial
-// del .ini del servidor: el login rebota si no, y ademas del serial se deriva
-// el cifrado de flujo del socket de juego.
+// Version and Serial must match the server .ini's ServerVersion/ServerSerial EXACTLY: the login bounces
+// otherwise, and the game socket's stream cipher is also derived from the serial.
 BYTE Version[SIZE_PROTOCOLVERSION] = { '1', '0', '2', '0', '0' };
 BYTE Serial[SIZE_PROTOCOLSERIAL + 1] = { "SharpSSeMU99B-v1" };
 Connection* SocketClient = nullptr;
@@ -481,10 +480,9 @@ BOOL Util_CheckOption(std::wstring lpszCommandLine, wchar_t cOption, std::wstrin
 
 void ReceiveServerList(const BYTE* ReceiveBuffer)
 {
-    // C2:F4:02 -- PMSG_SERVER_LIST_SEND seguido de `count` filas PMSG_SERVER_LIST.
-    // El dialecto 0.99B trae el contador en UN byte (offset 5), no en dos, así que
-    // las filas empiezan en el offset 6. Cada fila mide 4 bytes:
-    // WORD ServerCode + BYTE UserTotal + BYTE type.
+    // C2:F4:02 -- PMSG_SERVER_LIST_SEND followed by `count` PMSG_SERVER_LIST rows. The 0.99B dialect carries
+    // the counter in ONE byte (offset 5), not two, so rows start at offset 6. Each row is 4 bytes: WORD
+    // ServerCode + BYTE UserTotal + BYTE type.
     auto Data = reinterpret_cast<const Mu099B::PMSG_SERVER_LIST_SEND*>(ReceiveBuffer);
     int Offset = sizeof(Mu099B::PMSG_SERVER_LIST_SEND);
 
@@ -517,11 +515,10 @@ void ReceiveServerList(const BYTE* ReceiveBuffer)
 }
 void ReceiveServerConnect(const BYTE* ReceiveBuffer)
 {
-    // C1:F4:03 -- PMSG_SERVER_INFO_SEND: header(4) + char ServerAddress[16] +
-    // WORD ServerPort (el puerto queda en el offset 20 por el relleno de
-    // alineación). Da la casualidad de que PRECEIVE_SERVER_ADDRESS, con su
-    // char IP[15], cae en los mismos offsets; se usa igual el struct generado
-    // para no depender de esa coincidencia.
+    // C1:F4:03 -- PMSG_SERVER_INFO_SEND: header(4) + char ServerAddress[16] + WORD ServerPort (the port ends up
+    // at offset 20 because of alignment padding). It happens that PRECEIVE_SERVER_ADDRESS, with its char
+    // IP[15], falls on the same offsets; the generated struct is used anyway so as not to depend on that
+    // coincidence.
     auto Data = reinterpret_cast<const Mu099B::PMSG_SERVER_INFO_SEND*>(ReceiveBuffer);
 
     char Address[sizeof(Data->ServerAddress) + 1] = {};
@@ -686,11 +683,10 @@ void ReceiveCharacterList099B(const BYTE* ReceiveBuffer)
 {
     InitGuildWar();
 
-    // C3:F3:00 -- PMSG_CHARACTER_LIST_SEND (7 bytes) seguido de `count` renglones
-    // PMSG_CHARACTER_LIST de 28 bytes. El renglón no usa #pragma pack(1): tras
-    // slot + Name[10] hay un byte de relleno antes del WORD Level. Leerlo sin ese
-    // relleno corre todo del segundo personaje en adelante -- el bug de "solo veo
-    // el primero que creé".
+    // C3:F3:00 -- PMSG_CHARACTER_LIST_SEND (7 bytes) followed by `count` PMSG_CHARACTER_LIST rows of 28 bytes.
+    // The row does not use #pragma pack(1): after slot + Name[10] there is a padding byte before the WORD
+    // Level. Reading it without that padding shifts everything from the second character on -- the "I only see
+    // the first one I created" bug.
     const auto* envelope = reinterpret_cast<const Mu099B::PMSG_CHARACTER_LIST_SEND*>(ReceiveBuffer);
     int Offset = sizeof(Mu099B::PMSG_CHARACTER_LIST_SEND);
 
@@ -702,8 +698,8 @@ void ReceiveCharacterList099B(const BYTE* ReceiveBuffer)
         const auto* Row = reinterpret_cast<const Mu099B::PMSG_CHARACTER_LIST*>(ReceiveBuffer + Offset);
         Offset += sizeof(Mu099B::PMSG_CHARACTER_LIST);
 
-        // El CharSet trae clase y equipo empaquetados en trece bytes; se traduce
-        // al bloque extendido que ya sabe consumir ReadEquipmentExtended.
+        // The CharSet carries class and equipment packed into thirteen bytes; it is translated into the
+        // extended block that ReadEquipmentExtended already knows how to consume.
         const auto appearance = Mu099B::DecodeCharSet(Row->CharSet);
 
         float fPos[2], fAngle = 0.0f;
@@ -733,7 +729,7 @@ void ReceiveCharacterList099B(const BYTE* ReceiveBuffer)
         Mu099B::WriteExtendedEquipment(appearance, equipment);
         ReadEquipmentExtended(Row->slot, 0, equipment);
 
-        // GuildStatus no existe en este build: el renglón termina en el CharSet.
+        // GuildStatus does not exist in this build: the row ends at the CharSet.
         c->GuildStatus = 0;
     }
 
@@ -763,10 +759,9 @@ void ReceiveCharacterCard_New(const BYTE* ReceiveBuffer)
 
 void ReceiveCreateCharacter(const BYTE* ReceiveBuffer)
 {
-    // C1:F3:01 -- PMSG_CHARACTER_CREATE_SEND: result, name[10], slot, level(WORD),
-    // Class, equipment[24]. El campo Class NO viene corrido 3 bits como en el
-    // dialecto anterior: lleva el mismo empaquetado que CharSet[0] (la clase en
-    // los bits altos), porque DGCharacterCreateRecv lo arma igual.
+    // C1:F3:01 -- PMSG_CHARACTER_CREATE_SEND: result, name[10], slot, level(WORD), Class, equipment[24]. The
+    // Class field is NOT shifted 3 bits as in the previous dialect: it carries the same packing as CharSet[0]
+    // (the class in the high bits), because DGCharacterCreateRecv builds it the same way.
     const auto* Data = reinterpret_cast<const Mu099B::PMSG_CHARACTER_CREATE_SEND*>(ReceiveBuffer);
 
     if (Data->result == 1)
@@ -780,7 +775,7 @@ void ReceiveCreateCharacter(const BYTE* ReceiveBuffer)
             case 2: fPos[0] = 8046.0f; fPos[1] = 19400.0f; fAngle = 75.0f; break;
             case 3: fPos[0] = 8133.0f; fPos[1] = 19645.0f; fAngle = 60.0f; break;
             case 4: fPos[0] = 8282.0f; fPos[1] = 19845.0f; fAngle = 35.0f; break;
-            default: return;  // slot fuera de rango: no hay dónde ponerlo
+            default: return;  // slot out of range: there is nowhere to put it
         }
 
         DeleteCharacter(Data->slot);
@@ -788,11 +783,9 @@ void ReceiveCreateCharacter(const BYTE* ReceiveBuffer)
         CreateHero(Data->slot, CharacterView.Class, CharacterView.Skin, fPos[0], fPos[1], fAngle);
         CharactersClient[Data->slot].Level = Data->level;
 
-        // Ojo con la asimetría: el pedido de creación manda la clase con el
-        // empaquetado de la base de datos, pero el servidor la convierte al del
-        // CharSet antes de contestar (DGCharacterCreateRecv hace
-        // (Class%16)*16 - .../32 + (Class/16)*32). Así que el mismo par de
-        // paquetes usa las dos codificaciones, una en cada sentido.
+        // Note the asymmetry: the create request sends the class with the database packing, but the server
+        // converts it to the CharSet one before answering (DGCharacterCreateRecv does (Class%16)*16 - .../32 +
+        // (Class/16)*32). So the same pair of packets uses both encodings, one in each direction.
         const auto serverClass = Mu099B::DecodeClassByte(Data->Class);
         const auto iClass = gCharacterManager.ChangeServer099BClassTypeToClientClassType(
             serverClass.CharacterClass, serverClass.ChangeUp);
@@ -1064,11 +1057,10 @@ BOOL ReceiveJoinMapServer(std::span<const BYTE> ReceiveBuffer)
     CharacterAttribute->AbilityTime[1] = 0;
     CharacterAttribute->AbilityTime[2] = 0;
 
-    // C3:F3:03 -- PMSG_CHARACTER_INFO_SEND (108 bytes). Ojo con dos cosas:
-    //  * hay 2 bytes de relleno en el offset 38, antes del DWORD Money;
-    //  * los campos View* del final son las versiones de 32 bits de las mismas
-    //    estadísticas (GAMESERVER_EXTRA). Se prefieren esos: los WORD de más
-    //    arriba se topan en 65535 y a nivel alto muestran valores absurdos.
+    // C3:F3:03 -- PMSG_CHARACTER_INFO_SEND (108 bytes). Two things to watch: * there are 2 bytes of padding at
+    // offset 38, before the DWORD Money; * the View* fields at the end are the 32-bit versions of the same
+    // stats (GAMESERVER_EXTRA). Those are preferred: the WORDs further up cap at 65535 and show absurd values
+    // at high level.
     if (ReceiveBuffer.size() < sizeof(Mu099B::PMSG_CHARACTER_INFO_SEND))
     {
         g_ErrorReport.Write(L"[ReceiveJoinMapServer] paquete corto: %d bytes",
@@ -1096,8 +1088,7 @@ BOOL ReceiveJoinMapServer(std::span<const BYTE> ReceiveBuffer)
     CharacterAttribute->SkillMana = static_cast<float>(Data->ViewCurBP);
     CharacterAttribute->SkillManaMax = static_cast<float>(Data->ViewMaxBP);
 
-    // El escudo (Shield) no existe en este build: se deja en cero para que la
-    // barra no muestre un valor inventado.
+    // Shield does not exist in this build: it is left at zero so the bar does not show an invented value.
     CharacterAttribute->Shield = 0;
     CharacterAttribute->ShieldMax = 0;
 
@@ -1648,13 +1639,10 @@ int CalcItemLength(std::span<const BYTE> ReceiveBuffer)
     return size;
 }
 
-/// C4:F3:10 -- PMSG_ITEM_LIST_SEND. Después del conteo vienen sólo los slots
-/// ocupados, seis bytes cada uno: número de slot y los cinco de item.
-///
-/// El dialecto posterior manda doce bytes por item, con sockets y Jewel of
-/// Harmony que este build no tiene, y además de largo variable. Acá el paso es
-/// fijo, así que el recorrido es más simple; lo que hay que traducir es el
-/// contenido, porque el inventario del cliente lee el formato extendido.
+/// C4:F3:10 -- PMSG_ITEM_LIST_SEND. After the count come only the occupied slots, six bytes each: slot number
+/// and the five item bytes. The later dialect sends twelve bytes per item, with sockets and Jewel of Harmony
+/// that this build does not have, and with variable length besides. Here the stride is fixed, so the walk is
+/// simpler; what has to be translated is the content, because the client's inventory reads the extended format.
 BOOL ReceiveInventory099B(std::span<const BYTE> ReceiveBuffer)
 {
     for (auto& i : CharacterMachine->Equipment)
@@ -1680,7 +1668,7 @@ BOOL ReceiveInventory099B(std::span<const BYTE> ReceiveBuffer)
     giPetManager::DeletePet(Hero);
     ThePetProcess().DeletePet(Hero);
 
-    // Seis bytes por renglón: el slot y los cinco del item.
+    // Six bytes per row: the slot and the five of the item.
     constexpr size_t RowSize = 1 + Mu099B::ItemInfoSize;
     size_t Offset = sizeof(PHEADER_DEFAULT_SUBCODE_WORD);
 
@@ -1688,8 +1676,8 @@ BOOL ReceiveInventory099B(std::span<const BYTE> ReceiveBuffer)
     {
         if (Offset + RowSize > ReceiveBuffer.size())
         {
-            // El conteo no coincide con lo que llegó. Cortar acá deja el
-            // inventario a medias pero coherente; seguir leería basura.
+            // The count does not match what arrived. Cutting here leaves the inventory half-filled but
+            // consistent; carrying on would read garbage.
             g_ConsoleDebug->Write(MCD_ERROR,
                 L"0xF3:10 [ReceiveInventory: el conteo dice %d pero el paquete se acaba en %d]",
                 Data->Value, i);
@@ -1706,8 +1694,8 @@ BOOL ReceiveInventory099B(std::span<const BYTE> ReceiveBuffer)
         const size_t length = Mu099B::WriteClientItemBlock(item, block);
         if (length == 0)
         {
-            // El servidor sólo manda slots ocupados, así que esto no debería
-            // pasar; si pasa, saltarlo es preferible a insertar un item vacío.
+            // The server only sends occupied slots, so this should not happen; if it does, skipping it is
+            // preferable to inserting an empty item.
             continue;
         }
 
@@ -1807,13 +1795,10 @@ BOOL ReceiveInventoryExtended(std::span<const BYTE> ReceiveBuffer)
 
 
 
-/// C2:31 -- PMSG_SHOP_ITEM_LIST_SEND, lo que vende un NPC (y también lo que hay
-/// en el baúl o en la máquina del caos, según qué ventana esté abierta).
-///
-/// Mismo formato que el inventario: tipo, conteo, y seis bytes por entrada. La
-/// cabecera coincide con la del dialecto posterior -- el `type` de 0.99B cae
-/// justo donde aquel tiene el sub-código --, así que lo único que cambia es el
-/// paso de las entradas, que acá es fijo.
+/// C2:31 -- PMSG_SHOP_ITEM_LIST_SEND, what an NPC sells (and also what is in the warehouse or the chaos
+/// machine, depending on which window is open). Same format as the inventory: type, count, and six bytes per
+/// entry. The header matches the later dialect's -- the 0.99B `type` lands exactly where that one has the
+/// sub-code --, so the only thing that changes is the entry stride, which is fixed here.
 void ReceiveShopItemList099B(std::span<const BYTE> ReceiveBuffer)
 {
     auto Data = safe_cast<PHEADER_DEFAULT_SUBCODE_WORD>(ReceiveBuffer);
@@ -1823,13 +1808,12 @@ void ReceiveShopItemList099B(std::span<const BYTE> ReceiveBuffer)
         return;
     }
 
-    // GCChaosBoxSend (ChaosBox.cpp:1604-1649 del emulador real) manda este mismo formato de
-    // paquete con subcódigo 3 para la Chaos Box y 5 para el Entrenador/mascotas -- es la lista
-    // de lo que hay AHORA en esa caja, no un aviso de que la mezcla terminó. La versión anterior
-    // de este receptor confundía el subcódigo con un concepto de otra temporada ("mezcla
-    // terminada"/"resurrección fallida") y limpiaba la ventana y sonaba efectos cada vez que el
-    // servidor sólo estaba sincronizando contenido -- lo que además apagaba la ventana justo al
-    // abrirla, antes de que el jugador pusiera nada.
+    // GCChaosBoxSend (ChaosBox.cpp:1604-1649 of the real emulator) sends this same packet format with subcode 3
+    // for the Chaos Box and 5 for the Trainer/pets -- it is the list of what is in that box NOW, not a notice
+    // that the mix finished. The previous version of this receiver confused the subcode with a concept from
+    // another season ("mix finished"/"resurrection failed") and cleared the window and played effects every
+    // time the server was merely syncing content -- which also shut the window right when it was opened, before
+    // the player had put anything in.
     constexpr BYTE ChaosBoxList = 3;
     constexpr BYTE TrainerBoxList = 5;
     constexpr size_t RowSize = 1 + Mu099B::ItemInfoSize;
@@ -1838,15 +1822,15 @@ void ReceiveShopItemList099B(std::span<const BYTE> ReceiveBuffer)
 
     if (Data->SubCode == TrainerBoxList)
     {
-        // Ventana del Entrenador/mascotas: no está portada todavía. Se ignoran las filas en vez
-        // de tratarlas como si fueran de la Chaos Box (index compartido, contenido no).
+        // Trainer/pets window: not ported yet. The rows are ignored instead of being treated as Chaos Box ones
+        // (shared index, different content).
         return;
     }
 
     if (isMix)
     {
-        // Contenido autoritativo del servidor: se limpia lo que hubiera antes de repoblar, sin
-        // los sonidos ni el cambio de estado de "mezcla terminada" que tenía esto antes.
+        // Authoritative server content: whatever was there before is cleared before repopulating, without the
+        // sounds and the "mix finished" state change that this used to have.
         g_pMixInventory->DeleteAllItems();
     }
     else
@@ -1909,10 +1893,8 @@ void ReceiveShopItemList099B(std::span<const BYTE> ReceiveBuffer)
     }
 }
 
-/// C1:32 -- PMSG_ITEM_BUY_SEND, el resultado de comprarle a un NPC.
-///
-/// `result` es el slot donde entró el item, 0xFE si la tienda lo rechazó y 0xFF
-/// si el servidor ya mandó el motivo por separado.
+/// C1:32 -- PMSG_ITEM_BUY_SEND, the result of buying from an NPC. `result` is the slot the item went into, 0xFE
+/// if the shop rejected it and 0xFF if the server already sent the reason separately.
 void ReceiveBuy099B(std::span<const BYTE> ReceiveBuffer)
 {
     auto Data = safe_cast<Mu099B::PMSG_ITEM_BUY_SEND>(ReceiveBuffer);
@@ -1925,11 +1907,11 @@ void ReceiveBuy099B(std::span<const BYTE> ReceiveBuffer)
     constexpr BYTE BuyFailed = 0xFE;
     constexpr BYTE BuyFailedSilent = 0xFF;
 
-    // CORREGIDO: mismo bug que ReceiveGetItem099B (ver protocol-099b.md) -- BuyCost es la bandera
-    // que evita mandar un segundo pedido de compra mientras se espera la respuesta del primero
-    // (NewUINPCShop.cpp: `if (BuyCost == 0) { SendItemBuy(...); BuyCost = ItemValue(...); }`). Este
-    // receptor nunca la devolvía a 0 en ninguna salida, así que la primera compra -- fallara o no --
-    // dejaba la tienda trabada para siempre: ningún clic siguiente llegaba a mandar el paquete.
+    // FIXED: same bug as ReceiveGetItem099B (see protocol-099b.md) -- BuyCost is the flag that prevents sending
+    // a second buy request while the answer to the first is awaited (NewUINPCShop.cpp: `if (BuyCost == 0) {
+    // SendItemBuy(...); BuyCost = ItemValue(...); }`). This receiver never reset it to 0 on any exit, so the
+    // first purchase -- whether it failed or not -- left the shop stuck for good: no later click managed to
+    // send the packet.
     if (Data->result == BuyFailed)
     {
         g_pNewUISystem->HideAll();
@@ -2064,9 +2046,9 @@ void ReceiveChat(const BYTE* ReceiveBuffer)
     }
     else
     {
-        // El mensaje de 0.99B mide 60 bytes, no los 90 del dialecto posterior.
-        // El susurro ya acotaba la conversion; este no, y se pasaba del
-        // paquete cuando el texto llegaba justo, sin terminador.
+        // The 0.99B message is 60 bytes, not the 90 of the later dialect. The whisper already bounded the
+        // conversion; this one did not, and overran the packet when the text arrived exactly full, without a
+        // terminator.
         auto Data = reinterpret_cast<const Mu099B::PMSG_CHAT_SEND*>(ReceiveBuffer);
         constexpr int MessageSize = static_cast<int>(sizeof(Data->message));
 
@@ -2270,11 +2252,9 @@ void ReceiveNotice(const BYTE* ReceiveBuffer)
     g_ConsoleDebug->Write(MCD_RECEIVE, L"0x0D [ReceiveNotice(%ls)]", Text);
 }
 
-/// C1:D7 -- PMSG_MOVE_SEND: index[2], x, y, dir. Ocho bytes en total.
-///
-/// A diferencia del dialecto anterior, el servidor NO manda el camino: sólo
-/// dónde quedó el personaje y hacia dónde mira. El recorrido lo resuelve el
-/// cliente con su propio pathfinding, igual que hace al verlo aparecer.
+/// C1:D7 -- PMSG_MOVE_SEND: index[2], x, y, dir. Eight bytes in total. Unlike the previous dialect, the server
+/// does NOT send the path: only where the character ended up and where it is facing. The client works out the
+/// route with its own pathfinding, the same as when it sees them appear.
 void ReceiveMoveCharacter099B(std::span<const BYTE> ReceiveBuffer)
 {
     if (ReceiveBuffer.size() < sizeof(Mu099B::PMSG_MOVE_SEND))
@@ -2308,8 +2288,8 @@ void ReceiveMoveCharacter099B(std::span<const BYTE> ReceiveBuffer)
     }
     else if (!c->Movement)
     {
-        // Sin camino posible se lo reposiciona directo, para que no quede
-        // clavado donde estaba mientras el servidor lo cree en otro lado.
+        // With no possible path it is repositioned directly, so it does not stay stuck where it was while the
+        // server thinks it is elsewhere.
         c->PositionX = Data->x;
         c->PositionY = Data->y;
     }
@@ -2599,14 +2579,11 @@ BOOL ReceiveTeleport(const BYTE* ReceiveBuffer, BOOL bEncrypted)
     return (TRUE);
 }
 
-/// C1:17 -- PMSG_USER_DIE_SEND, y C1:1C -- PMSG_TELEPORT_SEND.
-///
-/// Los dos traen los mismos datos que el dialecto posterior pero en otros
-/// offsets, y detrás de cada uno hay bastante lógica del cliente (animación de
-/// caída, portales, altura del terreno). En vez de duplicarla se rellena el
-/// struct que esas funciones ya saben leer y se las llama: lo que cambia es de
-/// dónde sale cada campo, no qué se hace con él.
-// Se define bastante mas abajo; el adaptador la necesita antes.
+/// C1:17 -- PMSG_USER_DIE_SEND, and C1:1C -- PMSG_TELEPORT_SEND. Both carry the same data as the later dialect
+/// but at other offsets, and behind each one there is quite a lot of client logic (fall animation, portals,
+/// terrain height). Instead of duplicating it, the struct those functions already know how to read is filled in
+/// and they are called: what changes is where each field comes from, not what is done with it.
+// Defined much further down; the adapter needs it earlier.
 void ReceiveDie(const BYTE* ReceiveBuffer, int Size);
 
 void ReceiveDie099B(std::span<const BYTE> ReceiveBuffer, int Size)
@@ -2652,13 +2629,10 @@ BOOL ReceiveTeleport099B(std::span<const BYTE> ReceiveBuffer, BOOL bEncrypted)
 }
 
 
-/// C1:F3:13 -- PMSG_ITEM_EQUIPMENT_SEND. El servidor difunde la apariencia de
-/// alguien que se cambió de equipo.
-///
-/// Son 19 bytes: el índice del objeto y los trece del CharSet. El dialecto
-/// posterior manda 33, con el bloque de equipo ya desarmado; acá viene
-/// empaquetado y hay que traducirlo, igual que en la lista de personajes y en
-/// el viewport.
+/// C1:F3:13 -- PMSG_ITEM_EQUIPMENT_SEND. The server broadcasts the appearance of someone who changed equipment.
+/// It is 19 bytes: the object index and the thirteen of the CharSet. The later dialect sends 33, with the
+/// equipment block already unpacked; here it comes packed and has to be translated, as in the character list
+/// and the viewport.
 void ReceiveEquipment099B(std::span<const BYTE> ReceiveBuffer)
 {
     auto Data = safe_cast<Mu099B::PMSG_ITEM_EQUIPMENT_SEND>(ReceiveBuffer);
@@ -2668,13 +2642,13 @@ void ReceiveEquipment099B(std::span<const BYTE> ReceiveBuffer)
         return;
     }
 
-    // El índice del objeto viaja en big-endian, como todos los de este build.
+    // The object index travels big-endian, like all of them in this build.
     const int Key = (static_cast<int>(Data->index[0]) << 8) | Data->index[1];
     const int index = FindCharacterIndex(Key);
     if (index < 0)
     {
-        // Puede llegar el equipo de alguien que ya salió de la vista; no es un
-        // error de protocolo, sólo llegó tarde.
+        // The equipment of someone who already left view may arrive; it is not a protocol error, it just
+        // arrived late.
         return;
     }
 
@@ -2941,14 +2915,11 @@ void RegisterBuff(eBuffState buff, OBJECT* o, const int bufftime = 0);
 
 void UnRegisterBuff(eBuffState buff, OBJECT* o);
 
-/// C2:12 -- PMSG_VIEWPORT_SEND (5 bytes) seguido de `count` entradas
-/// PMSG_VIEWPORT_PLAYER de 34 bytes cada una.
-///
-/// El paso es FIJO: el campo `count` de cada entrada no cuenta bytes apendados
-/// sino que es una máscara de efectos activos (GenerateEffectList devuelve un
-/// bitmask y no escribe nada en el buffer). Las dos posiciones de relleno del
-/// struct -- en el offset 17 y al final -- sí viajan en el wire, así que
-/// omitirlas corre cada entrada dos bytes respecto de la anterior.
+/// C2:12 -- PMSG_VIEWPORT_SEND (5 bytes) followed by `count` PMSG_VIEWPORT_PLAYER entries of 34 bytes each. The
+/// stride is FIXED: each entry's `count` field does not count appended bytes but is a mask of active effects
+/// (GenerateEffectList returns a bitmask and writes nothing to the buffer). The struct's two padding positions
+/// -- at offset 17 and at the end -- do travel on the wire, so omitting them shifts each entry two bytes
+/// relative to the previous one.
 void ReceiveCreatePlayerViewport099B(std::span<const BYTE> ReceiveBuffer)
 {
     constexpr size_t EntrySize = sizeof(Mu099B::PMSG_VIEWPORT_PLAYER);
@@ -2975,13 +2946,13 @@ void ReceiveCreatePlayerViewport099B(std::span<const BYTE> ReceiveBuffer)
             reinterpret_cast<const Mu099B::PMSG_VIEWPORT_PLAYER*>(ReceiveBuffer.data() + offset);
         offset += EntrySize;
 
-        // El bit alto del índice marca "recién apareció": con él se hace el
-        // efecto de spawn en vez de caminar hasta la posición.
+        // The high bit of the index marks "just appeared": with it the spawn effect is played instead of
+        // walking to the position.
         const WORD Key = static_cast<WORD>(((Entry->index[0] & 0x7F) << 8) | Entry->index[1]);
         const bool CreateFlag = (Entry->index[0] & 0x80) != 0;
 
         const auto appearance = Mu099B::DecodeCharSet(Entry->CharSet);
-        // Los cuatro bits bajos de CharSet[0] son el ViewState (sentado, pose...).
+        // The low four bits of CharSet[0] are the ViewState (sitting, pose...).
         const BYTE viewState = static_cast<BYTE>(Entry->CharSet[0] & 0x0F);
 
         CHARACTER* c = CreateCharacter(Key, MODEL_PLAYER, Entry->x, Entry->y, 0);
@@ -3394,12 +3365,9 @@ void AppearMonster(CHARACTER* c)
     }
 }
 
-/// C2:13 -- PMSG_VIEWPORT_SEND seguido de `count` entradas
-/// PMSG_VIEWPORT_MONSTER de 12 bytes.
-///
-/// Como en la aparición de jugadores, el paso es fijo: el campo `count` de cada
-/// entrada es una máscara de efectos, no un contador de bytes. El byte de
-/// relleno del final cuenta igual.
+/// C2:13 -- PMSG_VIEWPORT_SEND followed by `count` PMSG_VIEWPORT_MONSTER entries of 12 bytes. As with player
+/// appearance, the stride is fixed: each entry's `count` field is an effects mask, not a byte counter. The
+/// trailing padding byte counts all the same.
 void ReceiveCreateMonsterViewport099B(std::span<const BYTE> ReceiveBuffer)
 {
     constexpr size_t EntrySize = sizeof(Mu099B::PMSG_VIEWPORT_MONSTER);
@@ -3426,8 +3394,7 @@ void ReceiveCreateMonsterViewport099B(std::span<const BYTE> ReceiveBuffer)
             reinterpret_cast<const Mu099B::PMSG_VIEWPORT_MONSTER*>(ReceiveBuffer.data() + offset);
         offset += EntrySize;
 
-        // Los dos bits altos del índice son banderas: 0x80 "recién apareció" y
-        // 0x40 "llegó por teleport".
+        // The two high bits of the index are flags: 0x80 "just appeared" and 0x40 "arrived by teleport".
         const WORD Key = static_cast<WORD>(((Entry->index[0] & 0x3F) << 8) | Entry->index[1]);
         const bool CreateFlag = (Entry->index[0] & 0x80) != 0;
 
@@ -3731,15 +3698,11 @@ void ReceiveDeleteCharacterViewport(const BYTE* ReceiveBuffer)
 }
 int AttackPlayer = 0;
 
-/// C1:F3:07 -- PMSG_MONSTER_DAMAGE_SEND, el daño que a uno le hace un monstruo.
-///
-/// El paquete trae el daño dos veces: como WORD big-endian y como DWORD "View"
-/// al final, y además la vida que le quedó a uno ya calculada por el servidor.
-/// Se usa esa vida en vez de restar acá, que es lo que hacía el receptor viejo:
-/// restar por nuestra cuenta acumula la diferencia cada vez que se pierde un
-/// paquete, y termina mostrando una barra que no coincide con la real.
-///
-/// 0.99B no tiene escudo, así que ese campo queda en cero.
+/// C1:F3:07 -- PMSG_MONSTER_DAMAGE_SEND, the damage a monster does to you. The packet carries the damage twice:
+/// as a big-endian WORD and as a "View" DWORD at the end, and also the life you have left already computed by
+/// the server. That life is used instead of subtracting here, which is what the old receiver did: subtracting
+/// on our own accumulates the difference every time a packet is lost, and ends up showing a bar that does not
+/// match the real one. 0.99B has no shield, so that field is left at zero.
 void ReceiveMonsterDamage099B(std::span<const BYTE> ReceiveBuffer)
 {
     auto Data = safe_cast<Mu099B::PMSG_MONSTER_DAMAGE_SEND>(ReceiveBuffer);
@@ -3753,15 +3716,11 @@ void ReceiveMonsterDamage099B(std::span<const BYTE> ReceiveBuffer)
     CharacterAttribute->Shield = 0;
 }
 
-/// C1:F3:11 -- PMSG_SKILL_LIST_SEND, los skills que tiene el personaje.
-///
-/// Tres bytes por skill: el slot, y dos con el índice y el nivel entremezclados.
-/// El índice alto se guarda dividiendo por 255, no desplazando ocho bits -- es
-/// una rareza del original, pero hay que reproducirla exacta o los skills por
-/// encima del 255 salen mal.
-///
-/// `count` tiene dos valores especiales: 0xFF borra un skill y 0xFE agrega uno
-/// solo, los dos con una única entrada detrás.
+/// C1:F3:11 -- PMSG_SKILL_LIST_SEND, the skills the character has. Three bytes per skill: the slot, and two
+/// with the index and the level interleaved. The high index is stored by dividing by 255, not by shifting eight
+/// bits -- an oddity of the original, but it has to be reproduced exactly or skills above 255 come out wrong.
+/// `count` has two special values: 0xFF deletes a skill and 0xFE adds a single one, both with a single entry
+/// behind.
 void ReceiveMagicList099B(std::span<const BYTE> ReceiveBuffer)
 {
     auto Data = safe_cast<Mu099B::PMSG_SKILL_LIST_SEND>(ReceiveBuffer);
@@ -3820,13 +3779,13 @@ void ReceiveMagicList099B(std::span<const BYTE> ReceiveBuffer)
         }
     }
 
-    // CORREGIDO: mismo bug que ReceiveGetItem099B/ReceiveBuy099B (ver protocol-099b.md) -- el
-    // dialecto viejo (ReceiveMagicList, arriba en este archivo) recalcula SkillNumber/
-    // SkillMasterNumber después de tocar el array Skill[], y la ventana de selección de habilidad
-    // (NewUIMainFrameWindow.cpp) lee ese contador -- NO recorre Skill[] buscando slots no vacíos.
-    // Este receptor 099B nunca lo tocaba, así que Skill[slot] quedaba bien escrito pero la UI seguía
-    // pensando que había cero habilidades (o las mismas de antes) y no mostraba nada nuevo, ni con
-    // las habilidades ya conocidas al entrar (el login manda la lista completa por acá también).
+    // FIXED: same bug as ReceiveGetItem099B/ReceiveBuy099B (see protocol-099b.md) -- the old dialect
+    // (ReceiveMagicList, above in this file) recomputes SkillNumber/SkillMasterNumber after touching the
+    // Skill[] array, and the skill selection window (NewUIMainFrameWindow.cpp) reads that counter -- it does
+    // NOT walk Skill[] looking for non-empty slots. This 099B receiver never touched it, so Skill[slot] was
+    // written correctly but the UI still thought there were zero skills (or the same as before) and showed
+    // nothing new, not even the skills already known at login (the login sends the full list through here as
+    // well).
     CharacterAttribute->SkillNumber = 0;
     CharacterAttribute->SkillMasterNumber = 0;
 
@@ -4151,12 +4110,9 @@ void ReceiveAttackDamage(CHARACTER* c, OBJECT* o, const bool success, const int 
     g_ConsoleDebug->Write(MCD_RECEIVE, L"0x15 [ReceiveAttackDamage(%d %d)]", AttackPlayer, damage);
 }
 
-/// C1:D9 -- PMSG_DAMAGE_SEND: index[2], damage[2], type, ViewCurHP, ViewDamageHP.
-///
-/// Dos detalles que no se ven en el nombre de los campos:
-///  * el bit alto del índice marca FALLO, no éxito;
-///  * `damage[2]` se topa en 65000, así que el número que se muestra sale de
-///    ViewDamageHP, que es de 32 bits (GAMESERVER_EXTRA).
+/// C1:D9 -- PMSG_DAMAGE_SEND: index[2], damage[2], type, ViewCurHP, ViewDamageHP. Two details not visible from
+/// the field names: * the high bit of the index marks a MISS, not a hit; * `damage[2]` caps at 65000, so the
+/// number shown comes from ViewDamageHP, which is 32-bit (GAMESERVER_EXTRA).
 void ReceiveAttackDamage099B(const BYTE* ReceiveBuffer)
 {
     const auto* Data = reinterpret_cast<const Mu099B::PMSG_DAMAGE_SEND*>(ReceiveBuffer);
@@ -4176,15 +4132,14 @@ void ReceiveAttackDamage099B(const BYTE* ReceiveBuffer)
         MUHelper::g_MuHelper.AddTarget(Key, true);
     }
 
-    // Este build no manda la vida máxima del objetivo, así que no se puede
-    // calcular la proporción de la barra: se deja como estaba en vez de
-    // inventar un valor.
+    // This build does not send the target's max life, so the bar proportion cannot be computed: it is left as
+    // it was instead of inventing a value.
     g_ConsoleDebug->Write(MCD_RECEIVE, L"0xD9 [Damage] key=%d dano=%d tipo=%d%ls",
         Key, Damage, DamageType, Missed ? L" (fallo)" : L"");
 
-    // ReceiveAttackDamage y no ...Castle: la variante de asedio nunca dibuja la cifra, fuerza el
-    // valor a -2 (el sprite "HIT") y con el daño sólo elige el color del cartel. Eso es lo que hace
-    // el asedio a propósito, pero para el combate normal escondía el número en todos los golpes.
+    // ReceiveAttackDamage and not ...Castle: the siege variant never draws the number, forces the value to -2
+    // (the "HIT" sprite) and only uses the damage to choose the colour of the sign. That is what siege does on
+    // purpose, but for normal combat it hid the number on every hit.
     ReceiveAttackDamage(c, o, !Missed, Key, Damage, /*shieldDamage=*/0, DamageType,
         /*bRepeatedly=*/false, /*bEndRepeatedly=*/false, /*bDoubleEnable=*/false,
         /*bComboEnable=*/false);
@@ -6462,16 +6417,11 @@ BOOL ReceiveDieExp(const BYTE* ReceiveBuffer, BOOL bEncrypted)
     return (TRUE);
 }
 
-/// C1:9C -- PMSG_REWARD_EXPERIENCE_SEND, la experiencia y el daño de un golpe
-/// que mata.
-///
-/// En el dialecto posterior esto viajaba dentro del paquete de muerte (0x16);
-/// acá es un paquete aparte, y no tenía receptor -- por eso matar monstruos no
-/// sumaba experiencia ni mostraba el número de daño.
-///
-/// Trae la experiencia ya acumulada y la siguiente meta, así que se copian en
-/// vez de sumar: acumular del lado del cliente se desincroniza en cuanto se
-/// pierde un paquete.
+/// C1:9C -- PMSG_REWARD_EXPERIENCE_SEND, the experience and damage of a killing blow. In the later dialect this
+/// travelled inside the death packet (0x16); here it is a separate packet, and had no receiver -- which is why
+/// killing monsters neither added experience nor showed the damage number. It carries the already accumulated
+/// experience and the next goal, so they are copied instead of added: accumulating on the client side goes out
+/// of sync as soon as a packet is lost.
 void ReceiveExperience099B(std::span<const BYTE> ReceiveBuffer)
 {
     auto Data = safe_cast<Mu099B::PMSG_REWARD_EXPERIENCE_SEND>(ReceiveBuffer);
@@ -6493,7 +6443,7 @@ void ReceiveExperience099B(std::span<const BYTE> ReceiveBuffer)
         ? CharacterAttribute->Experience - previous
         : 0;
 
-    // La barra de experiencia se anima entre el valor de antes y el de ahora.
+    // The experience bar animates between the previous value and the current one.
     g_pMainFrame->SetPreExp(previous);
     g_pMainFrame->SetGetExp(static_cast<DWORD>(gained));
 
@@ -6763,11 +6713,9 @@ void ReceiveCreateMoney(std::span<const BYTE> ReceiveBuffer)
     g_ConsoleDebug->Write(MCD_RECEIVE, L"0x20 [ReceiveCreateMoney]");
 }
 
-/// C2:20 -- los items que hay tirados en el piso dentro del rango de vista.
-///
-/// Nueve bytes por item: índice, posición y los cinco del item. El dialecto
-/// posterior usa entradas de largo variable, así que el recorrido tenía que
-/// medir cada una; acá el paso es fijo.
+/// C2:20 -- the items lying on the ground within view range. Nine bytes per item: index, position and the five
+/// of the item. The later dialect uses variable-length entries, so the walk had to measure each one; here the
+/// stride is fixed.
 void ReceiveCreateItemViewport099B(std::span<const BYTE> ReceiveBuffer)
 {
     auto Data = safe_cast<PWHEADER_DEFAULT_WORD>(ReceiveBuffer);
@@ -6777,7 +6725,7 @@ void ReceiveCreateItemViewport099B(std::span<const BYTE> ReceiveBuffer)
         return;
     }
 
-    // índice(2) + x + y + ItemInfo(5)
+    // index(2) + x + y + ItemInfo(5)
     constexpr size_t RowSize = 4 + Mu099B::ItemInfoSize;
     size_t Offset = sizeof(PWHEADER_DEFAULT_WORD);
 
@@ -6790,8 +6738,8 @@ void ReceiveCreateItemViewport099B(std::span<const BYTE> ReceiveBuffer)
             return;
         }
 
-        // El bit alto del índice marca "recién tirado", que es lo que dispara la
-        // animación de caída en vez de aparecer puesto en el piso.
+        // The high bit of the index marks "just dropped", which triggers the fall animation instead of
+        // appearing already placed on the ground.
         const BYTE indexHigh = ReceiveBuffer[Offset];
         const int id = ((indexHigh & 0x7F) << 8) | ReceiveBuffer[Offset + 1];
         const bool isFreshDrop = (indexHigh & 0x80) != 0;
@@ -6811,10 +6759,9 @@ void ReceiveCreateItemViewport099B(std::span<const BYTE> ReceiveBuffer)
         Position[0] = (static_cast<float>(x) + 0.5f) * TERRAIN_SCALE;
         Position[1] = (static_cast<float>(y) + 0.5f) * TERRAIN_SCALE;
 
-        // El dinero no viaja con el formato normal de item: el monto va crudo en
-        // los bytes 1, 2 y 4. Pasarlo por el camino de item común lo dibujaba
-        // como un objeto cualquiera y el monto se leía como nivel/durabilidad,
-        // que es por lo que el zen del piso salía siempre en cero.
+        // Money does not travel in the normal item format: the amount goes raw in bytes 1, 2 and 4. Passing it
+        // through the ordinary item path drew it as any other object and the amount was read as
+        // level/durability, which is why zen on the floor always showed zero.
         uint32_t money = 0;
         if (Mu099B::DecodeDroppedMoney(itemBytes, money))
         {
@@ -7021,12 +6968,9 @@ void ReceiveGetItem(std::span<const BYTE> ReceiveBuffer)
     g_ConsoleDebug->Write(MCD_RECEIVE, L"0x22 [ReceiveGetItem(%d)]", Data->Value);
 }
 
-/// C1:22 -- resultado de levantar un item.
-///
-/// `result` es el slot donde quedó, o 0xFF si no entró, o 0xFE si lo que se
-/// levantó fue dinero. La rama del dinero coincide byte por byte con la del
-/// dialecto posterior (cuatro bytes big-endian en el mismo offset), así que sólo
-/// cambia cómo se leen los del item.
+/// C1:22 -- result of picking up an item. `result` is the slot it landed in, or 0xFF if it did not fit, or 0xFE
+/// if what was picked up was money. The money branch matches the later dialect's byte for byte (four big-endian
+/// bytes at the same offset), so only the way the item's bytes are read changes.
 void ReceiveGetItem099B(std::span<const BYTE> ReceiveBuffer)
 {
     auto Data = safe_cast<Mu099B::PMSG_ITEM_GET_SEND>(ReceiveBuffer);
@@ -7044,7 +6988,7 @@ void ReceiveGetItem099B(std::span<const BYTE> ReceiveBuffer)
 
     if (Data->result == GET_ITEM_ZEN)
     {
-        // El monto viene en los cuatro primeros bytes del ItemInfo, big-endian.
+        // The amount comes in the first four bytes of the ItemInfo, big-endian.
         const int backupGold = CharacterMachine->Gold;
         CharacterMachine->Gold =
             (Data->ItemInfo[0] << 24) | (Data->ItemInfo[1] << 16) |
@@ -7078,8 +7022,7 @@ void ReceiveGetItem099B(std::span<const BYTE> ReceiveBuffer)
     ITEM* pickedItem = nullptr;
     bool shouldResyncInventory = false;
 
-    // 0xFD es "se apiló sobre uno que ya tenías": no hay slot nuevo que llenar,
-    // sólo el aviso.
+    // 0xFD is "it stacked onto one you already had": there is no new slot to fill, only the notice.
     if (itemIndex != GET_ITEM_MULTI)
     {
         if (IsMainInventorySlot(itemIndex))
@@ -7145,16 +7088,11 @@ BYTE g_byPacketAfter_EquipmentItem[256];
 
 void ReceiveTradeExit(const BYTE* ReceiveBuffer);
 
-/// C3:24 -- PMSG_ITEM_MOVE_SEND, la respuesta a mover un item.
-///
-/// Diez bytes: resultado, slot donde quedó, y los cinco del item. `result` no
-/// es un booleano: vale el contenedor destino (0 = inventario, el único que
-/// soporta el servidor hoy) o 0xFF si la operación falló.
-///
-/// La cabecera coincide por casualidad con la del dialecto posterior, así que
-/// el bug no se veía hasta llegar a los bytes del item: leídos como formato
-/// extendido, un anillo se convertía en un índice que no existe y el cliente
-/// se caía al buscarle el modelo.
+/// C3:24 -- PMSG_ITEM_MOVE_SEND, the answer to moving an item. Ten bytes: result, slot where it ended up, and
+/// the five of the item. `result` is not a boolean: it is the destination container (0 = inventory, the only
+/// one the server supports today) or 0xFF if the operation failed. The header matches the later dialect's by
+/// coincidence, so the bug was not visible until reaching the item bytes: read as the extended format, a ring
+/// turned into an index that does not exist and the client crashed looking up its model.
 BOOL ReceiveEquipmentItem099B(std::span<const BYTE> ReceiveBuffer)
 {
     EquipmentItem = false;
@@ -7170,8 +7108,8 @@ BOOL ReceiveEquipmentItem099B(std::span<const BYTE> ReceiveBuffer)
 
     if (Data->result == MoveFailed)
     {
-        // El item vuelve a donde estaba: sin esto queda "agarrado" con el
-        // cursor y el inventario deja de responder.
+        // The item goes back to where it was: without this it stays "grabbed" by the cursor and the inventory
+        // stops responding.
         SEASON3B::CNewUIInventoryCtrl::BackupPickedItem();
 
         if (g_pStorageInventory->IsItemAutoMove())
@@ -7204,12 +7142,11 @@ BOOL ReceiveEquipmentItem099B(std::span<const BYTE> ReceiveBuffer)
     const int itemindex = Data->slot;
     bool shouldResyncInventory = false;
 
-    // `Data->result` no es sólo "éxito/fallo": el servidor lo usa para decir A QUÉ CONTENEDOR
-    // fue el item (0=inventario, 3=Chaos Box -- STORAGE_TYPE::CHAOS_MIX, ver
-    // OnItemMoveAsync en el servidor). Sin este chequeo, mover un item a la Chaos Box caía en
-    // las ramas de abajo por número de slot y se insertaba en el inventario del jugador o en
-    // el equipo -- el item "entraba" a la caja del lado del servidor pero se seguía viendo en
-    // el inventario normal del lado del cliente.
+    // `Data->result` is not just "success/failure": the server uses it to say WHICH CONTAINER the item went to
+    // (0=inventory, 3=Chaos Box -- STORAGE_TYPE::CHAOS_MIX, see OnItemMoveAsync in the server). Without this
+    // check, moving an item to the Chaos Box fell into the branches below by slot number and was inserted into
+    // the player's inventory or equipment -- the item "entered" the box on the server side but was still shown
+    // in the normal inventory on the client side.
     if (Data->result == static_cast<BYTE>(STORAGE_TYPE::CHAOS_MIX))
     {
         g_pMixInventory->InsertItem(itemindex, itemData);
@@ -7370,19 +7307,16 @@ BOOL ReceiveEquipmentItemExtended(std::span<const BYTE> ReceiveBuffer)
 }
 
 
-/// C1:F3:14 -- PMSG_ITEM_MODIFY_SEND, 0.99B (Mu099B::PMSG_ITEM_MODIFY_SEND: slot + cinco bytes de
-/// ItemInfo). Se manda cuando una joya (Bless/Soul/Life/Guardian) modifica un item que ya está en un
-/// slot -- a diferencia de ReceiveGetItem099B/ReceiveBuy099B, el slot destino YA tiene un item, así
-/// que hay que borrarlo antes de insertar la versión actualizada (mismo motivo por el que
-/// ReceiveModifyItemExtended, el dialecto de temporada posterior, hace DeleteItem+InsertItem en vez
-/// de sólo InsertItem).
-///
-/// CORREGIDO: el despachador de 0xF3:0x14 apuntaba directo a ReceiveModifyItemExtended, que lee el
-/// item con CalcItemLength (formato de largo variable de temporadas posteriores), no con los cinco
-/// bytes fijos que realmente manda este servidor -- el mismo bug de "capa Dotnet/temporada
-/// posterior nunca migrada a Mu099B::" que ya apareció con Party/Quest en esta sesión, pero del lado
-/// de un paquete servidor->cliente en vez de cliente->servidor. El offset quedaba mal interpretado,
-/// así que el item nunca se reinsertaba correctamente: se veía borrado del inventario.
+/// C1:F3:14 -- PMSG_ITEM_MODIFY_SEND, 0.99B (Mu099B::PMSG_ITEM_MODIFY_SEND: slot + five ItemInfo bytes). Sent
+/// when a jewel (Bless/Soul/Life/Guardian) modifies an item that is already in a slot -- unlike
+/// ReceiveGetItem099B/ReceiveBuy099B, the destination slot ALREADY has an item, so it has to be deleted before
+/// inserting the updated version (same reason ReceiveModifyItemExtended, the later-season dialect, does
+/// DeleteItem+InsertItem instead of just InsertItem). FIXED: the 0xF3:0x14 dispatcher pointed straight at
+/// ReceiveModifyItemExtended, which reads the item with CalcItemLength (variable-length format of later
+/// seasons), not with the five fixed bytes this server actually sends -- the same "Dotnet layer/later season
+/// never migrated to Mu099B::" bug that already showed up with Party/Quest in this session, but on the
+/// server->client side of a packet instead of client->server. The offset was misinterpreted, so the item was
+/// never reinserted correctly: it looked deleted from the inventory.
 void ReceiveModifyItem099B(std::span<const BYTE> ReceiveBuffer)
 {
     auto Data = safe_cast<Mu099B::PMSG_ITEM_MODIFY_SEND>(ReceiveBuffer);
@@ -7509,14 +7443,13 @@ BOOL ReceiveTalk(const BYTE* ReceiveBuffer, BOOL bEncrypted)
         break;
 
     case 3:
-        // Antes: g_MixRecipeMgr.SetMixType(MIXTYPE_GOBLIN_NORMAL) -- el sistema de recetas de
-        // Season 6 (Goblin Points/Jerridon/etc.), que carga sus fórmulas de mix.bmd. Esa carga
-        // nunca se llama en este build (CMixRecipeMgr::OpenRecipeFile no la invoca nadie), así
-        // que el sistema estaba muerto: ninguna receta calzaba nunca y el botón de combinar no
-        // se habilitaba. El wire real de 0.99B no manda una receta acá -- el contenido de la
-        // caja llega aparte, en el PMSG_SHOP_ITEM_LIST_SEND de subcódigo 3 que el servidor manda
-        // justo después de este 0x30 (ver ReceiveShopItemList099B); la tasa de éxito se pide con
-        // 0x88 (Mu099B::SendChaosMixRate) para lo que haya en la caja en cada momento.
+        // Before: g_MixRecipeMgr.SetMixType(MIXTYPE_GOBLIN_NORMAL) -- the Season 6 recipe system (Goblin
+        // Points/Jerridon/etc.), which loads its formulas from mix.bmd. That load is never called in this build
+        // (nobody invokes CMixRecipeMgr::OpenRecipeFile), so the system was dead: no recipe ever matched and
+        // the combine button was never enabled. The real 0.99B wire does not send a recipe here -- the box
+        // content arrives separately, in the subcode-3 PMSG_SHOP_ITEM_LIST_SEND that the server sends right
+        // after this 0x30 (see ReceiveShopItemList099B); the success rate is requested with 0x88
+        // (Mu099B::SendChaosMixRate) for whatever is in the box at each moment.
         g_pNewUISystem->Show(SEASON3B::INTERFACE_MIXINVENTORY);
         break;
 
@@ -7760,8 +7693,7 @@ void ReceiveTradeYourInventoryExtended(std::span<const BYTE> ReceiveBuffer)
         return;
     }
 
-    // Los cinco bytes fijos de 0.99B, traducidos al bloque que consume la
-    // ventana de trade.
+    // The five fixed 0.99B bytes, translated into the block consumed by the trade window.
     const auto item = Mu099B::DecodeItemInfo(Data->ItemInfo);
 
     BYTE block[Mu099B::ClientItemBlockSize];
@@ -8079,14 +8011,10 @@ void ReceiveAddPoint(const BYTE* ReceiveBuffer)
     CharacterMachine->CalculateAll();
 }
 
-/// C1:F3:05 -- PMSG_LEVEL_UP_SEND, y C1:F3:06 -- PMSG_LEVEL_UP_POINT_SEND.
-///
-/// Los dos traen cada valor por duplicado: como WORD (que se recorta pasados
-/// los 65535) y como DWORD "View" al final. Se usan los DWORD.
-///
-/// El receptor viejo leía un struct más corto -- 32 bytes contra los 48 reales
-/// del de subida de nivel --, así que todo lo que venía después de los primeros
-/// campos salía corrido. No fallaba: mostraba otros números.
+/// C1:F3:05 -- PMSG_LEVEL_UP_SEND, and C1:F3:06 -- PMSG_LEVEL_UP_POINT_SEND. Both carry each value duplicated:
+/// as a WORD (which is clipped past 65535) and as a "View" DWORD at the end. The DWORDs are used. The old
+/// receiver read a shorter struct -- 32 bytes against the real 48 of the level-up one --, so everything after
+/// the first fields came out shifted. It did not fail: it showed other numbers.
 void ReceiveLevelUp099B(std::span<const BYTE> ReceiveBuffer)
 {
     auto Data = safe_cast<Mu099B::PMSG_LEVEL_UP_SEND>(ReceiveBuffer);
@@ -8103,7 +8031,7 @@ void ReceiveLevelUp099B(std::span<const BYTE> ReceiveBuffer)
     CharacterAttribute->ManaMax = Data->ViewMaxMP;
     CharacterAttribute->SkillManaMax = Data->ViewMaxBP;
 
-    // Al subir de nivel el personaje queda con todo lleno.
+    // On levelling up the character ends up with everything full.
     CharacterAttribute->Life = Data->ViewMaxHP;
     CharacterAttribute->Mana = Data->ViewMaxMP;
     CharacterAttribute->SkillMana = Data->ViewMaxBP;
@@ -8120,12 +8048,11 @@ void ReceiveLevelUp099B(std::span<const BYTE> ReceiveBuffer)
     CharacterAttribute->wMinusPoint = Data->FruitSubPoint;
     CharacterAttribute->wMaxMinusPoint = Data->MaxFruitSubPoint;
 
-    // El nivel cambió: lo que se puede aprender ya no es lo mismo.
+    // The level changed: what can be learned is no longer the same.
     gSkillManager.InvalidateSkillAttributeRequirementsCache();
 
-    // El aura dorada + sonido de subida de nivel (ReceiveLevelUp, dialecto
-    // posterior) no se portó junto con las stats: esta función sólo copiaba
-    // números y nunca disparaba el efecto visual.
+    // The golden aura + level-up sound (ReceiveLevelUp, later dialect) was not ported along with the stats:
+    // this function only copied numbers and never triggered the visual effect.
     OBJECT* o = &Hero->Object;
 
     if (gCharacterManager.IsMasterLevel(Hero->Class) == true)
@@ -8149,9 +8076,8 @@ void ReceiveLevelUp099B(std::span<const BYTE> ReceiveBuffer)
     g_ConsoleDebug->Write(MCD_RECEIVE, L"0xF3:05 [LevelUp a %d]", Data->Level);
 }
 
-/// Respuesta a repartir un punto de estadística. A diferencia del dialecto
-/// posterior, acá el servidor no dice cuánto sumó ni a qué: manda los cinco
-/// valores ya recalculados, así que se copian en vez de acumular.
+/// Answer to distributing a stat point. Unlike the later dialect, here the server does not say how much was
+/// added or to what: it sends the five values already recomputed, so they are copied instead of accumulated.
 void ReceiveAddPoint099B(std::span<const BYTE> ReceiveBuffer)
 {
     auto Data = safe_cast<Mu099B::PMSG_LEVEL_UP_POINT_SEND>(ReceiveBuffer);
@@ -8228,20 +8154,15 @@ void ReceiveSetPointsExtended(const BYTE* ReceiveBuffer)
     gSkillManager.InvalidateSkillAttributeRequirementsCache();
 }
 
-/// C1:26 -- PMSG_LIFE_SEND, y C1:27 -- PMSG_MANA_SEND.
-///
-/// El dialecto posterior manda vida, escudo, maná, BP y las dos velocidades en
-/// un solo paquete de 24 bytes; 0.99B los parte en dos y no tiene escudo ni
-/// velocidades. Además el valor llega dos veces: como WORD big-endian armado a
-/// mano y como DWORD "View" al final. Se usa el DWORD, que es el que no se
-/// recorta.
-///
-/// `type` dice si es el valor actual (0xFF) o el máximo (0xFE).
+/// C1:26 -- PMSG_LIFE_SEND, and C1:27 -- PMSG_MANA_SEND. The later dialect sends life, shield, mana, BP and the
+/// two speeds in a single 24-byte packet; 0.99B splits them in two and has no shield or speeds. In addition the
+/// value arrives twice: as a hand-built big-endian WORD and as a "View" DWORD at the end. The DWORD is used,
+/// since it is not clipped. `type` says whether it is the current value (0xFF) or the maximum (0xFE).
 namespace
 {
 
-/// Los campos de dos bytes de este protocolo van en big-endian, armados a mano
-/// con SET_NUMBERHB/LB -- no son WORD que se puedan leer directo.
+/// The two-byte fields of this protocol are big-endian, hand-built with SET_NUMBERHB/LB -- they are not WORDs
+/// that can be read directly.
 WORD ReadBigEndianWord(const BYTE pair[2])
 {
     return static_cast<WORD>((static_cast<WORD>(pair[0]) << 8) | pair[1]);
@@ -8252,12 +8173,10 @@ constexpr BYTE StatMaximum = 0xFE;
 
 }  // namespace
 
-/// C1:F3:E0 -- PMSG_NEW_CHARACTER_INFO_SEND, las estadísticas del personaje.
-///
-/// Este paquete no existía en el dialecto posterior y no tenía receptor: por eso
-/// la ventana de personaje quedaba en blanco. Trae cada valor dos veces, como
-/// WORD y como DWORD "View"; se usan los DWORD, que son los que no se recortan
-/// cuando el personaje pasa de 65535 de vida o de experiencia.
+/// C1:F3:E0 -- PMSG_NEW_CHARACTER_INFO_SEND, the character's statistics. This packet did not exist in the later
+/// dialect and had no receiver: that is why the character window stayed blank. It carries each value twice, as
+/// a WORD and as a "View" DWORD; the DWORDs are used, since they are not clipped when the character goes past
+/// 65535 life or experience.
 void ReceiveNewCharacterInfo099B(std::span<const BYTE> ReceiveBuffer)
 {
     auto Data = safe_cast<Mu099B::PMSG_NEW_CHARACTER_INFO_SEND>(ReceiveBuffer);
@@ -8287,7 +8206,7 @@ void ReceiveNewCharacterInfo099B(std::span<const BYTE> ReceiveBuffer)
 
     CharacterAttribute->Resets = Data->ViewReset;
 
-    // Las frutas: cuántos puntos se sumaron y se restaron, con sus topes.
+    // Fruits: how many points were added and removed, with their caps.
     CharacterAttribute->wMinusPoint = Data->FruitSubPoint;
     CharacterAttribute->wMaxMinusPoint = Data->MaxFruitSubPoint;
 
@@ -8295,11 +8214,9 @@ void ReceiveNewCharacterInfo099B(std::span<const BYTE> ReceiveBuffer)
         Data->Level, Data->LevelUpPoint);
 }
 
-/// C1:F3:E1 -- PMSG_NEW_CHARACTER_CALC_SEND, lo que el servidor calculó a partir
-/// del equipo: daño, defensa, velocidades y tasas de acierto.
-///
-/// Llega cada vez que cambia el equipo. Sin receptor, la ventana de personaje
-/// mostraba los valores base para siempre, sin importar qué se pusiera uno.
+/// C1:F3:E1 -- PMSG_NEW_CHARACTER_CALC_SEND, what the server computed from the equipment: damage, defense,
+/// speeds and hit rates. It arrives every time the equipment changes. Without a receiver, the character window
+/// showed the base values forever, no matter what was equipped.
 void ReceiveNewCharacterCalc099B(std::span<const BYTE> ReceiveBuffer)
 {
     auto Data = safe_cast<Mu099B::PMSG_NEW_CHARACTER_CALC_SEND>(ReceiveBuffer);
@@ -8316,16 +8233,15 @@ void ReceiveNewCharacterCalc099B(std::span<const BYTE> ReceiveBuffer)
     CharacterAttribute->SkillMana = Data->ViewCurBP;
     CharacterAttribute->SkillManaMax = Data->ViewMaxBP;
 
-    // Los "Add" son lo que suma el equipo por encima de los puntos base.
+    // The "Add" values are what the equipment adds on top of the base points.
     CharacterAttribute->AddStrength = static_cast<WORD>(Data->ViewAddStrength);
     CharacterAttribute->AddDexterity = static_cast<WORD>(Data->ViewAddDexterity);
     CharacterAttribute->AddVitality = static_cast<WORD>(Data->ViewAddVitality);
     CharacterAttribute->AddEnergy = static_cast<WORD>(Data->ViewAddEnergy);
     CharacterAttribute->AddCharisma = static_cast<WORD>(Data->ViewAddLeadership);
 
-    // 0.99B manda un solo rango de daño físico; el cliente tiene uno por mano y
-    // dibuja el derecho, así que se copia a los dos para que la ventana no
-    // muestre un arma a cero.
+    // 0.99B sends a single physical damage range; the client has one per hand and draws the right one, so it is
+    // copied into both so that the window does not show a weapon at zero.
     const auto physicalMin = static_cast<WORD>(Data->ViewPhysiDamageMin);
     const auto physicalMax = static_cast<WORD>(Data->ViewPhysiDamageMax);
     CharacterAttribute->AttackDamageMinRight = physicalMin;
@@ -8361,8 +8277,8 @@ void ReceiveLife099B(std::span<const BYTE> ReceiveBuffer)
         return;
     }
 
-    // ViewHP es el mismo número que life[2] pero sin recortar a 16 bits. El par
-    // de bytes queda como respaldo por si alguna vez llega en cero.
+    // ViewHP is the same number as life[2] but not clipped to 16 bits. The byte pair stays as a fallback in
+    // case it ever arrives as zero.
     const DWORD value = Data->ViewHP != 0 ? Data->ViewHP : ReadBigEndianWord(Data->life);
 
     switch (Data->type)
@@ -8376,8 +8292,8 @@ void ReceiveLife099B(std::span<const BYTE> ReceiveBuffer)
         break;
 
     default:
-        // 0.99B no manda otros tipos acá; ignorarlo es mejor que pisar la vida
-        // con un valor que no sabemos qué significa.
+        // 0.99B does not send other types here; ignoring it is better than overwriting life with a value we do
+        // not know the meaning of.
         break;
     }
 }
@@ -8601,11 +8517,11 @@ void ReceiveSummonLife(const BYTE* ReceiveBuffer)
 }
 BOOL ReceiveTrade(const BYTE* ReceiveBuffer, BOOL bEncrypted)
 {
-    // El pedido de trade es sólo la cabecera y el nombre: castearlo al struct
-    // del chat leía noventa bytes que no están en el paquete.
+    // The trade request is only the header and the name: casting it to the chat struct read ninety bytes that
+    // are not in the packet.
     auto Data = reinterpret_cast<const Mu099B::PMSG_TRADE_REQUEST_SEND*>(ReceiveBuffer);
-    // La API del cliente pide char* no-const; el paquete es de solo lectura, y
-    // ProcessToReceiveTradeRequest solo copia el nombre.
+    // The client API wants a non-const char*; the packet is read-only, and ProcessToReceiveTradeRequest only
+    // copies the name.
     g_pTrade->ProcessToReceiveTradeRequest(const_cast<char*>(Data->name));
 
     return (TRUE);
@@ -14800,7 +14716,7 @@ static void ProcessPacket(const BYTE* ReceiveBuffer, int32_t Size)
             ReceiveLevelUp099B(received_span);
             break;
         case 0x06: //receive Add Point
-            // 0.99B manda un solo formato, asi que no hay que elegir por tamano.
+            // 0.99B sends a single format, so there is no need to choose by size.
             ReceiveAddPoint099B(received_span);
 
             break;
@@ -14816,7 +14732,7 @@ static void ProcessPacket(const BYTE* ReceiveBuffer, int32_t Size)
         case 0xE0: //estadisticas del personaje
             ReceiveNewCharacterInfo099B(received_span);
             break;
-        case 0xE1: //lo que el servidor calculo del equipo
+        case 0xE1: // what the server computed from the equipment
             ReceiveNewCharacterCalc099B(received_span);
             break;
         case 0x13:
@@ -14882,8 +14798,7 @@ static void ProcessPacket(const BYTE* ReceiveBuffer, int32_t Size)
         switch (subcode)
         {
         case 0x02:
-            // 0.99B usa el sub-código 0x02 para la lista de servidores; el
-            // dialecto anterior usaba 0x06.
+            // 0.99B uses sub-code 0x02 for the server list; the previous dialect used 0x06.
             ReceiveServerList(ReceiveBuffer);
             break;
         case 0x03:

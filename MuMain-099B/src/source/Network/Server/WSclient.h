@@ -73,9 +73,8 @@
 #define EQUIPMENT_LENGTH_EXTENDED    25
 #define MAX_SPE_BUFFERSIZE_	( 2048)
 
-// English Protocol:
-// 0.99B usa 0xD7 para el movimiento y 0xD0 para la correccion de posicion;
-// el dialecto anterior usaba 0xD4 y 0x15.
+// English Protocol: 0.99B uses 0xD7 for movement and 0xD0 for the position correction; the previous dialect
+// used 0xD4 and 0x15.
 #define PACKET_MOVE         0xD7
 #define PACKET_POSITION     0xD0
 #define PACKET_MAGIC_ATTACK 0x19  // 0.99B; el dialecto anterior usaba 0xDB

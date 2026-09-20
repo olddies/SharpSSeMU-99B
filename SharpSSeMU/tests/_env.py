@@ -37,18 +37,17 @@ from pathlib import Path
 WINDOWS = sys.platform == "win32"
 EXE = ".exe" if WINDOWS else ""
 
-# La consola de Windows usa cp1252 por defecto y los logs de los servidores traen
-# acentos y caracteres de reemplazo, así que imprimirlos revienta el test por un
-# UnicodeEncodeError que no tiene nada que ver con lo que se está probando.
+# The Windows console uses cp1252 by default and the servers' logs carry accents and replacement characters, so
+# printing them blows up the test with a UnicodeEncodeError that has nothing to do with what is being tested.
 for _stream in (sys.stdout, sys.stderr):
     try:
         _stream.reconfigure(encoding="utf-8", errors="replace")
     except (AttributeError, ValueError):
         pass
 
-# tests/ vive dentro del repo, así que el root es su padre.
+# tests/ lives inside the repo, so the root is its parent.
 ROOT = Path(__file__).resolve().parent.parent
-# El paquete completo (MuClient/, MuServer99B/, Source/) es el padre del repo.
+# The full package (MuClient/, MuServer99B/, Source/) is the repo's parent.
 MU_ROOT = ROOT.parent
 
 TFM = "net10.0"
@@ -183,7 +182,7 @@ class Postgres:
         is_ready = PG_BIN / f"pg_isready{EXE}"
         while time.monotonic() < deadline:
             if self.proc is not None and self.proc.poll() is not None:
-                return False  # el proceso murió; no tiene sentido seguir esperando
+                return False  # the process died; there is no point in waiting any longer
             r = subprocess.run(
                 [str(is_ready), "-h", "127.0.0.1", "-p", str(self.port), "-U", "postgres"],
                 capture_output=True, text=True)
@@ -271,11 +270,10 @@ class ServerSet:
 
     def start(self, name: str, project: str, cwd: Path) -> subprocess.Popen:
         dll = cwd / f"{project}.dll"
-        # stdin DEBE ser un pipe que quede abierto: los tres servidores corren un
-        # bucle `Console.ReadLine()` para sus comandos de consola y terminan
-        # cuando devuelve null. Heredar un stdin ya cerrado (lo normal al correr
-        # sin terminal) los hace salir apenas arrancan, justo después de loguear
-        # que están listos -- lo que parece un problema de red y no lo es.
+        # stdin MUST be a pipe that stays open: the three servers run a `Console.ReadLine()` loop for their
+        # console commands and finish when it returns null. Inheriting an already closed stdin (the normal case
+        # when running without a terminal) makes them exit as soon as they start, right after logging that they
+        # are ready -- which looks like a network problem and is not.
         p = subprocess.Popen(
             [DOTNET, str(dll)], cwd=str(cwd),
             stdin=subprocess.PIPE,
@@ -357,7 +355,7 @@ def inventory_hex(items: dict[int, bytes]) -> str:
             raise ValueError(f"slot {slot} fuera de rango")
         if len(raw) > INVENTORY_SLOT_BYTES:
             raise ValueError(f"el slot {slot} no entra en {INVENTORY_SLOT_BYTES} bytes")
-        cell = bytearray(INVENTORY_SLOT_BYTES)          # los slots ocupados se rellenan con 0x00,
+        cell = bytearray(INVENTORY_SLOT_BYTES)          # occupied slots are filled with 0x00,
         cell[:len(raw)] = raw                            # no con 0xFF
         buf[slot * INVENTORY_SLOT_BYTES:(slot + 1) * INVENTORY_SLOT_BYTES] = cell
     return buf.hex()
@@ -391,12 +389,10 @@ class Deployment:
                  data_port: int = 55960, connect_port: int = 55557):
         self.pg = pg
         self.servers = ServerSet(tag)
-        # Puertos reservados dinámicamente: si una corrida anterior dejó un
-        # proceso colgado en el puerto preferido, con puertos fijos el servidor
-        # nuevo no puede escuchar, wait_for_port ve al VIEJO (que ya no tiene
-        # base de datos detrás) y el test falla mucho después con un timeout o un
-        # ConnectionAborted que no dice nada. free_port() corre el despliegue
-        # entero a puertos libres y el problema desaparece.
+        # Ports reserved dynamically: if an earlier run left a process hanging on the preferred port, with fixed
+        # ports the new server cannot listen, wait_for_port sees the OLD one (which no longer has a database
+        # behind it) and the test fails much later with a timeout or a ConnectionAborted that says nothing.
+        # free_port() runs the whole deployment on free ports and the problem disappears.
         self.game_port = free_port(game_port)
         self.join_port = free_port(join_port)
         self.data_port = free_port(data_port)
@@ -406,10 +402,9 @@ class Deployment:
         self.data_dir = self.servers.runtime_dir("data")
         self.game_dir = self.servers.runtime_dir("game")
 
-        # La salida de compilación va PRIMERO y el fixture del test encima: el
-        # GameServer publica su propio Data/ (Item.txt, SkillList.txt, los
-        # GameServerInfo - *.dat...), así que desplegarlo después pisaría
-        # silenciosamente los archivos recortados que el test acaba de escribir.
+        # The build output goes FIRST and the test fixture on top: the GameServer publishes its own Data/
+        # (Item.txt, SkillList.txt, the GameServerInfo - *.dat...), so deploying it afterwards would silently
+        # overwrite the trimmed files the test has just written.
         self.servers.deploy("MuServer.JoinServer", self.join_dir)
         self.servers.deploy("MuServer.DataServer", self.data_dir)
         self.servers.deploy("MuServer.GameServer", self.game_dir)
@@ -444,8 +439,8 @@ class Deployment:
             f"ConnectServerAddress = 127.0.0.1\nConnectServerPort = {self.connect_port}\n",
             encoding="utf-8")
 
-        # Claves de cifrado y el mapa de Lorencia: el mínimo con el que arranca
-        # el GameServer. Los tests que necesitan más datos los copian ellos.
+        # Encryption keys and the Lorencia map: the minimum the GameServer starts with. Tests that need more
+        # data copy it themselves.
         (self.game_dir / "Hack").mkdir(exist_ok=True)
         for name in ("Enc2.dat", "Dec1.dat"):
             shutil.copy(server_data("Hack", name), self.game_dir / "Hack" / name)
@@ -465,10 +460,10 @@ class Deployment:
         tcp_port = free_port(tcp_port)
         self.connect_tcp_port = tcp_port
         connect_dir = self.servers.runtime_dir("connect")
-        # MaxConnectionPerIP tiene que ir sí o sí: IpConnectionTracker.CheckIpAddress
-        # rechaza la PRIMERA conexión de una IP cuando el límite es 0 (compatibilidad
-        # con el original), así que sin esta clave el ConnectServer acepta el socket y
-        # lo corta enseguida -- se ve como un ConnectionAborted del lado del cliente.
+        # MaxConnectionPerIP has to be there: IpConnectionTracker.CheckIpAddress rejects the FIRST connection
+        # from an IP when the limit is 0 (compatibility with the original), so without this key the
+        # ConnectServer accepts the socket and cuts it right away -- it shows up as a ConnectionAborted on the
+        # client side.
         (connect_dir / "ConnectServer.ini").write_text(
             "[ConnectServerInfo]\n"
             f"ConnectServerPortTCP = {tcp_port}\n"
@@ -508,7 +503,7 @@ class Deployment:
     def start_game(self) -> None:
         self._start_and_wait("game", "MuServer.GameServer", self.game_dir, self.game_port)
 
-    # -- creación de personajes contra el DataServer -----------------------
+    # -- character creation against the DataServer -----------------------
 
     def seed_characters(self, *specs: tuple[int, str, str], char_class: int = 0) -> None:
         """Crea personajes hablando el protocolo del DataServer.
@@ -531,10 +526,9 @@ class Deployment:
         finally:
             ds.close()
 
-    # Posiciones de prueba fuera de la zona segura de Lorencia (attr bit 0x01,
-    # verificado leyendo Terrain1.att). Hacen falta para cualquier paso que
-    # ataque: CGAttackRecv rechaza atacar parado en zona segura. (125,125), que
-    # usaban las fases viejas, SÍ es zona segura.
+    # Test positions outside Lorencia's safe zone (attr bit 0x01, verified by reading Terrain1.att). They are
+    # needed for any step that attacks: CGAttackRecv rejects attacking while standing in a safe zone. (125,125),
+    # which the old phases used, IS a safe zone.
     HERO1_POS = (0, 198, 150)
     HERO2_POS = (0, 200, 152)
     MONSTER_POS = (200, 150)
@@ -600,7 +594,7 @@ class Deployment:
         self.pg.sql(f"UPDATE character SET map_number={map_number}, "
                     f"map_pos_x={x}, map_pos_y={y} WHERE name='{name}';")
 
-    # -- ejecución del cliente de prueba -----------------------------------
+    # -- running the test client -----------------------------------
 
     def run_world_test_client(self, *extra_args: str,
                               timeout: int = 180) -> subprocess.CompletedProcess:

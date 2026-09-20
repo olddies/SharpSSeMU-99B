@@ -1,10 +1,7 @@
-// Codificador de salida del socket de GameServer.
-//
-// La prueba de fondo es la ida y vuelta contra el SERVIDOR: se codifica un
-// paquete como lo haría el cliente y se decodifica con las mismas reglas que
-// aplica el emulador al recibir (descifrar flujo, separar, descifrar bloques,
-// des-ofuscar XorData). Si alguna capa quedara en el orden equivocado o con la
-// ofuscación en el sentido contrario, el cuerpo no se recuperaría.
+// Outgoing encoder of the GameServer socket. The core test is the round trip against the SERVER: a packet is
+// encoded as the client would and decoded with the same rules the emulator applies on receive (decrypt stream,
+// split, decrypt blocks, de-obfuscate XorData). If any layer were in the wrong order or with the obfuscation in
+// the opposite direction, the body would not be recovered.
 
 #include <doctest.h>
 
@@ -18,13 +15,13 @@
 namespace
 {
 
-// Data/Enc1.dat -- con esto cifra el cliente; el servidor descifra con Dec1.dat.
+// Data/Enc1.dat -- the client encrypts with this; the server decrypts with Dec1.dat.
 constexpr Mu099B::BlockCipher::KeyTable Enc1 = {
     {0x0001F44Fu, 0x00028386u, 0x0001125Bu, 0x0001A192u},
     {0x00005BC1u, 0x00002E87u, 0x00004D68u, 0x0000354Fu},
     {0x0000BD1Du, 0x0000B455u, 0x00003B43u, 0x00009239u},
 };
-// Data/Dec1.dat -- con esto descifra el SERVIDOR lo que manda el cliente.
+// Data/Dec1.dat -- the SERVER decrypts with this what the client sends.
 constexpr Mu099B::BlockCipher::KeyTable Dec1 = {
     {0x0001F44Fu, 0x00028386u, 0x0001125Bu, 0x0001A192u},
     {0x00007B38u, 0x000007FFu, 0x0000DEB3u, 0x000027C7u},
@@ -39,7 +36,7 @@ Mu099B::StreamCipher MakeStream()
         reinterpret_cast<const uint8_t*>(kSerial.data()), kSerial.size());
 }
 
-/// Decodifica como lo hace el emulador al recibir del cliente.
+/// Decodes as the emulator does on receiving from the client.
 std::vector<uint8_t> ServerDecode(std::vector<uint8_t> wire)
 {
     MakeStream().Decrypt(wire.data(), wire.size());
@@ -105,7 +102,7 @@ TEST_CASE("Un C3 cifrado llega al servidor tal como se armó")
     const auto wire = encoder.Encode(logical.data(), logical.size());
     const auto decoded = ServerDecode(wire);
 
-    // El servidor lo reconstruye como C1 lógico; el resto del paquete es igual.
+    // The server rebuilds it as a logical C1; the rest of the packet is the same.
     REQUIRE(decoded.size() == logical.size());
     CHECK(decoded[0] == 0xC1);
     CHECK(decoded[1] == logical[1]);
@@ -115,8 +112,7 @@ TEST_CASE("Un C3 cifrado llega al servidor tal como se armó")
 
 TEST_CASE("El número de serie avanza en cada envío cifrado")
 {
-    // El original lo incrementa por conexión: dos envíos idénticos tienen que
-    // salir distintos al wire.
+    // The original increments it per connection: two identical sends have to come out different on the wire.
     auto encoder = MakeEncoder();
     const std::vector<uint8_t> logical = {0xC3, 0x06, 0xF1, 0x01, 0x00, 0x00};
 
@@ -126,15 +122,14 @@ TEST_CASE("El número de serie avanza en cada envío cifrado")
     const auto second = encoder.Encode(logical.data(), logical.size());
 
     CHECK(first != second);
-    // Aun así los dos se decodifican al mismo paquete lógico.
+    // Even so, both decode to the same logical packet.
     CHECK(ServerDecode(first) == ServerDecode(second));
 }
 
 TEST_CASE("Un tamaño mal puesto por quien llama se corrige antes de ofuscar")
 {
-    // XorData encadena desde el byte de tamaño, y el servidor lo recalcula al
-    // reconstruir: si se mandara el valor equivocado, el cuerpo llegaría
-    // revuelto sin ningún error visible.
+    // XorData chains from the size byte, and the server recomputes it when rebuilding: if the wrong value were
+    // sent, the body would arrive scrambled with no visible error.
     auto encoder = MakeEncoder();
     std::vector<uint8_t> wrongSize = {0xC1, 0x00, 0xF3, 0xAA, 0xBB, 0xCC};
 

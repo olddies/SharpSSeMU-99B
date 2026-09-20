@@ -1,12 +1,10 @@
 using MuServer.Shared.Localization;
 namespace MuServer.Shared.Protocol;
 
-/// <summary>
-/// Reimplementación del algoritmo de "DataRecv" del ConnectServer/GameServer original: recibe
-/// bytes crudos del socket (que pueden traer 0, 1 o varios paquetes, y pueden cortar un paquete
-/// a la mitad) y va emitiendo paquetes completos a medida que se completan, conservando el resto
-/// en un buffer interno para la próxima llamada — igual que hacía el "memmove" del original.
-/// </summary>
+/// <summary> Reimplementation of the "DataRecv" algorithm of the original ConnectServer/GameServer: it receives
+/// raw bytes from the socket (which may bring 0, 1 or several packets, and may cut a packet in half) and emits
+/// complete packets as they are completed, keeping the rest in an internal buffer for the next call — the same
+/// as the original's "memmove" did. </summary>
 public sealed class PacketFramer
 {
     private readonly byte[] _buffer;
@@ -18,11 +16,9 @@ public sealed class PacketFramer
         _size = 0;
     }
 
-    /// <summary>
-    /// Agrega bytes recién leídos del socket y devuelve los paquetes completos ya armados.
-    /// Lanza InvalidDataException ante cabecera/tamaño inválido (igual que el original, que
-    /// en ese caso desconectaba al cliente).
-    /// </summary>
+    /// <summary> Adds bytes just read from the socket and returns the already built complete packets. Throws
+    /// InvalidDataException on an invalid header/size (like the original, which disconnected the client in that
+    /// case). </summary>
     public List<byte[]> Feed(ReadOnlySpan<byte> data)
     {
         if (_size + data.Length > _buffer.Length)
@@ -83,7 +79,7 @@ public sealed class PacketFramer
             }
             else
             {
-                break; // paquete incompleto: esperar más datos
+                break; // incomplete packet: wait for more data
             }
         }
 

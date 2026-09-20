@@ -3,7 +3,7 @@ using MuServer.Shared.Scripting;
 
 namespace MuServer.DataServer.Data;
 
-/// <summary>Puerto de CAllowableIpList (idéntico al de JoinServer): whitelist de IPs de GameServer.</summary>
+/// <summary>Port of CAllowableIpList (identical to JoinServer's): GameServer IP whitelist.</summary>
 public sealed class AllowableIpStore
 {
     private readonly HashSet<string> _allowed = new();

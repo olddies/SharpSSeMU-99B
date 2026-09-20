@@ -1,8 +1,5 @@
-// Inventario, skills y party.
-//
-// Lo que más se repite acá es el índice de objeto en big-endian y los 5 bytes
-// de ItemInfo, que este build usa en todos lados (el dialecto anterior usa 12).
-// Los tests fijan esos dos contratos.
+// Inventory, skills and party. What repeats most here is the big-endian object index and the 5 ItemInfo bytes,
+// which this build uses everywhere (the previous dialect uses 12). The tests pin those two contracts.
 
 #include <doctest.h>
 
@@ -12,8 +9,8 @@
 
 TEST_CASE("Mover un item lleva contenedor y slot de los dos lados")
 {
-    // Los 5 bytes de ItemInfo se devuelven tal cual: el servidor los usa para
-    // confirmar que se está moviendo el item que el cliente cree.
+    // The 5 ItemInfo bytes are returned as they are: the server uses them to confirm that the item the client
+    // believes is being moved is the one moved.
     const Mu099B::BYTE itemInfo[Mu099B::ItemInfoSize] = {0x00, 0x08, 0x3C, 0x00, 0x00};
 
     const auto packet = Mu099B::BuildItemMoveRequest(
@@ -33,8 +30,7 @@ TEST_CASE("Mover un item lleva contenedor y slot de los dos lados")
 
 TEST_CASE("Los contenedores tienen los valores que espera el servidor")
 {
-    // Un valor equivocado acá manda el item a otro contenedor: del inventario
-    // al baúl, por ejemplo.
+    // A wrong value here sends the item to another container: from the inventory to the warehouse, for example.
     CHECK(static_cast<Mu099B::BYTE>(Mu099B::ItemContainer::Inventory) == 0);
     CHECK(static_cast<Mu099B::BYTE>(Mu099B::ItemContainer::Trade) == 1);
     CHECK(static_cast<Mu099B::BYTE>(Mu099B::ItemContainer::Warehouse) == 2);
@@ -83,7 +79,7 @@ TEST_CASE("El skill lleva número, objetivo y distancia")
 
     REQUIRE(sizeof(packet) == 7);
     CHECK(raw[2] == 0x19);
-    CHECK(raw[3] == 0x2C);  // el skill va ANTES del índice
+    CHECK(raw[3] == 0x2C);  // the skill goes BEFORE the index
     CHECK(raw[4] == 0x12);
     CHECK(raw[5] == 0x34);
     CHECK(raw[6] == 3);
@@ -117,9 +113,8 @@ TEST_CASE("Echar del grupo va por número de miembro, no por índice de objeto")
 
 TEST_CASE("Los renglones de la lista de party miden 24 bytes")
 {
-    // Con el relleno antes del DWORD CurLife. Leerlo como 22 corre las barras
-    // de vida y desalinea del segundo miembro en adelante -- el mismo bug que
-    // hubo que corregir del lado del servidor.
+    // With the padding before the DWORD CurLife. Reading it as 22 shifts the life bars and misaligns from the
+    // second member on -- the same bug that had to be fixed on the server side.
     CHECK(sizeof(Mu099B::PMSG_PARTY_LIST) == 24);
     CHECK(offsetof(Mu099B::PMSG_PARTY_LIST, name) == 0);
     CHECK(offsetof(Mu099B::PMSG_PARTY_LIST, number) == 10);

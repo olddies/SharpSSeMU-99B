@@ -3,13 +3,10 @@ using MuServer.Shared.Scripting;
 
 namespace MuServer.GameServer.World;
 
-/// <summary>
-/// Puerto de SKILL_INFO (SkillManager.h) -- una fila de balance de Data/Skill/SkillList.txt, más los
-/// dos campos derivados que arma <c>CSkill::Set</c> (Skill.cpp) a partir de la única columna "Damage"
-/// del archivo: <see cref="DamageMin"/> = Damage, <see cref="DamageMax"/> = Damage + Damage/2 (división
-/// entera) -- NO son dos columnas separadas en el archivo, es una fórmula fija 1.5x aplicada en
-/// tiempo de ejecución.
-/// </summary>
+/// <summary> Port of SKILL_INFO (SkillManager.h) -- a balance row of Data/Skill/SkillList.txt, plus the two
+/// derived fields <c>CSkill::Set</c> (Skill.cpp) builds from the file's single "Damage" column: <see
+/// cref="DamageMin"/> = Damage, <see cref="DamageMax"/> = Damage + Damage/2 (integer division) -- they are NOT
+/// two separate columns in the file, it is a fixed 1.5x formula applied at runtime. </summary>
 public sealed class SkillInfo
 {
     public required int Index { get; init; }
@@ -21,17 +18,17 @@ public sealed class SkillInfo
     public int Radio { get; init; }
     public int Delay { get; init; } // milisegundos entre casteos del mismo skill (CheckSkillDelay)
     public int Type { get; init; } // tipo elemental -- no usado en esta pasada (sin resistencias de skill)
-    public int Effect { get; init; } // índice a EffectList.txt (buff/debuff) -- no portado, ver World/SkillInfo.cs cabecera
+    public int Effect { get; init; } // index into EffectList.txt (buff/debuff) -- not ported, see the header of World/SkillInfo.cs
     public int RequireLevel { get; init; }
     public int RequireEnergy { get; init; }
     public int RequireLeadership { get; init; }
     public int RequireKillCount { get; init; }
     public int RequireGuildStatus { get; init; }
 
-    /// <summary>DW,DK,FE,MG,DL en ese orden -- 0 = esa clase no puede usar el skill, N>0 = tier de
-    /// "ChangeUp" mínimo requerido (ChangeUp+1 >= N). Este puerto no trackea ChangeUp (siempre 0,
-    /// ver PlayerObject.ChangeUp), así que en la práctica solo los skills con RequireClass==1 para la
-    /// clase del jugador son alcanzables -- documentado como limitación conocida.</summary>
+    /// <summary>DW,DK,FE,MG,DL in that order -- 0 = that class cannot use the skill, N>0 = minimum "ChangeUp"
+    /// tier required (ChangeUp+1 >= N). This port does not track ChangeUp (always 0, see
+    /// PlayerObject.ChangeUp), so in practice only the skills with RequireClass==1 for the player's class are
+    /// reachable -- documented as a known limitation.</summary>
     public int[] RequireClass { get; init; } = new int[5];
 
     public int DamageMin => Damage;
@@ -49,11 +46,9 @@ public sealed class SkillInfo
     }
 }
 
-/// <summary>
-/// Puerto de CSkillManager::Load (SkillManager.cpp:80-114) -- lee Data/Skill/SkillList.txt (formato
-/// MemScript, SIN secciones -- a diferencia de Item.txt/MonsterList.txt, es una sola lista plana de
-/// filas hasta "end", mismo patrón que MonsterInfoTable).
-/// </summary>
+/// <summary> Port of CSkillManager::Load (SkillManager.cpp:80-114) -- reads Data/Skill/SkillList.txt (MemScript
+/// format, WITHOUT sections -- unlike Item.txt/MonsterList.txt, it is a single flat list of rows up to "end",
+/// the same pattern as MonsterInfoTable). </summary>
 public sealed class SkillInfoTable
 {
     private readonly Dictionary<int, SkillInfo> _byIndex = new();
@@ -120,13 +115,11 @@ public sealed class SkillInfoTable
     }
 }
 
-/// <summary>
-/// Puerto de CSkillDamage::GetDamage (SkillDamage.cpp:87-100) -- tabla opcional de Data/Skill/
-/// SkillDamage.txt (2 columnas: SkillIndex, DamageRate[0~10000]) que multiplica el daño final de un
-/// skill como último paso (damage = damage*Rate/100). El archivo real shippeado con este build NO
-/// tiene filas de datos (solo encabezado/comentario), así que hoy es un no-op para cualquier skill --
-/// se implementa igual por si un despliegue distinto trae datos.
-/// </summary>
+/// <summary> Port of CSkillDamage::GetDamage (SkillDamage.cpp:87-100) -- optional table from Data/Skill/
+/// SkillDamage.txt (2 columns: SkillIndex, DamageRate[0~10000]) that multiplies a skill's final damage as the
+/// last step (damage = damage*Rate/100). The real file shipped with this build has NO data rows (only
+/// header/comment), so today it is a no-op for any skill -- it is implemented anyway in case a different
+/// deployment carries data. </summary>
 public sealed class SkillDamageTable
 {
     private readonly Dictionary<int, int> _rateByIndex = new();

@@ -2,12 +2,9 @@ using MuServer.Shared.Config;
 
 namespace MuServer.GameServer.Config;
 
-/// <summary>
-/// Puerto parcial de CServerInfo (ServerInfo.h/.cpp) — solo los campos necesarios para el núcleo de
-/// conexión (Fase 1). CServerInfo original tiene ~500 campos de balance de juego (daño, drops,
-/// resets, etc.) que se irán agregando en fases posteriores a medida que el sistema que los usa
-/// (combate, items, comandos...) se vaya portando.
-/// </summary>
+/// <summary> Partial port of CServerInfo (ServerInfo.h/.cpp) — only the fields needed for the connection core
+/// (Phase 1). The original CServerInfo has ~500 game balance fields (damage, drops, resets, etc.) that will be
+/// added in later phases as the system that uses them (combat, items, commands...) gets ported. </summary>
 public sealed class GameServerConfig
 {
     public required string ServerName { get; init; }
@@ -42,10 +39,10 @@ public sealed class GameServerConfig
     public required string ServerInfoCommonPath { get; init; } // Data/GameServerInfo - Common.dat (rates globales -- ver Config/ServerInfoConfig.cs)
     public required string ServerInfoEventPath { get; init; } // Data/GameServerInfo - Event.dat (idem, solo los campos ya consumidos por Devil Square)
 
-    // Rutas de los 4 archivos GameServerInfo restantes (más Custom.dat) que antes NO se leían en
-    // absoluto -- ver Config/GameServerInfoChaosMix.cs, GameServerInfoCommand.cs, GameServerInfoItem.cs,
-    // GameServerInfoSkill.cs, GameServerInfoCustom.cs (cobertura completa de campos, sin consumidor
-    // todavía para la mayoría, pero ya no hardcodeados: si el .dat real está en Data/, se lee tal cual).
+    // Paths of the 4 remaining GameServerInfo files (plus Custom.dat) that were NOT read at all before -- see
+    // Config/GameServerInfoChaosMix.cs, GameServerInfoCommand.cs, GameServerInfoItem.cs,
+    // GameServerInfoSkill.cs, GameServerInfoCustom.cs (full field coverage, no consumer yet for most, but no
+    // longer hardcoded: if the real .dat is in Data/, it is read as is).
     public required string ServerInfoChaosMixPath { get; init; } // Data/GameServerInfo - ChaosMix.dat
     public required string ServerInfoCommandPath { get; init; } // Data/GameServerInfo - Command.dat
     public required string ServerInfoItemDatPath { get; init; } // Data/GameServerInfo - Item.dat (distinto de ItemPath, que es Item/Item.txt)
@@ -56,9 +53,9 @@ public sealed class GameServerConfig
     public required string ShopManagerPath { get; init; } // Data/ShopManager.txt (NPCs de tienda -- ver World/Shop.cs)
     public required string ShopDataPath { get; init; } // Data/Shop (un .txt de items por NPC, referenciado por ShopManager.txt)
 
-    // Data/Quest/*.txt (ver Config/QuestTable.cs, QuestObjectiveTable.cs, QuestRewardTable.cs) --
-    // motor real de misiones (Sebina/235 = 2da clase, Marlon/229 = otra recompensa a nivel 220),
-    // reemplaza una versión anterior que hardcodeaba esos NPCs con nivel/items adivinados en C#.
+    // Data/Quest/*.txt (see Config/QuestTable.cs, QuestObjectiveTable.cs, QuestRewardTable.cs) -- real quest
+    // engine (Sebina/235 = 2nd class, Marlon/229 = another reward at level 220), replaces an earlier version
+    // that hardcoded those NPCs with a guessed level/items in C#.
     public required string QuestPath { get; init; }
     public required string QuestObjectivePath { get; init; }
     public required string QuestRewardPath { get; init; }
@@ -67,12 +64,11 @@ public sealed class GameServerConfig
     {
         var ini = IniFile.Load(iniPath);
 
-        // Puerto exacto de ServerInfo.cpp (líneas 396-408): NO son los primeros 5 bytes crudos del
-        // string -- el original arma m_ServerVersion tomando los índices {0,2,3,5,6} de un string
-        // con puntos tipo "1.02.00" (para descartar los dos '.'). Con el valor real del paquete
-        // ("1.02.00" en GameServerInfo - Common.dat) esto da los bytes ASCII {'1','0','2','0','0'}.
-        // Copiar los primeros 5 bytes tal cual (como se hacía antes) da un ClientVersion incorrecto
-        // que el cliente real rechazaría con resultado 6.
+        // Exact port of ServerInfo.cpp (lines 396-408): they are NOT the first 5 raw bytes of the string -- the
+        // original builds m_ServerVersion by taking indices {0,2,3,5,6} of a dotted string like "1.02.00" (to
+        // discard the two '.'). With the real package value ("1.02.00" in GameServerInfo - Common.dat) this
+        // gives the ASCII bytes {'1','0','2','0','0'}. Copying the first 5 bytes as they are (as was done
+        // before) gives an incorrect ClientVersion that the real client would reject with result 6.
         string version = ini.GetString("GameServerInfo", "ServerVersion", "1.02.00");
         var versionBuff = version.PadRight(7, '\0');
         var versionBytes = new byte[5]
@@ -86,8 +82,8 @@ public sealed class GameServerConfig
 
         return new GameServerConfig
         {
-            // Defaults iguales a MuServer99B/GameServer/DATA/GameServerInfo - Common.dat (el paquete
-            // original real), para que ande de una si al usuario se le olvida algún valor del .ini.
+            // Defaults equal to MuServer99B/GameServer/DATA/GameServerInfo - Common.dat (the real original
+            // package), so that it works right away if the user forgets some value in the .ini.
             ServerName = ini.GetString("GameServerInfo", "ServerName", "SSeMU GameServer_0"),
             ServerCode = (ushort)ini.GetInt("GameServerInfo", "ServerCode", 0),
             ServerPort = (ushort)ini.GetInt("GameServerInfo", "ServerPort", 55900),
@@ -101,9 +97,9 @@ public sealed class GameServerConfig
             JoinServerPort = (ushort)ini.GetInt("GameServerInfo", "JoinServerPort", 55970),
             DataServerAddress = ini.GetString("GameServerInfo", "DataServerAddress", "127.0.0.1"),
             DataServerPort = (ushort)ini.GetInt("GameServerInfo", "DataServerPort", 55960),
-            // OJO: este es el puerto UDP de heartbeat de ConnectServer (ConnectServerPortUDP en su
-            // .ini), NO el puerto TCP 44405 al que se conecta el cliente -- son dos sockets distintos
-            // del lado ConnectServer.
+            // WATCH OUT: this is the ConnectServer's UDP heartbeat port (ConnectServerPortUDP in its .ini), NOT
+            // the TCP port 44405 the client connects to -- they are two different sockets on the ConnectServer
+            // side.
             ConnectServerAddress = ini.GetString("GameServerInfo", "ConnectServerAddress", "127.0.0.1"),
             ConnectServerPort = (ushort)ini.GetInt("GameServerInfo", "ConnectServerPort", 55557),
 

@@ -1,9 +1,6 @@
-// Movimiento y posición.
-//
-// El caso que importa es el largo variable del camino: el struct declara
-// path[8] pero el cliente sólo manda los bytes que usa. Un servidor que asuma
-// los 8 lee de más -- exactamente lo que le pasó a SharpSSeMU con paquetes
-// reales. Acá se comprueba contra un decodificador que replica el del emulador.
+// Movement and position. The case that matters is the variable path length: the struct declares path[8] but the
+// client only sends the bytes it uses. A server that assumes all 8 reads too much -- exactly what happened to
+// SharpSSeMU with real packets. Here it is checked against a decoder that replicates the emulator's.
 
 #include <doctest.h>
 
@@ -15,8 +12,8 @@
 namespace
 {
 
-/// Decodifica el camino como CGMoveRecv: el paso n (desde 1) sale del byte
-/// (n+1)/2, nibble alto si n es impar y bajo si es par.
+/// Decodes the path like CGMoveRecv: step n (from 1) comes from byte (n+1)/2, high nibble if n is odd and low
+/// if even.
 std::vector<uint8_t> ServerDecodePath(const uint8_t* packet)
 {
     const uint8_t* path = packet + offsetof(Mu099B::PMSG_MOVE_RECV, path);
@@ -36,7 +33,7 @@ std::vector<uint8_t> ServerDecodePath(const uint8_t* packet)
 
 TEST_CASE("Un movimiento sin pasos ocupa lo mínimo")
 {
-    // Sólo la casilla destino: encabezado + x + y + un byte de camino.
+    // Only the destination cell: header + x + y + one path byte.
     const auto request = Mu099B::BuildMoveRequest(120, 130, 3, nullptr, 0);
 
     CHECK(request.Length == 6);
@@ -45,7 +42,7 @@ TEST_CASE("Un movimiento sin pasos ocupa lo mínimo")
     CHECK(request.Data[2] == 0xD7);
     CHECK(request.Data[3] == 120);
     CHECK(request.Data[4] == 130);
-    CHECK(request.Data[5] == 0x30);  // dirección 3 arriba, cero pasos abajo
+    CHECK(request.Data[5] == 0x30);  // direction 3 above, zero steps below
 }
 
 TEST_CASE("El largo crece de a un byte cada dos pasos")
@@ -64,7 +61,7 @@ TEST_CASE("El largo crece de a un byte cada dos pasos")
         CAPTURE(e.StepCount);
         const auto request = Mu099B::BuildMoveRequest(10, 20, 0, steps, e.StepCount);
         CHECK(request.Length == e.Length);
-        // El tamaño declarado siempre coincide con lo que se manda.
+        // The declared size always matches what is sent.
         CHECK(request.Data[1] == e.Length);
     }
 }
@@ -76,7 +73,7 @@ TEST_CASE("El servidor recupera exactamente los pasos que se mandaron")
 
     CHECK(ServerDecodePath(request.Data) == steps);
 
-    // Y la dirección inicial va en el nibble alto del primer byte de camino.
+    // And the initial direction goes in the high nibble of the first path byte.
     const uint8_t* path = request.Data + offsetof(Mu099B::PMSG_MOVE_RECV, path);
     CHECK((path[0] >> 4) == 2);
     CHECK((path[0] & 0x0F) == steps.size());
@@ -84,7 +81,7 @@ TEST_CASE("El servidor recupera exactamente los pasos que se mandaron")
 
 TEST_CASE("Los pasos impares y pares caen en el nibble correcto")
 {
-    // Con dos pasos distintos en el mismo byte se nota si se invirtieran.
+    // With two different steps in the same byte it shows if they were reversed.
     const uint8_t steps[2] = {0x0A & 0x0F, 0x05};
     const auto request = Mu099B::BuildMoveRequest(0, 0, 0, steps, 2);
 
@@ -95,7 +92,7 @@ TEST_CASE("Los pasos impares y pares caen en el nibble correcto")
 
 TEST_CASE("Más pasos de los que entran se recortan en vez de desbordar")
 {
-    // El contador vive en un nibble, así que no hay forma de expresar más de 15.
+    // The counter lives in a nibble, so there is no way to express more than 15.
     std::vector<uint8_t> tooMany(40, 1);
     const auto request = Mu099B::BuildMoveRequest(1, 2, 0, tooMany.data(), tooMany.size());
 
@@ -119,8 +116,8 @@ TEST_CASE("La corrección de posición son cinco bytes")
 
 TEST_CASE("El viewport de jugadores tiene un paso fijo de 34 bytes")
 {
-    // `count` NO cuenta bytes que sigan a la entrada: GenerateEffectList
-    // devuelve una máscara de efectos activos y no apenda nada. El paso es fijo.
+    // `count` does NOT count bytes following the entry: GenerateEffectList returns a mask of active effects and
+    // appends nothing. The stride is fixed.
     CHECK(sizeof(Mu099B::PMSG_VIEWPORT_SEND) == 5);
     CHECK(sizeof(Mu099B::PMSG_VIEWPORT_PLAYER) == 34);
     CHECK(offsetof(Mu099B::PMSG_VIEWPORT_PLAYER, CharSet) == 4);

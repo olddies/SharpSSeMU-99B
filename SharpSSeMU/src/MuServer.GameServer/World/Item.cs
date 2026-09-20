@@ -1,27 +1,21 @@
 namespace MuServer.GameServer.World;
 
-/// <summary>
-/// Puerto reducido de CItem (Item.h/.cpp) — solo los campos que viajan por la red y se persisten
-/// en DataServer (no el struct completo del original, que además carga ~30 campos de balance desde
-/// Item.txt en runtime; eso queda para cuando la Fase 3 necesite calcular daño/defensa de verdad).
-///
-/// Constantes de identificación (ItemManager.h:11-16, árbol fuente correcto
-/// "Emulator 0.99 (2.1.7)/GameServer" -- confirmado por stdafx.h:7,
-/// GAMESERVER_VERSION "[ 2.1.7 ] %s (0.99B CHS) [%s]", que coincide con el nombre de este proyecto):
-/// un item se identifica con un único WORD "Index" empaquetado como sección*32 + subíndice
-/// (sección = categoría: espada/hacha/.../casco/armadura/etc., 0-15; subíndice = item dentro de la
-/// categoría, 0-31) -- GET_ITEM(sección,sub) = sección*MAX_ITEM_TYPE+sub con MAX_ITEM_TYPE=32,
-/// MAX_ITEM=MAX_ITEM_SECTION*MAX_ITEM_TYPE=512 (16*32), MAX_ITEM_INFO=5.
-///
-/// NOTA HISTÓRICA: una pasada anterior de este puerto migró estas constantes a MaxItemType=512 /
-/// ItemInfo de 12 bytes basándose en `Source/Source/Emulator/GameServer/` (sin sufijo de versión),
-/// que es un árbol de una temporada MUY posterior (tiene GAMESERVER_UPDATE, sockets, JewelOfHarmony,
-/// MAX_ITEM_TYPE=512, MAX_ITEM_INFO=12) y NO es el código real de este servidor. Ese árbol no tiene
-/// absolutamente ninguna relación con "0.99B CHS SSeMU_2.1.7" -- fue un error de investigación. Esta
-/// clase fue revertida al formato real de 32-stride/5-bytes, verificado línea por línea contra
-/// ItemManager.h/.cpp y Viewport.cpp del árbol correcto. No existen sockets, JewelOfHarmony,
-/// pentagrama, Muun ni items periódicos en este build -- esos campos y su lógica fueron eliminados.
-/// </summary>
+/// <summary> Reduced port of CItem (Item.h/.cpp) — only the fields that travel over the network and are
+/// persisted in DataServer (not the original's full struct, which also loads ~30 balance fields from Item.txt
+/// at runtime; that is left for when Phase 3 needs to really compute damage/defense). Identification constants
+/// (ItemManager.h:11-16, correct source tree "Emulator 0.99 (2.1.7)/GameServer" -- confirmed by stdafx.h:7,
+/// GAMESERVER_VERSION "[ 2.1.7 ] %s (0.99B CHS) [%s]", which matches this project's name): an item is
+/// identified by a single WORD "Index" packed as section*32 + sub-index (section = category:
+/// sword/axe/.../helm/armor/etc., 0-15; sub-index = item within the category, 0-31) -- GET_ITEM(section,sub) =
+/// section*MAX_ITEM_TYPE+sub with MAX_ITEM_TYPE=32, MAX_ITEM=MAX_ITEM_SECTION*MAX_ITEM_TYPE=512 (16*32),
+/// MAX_ITEM_INFO=5. HISTORICAL NOTE: an earlier pass of this port migrated these constants to MaxItemType=512 /
+/// 12-byte ItemInfo based on `Source/Source/Emulator/GameServer/` (without a version suffix), which is a tree
+/// of a MUCH later season (it has GAMESERVER_UPDATE, sockets, JewelOfHarmony, MAX_ITEM_TYPE=512,
+/// MAX_ITEM_INFO=12) and is NOT this server's real code. That tree has absolutely no relation to "0.99B CHS
+/// SSeMU_2.1.7" -- it was a research mistake. This class was reverted to the real 32-stride/5-byte format,
+/// verified line by line against ItemManager.h/.cpp and Viewport.cpp of the correct tree. There are no sockets,
+/// JewelOfHarmony, pentagram, Muun nor periodic items in this build -- those fields and their logic were
+/// removed. </summary>
 public sealed class Item
 {
     public const int MaxItemSection = 16;
@@ -51,7 +45,7 @@ public sealed class Item
     public const int SlotRing1 = 10;
     public const int SlotRing2 = 11;
 
-    public short Index { get; set; } = -1; // -1 = slot vacío (equivalente a IsItem()==false)
+    public short Index { get; set; } = -1; // -1 = empty slot (equivalent to IsItem()==false)
     public byte Level { get; set; } // 0-15
     public byte Durability { get; set; }
     public uint Serial { get; set; }
@@ -65,14 +59,11 @@ public sealed class Item
 
     public static Item Empty() => new();
 
-    /// <summary>
-    /// Puerto de CItemManager::ItemByteConvert (ItemManager.cpp:1593-1612) -- formato de 5 bytes
-    /// (MAX_ITEM_INFO=5) que viaja en todo paquete cliente-servidor (inventario, ítem en el suelo,
-    /// get/move/buy, tienda, etc.). El C++ real escribe además un byte fantasma lpMsg[5]=0 un byte
-    /// más allá del array declarado de 5 (pisando el siguiente campo del struct, que en nuestros
-    /// packet builders ya se escribe explícitamente aparte) -- por eso acá solo se emiten los 5
-    /// bytes reales.
-    /// </summary>
+    /// <summary> Port of CItemManager::ItemByteConvert (ItemManager.cpp:1593-1612) -- 5-byte format
+    /// (MAX_ITEM_INFO=5) that travels in every client-server packet (inventory, item on the ground,
+    /// get/move/buy, shop, etc.). The real C++ also writes a phantom byte lpMsg[5]=0 one byte beyond the
+    /// declared 5-byte array (overwriting the next field of the struct, which in our packet builders is already
+    /// written explicitly separately) -- that is why only the 5 real bytes are emitted here. </summary>
     public void ToWireBytes(Span<byte> dst)
     {
         dst.Clear();
@@ -100,15 +91,14 @@ public sealed class Item
         dst[4] = SetOption;
     }
 
-    /// <summary>Puerto de CItemManager::DBItemByteConvert (ItemManager.cpp:1615-1650) -- formato de
-    /// 16 bytes/slot que usa DataServer para persistencia (Inventory[INVENTORY_SIZE][16] en
-    /// DSProtocol.h), de los cuales solo los bytes 0-8 llevan datos reales; byte9 siempre es 0 (con
-    /// MAX_ITEM_TYPE=32 el índice completo (0-511) ya entra en 9 bits -- byte0 completo + 1 bit más
-    /// en byte7 -- así que no hacen falta más bits de índice) y bytes10-15 nunca se escriben (no hay
-    /// sockets/JewelOfHarmony/etc. en este build). Slot vacío = 16 bytes en 0xFF
-    /// (memset(lpMsg,0xFF,16) en el original). También replica el caso especial
-    /// `m_Index==GET_ITEM(13,19)` (ItemManager.cpp:1622) que fuerza el slot vacío en DB incluso si el
-    /// item existe en memoria.</summary>
+    /// <summary>Port of CItemManager::DBItemByteConvert (ItemManager.cpp:1615-1650) -- 16-byte/slot format that
+    /// DataServer uses for persistence (Inventory[INVENTORY_SIZE][16] in DSProtocol.h), of which only bytes 0-8
+    /// carry real data; byte9 is always 0 (with MAX_ITEM_TYPE=32 the full index (0-511) already fits in 9 bits
+    /// -- the whole byte0 + 1 more bit in byte7 -- so no more index bits are needed) and bytes10-15 are never
+    /// written (there are no sockets/JewelOfHarmony/etc. in this build). Empty slot = 16 bytes at 0xFF
+    /// (memset(lpMsg,0xFF,16) in the original). It also replicates the special case `m_Index==GET_ITEM(13,19)`
+    /// (ItemManager.cpp:1622) that forces the slot to be empty in the DB even if the item exists in
+    /// memory.</summary>
     public void ToDbBytes(Span<byte> dst)
     {
         if (!IsItem() || Index == GetItem(13, 19))
@@ -132,15 +122,14 @@ public sealed class Item
         dst[8] = (byte)(SetOption & 15);
 
         dst[9] = 0;
-        // bytes 10-15 quedan en 0 (Clear() arriba) -- no hay campos reales que escribir ahí.
+        // bytes 10-15 stay at 0 (Clear() above) -- there are no real fields to write there.
     }
 
-    /// <summary>Puerto de CItemManager::ConvertItemByte (ItemManager.cpp:1653-1688). Slot vacío se
-    /// detecta igual que el original: byte0==0xFF && (byte7&0x80)==0x80 && (byte9&0xF0)==0xF0. El
-    /// índice se reconstruye SOLO desde byte0 + el bit alto en byte7 (Index = b0 | ((b7&0x80)&lt;&lt;1));
-    /// el término `(byte9&0xF0)*32` que aparece en el C++ original siempre vale 0 en este build
-    /// (DBItemByteConvert nunca escribe nada distinto de 0 en byte9), así que se omite directamente
-    /// en vez de leerlo.</summary>
+    /// <summary>Port of CItemManager::ConvertItemByte (ItemManager.cpp:1653-1688). An empty slot is detected
+    /// the same as the original: byte0==0xFF && (byte7&0x80)==0x80 && (byte9&0xF0)==0xF0. The index is rebuilt
+    /// ONLY from byte0 + the high bit in byte7 (Index = b0 | ((b7&0x80)&lt;&lt;1)); the term `(byte9&0xF0)*32`
+    /// that appears in the original C++ is always 0 in this build (DBItemByteConvert never writes anything
+    /// other than 0 in byte9), so it is omitted directly instead of reading it.</summary>
     public static Item FromDbBytes(ReadOnlySpan<byte> src)
     {
         byte b0 = src[0], b1 = src[1], b2 = src[2], b7 = src[7], b8 = src[8], b9 = src[9];
@@ -169,13 +158,12 @@ public sealed class Item
         return item;
     }
 
-    /// <summary>
-    /// Reconstruye un item a partir del formato compacto de 5 bytes {b0,b1,b7,b8,b9} que usa
-    /// SDHP_CHARACTER_LIST.Inventory (DataServerProtocol.cpp::GDCharacterListRecv, y el puerto C#
-    /// en DataServerProtocolHandler.CompactInventory) para la vista previa de selección de
-    /// personaje -- son exactamente los mismos 5 bytes que <see cref="FromDbBytes"/> lee del
-    /// formato de 16 bytes completo (los demás bytes no afectan el índice/nivel/brillo, así que se
-    /// arma un buffer de 16 bytes "sintético" con el resto en 0 y se reusa la misma lectura.</summary>
+    /// <summary> Rebuilds an item from the compact 5-byte format {b0,b1,b7,b8,b9} used by
+    /// SDHP_CHARACTER_LIST.Inventory (DataServerProtocol.cpp::GDCharacterListRecv, and the C# port in
+    /// DataServerProtocolHandler.CompactInventory) for the character selection preview -- they are exactly the
+    /// same 5 bytes that <see cref="FromDbBytes"/> reads from the full 16-byte format (the other bytes do not
+    /// affect index/level/glow, so a "synthetic" 16-byte buffer is built with the rest at 0 and the same
+    /// reading is reused.</summary>
     public static Item FromCompactPreviewBytes(byte b0, byte b1, byte b7, byte b8, byte b9)
     {
         Span<byte> synthetic = stackalloc byte[16];

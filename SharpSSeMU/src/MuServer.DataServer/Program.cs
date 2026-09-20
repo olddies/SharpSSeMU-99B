@@ -7,9 +7,9 @@ using MuServer.DataServer.Net;
 using MuServer.DataServer.Protocol;
 using MuServer.Shared.Logging;
 
-// Puerto funcional del DataServer original (SSeMU 0.99B) a .NET 8. Persiste personajes/inventario/
-// rankings/reset/etc contra PostgreSQL (en vez de SQL Server/ODBC) y habla el mismo protocolo
-// binario con el/los GameServer, sin cambios para ellos.
+// Functional port of the original DataServer (SSeMU 0.99B) to .NET 8. It persists characters/inventory/
+// rankings/reset/etc against PostgreSQL (instead of SQL Server/ODBC) and speaks the same binary protocol with
+// the GameServer(s), with no changes for them.
 
 var baseDir = AppContext.BaseDirectory;
 Log.Configure(Path.Combine(baseDir, "LOG"));
@@ -50,9 +50,9 @@ while (!cts.Token.IsCancellationRequested)
 
     if (line == null)
     {
-        // Sin consola interactiva: no hay comandos que leer, pero el servidor sigue corriendo (mismo
-        // bug que GameServer/Program.cs, portado igual -- antes esto mataba el proceso apenas
-        // arrancaba en background/sin stdin real).
+        // No interactive console: there are no commands to read, but the server keeps running (same bug as
+        // GameServer/Program.cs, ported the same way -- this used to kill the process as soon as it started in
+        // the background/without a real stdin).
         Log.Add(LogColor.Blue, "No interactive console: commands are disabled, the server keeps running.");
 
         try

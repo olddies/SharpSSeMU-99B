@@ -26,25 +26,21 @@ try:
 
     dep = _env.Deployment("shop", pg)
 
-    # El monstruo de prueba se spawnea PRIMERO (MonsterRegistry.SpawnAll) y se queda con el índice 0;
-    # el NPC de tienda, spawneado después, con el índice 1 -- determinístico, y el bloque de ataque
-    # del cliente compartido (que no está gateado) necesita al monstruo igual.
+    # The test monster is spawned FIRST (MonsterRegistry.SpawnAll) and keeps index 0; the shop NPC, spawned
+    # afterwards, gets index 1 -- deterministic, and the shared client's attack block (which is not gated) needs
+    # the monster anyway.
     dep.seed_test_monster()
 
-    # Tienda de NPC: un solo NPC (clase 500, arbitraria -- SpawnNpc no depende de MonsterList.txt
-    # para NPCs) en el mapa 0, con un único item en stock. No se recorta Item.txt: hacerlo dejaría
-    # sin balance a la sección 0 y el paso de equipar, que corre antes, fallaría.
-    #
-    # El precio del "Jewel of Bless" (14,13) sale de Data/Item/ItemValue.txt, que lo declara en
-    # 9.000.000 -- comprar 9.000.000, vender 3.000.000.
-    #
-    # Antes este test afirmaba 18.700 / 6.200, que es lo que da la fórmula general de
-    # CItem::Value() a partir de la columna Value=150 de Item.txt. Y era lo que el servidor cobraba,
-    # porque no cargaba ItemValue.txt: 72 filas de precios explícitos que no leía nadie. O sea que
-    # el test estaba escrito contra la implementación y no contra la fuente, y fijaba como correcto
-    # un precio 481 veces más bajo que el declarado. El cliente, mientras tanto, mostraba
-    # 9.000.000 (los tiene escritos a mano en ItemValue, ZzzInfomation.cpp): en la tienda se veía un
-    # número y se cobraba otro.
+    # NPC shop: a single NPC (class 500, arbitrary -- SpawnNpc does not depend on MonsterList.txt for NPCs) on
+    # map 0, with a single item in stock. Item.txt is not trimmed: doing so would leave section 0 without
+    # balance and the equip step, which runs earlier, would fail. The price of the "Jewel of Bless" (14,13)
+    # comes from Data/Item/ItemValue.txt, which declares it at 9,000,000 -- buying 9,000,000, selling 3,000,000.
+    # Before, this test asserted 18,700 / 6,200, which is what the general CItem::Value() formula gives from the
+    # Value=150 column of Item.txt. And it was what the server charged, because it did not load ItemValue.txt:
+    # 72 rows of explicit prices that nobody read. That is, the test was written against the implementation and
+    # not against the source, and it fixed as correct a price 481 times lower than the declared one. The client,
+    # meanwhile, showed 9,000,000 (it has them written by hand in ItemValue, ZzzInfomation.cpp): in the shop one
+    # number was seen and another was charged.
     (dep.game_dir / "Data" / "ShopManager.txt").write_text(
         '500   0   201   150   0   1   1   1   1   *   "TestShop"\nend\n', encoding="utf-8")
     shop_dir = dep.game_dir / "Data" / "Shop"
@@ -57,7 +53,7 @@ try:
                         (9101, "admin", "Hero2"))
     dep.place_heroes()
     dep.seed_equippable_weapon("Hero1")
-    # Alcanza para comprar el Jewel of Bless a 9.000.000 y que sobre.
+    # Enough to buy the Jewel of Bless at 9,000,000 with some left over.
     pg.sql("UPDATE character SET money=20000000 WHERE name='Hero1';")
     dep.start_game()
 

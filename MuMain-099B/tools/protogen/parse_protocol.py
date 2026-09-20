@@ -377,8 +377,8 @@ def main() -> int:
         key, _, value = item.partition("=")
         defines[key] = int(value or 1)
 
-    # El marcador de versión vive en el stdafx.h del GameServer; alcanza con que
-    # UNO de los directorios lo tenga para confirmar que es el árbol correcto.
+    # The version marker lives in the GameServer's stdafx.h; it is enough for ONE of the directories to have it
+    # to confirm it is the right tree.
     markers = [d / "stdafx.h" for d in args.source_dirs]
     seen = [m for m in markers if m.exists()]
     if seen and not any("0.99B CHS" in m.read_text(encoding="utf-8", errors="replace")

@@ -4,10 +4,8 @@ using MuServer.Shared.Protocol;
 
 namespace MuServer.ConnectServer.Protocol;
 
-/// <summary>
-/// Puerto de ConnectServerProtocolCore + CCServerXxxSend: procesa los paquetes que manda el
-/// cliente (PMSG_SERVER_LIST_RECV / PMSG_SERVER_INFO_RECV) y arma las respuestas.
-/// </summary>
+/// <summary> Port of ConnectServerProtocolCore + CCServerXxxSend: processes the packets the client sends
+/// (PMSG_SERVER_LIST_RECV / PMSG_SERVER_INFO_RECV) and builds the answers. </summary>
 public sealed class ConnectServerProtocolHandler
 {
     private readonly ServerListStore _serverList;
@@ -17,10 +15,10 @@ public sealed class ConnectServerProtocolHandler
         _serverList = serverList;
     }
 
-    /// <summary>PMSG_SERVER_INIT_SEND (C1:00) — se envía apenas se acepta la conexión.</summary>
+    /// <summary>PMSG_SERVER_INIT_SEND (C1:00) — sent as soon as the connection is accepted.</summary>
     public static byte[] BuildInitPacket(bool result) => PacketBuilder.BuildC1(0x00, new[] { (byte)(result ? 1 : 0) });
 
-    /// <summary>PMSG_SERVER_NAME_LIST_SEND (C2 F3:EA) — se envía apenas se acepta la conexión.</summary>
+    /// <summary>PMSG_SERVER_NAME_LIST_SEND (C2 F3:EA) — sent as soon as the connection is accepted.</summary>
     public byte[] BuildNameListPacket() => _serverList.BuildServerNameListPacket();
 
     public async Task HandlePacketAsync(ClientSession session, byte[] packet, CancellationToken ct)

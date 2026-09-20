@@ -2,8 +2,8 @@ using System.Text;
 
 namespace MuServer.AdminPanel.Repositories;
 
-/// <summary>Una sección numerada de un archivo de Data/Event: su número, el bloque de comentarios
-/// que la encabeza (que se conserva tal cual) y sus filas.</summary>
+/// <summary>A numbered section of a Data/Event file: its number, the comment block that heads it (which is kept
+/// as is) and its rows.</summary>
 public sealed class TableSection
 {
     public required int Number { get; init; }
@@ -14,21 +14,18 @@ public sealed class TableSection
     /// <summary>Nombres de columna deducidos del propio comentario del archivo.</summary>
     public required string[] ColumnTitles { get; init; }
 
-    /// <summary>Ancho de cada columna, también deducido del comentario, para que el archivo salga
-    /// con el mismo alineado que entró.</summary>
+    /// <summary>Width of each column, also deduced from the comment, so that the file comes out with the same
+    /// alignment it went in with.</summary>
     public required int[] ColumnWidths { get; init; }
 
     public List<FlatRow> Rows { get; } = new();
 }
 
-/// <summary>Lee y escribe los archivos de Data/Event (DevilSquare.dat, BloodCastle.dat, Kalima.dat...),
-/// que son varias tablas numeradas dentro del mismo archivo.
-///
-/// <para>A diferencia de las otras tablas, acá <b>no hace falta declarar el esquema</b>: cada sección
-/// trae sus propios nombres de columna en el comentario de arriba ("// WarningTime NotifyTime
-/// EventTime CloseTime"), así que se leen de ahí. Eso hace que el editor sirva para los 9 archivos de
-/// eventos sin escribir una línea por archivo, y que siga andando si alguno cambia sus columnas.</para>
-/// </summary>
+/// <summary>Reads and writes the Data/Event files (DevilSquare.dat, BloodCastle.dat, Kalima.dat...), which are
+/// several numbered tables inside the same file. <para>Unlike the other tables, here <b>there is no need to
+/// declare the schema</b>: each section carries its own column names in the comment above ("// WarningTime
+/// NotifyTime EventTime CloseTime"), so they are read from there. That makes the editor work for the 9 event
+/// files without writing a line per file, and keep working if one changes its columns.</para> </summary>
 public static class SectionedTableRepository
 {
     public static IReadOnlyList<string> ListFiles(string directory) =>
@@ -84,7 +81,7 @@ public static class SectionedTableRepository
             {
                 inHeader = false;
 
-                // El bloque de comentarios que sigue al número describe las columnas de esta sección.
+                // The comment block that follows the number describes the columns of this section.
                 var comment = new StringBuilder();
                 var commentLines = new List<string>();
                 for (int j = i + 1; j < lines.Length && lines[j].TrimStart().StartsWith("//"); j++)
@@ -123,9 +120,9 @@ public static class SectionedTableRepository
         return (header.ToString(), sections);
     }
 
-    /// <summary>De las líneas de comentario de una sección, elige la que trae los nombres de columna
-    /// (la que no es una fila de guiones ni la de rangos tipo "[0~50000000]") y saca de ella tanto los
-    /// nombres como el ancho de cada columna, según dónde arranca cada palabra.</summary>
+    /// <summary>From a section's comment lines, picks the one carrying the column names (the one that is not a
+    /// row of dashes nor the ranges one like "[0~50000000]") and takes from it both the names and the width of
+    /// each column, according to where each word starts.</summary>
     private static (string[] Titles, int[] Widths) ParseColumnComment(List<string> commentLines)
     {
         foreach (var raw in Enumerable.Reverse(commentLines))
@@ -140,7 +137,7 @@ public static class SectionedTableRepository
                 continue;
             }
 
-            // Descarta separadores ("-----") y la línea de rangos ("[0~59]").
+            // Discards separators ("-----") and the ranges line ("[0~59]").
             bool isSeparator = matches.All(m => m.Value.Trim('-').Length == 0);
             bool isRangeLine = matches.All(m => m.Value.StartsWith('['));
 

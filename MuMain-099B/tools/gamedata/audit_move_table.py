@@ -95,8 +95,8 @@ def leer_cliente(path):
         nivel, maximo, zen, puerta = struct.unpack_from("<4i", r, 68)
         filas.append({
             "index": indice,
-            # Los nombres se guardan crudos y se reescriben tal cual; `texto`
-            # solo se usa para el informe. Ver el comentario de esa funcion.
+            # Names are stored raw and rewritten as they are; `texto` is only used for the report. See the
+            # comment of that function.
             "nombre_bytes": bytes(r[4:36]),
             "sub_bytes": bytes(r[36:68]),
             "principal": texto(r[4:36]),
@@ -244,11 +244,9 @@ def main():
         nuevas = []
         for f in sorted(servidor, key=lambda x: x["index"]):
             c = por_puerta_cli.get(f["puerta"])
-            # El nombre se conserva del cliente, y en bytes: la ventana lo
-            # compara contra I18N para los chequeos de Icarus y Atlans, y no
-            # todos los archivos estan en la misma codificacion. Solo las
-            # entradas que el cliente no tenia estrenan nombre, y ese viene del
-            # servidor, que es ASCII.
+            # The name is kept from the client, and in bytes: the window compares it against I18N for the Icarus
+            # and Atlans checks, and not all files are in the same encoding. Only the entries the client did not
+            # have get a new name, and that one comes from the server, which is ASCII.
             crudo = (c["nombre_bytes"] if c
                      else f["nombre"].encode("ascii", "replace"))
             nombre = crudo.ljust(LARGO_NOMBRE, b"\x00")[:LARGO_NOMBRE]
@@ -267,11 +265,10 @@ def main():
         escribir_cliente(path, nuevas)
         print("   %d entradas escritas (antes %d)." % (len(nuevas), len(cliente)))
 
-        # Releer del disco: si el cifrado o el empaquetado quedaron mal, falla
-        # aca y no cuando el cliente intente abrir el archivo. Los nombres se
-        # comparan **en bytes** contra los de antes, que es exactamente lo que
-        # se me escapo la primera vez: decodificar y recodificar habia
-        # convertido la `Í` de "Ícaro" en el caracter de reemplazo.
+        # Re-read from disk: if the encryption or the packing went wrong, it fails here and not when the client
+        # tries to open the file. Names are compared **in bytes** against the earlier ones, which is exactly
+        # what I missed the first time: decoding and re-encoding had turned the `Í` of "Ícaro" into the
+        # replacement character.
         vuelta = {f["puerta"]: f for f in leer_cliente(path)}
         if len(vuelta) != len(nuevas):
             print("   NO CUADRA al releer: %d entradas, esperaba %d."

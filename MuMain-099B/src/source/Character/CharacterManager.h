@@ -7,15 +7,13 @@ public:
     virtual ~CCharacterManager();
     CLASS_TYPE ChangeServerClassTypeToClientClassType(const SERVER_CLASS_TYPE byServerClassType);
 
-    /// Igual que la de arriba pero para 0.99B, que numera las clases distinto:
-    /// SERVER_CLASS_TYPE es el empaquetado de Season 6 (clase * 4) y no sirve
-    /// acá. Recibe la clase base (0-4) y la bandera de evolución ya desarmadas,
-    /// que es como las entrega Mu099B::DecodeClassByte.
+    /// Same as the one above but for 0.99B, which numbers classes differently: SERVER_CLASS_TYPE is the Season
+    /// 6 packing (class * 4) and is no use here. It takes the base class (0-4) and the evolution flag already
+    /// unpacked, which is how Mu099B::DecodeClassByte hands them over.
     CLASS_TYPE ChangeServer099BClassTypeToClientClassType(const BYTE byBaseClass,
                                                           const BYTE byChangeUp);
 
-    /// Inversa, para crear personajes: devuelve el índice de clase base que
-    /// espera 0.99B, sin evolución.
+    /// Inverse, for creating characters: returns the base class index that 0.99B expects, without evolution.
     BYTE ChangeClientClassTypeToServer099BBaseClass(const CLASS_TYPE byClientClassType);
     bool IsSecondClass(const CLASS_TYPE byClass);
     bool IsThirdClass(const CLASS_TYPE byClass);

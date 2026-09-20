@@ -2,17 +2,14 @@ using MuServer.Shared.Config;
 
 namespace MuServer.GameServer.Config;
 
-/// <summary>
-/// Puerto de cobertura COMPLETA de <c>GameServerInfo - Custom.dat</c> -- a diferencia de los otros 6
-/// archivos (parte de <c>CServerInfo</c>), este lo leen 3 clases propias de SSeMU:
-/// <c>CCustomArena::ReadCustomArenaInfo</c> (CustomArena.cpp:63-70), <c>CCustomAttack::
-/// ReadCustomAttackInfo</c> (CustomAttack.cpp) y <c>CCustomPick::ReadCustomPickInfo</c>
-/// (CustomPick.cpp), las 3 apuntando al mismo archivo físico. Ver doc-comment de
-/// <see cref="GameServerInfoCommon"/> para la explicación general de esta capa de cobertura completa
-/// (33 campos acá, todos con default real 0 en <c>GetPrivateProfileInt</c> -- los valores de fábrica
-/// viven en el .dat shippeado, no en el código). Ninguno de los 3 sistemas (Custom Arena/Attack/Pick)
-/// está portado todavía -- esta clase es solo la capa de datos.
-/// </summary>
+/// <summary> Port with FULL coverage of <c>GameServerInfo - Custom.dat</c> -- unlike the other 6 files (part of
+/// <c>CServerInfo</c>), this one is read by 3 classes of SSeMU's own: <c>CCustomArena::ReadCustomArenaInfo</c>
+/// (CustomArena.cpp:63-70), <c>CCustomAttack:: ReadCustomAttackInfo</c> (CustomAttack.cpp) and
+/// <c>CCustomPick::ReadCustomPickInfo</c> (CustomPick.cpp), all 3 pointing at the same physical file. See the
+/// doc-comment of <see cref="GameServerInfoCommon"/> for the general explanation of this full-coverage layer
+/// (33 fields here, all with a real default of 0 in <c>GetPrivateProfileInt</c> -- the factory values live in
+/// the shipped .dat, not in the code). None of the 3 systems (Custom Arena/Attack/Pick) is ported yet -- this
+/// class is only the data layer. </summary>
 public sealed class GameServerInfoCustom
 {
     private const string Section = "GameServerInfo";

@@ -4,11 +4,9 @@ using MuServer.Shared.Scripting;
 
 namespace MuServer.ConnectServer.Data;
 
-/// <summary>
-/// Puerto de CServerList: carga ServerList.dat, recibe los "heartbeats" UDP de cada GameServer
-/// (0xA1) y del JoinServer (0xA2), y genera los paquetes de lista/nombre de servidores que pide
-/// el cliente. Misma lógica de expiración (10s sin heartbeat => se considera caído).
-/// </summary>
+/// <summary> Port of CServerList: loads ServerList.dat, receives the UDP "heartbeats" from each GameServer
+/// (0xA1) and from the JoinServer (0xA2), and builds the server list/name packets the client asks for. Same
+/// expiry logic (10s without heartbeat => considered down). </summary>
 public sealed class ServerListStore
 {
     private const int MaxJoinServerQueueSize = 100;
@@ -67,7 +65,7 @@ public sealed class ServerListStore
         Log.Add(LogColor.Blue, "ServerList loaded: {0} servers", _servers.Count);
     }
 
-    /// <summary>Ejecutado cada 1s (igual que TIMER_1000 del original): expira estados sin heartbeat.</summary>
+    /// <summary>Run every 1s (same as the original's TIMER_1000): expires states without heartbeat.</summary>
     public void MainProc()
     {
         lock (_sync)
@@ -223,7 +221,7 @@ public sealed class ServerListStore
         }
     }
 
-    /// <summary>Heartbeat 0xA2 recibido por UDP desde el JoinServer.</summary>
+    /// <summary>Heartbeat 0xA2 received over UDP from the JoinServer.</summary>
     public void OnJoinServerLive(uint queueSize)
     {
         lock (_sync)

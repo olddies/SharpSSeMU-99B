@@ -1,10 +1,8 @@
 namespace MuServer.Shared.Protocol;
 
-/// <summary>
-/// Cursor de lectura secuencial sobre un paquete recibido — evita calcular offsets a mano en
-/// structs grandes (como SDHP_CHARACTER_INFO_SAVE_RECV, con ~30 campos). Cada Read* avanza la
-/// posición interna, igual que leer campo por campo de un struct C++ empaquetado a 1 byte.
-/// </summary>
+/// <summary> Sequential read cursor over a received packet — it avoids computing offsets by hand in large
+/// structs (like SDHP_CHARACTER_INFO_SAVE_RECV, with ~30 fields). Each Read* advances the internal position,
+/// the same as reading field by field from a 1-byte-packed C++ struct. </summary>
 public sealed class PacketReader
 {
     private readonly byte[] _data;
@@ -53,7 +51,7 @@ public sealed class PacketReader
     public void Skip(int length) => _pos += length;
 }
 
-/// <summary>Constructor secuencial de paquetes salientes (complemento simétrico de PacketReader).</summary>
+/// <summary>Sequential builder of outgoing packets (symmetric complement of PacketReader).</summary>
 public sealed class PacketWriter
 {
     private readonly MemoryStream _ms = new();
@@ -80,8 +78,8 @@ public sealed class PacketWriter
             return;
         }
 
-        // Ajusta a la longitud exacta esperada por el struct (rellena con 0 o trunca), para no
-        // desincronizar el layout binario si el blob guardado tiene un tamaño ligeramente distinto.
+        // Adjusts to the exact length the struct expects (pads with 0 or truncates), so as not to desynchronise
+        // the binary layout if the stored blob has a slightly different size.
         var fixedBuf = new byte[length];
         Array.Copy(value, fixedBuf, Math.Min(value.Length, length));
         _ms.Write(fixedBuf);

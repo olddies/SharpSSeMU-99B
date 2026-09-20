@@ -3,34 +3,31 @@ using MuServer.Shared.Scripting;
 
 namespace MuServer.GameServer.World;
 
-// Puerto de los archivos de datos de "eventos especiales" leídos por CDevilSquare::Load,
-// CEventEntryLevel::Load y CEventSpawnStage::Load (DevilSquare.cpp/EventEntryLevel.cpp/
-// EventSpawnStage.cpp) -- Fase 6, primera pasada (Devil Square). Los loaders de EventEntryLevel.dat
-// y EventStageSpawn.dat son genéricos por "sección" a propósito (mismo archivo compartido por Blood
-// Castle/Chaos Castle/Kalima/Devil Square en el original) para no tener que reescribirlos cuando se
-// porten esos otros eventos -- por ahora solo se consume la sección 1 (Devil Square) de cada uno.
+// Port of the "special events" data files read by CDevilSquare::Load, CEventEntryLevel::Load and
+// CEventSpawnStage::Load (DevilSquare.cpp/EventEntryLevel.cpp/ EventSpawnStage.cpp) -- Phase 6, first pass
+// (Devil Square). The loaders of EventEntryLevel.dat and EventStageSpawn.dat are generic per "section" on
+// purpose (the same file shared by Blood Castle/Chaos Castle/Kalima/Devil Square in the original) so as not to
+// have to rewrite them when those other events are ported -- for now only section 1 (Devil Square) of each is
+// consumed.
 
-/// <summary>Puerto de la sección 0 de DevilSquare.dat (minutos). Puerto de DEVIL_SQUARE_LEVEL's
-/// campos de configuración compartidos (DevilSquare.h) -- WarningTime/NotifyTime/EventTime/CloseTime
-/// están en MINUTOS en el archivo, se usan *60 como segundos en el motor de estados.</summary>
+/// <summary>Port of section 0 of DevilSquare.dat (minutes). Port of DEVIL_SQUARE_LEVEL's shared configuration
+/// fields (DevilSquare.h) -- WarningTime/NotifyTime/EventTime/CloseTime are in MINUTES in the file, they are
+/// used *60 as seconds in the state engine.</summary>
 public sealed record DevilSquareTiming(int WarningMinutes, int NotifyMinutes, int EventMinutes, int CloseMinutes);
 
-/// <summary>Puerto de una fila de la sección 1 de DevilSquare.dat (DEVIL_SQUARE_START_TIME) --
-/// horario cron-like de disparo; -1 (leído de "*" por MemScript) = comodín en ese campo.</summary>
+/// <summary>Port of a row of section 1 of DevilSquare.dat (DEVIL_SQUARE_START_TIME) -- cron-like trigger
+/// schedule; -1 (read from "*" by MemScript) = wildcard in that field.</summary>
 public sealed record DevilSquareStartTime(int Year, int Month, int Day, int DayOfWeek, int Hour, int Minute, int Second);
 
-/// <summary>
-/// Puerto de CDevilSquare::Load (DevilSquare.cpp:79-196) -- Data/Event/DevilSquare.dat. Las tablas
-/// de recompensa están indexadas [bracket 0-3][rank 0-9] (rank 0 = 1er puesto).
-///
-/// REVERTIDO: una pasada de porting anterior había puesto <c>MaxLevel=7</c> citando
-/// "GAMESERVER_UPDATE=803, DevilSquare.h:10-14" -- ese árbol de fuente (sin sufijo de versión) es el
-/// EQUIVOCADO para este proyecto (ver el doc-comment de <see cref="World.Item"/> para la explicación
-/// completa). El real, <c>DevilSquare.h:10</c> del árbol correcto ("Emulator 0.99 (2.1.7)/GameServer"),
-/// define <c>#define MAX_DS_LEVEL 4</c> -- confirmado también en <c>EventEntryLevel.cpp:187-227</c>
-/// (<c>CEventEntryLevel::GetDSLevel</c>), que itera <c>for(n=0;n&lt;4;n++)</c> sobre ambas tablas de
-/// bracket (MG/DL y el resto de clases). Solo existen 4 brackets en este build, no 7.
-/// </summary>
+/// <summary> Port of CDevilSquare::Load (DevilSquare.cpp:79-196) -- Data/Event/DevilSquare.dat. The reward
+/// tables are indexed [bracket 0-3][rank 0-9] (rank 0 = 1st place). REVERTED: an earlier porting pass had set
+/// <c>MaxLevel=7</c> citing "GAMESERVER_UPDATE=803, DevilSquare.h:10-14" -- that source tree (without a version
+/// suffix) is the WRONG one for this project (see the doc-comment of <see cref="World.Item"/> for the full
+/// explanation). The real one, <c>DevilSquare.h:10</c> of the correct tree ("Emulator 0.99
+/// (2.1.7)/GameServer"), defines <c>#define MAX_DS_LEVEL 4</c> -- also confirmed in
+/// <c>EventEntryLevel.cpp:187-227</c> (<c>CEventEntryLevel::GetDSLevel</c>), which iterates
+/// <c>for(n=0;n&lt;4;n++)</c> over both bracket tables (MG/DL and the other classes). Only 4 brackets exist in
+/// this build, not 7. </summary>
 public sealed class DevilSquareConfig
 {
     public const int MaxLevel = 4; // MAX_DS_LEVEL (ver nota arriba)
@@ -145,8 +142,8 @@ public sealed class DevilSquareConfig
     }
 }
 
-/// <summary>Puerto de una fila de EventEntryLevel.dat (EventEntryLevel.cpp) -- CommonMin/Max aplica a
-/// clases normales, SpecialMin/Max a MG/DL/RF (desbloqueo más temprano). -1 ("*") = sin límite.</summary>
+/// <summary>Port of a row of EventEntryLevel.dat (EventEntryLevel.cpp) -- CommonMin/Max applies to normal
+/// classes, SpecialMin/Max to MG/DL/RF (earlier unlock). -1 ("*") = no limit.</summary>
 public sealed record EventEntryLevelBracket(int Index, int CommonMinLevel, int CommonMaxLevel, int SpecialMinLevel, int SpecialMaxLevel)
 {
     public bool InRange(int level, bool special)
@@ -157,12 +154,9 @@ public sealed record EventEntryLevelBracket(int Index, int CommonMinLevel, int C
     }
 }
 
-/// <summary>
-/// Puerto genérico de CEventEntryLevel::Load (EventEntryLevel.cpp) -- Data/Event/EventEntryLevel.dat,
-/// secciones 0=Blood Castle, 1=Devil Square, 2=Chaos Castle, 3=Kalima (todas comparten el mismo
-/// archivo/formato en el original). Esta fase solo consume la sección 1 vía
-/// <see cref="GetDevilSquareLevel"/>.
-/// </summary>
+/// <summary> Generic port of CEventEntryLevel::Load (EventEntryLevel.cpp) -- Data/Event/EventEntryLevel.dat,
+/// sections 0=Blood Castle, 1=Devil Square, 2=Chaos Castle, 3=Kalima (all share the same file/format in the
+/// original). This phase only consumes section 1 via <see cref="GetDevilSquareLevel"/>. </summary>
 public sealed class EventEntryLevelTable
 {
     private readonly Dictionary<int, List<EventEntryLevelBracket>> _sections = new();
@@ -215,12 +209,10 @@ public sealed class EventEntryLevelTable
         return table;
     }
 
-    /// <summary>
-    /// Puerto de CEventEntryLevel::GetDSLevel (EventEntryLevel.cpp:187-227 del árbol fuente correcto)
-    /// -- itera sobre las tablas MG/DL y el resto de clases para los 4 brackets reales (ver
-    /// <see cref="DevilSquareConfig.MaxLevel"/>). Recorre TODAS las filas de la sección 1 y se queda
-    /// con la ÚLTIMA que matchea (igual que el original, no corta en el primer match) -- devuelve -1
-    /// si ninguna aplica.
+    /// <summary> Port of CEventEntryLevel::GetDSLevel (EventEntryLevel.cpp:187-227 of the correct source tree)
+    /// -- iterates over the MG/DL tables and the rest of the classes for the 4 real brackets (see <see
+    /// cref="DevilSquareConfig.MaxLevel"/>). It walks ALL the rows of section 1 and keeps the LAST one that
+    /// matches (like the original, it does not stop at the first match) -- returns -1 if none applies.
     /// </summary>
     public int GetDevilSquareLevel(int level, bool specialClass)
     {
@@ -243,17 +235,15 @@ public sealed class EventEntryLevelTable
     }
 }
 
-/// <summary>Puerto de una fila de EventStageSpawn.dat (EventSpawnStage.h/.cpp) -- qué clase de
-/// monstruo se agrega a partir de qué etapa (Stage 0-3) para un bracket dado. MaxRegenMs=-1 ("*")
-/// significa "no respawnea" (CDevilSquare::SetMonster deja PosNum=-1 en ese caso); para Devil Square
-/// en este paquete de datos siempre es 1000ms.</summary>
+/// <summary>Port of a row of EventStageSpawn.dat (EventSpawnStage.h/.cpp) -- which monster class is added from
+/// which stage (Stage 0-3) for a given bracket. MaxRegenMs=-1 ("*") means "does not respawn"
+/// (CDevilSquare::SetMonster leaves PosNum=-1 in that case); for Devil Square in this data package it is always
+/// 1000ms.</summary>
 public sealed record EventStageSpawnEntry(int Bracket, int Stage, int MonsterClass, int MaxRegenMs);
 
-/// <summary>
-/// Puerto genérico de CEventSpawnStage::Load -- Data/Event/EventStageSpawn.dat, secciones
-/// 0=Blood Castle, 1=Chaos Castle, 2=Devil Square (confirmado contra el archivo real de este paquete,
-/// que solo tiene 3 secciones). Esta fase solo consume la sección 2.
-/// </summary>
+/// <summary> Generic port of CEventSpawnStage::Load -- Data/Event/EventStageSpawn.dat, sections 0=Blood Castle,
+/// 1=Chaos Castle, 2=Devil Square (confirmed against this package's real file, which only has 3 sections). This
+/// phase only consumes section 2. </summary>
 public sealed class EventStageSpawnTable
 {
     public const int SectionDevilSquare = 2;
@@ -297,9 +287,9 @@ public sealed class EventStageSpawnTable
                 int monsterClass = script.GetAsNumber();
                 int maxRegen = script.GetAsNumber();
                 table._entries.Add(new EventStageSpawnEntry(bracket, stage, monsterClass, maxRegen) with { });
-                // Se guarda con la sección embebida implícitamente en el orden de carga -- como solo
-                // se consulta por (bracket,stage) dentro de GetDevilSquareMonsterClasses, alcanza con
-                // filtrar por sección acá antes de agregar si no es la 2, para no mezclar BC/CC.
+                // It is stored with the section implicitly embedded in the load order -- since it is only
+                // queried by (bracket,stage) inside GetDevilSquareMonsterClasses, it is enough to filter by
+                // section here before adding if it is not 2, so as not to mix BC/CC.
                 if (section != SectionDevilSquare)
                 {
                     table._entries.RemoveAt(table._entries.Count - 1);
@@ -311,8 +301,8 @@ public sealed class EventStageSpawnTable
         return table;
     }
 
-    /// <summary>Clases de monstruo que se agregan al llegar a <paramref name="stage"/> (0-3) del
-    /// bracket dado -- puerto de la parte de filtro de CDevilSquare::StageSpawn (DevilSquare.cpp).</summary>
+    /// <summary>Monster classes that are added on reaching <paramref name="stage"/> (0-3) of the given bracket
+    /// -- port of the filter part of CDevilSquare::StageSpawn (DevilSquare.cpp).</summary>
     public IEnumerable<int> GetMonsterClasses(int bracket, int stage) =>
         _entries.Where(e => e.Bracket == bracket && e.Stage == stage).Select(e => e.MonsterClass);
 }

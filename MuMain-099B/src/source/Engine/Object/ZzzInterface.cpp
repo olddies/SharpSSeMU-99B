@@ -1038,10 +1038,9 @@ void SendCharacterMove(unsigned short Key, float Angle, unsigned char PathNum, u
         PathNum = MAX_PATH_FIND - 1;
     }
 
-    // Direcciones crudas, una por paso: el empaquetado en nibbles lo hace
-    // Mu099B::BuildMoveRequest, que además decide cuántos bytes mandar. En 0.99B
-    // el primer byte del camino lleva dirección y contador, así que los pasos
-    // arrancan un byte más adelante que en el dialecto anterior.
+    // Raw directions, one per step: the nibble packing is done by Mu099B::BuildMoveRequest, which also decides
+    // how many bytes to send. In 0.99B the first byte of the path carries direction and counter, so the steps
+    // start one byte later than in the previous dialect.
     BYTE Steps[Mu099B::MaxMoveSteps]{};
     size_t StepCount = 0;
     BYTE Dir = 0;
@@ -1049,7 +1048,7 @@ void SendCharacterMove(unsigned short Key, float Angle, unsigned char PathNum, u
     for (int i = 1; i < PathNum && StepCount < Mu099B::MaxMoveSteps; i++)
     {
         Dir = 0;
-        for (int j = 0; j < 8; j++) // busca la dirección de este paso
+        for (int j = 0; j < 8; j++) // looks up the direction of this step
         {
             if (DirTable[j * 2] == (PathX[i] - PathX[i - 1]) &&
                 DirTable[j * 2 + 1] == (PathY[i] - PathY[i - 1]))
@@ -1064,8 +1063,7 @@ void SendCharacterMove(unsigned short Key, float Angle, unsigned char PathNum, u
 
     if (PathNum == 1)
     {
-        // Pasa cuando el personaje frena al empezar un skill: se manda sólo la
-        // dirección, sin pasos.
+        // Happens when the character stops while starting a skill: only the direction is sent, without steps.
         Dir = ((BYTE)((Angle + 22.5f) / 360.f * 8.f + 1.f) % 8);
     }
 
@@ -1574,11 +1572,10 @@ void Action(CHARACTER* c, OBJECT* o, bool Now)
 				if (g_pNewUISystem->IsVisible(SEASON3B::INTERFACE_MYQUEST))
 					g_pNewUISystem->Hide(SEASON3B::INTERFACE_MYQUEST);
 
-				// CORREGIDO: llamaba a la capa Dotnet vieja (SendLegacyQuestStateRequest, protocolo
-				// de OpenMU) en vez de Mu099B::SendQuestInfo -- mismo bug que el de party (ver
-				// NewUICommonMessageBox.cpp). El GameServer 0.99B real (y este puerto,
-				// OnQuestInfoAsync) nunca recibía el pedido, así que la ventana de misión no se
-				// actualizaba al hablarle a un NPC con quest activa.
+				// FIXED: it called the old Dotnet layer (SendLegacyQuestStateRequest, OpenMU protocol) instead of
+				// Mu099B::SendQuestInfo -- same bug as the party one (see NewUICommonMessageBox.cpp). The real 0.99B
+				// GameServer (and this port, OnQuestInfoAsync) never received the request, so the quest window was not
+				// updated when talking to an NPC with an active quest.
 				if (g_csQuest.IsInit())
 					Mu099B::SendQuestInfo(*SocketClient);
 

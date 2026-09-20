@@ -554,8 +554,8 @@ bool SEASON3B::CNewUIChatInputBox::UpdateKeyEvent()
                             SaveOptions();
                         }
 
-                        // 0.99B no tiene la clave anti-trampa del dialecto
-                        // posterior: solo va el indice de destino.
+                        // 0.99B does not have the later dialect's anti-cheat key: only the destination index
+                        // goes.
                         Mu099B::SendTeleportMove(*SocketClient, iMapIndex);
                     }
                     else

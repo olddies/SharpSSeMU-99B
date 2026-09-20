@@ -22,8 +22,8 @@ REPO = Path(__file__).resolve().parents[2]
 DESTINO = REPO / "src" / "bin" / "Data" / "Interface"
 ORIGEN = REPO.parent / "MuClient" / "Data" / "Interface"
 
-# 0.99B -> el nombre con el que MuMain pide la textura. Los nombres no
-# coinciden entre versiones, pero el rol de cada pieza sí.
+# 0.99B -> the name MuMain requests the texture with. The names do not match between versions, but the role of
+# each piece does.
 BARRA = [
     ("menu01_new.OZJ", "newui_menu01.OZJ"),      # tramo izquierdo, 256 de ancho
     ("Menu02.OZJ", "newui_menu02.OZJ"),          # tramo del medio, 128
@@ -40,7 +40,7 @@ def main() -> int:
     parser.add_argument("--instalar", action="store_true")
     args = parser.parse_args()
 
-    # newui_menu03 vive en una subcarpeta en MuMain; se busca donde esté.
+    # newui_menu03 lives in a subfolder in MuMain; it is looked up wherever it is.
     ubicaciones = {p.name.lower(): p for p in DESTINO.rglob("*") if p.is_file()}
 
     plan = []

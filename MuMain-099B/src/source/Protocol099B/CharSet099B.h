@@ -1,15 +1,10 @@
-// Apariencia de personaje: CharSet[13] del protocolo 0.99B.
-//
-// El servidor manda clase, equipo, nivel de brillo, excelente, conjunto, alas y
-// mascota empaquetados en trece bytes (CObjectManager::CharacterMakePreviewCharSet).
-// El cliente, en cambio, espera el bloque "extendido" de 25 bytes con tres
-// bytes por slot. Acá se hace la traducción.
-//
-// El punto delicado es que el CharSet guarda **el sub-índice** de cada pieza de
-// armadura, no el índice completo: el grupo va implícito en el slot (casco = 7,
-// armadura = 8, pantalón = 9, guantes = 10, botas = 11). Las armas sí llevan el
-// índice completo, del que se derivan grupo y número. Confundir una cosa con la
-// otra es lo que hace que todos los personajes se vean iguales.
+// Character appearance: CharSet[13] of the 0.99B protocol. The server sends class, equipment, glow level,
+// excellent, set, wings and pet packed into thirteen bytes (CObjectManager::CharacterMakePreviewCharSet). The
+// client, on the other hand, expects the 25-byte "extended" block with three bytes per slot. The translation is
+// done here. The delicate point is that the CharSet stores **the sub-index** of each armor piece, not the full
+// index: the group is implicit in the slot (helm = 7, armor = 8, pants = 9, gloves = 10, boots = 11). Weapons
+// do carry the full index, from which group and number are derived. Mixing one up with the other is what makes
+// all characters look the same.
 
 #pragma once
 
@@ -32,11 +27,10 @@ enum class ItemGroup : uint8_t
     Helper = 13,
 };
 
-/// En 0.99B cada sección de items tiene 32 entradas (MAX_ITEM_TYPE), así que el
-/// índice completo es sección*32 + sub.
+/// In 0.99B each item section has 32 entries (MAX_ITEM_TYPE), so the full index is section*32 + sub.
 inline constexpr int ItemsPerGroup = 32;
 
-/// Valores de "vacío" dentro del CharSet.
+/// "Empty" values inside the CharSet.
 inline constexpr int NoWeapon = 0xFF;
 inline constexpr int NoItem = ItemsPerGroup - 1;  // 0x1F
 
@@ -46,9 +40,8 @@ struct AppearanceSlot
     bool Present = false;
     uint8_t Group = 0;
     uint16_t Number = 0;
-    /// Nivel de brillo tal como lo espera el cliente (0-7); pasa directo al
-    /// nibble alto, sin conversión: el empaquetado del servidor
-    /// (((Level-1)/2)&7) ya es la inversa exacta de LevelConvert.
+    /// Glow level as the client expects it (0-7); it goes straight to the high nibble, without conversion: the
+    /// server's packing (((Level-1)/2)&7) is already the exact inverse of LevelConvert.
     uint8_t GlowLevel = 0;
     bool Excellent = false;
     bool SetItem = false;
@@ -61,8 +54,8 @@ struct Appearance
     uint8_t ChangeUp = 0;
 
     AppearanceSlot Weapon[2];
-    /// Casco, armadura, pantalón, guantes, botas -- en ese orden, que es el que
-    /// espera el bloque de equipo del cliente.
+    /// Helm, armor, pants, gloves, boots -- in that order, which is the one the client's equipment block
+    /// expects.
     AppearanceSlot BodyPart[5];
     AppearanceSlot Wing;
     AppearanceSlot Helper;
@@ -71,44 +64,37 @@ struct Appearance
 /// Largo del bloque de equipo extendido del cliente (EQUIPMENT_LENGTH_EXTENDED).
 inline constexpr int ExtendedEquipmentSize = 25;
 
-/// Clase y "change up" tal como los empaqueta el servidor en un solo byte:
-/// clase en los bits altos, change-up en el bit 4. Se usa tanto en CharSet[0]
-/// como en el campo Class de la respuesta de creación de personaje, que llevan
-/// el mismo formato (DGCharacterCreateRecv arma el byte igual que
-/// CharacterMakePreviewCharSet). Los cuatro bits bajos NO son parte de esto:
-/// ahí va el ViewState.
+/// Class and "change up" as the server packs them into a single byte: class in the high bits, change-up in bit
+/// 4. Used both in CharSet[0] and in the Class field of the character-creation answer, which carry the same
+/// format (DGCharacterCreateRecv builds the byte the same way as CharacterMakePreviewCharSet). The low four
+/// bits are NOT part of this: the ViewState goes there.
 struct ClassByte
 {
     uint8_t CharacterClass = 0;
     uint8_t ChangeUp = 0;
 };
 
-/// Desarma el byte de clase **del CharSet**, donde la clase ocupa los tres bits
-/// altos (base * 32) porque los bits bajos llevan el ViewState.
+/// Unpacks the class byte **of the CharSet**, where the class takes the three high bits (base * 32) because the
+/// low bits carry the ViewState.
 ClassByte DecodeClassByte(uint8_t value);
 
-/// Desarma el byte de clase **de la base de datos**, que es otro empaquetado:
-/// la clase base va en el nibble alto y la evolución en el bajo (0, 16, 32, 48,
-/// 64 para DW, DK, FE, MG y DL -- exactamente las filas de default_class_type
-/// del servidor).
-///
-/// Que convivan dos codificaciones no es un descuido del port: el CharSet
-/// necesita los bits bajos para otra cosa, así que corre la clase un bit más.
-/// Usar la del CharSet acá hace que el servidor no encuentre la clase y
-/// rechace la creación con "cuenta llena", que es un mensaje que no ayuda nada
-/// a encontrar la causa.
+/// Unpacks the class byte **of the database**, which is a different packing: the base class goes in the high
+/// nibble and the evolution in the low one (0, 16, 32, 48, 64 for DW, DK, FE, MG and DL -- exactly the
+/// default_class_type rows of the server). Having two encodings coexist is not an oversight of the port: the
+/// CharSet needs the low bits for something else, so it shifts the class one bit further. Using the CharSet one
+/// here makes the server not find the class and reject the creation with "account full", a message that is no
+/// help at all in finding the cause.
 ClassByte DecodeDatabaseClassByte(uint8_t value);
 
-/// Arma el byte de clase de la base de datos a partir del índice de clase base
-/// (0-4). Los personajes nuevos siempre nacen sin evolución.
+/// Builds the database class byte from the base class index (0-4). New characters are always born without
+/// evolution.
 uint8_t MakeDatabaseClassByte(uint8_t baseClass);
 
 /// Interpreta los trece bytes del CharSet.
 Appearance DecodeCharSet(const uint8_t charSet[13]);
 
-/// Escribe la apariencia en el bloque de 25 bytes que consume
-/// ReadEquipmentExtended: tres bytes para cada arma y cada pieza de armadura,
-/// dos para las alas y dos para la mascota.
+/// Writes the appearance into the 25-byte block consumed by ReadEquipmentExtended: three bytes for each weapon
+/// and each armor piece, two for the wings and two for the pet.
 void WriteExtendedEquipment(const Appearance& appearance, uint8_t equipment[ExtendedEquipmentSize]);
 
 }  // namespace Mu099B

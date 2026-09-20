@@ -2,8 +2,8 @@ using MuServer.Shared.Config;
 
 namespace MuServer.JoinServer.Config;
 
-/// <summary>Lee JoinServer.ini (mismas claves que el original, salvo la sección de base de datos:
-/// el ODBC/DSN de SQL Server se reemplaza por una cadena de conexión de PostgreSQL).</summary>
+/// <summary>Reads JoinServer.ini (same keys as the original, except the database section: SQL Server's ODBC/DSN
+/// is replaced by a PostgreSQL connection string).</summary>
 public sealed class JoinServerConfig
 {
     public required string PostgresConnectionString { get; init; }
@@ -17,9 +17,8 @@ public sealed class JoinServerConfig
     {
         var ini = IniFile.Load(iniPath);
 
-        // JoinServerODBC en el original era el nombre del DSN de SQL Server. Aquí reutilizamos esa
-        // misma clave para guardar la cadena de conexión completa de Postgres, para no introducir
-        // una clave nueva en el .ini de despliegue.
+        // JoinServerODBC in the original was the name of the SQL Server DSN. Here we reuse that same key to
+        // store the full Postgres connection string, so as not to introduce a new key in the deployment .ini.
         var postgres = ini.GetString(
             "JoinServerInfo",
             "JoinServerPostgres",

@@ -283,12 +283,11 @@ bool CNewUIPartyInfoWindow::LeaveParty(const int iIndex)
     if (!gMapManager.IsCursedTemple())
     {
         PlayBuffer(SOUND_CLICK01);
-        // CORREGIDO: llamaba a la capa Dotnet vieja (SendPartyPlayerKickRequest, protocolo de
-        // OpenMU) en vez de Mu099B::SendPartyDeleteMember -- mismo bug que el de aceptar/rechazar
-        // invitación (ver NewUICommonMessageBox.cpp): salir del grupo o expulsar a alguien no le
-        // llegaba nunca al GameServer 0.99B real. El "número" es el slot dentro del grupo (0 =
-        // uno mismo si es el líder saliendo, o el miembro a expulsar si sos el líder), igual que
-        // documenta OnPartyDelMemberAsync del lado del servidor.
+        // FIXED: it called the old Dotnet layer (SendPartyPlayerKickRequest, OpenMU protocol) instead of
+        // Mu099B::SendPartyDeleteMember -- same bug as accepting/rejecting an invitation (see
+        // NewUICommonMessageBox.cpp): leaving the party or kicking someone never reached the real 0.99B
+        // GameServer. The "number" is the slot inside the party (0 = yourself if the leader is leaving, or the
+        // member to kick if you are the leader), as the server-side OnPartyDelMemberAsync documents.
         Mu099B::SendPartyDeleteMember(*SocketClient, static_cast<BYTE>(Party[iIndex].Number));
     }
 

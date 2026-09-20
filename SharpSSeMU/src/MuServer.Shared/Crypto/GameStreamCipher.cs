@@ -1,11 +1,9 @@
 namespace MuServer.Shared.Crypto;
 
-/// <summary>
-/// Puerto de HackCheck.cpp (EncryptData/DecryptData) del GameServer original: cifrado de flujo
-/// aplicado a TODO lo que entra/sale por el socket del cliente real (no a ConnectServer/JoinServer/
-/// DataServer, que no lo usan). Es un XOR + resta con dos claves de 1 byte derivadas del
-/// "ServerSerial" configurado en ServerInfo.
-/// </summary>
+/// <summary> Port of HackCheck.cpp (EncryptData/DecryptData) of the original GameServer: stream cipher applied
+/// to EVERYTHING entering/leaving the real client's socket (not to ConnectServer/JoinServer/ DataServer, which
+/// do not use it). It is an XOR + subtraction with two 1-byte keys derived from the "ServerSerial" configured
+/// in ServerInfo. </summary>
 public sealed class GameStreamCipher
 {
     private readonly byte _key1;
@@ -21,10 +19,8 @@ public sealed class GameStreamCipher
         _mhpKey2 = mhpKey2;
     }
 
-    /// <summary>
-    /// Deriva las claves EncDecKey1/2 igual que InitHackCheck(): a partir de un "CustomerName"
-    /// fijo ("SSE", hardcodeado en el original) XOReado/restado con el ServerSerial del .ini.
-    /// </summary>
+    /// <summary> Derives the EncDecKey1/2 keys like InitHackCheck(): from a fixed "CustomerName" ("SSE",
+    /// hardcoded in the original) XORed/subtracted with the .ini's ServerSerial. </summary>
     public static GameStreamCipher FromServerSerial(byte[] serverSerial, byte mhpKey1 = 0, byte mhpKey2 = 0)
     {
         const string customerName = "SSE"; // 32 bytes reservados en el original, solo 3 usados + ceros

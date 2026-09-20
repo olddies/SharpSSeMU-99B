@@ -11,8 +11,8 @@ public sealed class DataServerConfig
     {
         var ini = IniFile.Load(iniPath);
 
-        // Igual que en JoinServer: reusamos la clave DataServerODBC (antes DSN de SQL Server)
-        // para la cadena de conexión completa de Postgres.
+        // Same as in JoinServer: we reuse the DataServerODBC key (formerly a SQL Server DSN) for the full
+        // Postgres connection string.
         var postgres = ini.GetString(
             "DataServerInfo",
             "DataServerPostgres",

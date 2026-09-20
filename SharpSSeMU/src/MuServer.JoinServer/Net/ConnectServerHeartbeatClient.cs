@@ -5,10 +5,8 @@ using MuServer.Shared.Protocol;
 
 namespace MuServer.JoinServer.Net;
 
-/// <summary>
-/// Puerto de CSocketManagerUdp en modo cliente + JoinServerLiveProc(): cada 1s manda al
-/// ConnectServer el heartbeat 0xA2 (SDHP_JOIN_SERVER_LIVE_RECV) para anunciarse vivo.
-/// </summary>
+/// <summary> Port of CSocketManagerUdp in client mode + JoinServerLiveProc(): every 1s it sends the
+/// ConnectServer the 0xA2 heartbeat (SDHP_JOIN_SERVER_LIVE_RECV) to announce itself alive. </summary>
 public sealed class ConnectServerHeartbeatClient
 {
     private readonly string _address;
@@ -42,8 +40,8 @@ public sealed class ConnectServerHeartbeatClient
                 break;
             }
 
-            // QueueSize: el original reportaba el tamaño de su cola interna de paquetes pendientes
-            // de procesar; acá no existe esa cola (se procesa en línea), así que se reporta 0.
+            // QueueSize: the original reported the size of its internal queue of packets pending processing;
+            // here that queue does not exist (processing is inline), so 0 is reported.
             var payload = PacketBuilder.WriteUInt32LE(0);
             var packet = PacketBuilder.BuildC1(0xA2, payload);
 

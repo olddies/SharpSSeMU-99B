@@ -1,11 +1,10 @@
 namespace MuServer.AdminPanel.Repositories;
 
-/// <summary>Una fila de balance de Data/Item/Item.txt, mutable -- a diferencia de
-/// <c>MuServer.GameServer.World.ItemBalance</c> (que usa <c>init</c> en todo porque es el modelo de
-/// sólo lectura que ya carga el GameServer), esta es la versión editable del panel. Junta todos los
-/// campos posibles de cualquiera de las 16 secciones en una sola clase -- qué campos importan
-/// depende de <see cref="Section"/>, ver el comentario de cabecera de
-/// <see cref="ItemFileRepository.Load"/> para el layout exacto de columnas de cada una.</summary>
+/// <summary>A balance row of Data/Item/Item.txt, mutable -- unlike <c>MuServer.GameServer.World.ItemBalance</c>
+/// (which uses <c>init</c> everywhere because it is the read-only model the GameServer already loads), this is
+/// the panel's editable version. It gathers all possible fields of any of the 16 sections into a single class
+/// -- which fields matter depends on <see cref="Section"/>, see the header comment of <see
+/// cref="ItemFileRepository.Load"/> for the exact column layout of each one.</summary>
 public sealed class ItemRow
 {
     public required int Section { get; set; }

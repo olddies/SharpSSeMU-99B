@@ -1,6 +1,6 @@
 namespace MuServer.DataServer.Data;
 
-/// <summary>Puerto de CHARACTER_INFO: registro en memoria de qué personaje está online y en qué GameServer.</summary>
+/// <summary>Port of CHARACTER_INFO: in-memory record of which character is online and on which GameServer.</summary>
 public sealed class CharacterSession
 {
     public required string Name { get; init; }

@@ -3,12 +3,10 @@ using MuServer.Shared.Protocol;
 
 namespace MuServer.ConnectServer.Net;
 
-/// <summary>
-/// Puerto de CClientManager (por-conexión). En el original cada slot tenía un índice fijo dentro
-/// de un array de 100 (MAX_CLIENT) con IOCP manual; acá se simplifica a una sesión por socket
-/// (el índice interno era invisible para el cliente/protocolo, así que no afecta compatibilidad),
-/// con un semáforo para serializar los envíos (equivalente al IoSideBuffer/OnSend del original).
-/// </summary>
+/// <summary> Port of CClientManager (per connection). In the original each slot had a fixed index within an
+/// array of 100 (MAX_CLIENT) with manual IOCP; here it is simplified to one session per socket (the internal
+/// index was invisible to the client/protocol, so it does not affect compatibility), with a semaphore to
+/// serialise sends (equivalent to the original's IoSideBuffer/OnSend). </summary>
 public sealed class ClientSession
 {
     public Guid Id { get; } = Guid.NewGuid();

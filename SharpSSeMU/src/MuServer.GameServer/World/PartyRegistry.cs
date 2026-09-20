@@ -2,9 +2,9 @@ using System.Collections.Concurrent;
 
 namespace MuServer.GameServer.World;
 
-/// <summary>Reemplazo idiomático de CParty::m_PartyInfo[MAX_OBJECT] -- diccionario de grupos activos
-/// por ID incremental (ver comentario de <see cref="PartyGroup"/> sobre por qué no se replica el
-/// escaneo de slot libre del array plano original).</summary>
+/// <summary>Idiomatic replacement for CParty::m_PartyInfo[MAX_OBJECT] -- dictionary of active parties by
+/// incremental ID (see the comment of <see cref="PartyGroup"/> about why the flat original array's free-slot
+/// scan is not replicated).</summary>
 public sealed class PartyRegistry
 {
     private readonly ConcurrentDictionary<int, PartyGroup> _parties = new();

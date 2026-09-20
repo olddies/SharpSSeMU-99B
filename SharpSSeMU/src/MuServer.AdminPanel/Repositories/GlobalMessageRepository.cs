@@ -2,10 +2,10 @@ using System.Text.Json;
 
 namespace MuServer.AdminPanel.Repositories;
 
-/// <summary>Deja un comando "mensaje global" para que el GameServer lo recoja -- ver
-/// GlobalMessagePoller.cs del lado del servidor (poll cada 2s, borra el archivo una vez que lo
-/// procesa). El panel no necesita leer de vuelta este archivo: "Guardado" acá sólo significa que el
-/// comando quedó escrito, no que ya llegó a los jugadores.</summary>
+/// <summary>Leaves a "global message" command for the GameServer to pick up -- see GlobalMessagePoller.cs on
+/// the server side (polls every 2s, deletes the file once it has processed it). The panel does not need to read
+/// this file back: "Saved" here only means the command was written, not that it has reached the players
+/// yet.</summary>
 public static class GlobalMessageRepository
 {
     /// <summary>0 = noticia dorada en pantalla, 1 = mensaje azul en el chatbox -- mismos valores que

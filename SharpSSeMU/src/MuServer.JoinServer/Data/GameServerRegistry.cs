@@ -3,7 +3,7 @@ using MuServer.Shared.Logging;
 
 namespace MuServer.JoinServer.Data;
 
-/// <summary>Registro de GameServers conectados (máximo 20, igual que MAX_SERVER del original).</summary>
+/// <summary>Registry of connected GameServers (maximum 20, same as the original's MAX_SERVER).</summary>
 public sealed class GameServerRegistry
 {
     private const int MaxServers = 20;

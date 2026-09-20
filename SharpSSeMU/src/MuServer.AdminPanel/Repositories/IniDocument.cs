@@ -3,10 +3,9 @@ using System.Text;
 
 namespace MuServer.AdminPanel.Repositories;
 
-/// <summary>Una clave editable de un .ini. <see cref="Value"/> es lo que el panel modifica;
-/// <see cref="OriginalValue"/> es lo que decía el archivo al cargarlo, y sirve para reescribir SÓLO
-/// las líneas que de verdad cambiaron (las que no se tocan quedan byte a byte idénticas, con su
-/// espaciado y sus tabs originales).</summary>
+/// <summary>An editable key of an .ini. <see cref="Value"/> is what the panel modifies; <see
+/// cref="OriginalValue"/> is what the file said when loaded, and is used to rewrite ONLY the lines that really
+/// changed (those not touched stay byte for byte identical, with their original spacing and tabs).</summary>
 public sealed class IniEntry
 {
     public required string Key { get; init; }
@@ -14,33 +13,32 @@ public sealed class IniEntry
     public required string OriginalValue { get; init; }
     public required string Value { get; set; }
 
-    /// <summary>Los .dat de GameServerInfo son casi todos numéricos, pero Common.dat trae también
-    /// texto (ServerName, ServerSerial, direcciones IP) -- la UI decide el tipo de campo con esto.</summary>
+    /// <summary>The GameServerInfo .dat files are almost all numeric, but Common.dat also carries text
+    /// (ServerName, ServerSerial, IP addresses) -- the UI decides the field type from this.</summary>
     public bool IsNumeric => int.TryParse(OriginalValue.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out _);
 
     public bool IsDirty => Value != OriginalValue;
 }
 
-/// <summary>Un bloque de claves, agrupado por el banner de comentarios (";===" / "; Título" / ";===")
-/// que estos archivos ya traen -- así el panel muestra los mismos grupos que el archivo, sin tener
-/// que mantener a mano una lista de los ~845 campos.</summary>
+/// <summary>A block of keys, grouped by the comment banner (";===" / "; Title" / ";===") that these files
+/// already carry -- so the panel shows the same groups as the file, without having to maintain a hand-written
+/// list of the ~845 fields.</summary>
 public sealed class IniGroup
 {
     public required string Title { get; init; }
     public List<IniEntry> Entries { get; } = new();
 }
 
-/// <summary>Lee y escribe archivos .ini al estilo GetPrivateProfileInt (mismo formato que
-/// <c>MuServer.Shared.Config.IniFile</c>, que el GameServer usa para cargar
-/// GameServerInfo - *.dat) pero, a diferencia de ese lector de sólo lectura, conserva el archivo
-/// línea por línea -- comentarios, agrupamientos con "====" y orden -- para poder escribir de vuelta
-/// sólo el valor de las claves que el panel edita, sin reordenar ni perder los comentarios que
-/// documentan cada bloque de configuración.</summary>
+/// <summary>Reads and writes .ini files in the GetPrivateProfileInt style (same format as
+/// <c>MuServer.Shared.Config.IniFile</c>, which the GameServer uses to load GameServerInfo - *.dat) but, unlike
+/// that read-only reader, keeps the file line by line -- comments, "====" groupings and order -- so that only
+/// the value of the keys the panel edits is written back, without reordering or losing the comments that
+/// document each configuration block.</summary>
 public sealed class IniDocument
 {
     private readonly List<string> _lines;
 
-    // clave "seccion\clave" (case-insensitive) -> índice de línea en _lines.
+    // key "section\key" (case-insensitive) -> line index in _lines.
     private readonly Dictionary<string, int> _index = new(StringComparer.OrdinalIgnoreCase);
 
     private IniDocument(List<string> lines)
@@ -70,7 +68,7 @@ public sealed class IniDocument
 
             if (trimmed.StartsWith(';') || trimmed.StartsWith('#'))
             {
-                // Sólo la línea del medio del banner (";  Texto") da título; las de "====" se ignoran.
+                // Only the middle line of the banner (";  Text") gives a title; the "====" ones are ignored.
                 var text = trimmed[1..].Trim();
                 if (text.Length > 0 && text.Trim('=').Length > 0)
                 {
@@ -98,9 +96,9 @@ public sealed class IniDocument
             }
 
             var key = trimmed[..eq].Trim();
-            // Se guarda recortado: así el campo de la UI no arrastra el espacio/tab del archivo, y la
-            // comparación de "cambió o no" no se confunde por espaciado. Las claves que no se editan
-            // no se reescriben nunca, así que su línea original queda intacta igual.
+            // It is stored trimmed: that way the UI field does not carry the file's space/tab, and the "changed
+            // or not" comparison is not confused by spacing. Keys that are not edited are never rewritten, so
+            // their original line stays intact anyway.
             var value = trimmed[(eq + 1)..].Trim();
             doc._index[currentSection + "\\" + key] = i;
 
@@ -138,9 +136,9 @@ public sealed class IniDocument
         return int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var n) ? n : defaultValue;
     }
 
-    /// <summary>Reemplaza el valor de una clave existente, preservando la clave y el resto de la
-    /// línea tal cual. No agrega claves nuevas -- este panel sólo edita configuración que el archivo
-    /// real ya trae.</summary>
+    /// <summary>Replaces the value of an existing key, preserving the key and the rest of the line as is. It
+    /// does not add new keys -- this panel only edits configuration that the real file already
+    /// carries.</summary>
     public void SetInt(string section, string key, int value)
     {
         if (!_index.TryGetValue(section + "\\" + key, out var lineIdx))
@@ -151,8 +149,8 @@ public sealed class IniDocument
         WriteLineValue(lineIdx, " " + value.ToString(CultureInfo.InvariantCulture));
     }
 
-    /// <summary>Vuelca a las líneas del archivo los valores editados de <see cref="Groups"/>, tocando
-    /// sólo los que cambiaron.</summary>
+    /// <summary>Dumps the edited values of <see cref="Groups"/> into the file's lines, touching only those that
+    /// changed.</summary>
     public void ApplyGroupEdits()
     {
         foreach (var entry in Groups.SelectMany(g => g.Entries).Where(e => e.IsDirty))
@@ -177,7 +175,7 @@ public sealed class IniDocument
             sb.AppendLine(line);
         }
 
-        // Escritura atómica (temp + copy) -- el GameServer lee este .dat al arrancar.
+        // Atomic write (temp + copy) -- the GameServer reads this .dat at start-up.
         var tmpPath = path + ".tmp";
         File.WriteAllText(tmpPath, sb.ToString());
         File.Copy(tmpPath, path, overwrite: true);

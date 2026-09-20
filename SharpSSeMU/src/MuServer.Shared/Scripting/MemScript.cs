@@ -10,23 +10,15 @@ public enum TokenResult
     Error = 3,
 }
 
-/// <summary>
-/// Puerto 1:1 del tokenizer "CMemScript" usado por todos los procesos del servidor original
-/// (ConnectServer/JoinServer/DataServer/GameServer) para leer los archivos de configuración en
-/// texto plano de Data/ (ServerList.dat, BlackList.txt, Item.txt, MonsterList.txt, etc).
-///
-/// Reglas replicadas del original:
-///  - "//" inicia un comentario hasta fin de línea.
-///  - Los números pueden incluir dígitos, '.', '-' y '*' (donde "*" se interpreta como -1,
-///    usado en varios archivos de datos de MU para "sin límite"/"cualquiera").
-///  - Los strings van entre comillas dobles.
-///  - Los identificadores (palabras sin comillas) empiezan con letra y siguen con alfanumérico, '.' o '_'.
-///  - Fin de archivo devuelve TOKEN_END.
-///
-/// Nota: el original tenía un watchdog de 1 segundo por parseo (m_tick) que lanzaba una excepción
-/// si un archivo tardaba demasiado en tokenizarse; se omite aquí porque era una protección contra
-/// cuelgues del hilo original y no forma parte del formato de datos en sí.
-/// </summary>
+/// <summary> 1:1 port of the "CMemScript" tokenizer used by all the processes of the original server
+/// (ConnectServer/JoinServer/DataServer/GameServer) to read the plain-text configuration files of Data/
+/// (ServerList.dat, BlackList.txt, Item.txt, MonsterList.txt, etc). Rules replicated from the original: - "//"
+/// starts a comment until the end of the line. - Numbers can include digits, '.', '-' and '*' (where "*" is
+/// interpreted as -1, used in several MU data files for "no limit"/"any"). - Strings go between double quotes.
+/// - Identifiers (unquoted words) start with a letter and continue with alphanumerics, '.' or '_'. - End of
+/// file returns TOKEN_END. Note: the original had a 1-second watchdog per parse (m_tick) that threw an
+/// exception if a file took too long to tokenise; it is omitted here because it was a protection against hangs
+/// of the original thread and is not part of the data format itself. </summary>
 public class MemScript
 {
     private byte[] _buff = Array.Empty<byte>();
@@ -86,7 +78,7 @@ public class MemScript
         _count--;
     }
 
-    // Devuelve -1 en EOF, o el char (posiblemente '\n' si era un comentario terminado en salto de línea).
+    // Returns -1 at EOF, or the char (possibly '\n' if it was a comment ending in a line break).
     private int CheckComment(int ch)
     {
         if (ch != '/')
@@ -98,7 +90,7 @@ public class MemScript
 
         if (next != '/')
         {
-            // No es comentario: el carácter que sigue a "/" no es "/", lo regresamos.
+            // Not a comment: the character following "/" is not "/", we push it back.
             if (next != -1)
             {
                 UnGetChar();
@@ -203,7 +195,7 @@ public class MemScript
             sb.Append((char)ch);
         }
 
-        // Si ch != '"' (EOF sin cerrar comillas) el original hace UnGetChar; replicado aunque sea EOF-safe aquí.
+        // If ch != '"' (EOF without closing quote) the original does UnGetChar; replicated even though it is EOF-safe here.
         _string = sb.ToString();
 
         return TokenResult.String;

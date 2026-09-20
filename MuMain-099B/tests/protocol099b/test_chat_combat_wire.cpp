@@ -1,9 +1,6 @@
-// Chat, susurro, ataque y pose.
-//
-// Son paquetes chicos, pero comparten dos trampas que ya costaron caro en otros
-// puntos del protocolo: los índices de objeto van big-endian, y los campos de
-// texto son de largo fijo con relleno de ceros -- lo que sobra no puede quedar
-// con basura de la pila.
+// Chat, whisper, attack and pose. They are small packets, but they share two traps that already cost dearly
+// elsewhere in the protocol: object indices are big-endian, and text fields are fixed-length with zero padding
+// -- what is left over cannot be left with stack garbage.
 
 #include <doctest.h>
 
@@ -40,8 +37,8 @@ TEST_CASE("El chat público lleva nombre y mensaje de largo fijo")
 
 TEST_CASE("El resto de cada campo de texto queda en cero")
 {
-    // Si quedara basura, el servidor la tomaría como parte del texto: los campos
-    // son de largo fijo, no cadenas terminadas.
+    // If garbage were left, the server would take it as part of the text: the fields are fixed-length, not
+    // terminated strings.
     const auto packet = Mu099B::BuildChatRequest("Ab", "xy");
 
     for (size_t i = 2; i < sizeof(packet.name); ++i)
@@ -59,7 +56,7 @@ TEST_CASE("Un mensaje más largo que el campo se recorta sin desbordar")
     const std::string tooLong(200, 'x');
     const auto packet = Mu099B::BuildChatRequest("Hero1", tooLong.c_str());
 
-    // Se llena el campo entero, sin terminador y sin pasarse.
+    // The whole field is filled, with no terminator and without overrunning.
     CHECK(std::memcmp(packet.message, tooLong.data(), sizeof(packet.message)) == 0);
 }
 
@@ -76,7 +73,7 @@ TEST_CASE("El susurro usa el head 0x02 y el nombre es el destinatario")
 
 TEST_CASE("El ataque manda el índice del objetivo en big-endian")
 {
-    // Escribirlo al revés apuntaría a otro objeto por completo.
+    // Writing it the other way round would point to a completely different object.
     const auto packet = Mu099B::BuildAttackRequest(0x1234, 0x78, 3);
     const auto* raw = reinterpret_cast<const Mu099B::BYTE*>(&packet);
 
@@ -92,8 +89,8 @@ TEST_CASE("El ataque manda el índice del objetivo en big-endian")
 
 TEST_CASE("La pose pone dirección y acción antes del índice")
 {
-    // El orden de campos NO es el mismo que en el ataque: acá van primero
-    // dirección y acción, y el índice al final.
+    // The field order is NOT the same as in the attack: here direction and action come first, and the index
+    // last.
     const auto packet = Mu099B::BuildActionRequest(5, 0x81, 0xABCD);
     const auto* raw = reinterpret_cast<const Mu099B::BYTE*>(&packet);
 
@@ -107,9 +104,8 @@ TEST_CASE("La pose pone dirección y acción antes del índice")
 
 TEST_CASE("El daño que llega trae la vida en 32 bits")
 {
-    // Los dos bytes de `damage` se topan en 65535; ViewCurHP y ViewDamageHP son
-    // los valores reales (GAMESERVER_EXTRA). El relleno importa: sin él, los dos
-    // DWORD se leen corridos.
+    // The two `damage` bytes cap at 65535; ViewCurHP and ViewDamageHP are the real values (GAMESERVER_EXTRA).
+    // The padding matters: without it, the two DWORDs are read shifted.
     CHECK(sizeof(Mu099B::PMSG_DAMAGE_SEND) == 16);
     CHECK(offsetof(Mu099B::PMSG_DAMAGE_SEND, damage) == 5);
     CHECK(offsetof(Mu099B::PMSG_DAMAGE_SEND, type) == 7);

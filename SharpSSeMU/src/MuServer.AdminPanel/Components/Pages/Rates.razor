@@ -97,8 +97,8 @@ else
         _pending.Clear();
     }
 
-    /// <summary>Las claves por nivel de cuenta viven como <c>Clave_AL0</c>; se lee la AL0 como
-    /// representante de las cuatro.</summary>
+    /// <summary>Per-account-level keys live as <c>Key_AL0</c>; AL0 is read as the representative of the
+    /// four.</summary>
     private static string ReadKey(RateSetting setting) => setting.PerAccountLevel ? setting.Key + "_AL0" : setting.Key;
 
     private int GetValue(RateSetting setting) =>

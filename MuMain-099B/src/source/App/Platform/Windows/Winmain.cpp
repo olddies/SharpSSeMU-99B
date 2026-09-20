@@ -1250,11 +1250,10 @@ MSG MainLoop()
             }
         }
 
-        // Process server packets handed over from the network thread. Replaces
-        // the old WM_RECEIVE_BUFFER message round-trip; runs on the main thread.
-        // El socket nativo de 0.99B es no bloqueante y hay que consultarlo: a
-        // diferencia del transporte C#, que empuja desde su propio hilo, este
-        // no encola nada solo.
+        // Process server packets handed over from the network thread. Replaces the old WM_RECEIVE_BUFFER
+        // message round-trip; runs on the main thread. The native 0.99B socket is non-blocking and has to be
+        // polled: unlike the C# transport, which pushes from its own thread, this one does not queue anything
+        // by itself.
         if (SocketClient != nullptr)
         {
             SocketClient->Poll();

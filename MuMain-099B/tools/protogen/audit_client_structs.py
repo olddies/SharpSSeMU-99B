@@ -23,7 +23,7 @@ WSCLIENT_H = REPO / "src" / "source" / "Network" / "Server" / "WSclient.h"
 WSCLIENT_CPP = REPO / "src" / "source" / "Network" / "Server" / "WSclient.cpp"
 DEFINES = REPO / "src" / "source" / "Core" / "Globals" / "_define.h"
 
-# Tamaño y alineación de los tipos que aparecen en estos headers.
+# Size and alignment of the types that appear in these headers.
 PRIMITIVES = {
     "BYTE": (1, 1), "char": (1, 1), "bool": (1, 1), "int8_t": (1, 1), "uint8_t": (1, 1),
     "WORD": (2, 2), "short": (2, 2), "int16_t": (2, 2), "uint16_t": (2, 2),
@@ -59,8 +59,8 @@ def layout(members: list[tuple[str, str, int]], pack: int) -> int:
         offset = (offset + align - 1) // align * align
         offset += size * count
 
-    # El struct entero se redondea a su miembro más exigente: ese relleno de cola
-    # viaja por la red, porque el servidor manda sizeof(), no la suma de campos.
+    # The whole struct is rounded up to its most demanding member: that tail padding travels over the network,
+    # because the server sends sizeof(), not the sum of the fields.
     return (offset + strongest - 1) // strongest * strongest
 
 
@@ -74,7 +74,7 @@ def client_structs() -> dict[str, int]:
         r"typedef\s+struct\s*\{(.*?)\}\s*(\w+)\s*,", re.S)
 
     for body, name in pattern.findall(text):
-        # El pack vigente es el del último #pragma pack antes del struct.
+        # The pack in force is that of the last #pragma pack before the struct.
         before = text[:text.index(body)]
         pushes = re.findall(r"#pragma\s+pack\((?:push,\s*)?(\d+)\)", before)
         pops = before.count("#pragma pack(pop)")
@@ -140,17 +140,16 @@ def casts_by_handler() -> dict[str, str]:
     for match in re.finditer(
             r"^(?:void|BOOL|bool|int)\s+(Receive\w+)\s*\(", text, re.M):
         name = match.group(1)
-        # El cuerpo termina en la primera llave de cierre en la columna cero:
-        # sin ese corte la busqueda se cuela en la funcion siguiente y le
-        # atribuye a este receptor un cast que no es suyo.
+        # The body ends at the first closing brace in column zero: without that cut the search leaks into the
+        # next function and attributes to this receiver a cast that is not its own.
         rest = text[match.end():]
         stop = rest.find(chr(10) + "}")
         body = rest[:stop] if stop > 0 else rest[:1500]
 
         cast = re.search(r"safe_cast<(?:struct\s+)?([\w:]+)>", body)
         if not cast:
-            # El alias de puntero es LP + el nombre del struct, que ya empieza con P:
-            # agrupar desde la segunda L pierde esa P y el nombre no matchea.
+            # The pointer alias is LP + the struct name, which already starts with P: grouping from the second L
+            # loses that P and the name does not match.
             cast = re.search(r"\(LP(P?[A-Z_0-9]+)\)\s*ReceiveBuffer", body)
             if cast:
                 found.setdefault(name, cast.group(1))
@@ -169,8 +168,8 @@ def main() -> int:
     print(f"{len(client)} structs del cliente medidos, "
           f"{len(wire)} del wire con opcode, {len(casts)} receptores.\n")
 
-    # Los receptores ya portados castean a un struct de Mu099B: esos vienen del
-    # generador y por definición coinciden.
+    # The already ported receivers cast to a Mu099B struct: those come from the generator and by definition
+    # match.
     wire_names = {name for name, _ in wire.values()}
 
     mismatches = []
@@ -179,9 +178,8 @@ def main() -> int:
             continue
         if cast not in client:
             continue
-        # Se busca el struct del wire cuyo opcode atienda este receptor. Sin el
-        # dispatch parseado no se puede atar, así que se reporta el tamaño para
-        # cruzarlo a mano con la tabla de opcodes.
+        # The wire struct whose opcode this receiver handles is looked up. Without the parsed dispatch it cannot
+        # be tied, so the size is reported to cross-check by hand against the opcode table.
         mismatches.append((handler, cast, client[cast]))
 
     print("Receptores que todavia castean a un struct del dialecto viejo:")

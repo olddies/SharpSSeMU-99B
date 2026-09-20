@@ -23,12 +23,11 @@ std::vector<uint8_t> GameEncoder::Encode(const uint8_t* logicalPacket, size_t le
 
     std::vector<uint8_t> logical(logicalPacket, logicalPacket + length);
 
-    // El encadenado de XorData arranca tomando el byte ANTERIOR al primero que
-    // ofusca, que es justamente el de tamaño. El servidor, al reconstruir el
-    // paquete lógico, lo recalcula a partir de lo que descifró; si el que
-    // mandamos no coincide, cada byte del cuerpo se des-ofusca distinto y el
-    // paquete llega corrupto sin que nada avise. Se normaliza acá en vez de
-    // confiar en que quien llama lo dejó bien.
+    // The XorData chaining starts by taking the byte BEFORE the first one it obfuscates, which is precisely the
+    // size byte. The server, when rebuilding the logical packet, recomputes it from what it decrypted; if the
+    // one we send does not match, every byte of the body is de-obfuscated differently and the packet arrives
+    // corrupt with nothing to warn about it. It is normalised here instead of trusting that the caller left it
+    // right.
     if (headerLen == 2)
     {
         logical[1] = static_cast<uint8_t>(length);
@@ -39,7 +38,7 @@ std::vector<uint8_t> GameEncoder::Encode(const uint8_t* logicalPacket, size_t le
         logical[2] = static_cast<uint8_t>(length & 0xFF);
     }
 
-    // XorData sobre el cuerpo: es lo que el servidor deshace al recibir.
+    // XorData over the body: it is what the server undoes on receive.
     ObfuscateInPlace(logical.data(), logical.size(), headerLen);
 
     std::vector<uint8_t> wire;
@@ -50,9 +49,8 @@ std::vector<uint8_t> GameEncoder::Encode(const uint8_t* logicalPacket, size_t le
     }
     else
     {
-        // El número de serie ocupa el lugar del byte de tamaño: el original
-        // intercambia ese byte antes de cifrar y lo restaura después. Acá se
-        // arma un buffer nuevo, así que no hay nada que restaurar.
+        // The serial number takes the place of the size byte: the original swaps that byte before encrypting
+        // and restores it afterwards. Here a new buffer is built, so there is nothing to restore.
         std::vector<uint8_t> plain;
         plain.reserve(length - 1);
         plain.push_back(_sendSerial++);

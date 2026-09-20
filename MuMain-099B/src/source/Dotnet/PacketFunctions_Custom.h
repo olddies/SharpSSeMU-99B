@@ -25,25 +25,24 @@ class PacketFunctions_Base
 private:
     int32_t _handle = -1;
 
-    /// El socket de juego de 0.99B es nativo y no está registrado en la tabla
-    /// de conexiones del C#. Todo lo que se mande por acá con el handle de esa
-    /// conexión iría a parar a otro socket -- al del ConnectServer, si le tocó
-    /// el mismo número --, así que se corta.
+    /// The 0.99B game socket is native and is not registered in the C# connection table. Anything sent through
+    /// here with that connection's handle would end up on another socket -- the ConnectServer's, if it got the
+    /// same number -- so it is cut off.
     bool _nativeTransport = false;
     mutable bool _warned = false;
 
 public:
     void SetHandle(const int32_t handle) { _handle = handle; }
 
-    /// Marca que esta conexión usa el transporte nativo, y que por lo tanto
-    /// ninguna de estas funciones sirve todavía.
+    /// Marks that this connection uses the native transport, and that therefore none of these functions works
+    /// yet.
     void SetNativeTransport(const bool native) { _nativeTransport = native; }
 
     bool UsesNativeTransport() const { return _nativeTransport; }
 
-    /// Devuelve un handle inválido cuando el transporte es nativo, para que la
-    /// librería C# no encuentre conexión y no haga nada. Avisa una sola vez:
-    /// son ciento y pico de funciones sin portar y el log sería ilegible.
+    /// Returns an invalid handle when the transport is native, so that the C# library finds no connection and
+    /// does nothing. Warns only once: there are over a hundred unported functions and the log would be
+    /// unreadable.
     int32_t GetHandle() const
     {
         if (_nativeTransport)
@@ -60,7 +59,7 @@ public:
     }
 
 private:
-    /// Fuera de línea para no arrastrar el reporte de errores a este header.
+    /// Out of line so as not to drag the error report into this header.
     static void ReportNotPortedSend();
 };
 

@@ -1,7 +1,7 @@
 namespace MuServer.AdminPanel.Repositories;
 
-/// <summary>Una tasa de éxito editable, una por AccountLevel (AL0-3) -- mismo layout que
-/// <c>MuServer.GameServer.Config.GameServerInfoChaosMix</c>, mutable para el panel.</summary>
+/// <summary>An editable success rate, one per AccountLevel (AL0-3) -- same layout as
+/// <c>MuServer.GameServer.Config.GameServerInfoChaosMix</c>, mutable for the panel.</summary>
 public sealed class RateSet
 {
     public int Al0 { get; set; }
@@ -10,9 +10,9 @@ public sealed class RateSet
     public int Al3 { get; set; }
 }
 
-/// <summary>Metadata de agrupamiento para la página de Chaos Machine -- refleja los bloques
-/// "==========" que ya trae Data/GameServerInfo - ChaosMix.dat, así la UI no reordena nada respecto
-/// al archivo real.</summary>
+/// <summary>Grouping metadata for the Chaos Machine page -- it reflects the "==========" blocks that
+/// Data/GameServerInfo - ChaosMix.dat already carries, so the UI does not reorder anything relative to the real
+/// file.</summary>
 public static class ChaosMixLayout
 {
     public sealed record SingleGroup(string Title, string Prefix);
@@ -44,9 +44,9 @@ public static class ChaosMixLayout
     ];
 }
 
-/// <summary>Lee y escribe Data/GameServerInfo - ChaosMix.dat -- las tasas de éxito que
-/// <c>ChaosMixLogic.CalculateAndExecuteMix</c> usa de verdad (vía <c>GameServerInfoChaosMix</c>) para
-/// calcular el % de éxito de cada combinación de la Caja del Caos.</summary>
+/// <summary>Reads and writes Data/GameServerInfo - ChaosMix.dat -- the success rates that
+/// <c>ChaosMixLogic.CalculateAndExecuteMix</c> actually uses (via <c>GameServerInfoChaosMix</c>) to compute the
+/// success % of each Chaos Box combination.</summary>
 public static class ChaosMixConfigRepository
 {
     private const string Section = "GameServerInfo";

@@ -745,12 +745,11 @@ bool CSQuest::ProcessNextProgress()
     }
     else
     {
-        // CORREGIDO: llamaba a la capa Dotnet vieja (SendLegacyQuestStateSetRequest, protocolo de
-        // OpenMU) en vez de Mu099B::SendQuestState -- mismo bug que el de party. El segundo campo
-        // (QuestState) lo ignora el servidor real (CQuest::CGQuestStateRecv sólo mira QuestIndex y
-        // el estado que ya tiene guardado del jugador; el propio puerto de SharpSSeMU lo loguea pero
-        // tampoco lo usa para decidir la transición), así que cualquier valor sirve -- se manda 1
-        // nada más para no mandar la estructura vacía.
+        // FIXED: it called the old Dotnet layer (SendLegacyQuestStateSetRequest, OpenMU protocol) instead of
+        // Mu099B::SendQuestState -- same bug as the party one. The second field (QuestState) is ignored by the
+        // real server (CQuest::CGQuestStateRecv only looks at QuestIndex and the state it already has stored
+        // for the player; the SharpSSeMU port itself logs it but does not use it to decide the transition
+        // either), so any value works -- 1 is sent just so as not to send the structure empty.
         Mu099B::SendQuestState(*SocketClient, m_byCurrQuestIndex, 1);
         return false;
     }

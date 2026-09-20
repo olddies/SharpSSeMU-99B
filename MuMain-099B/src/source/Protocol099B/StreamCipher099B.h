@@ -1,17 +1,10 @@
-// Cifrado de flujo del socket de GameServer en 0.99B.
-//
-// Puerto de HackCheck.cpp (InitHackCheck / EncryptData / DecryptData) del
-// emulador. Se aplica a TODO lo que entra y sale del socket del GameServer,
-// **incluidos los bytes de tipo y tamaño de cada paquete**, así que corre antes
-// de cualquier intento de separar paquetes. Ni el ConnectServer ni el
-// JoinServer ni el DataServer lo usan.
-//
-// Es la razón por la que el framer de la librería C# no sirve para este socket:
-// vería los encabezados cifrados y no podría segmentar. Por eso el framing de
-// esta conexión tiene que ser nativo.
-//
-// Sin estado: cada byte se transforma de forma independiente, así que no
-// importa en cuántos pedazos llegue el flujo.
+// Stream cipher of the 0.99B GameServer socket. Port of the emulator's HackCheck.cpp (InitHackCheck /
+// EncryptData / DecryptData). It is applied to EVERYTHING entering and leaving the GameServer socket,
+// **including the type and size bytes of each packet**, so it runs before any attempt to split packets. Neither
+// the ConnectServer nor the JoinServer nor the DataServer use it. It is the reason the C# library's framer is
+// no use for this socket: it would see the headers encrypted and could not segment. That is why this
+// connection's framing has to be native. Stateless: each byte is transformed independently, so it does not
+// matter in how many pieces the stream arrives.
 
 #pragma once
 
@@ -21,28 +14,23 @@
 namespace Mu099B
 {
 
-/// El ServerSerial es un campo de 17 bytes: los 16 caracteres configurados más
-/// el terminador. El servidor rellena hasta ese largo antes de derivar la
-/// clave, así que el byte nulo es material de clave como cualquier otro.
-/// Derivar sobre los 16 caracteres da una key1 distinta y el flujo entero sale
-/// mal -- pasó, y no lo agarró ningún test offline porque cliente y servidor
-/// tienen que coincidir con el *original*, no entre ellos.
+/// The ServerSerial is a 17-byte field: the 16 configured characters plus the terminator. The server pads to
+/// that length before deriving the key, so the null byte is key material like any other. Deriving over the 16
+/// characters gives a different key1 and the whole stream comes out wrong -- it happened, and no offline test
+/// caught it because client and server have to match the *original*, not each other.
 constexpr size_t ServerSerialFieldSize = 17;
 
 class StreamCipher
 {
 public:
-    /// Claves ya derivadas. `mhpKey1`/`mhpKey2` en cero desactivan la segunda
-    /// capa (es lo habitual: los .ini traen ServerEncDecKey1/2 = 0).
+    /// Already derived keys. `mhpKey1`/`mhpKey2` at zero disable the second layer (the usual case: the .ini
+    /// files carry ServerEncDecKey1/2 = 0).
     StreamCipher(uint8_t key1, uint8_t key2, uint8_t mhpKey1 = 0, uint8_t mhpKey2 = 0);
 
-    /// Deriva las claves como InitHackCheck(): del nombre de cliente fijo "SSE"
-    /// (32 bytes, el resto en cero) combinado con el ServerSerial del .ini.
-    ///
-    /// `serialLength` es cuántos caracteres tiene el serial configurado, no el
-    /// largo del campo: la función lo copia a un buffer de ServerSerialFieldSize
-    /// bytes y completa con ceros, igual que el servidor. Pasar más caracteres
-    /// que el campo los descarta.
+    /// Derives the keys like InitHackCheck(): from the fixed client name "SSE" (32 bytes, the rest zero)
+    /// combined with the .ini's ServerSerial. `serialLength` is how many characters the configured serial has,
+    /// not the field length: the function copies it into a buffer of ServerSerialFieldSize bytes and pads with
+    /// zeros, just like the server. Passing more characters than the field discards them.
     static StreamCipher FromServerSerial(const uint8_t* serverSerial, size_t serialLength,
                                          uint8_t mhpKey1 = 0, uint8_t mhpKey2 = 0);
 

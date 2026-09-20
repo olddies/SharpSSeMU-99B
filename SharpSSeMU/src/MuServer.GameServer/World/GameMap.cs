@@ -1,23 +1,15 @@
 namespace MuServer.GameServer.World;
 
-/// <summary>
-/// Puerto de CMap (Map.h/Map.cpp): una grilla plana de bytes de atributo por tile, cargada de
-/// "Terrain&lt;N&gt;.att" (N = número de mapa + 1). Formato del archivo, confirmado byte a byte contra
-/// los .att reales del paquete (65539 bytes = 3 de cabecera + 256*256 de grilla):
-///   BYTE head (sin uso, se ignora igual que el original)
-///   BYTE width  (ancho real = width+1)
-///   BYTE height (alto real = height+1)
-///   BYTE attr[width*height]  -- indexado [y*height + x] (igual que el original, ver Map.cpp:124 etc;
-///                                solo es correcto porque los mapas son cuadrados, se replica tal cual)
-///
-/// Bits de atributo (sin enum con nombre en el original, se usan como literales en cada call site):
-///   1 = zona segura/ciudad (poco usado, solo un fallback de spawn)
-///   2 = "ocupado" -- bit dinámico que se prende/apaga en runtime (SetStandAttr/DelStandAttr), NO
-///       viene grabado en el archivo
-///   4 = bloqueo (pared/obstáculo) -- grabado en el archivo
-///   8 = segundo bit de bloqueo (agua/límite de mapa en otros forks de MU) -- tratado igual que 4
-///       para validar movimiento en esta fase
-/// </summary>
+/// <summary> Port of CMap (Map.h/Map.cpp): a flat grid of attribute bytes per tile, loaded from
+/// "Terrain&lt;N&gt;.att" (N = map number + 1). File format, confirmed byte by byte against the package's real
+/// .att files (65539 bytes = 3 of header + 256*256 of grid): BYTE head (unused, ignored just like the original)
+/// BYTE width  (real width = width+1) BYTE height (real height = height+1) BYTE attr[width*height]  -- indexed
+/// [y*height + x] (same as the original, see Map.cpp:124 etc; it is only correct because the maps are square,
+/// replicated as is) Attribute bits (no named enum in the original, they are used as literals at each call
+/// site): 1 = safe zone/town (little used, only a spawn fallback) 2 = "occupied" -- a dynamic bit that is
+/// turned on/off at runtime (SetStandAttr/DelStandAttr), NOT recorded in the file 4 = block (wall/obstacle) --
+/// recorded in the file 8 = second block bit (water/map limit in other MU forks) -- treated the same as 4 to
+/// validate movement in this phase </summary>
 public sealed class GameMap
 {
     public int MapNumber { get; }

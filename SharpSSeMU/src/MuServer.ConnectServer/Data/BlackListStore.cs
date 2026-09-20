@@ -44,7 +44,7 @@ public sealed class BlackListStore
         Log.Add(LogColor.Blue, "BlackList loaded: {0} blocked IPs", _blocked.Count);
     }
 
-    /// <summary>true = permitido (no está en la lista negra), false = bloqueado.</summary>
+    /// <summary>true = allowed (not in the blacklist), false = blocked.</summary>
     public bool IsAllowed(string ipAddress)
     {
         lock (_sync)

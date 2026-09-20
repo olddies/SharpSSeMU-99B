@@ -2,11 +2,9 @@ using System.Collections.Concurrent;
 
 namespace MuServer.DataServer.Data;
 
-/// <summary>
-/// Puerto de CCharacterManager: qué personajes están online ahora (para el whisper entre
-/// servidores y para poder limpiar todo si el GameServer dueño se cae). Clave siempre en
-/// minúsculas, igual que el original (acá no depende de ningún flag de configuración).
-/// </summary>
+/// <summary> Port of CCharacterManager: which characters are online right now (for cross-server whisper and to
+/// be able to clean everything up if the owning GameServer goes down). Key always lowercase, same as the
+/// original (here it does not depend on any configuration flag). </summary>
 public sealed class CharacterSessionStore
 {
     private readonly ConcurrentDictionary<string, CharacterSession> _sessions = new();

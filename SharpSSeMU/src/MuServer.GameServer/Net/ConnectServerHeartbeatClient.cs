@@ -5,13 +5,11 @@ using MuServer.Shared.Protocol;
 
 namespace MuServer.GameServer.Net;
 
-/// <summary>
-/// Puerto de CSocketManagerUdp en modo cliente + GameServerLiveProc() (GameServer.cpp): cada 1s
-/// manda a ConnectServer el heartbeat 0xA1 (SDHP_GAME_SERVER_LIVE_RECV) para anunciarse vivo y
-/// reportar usuarios conectados. Sin esto ConnectServer nunca muestra este GameServer en la lista
-/// ni puede resolver su IP:puerto para el cliente (ver MuServer.ConnectServer/Data/ServerListStore.cs,
-/// que expira una entrada a los 10s sin heartbeat).
-/// </summary>
+/// <summary> Port of CSocketManagerUdp in client mode + GameServerLiveProc() (GameServer.cpp): every 1s it
+/// sends ConnectServer the 0xA1 heartbeat (SDHP_GAME_SERVER_LIVE_RECV) to announce itself alive and report
+/// connected users. Without this ConnectServer never shows this GameServer in the list nor can it resolve its
+/// IP:port for the client (see MuServer.ConnectServer/Data/ServerListStore.cs, which expires an entry after 10s
+/// without heartbeat). </summary>
 public sealed class GameServerHeartbeatClient
 {
     private readonly string _address;

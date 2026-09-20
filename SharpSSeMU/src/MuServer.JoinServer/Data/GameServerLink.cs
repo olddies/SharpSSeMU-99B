@@ -3,11 +3,9 @@ using MuServer.Shared.Protocol;
 
 namespace MuServer.JoinServer.Data;
 
-/// <summary>
-/// Puerto de CServerManager (por-conexión): representa un GameServer conectado al JoinServer.
-/// Igual que en ConnectServer, se simplifica el slot fijo de MAX_SERVER=20 del original a una
-/// sesión por socket (el índice era un detalle interno, invisible en el protocolo).
-/// </summary>
+/// <summary> Port of CServerManager (per connection): represents a GameServer connected to the JoinServer. As
+/// in ConnectServer, the original's fixed slot of MAX_SERVER=20 is simplified to one session per socket (the
+/// index was an internal detail, invisible in the protocol). </summary>
 public sealed class GameServerLink
 {
     public Guid Id { get; } = Guid.NewGuid();

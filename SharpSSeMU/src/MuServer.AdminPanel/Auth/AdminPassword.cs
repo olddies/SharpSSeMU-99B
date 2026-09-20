@@ -3,17 +3,13 @@ using System.Text;
 
 namespace MuServer.AdminPanel.Auth;
 
-/// <summary>La contraseña del panel. Sale de <c>Admin:Password</c> en appsettings.json (o de una
-/// variable de entorno <c>Admin__Password</c>); si no hay ninguna configurada se genera una al azar
-/// al arrancar y se imprime en la consola.
-///
-/// <para>Se eligió generar una en vez de dejar el panel abierto o de plantar una por defecto: el panel
-/// escribe la configuración del servidor, así que "sin contraseña" no es una opción razonable, y una
-/// contraseña por defecto conocida es igual de mala. Generarla evita las dos cosas sin poder dejar a
-/// nadie afuera, porque queda a la vista en la consola.</para>
-///
-/// <para>La comparación es de tiempo constante para no filtrar el largo ni el prefijo por cuánto tarda
-/// en responder.</para></summary>
+/// <summary>The panel password. It comes from <c>Admin:Password</c> in appsettings.json (or from an
+/// <c>Admin__Password</c> environment variable); if none is configured, a random one is generated at start-up
+/// and printed to the console. <para>Generating one was chosen over leaving the panel open or planting a
+/// default: the panel writes the server configuration, so "no password" is not a reasonable option, and a
+/// well-known default password is just as bad. Generating it avoids both without being able to lock anyone out,
+/// because it is in plain view on the console.</para> <para>The comparison is constant-time so as not to leak
+/// the length or the prefix through how long it takes to answer.</para></summary>
 public sealed class AdminPassword
 {
     private readonly byte[] _expected;
@@ -50,7 +46,7 @@ public sealed class AdminPassword
         return CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(candidate), _expected);
     }
 
-    /// <summary>Contraseña al azar pero tipeable: sin caracteres que se confundan entre sí (0/O, 1/l).</summary>
+    /// <summary>Random but typeable password: without characters that get confused with each other (0/O, 1/l).</summary>
     private static string GenerateReadablePassword()
     {
         const string alphabet = "abcdefghijkmnopqrstuvwxyzACDEFGHJKLMNPQRSTUVWXYZ23456789";
