@@ -65,8 +65,9 @@ Helper scripts in this folder:
 | `Data/GameServerInfo - *.dat` | GameServer | ~520 gameplay settings (8 files, all loaded) |
 | `Data/**` | GameServer | monsters, spawns, items, skills, shops, gates, quests, events |
 
-`ServerVersion` / `ServerSerial` must match the client's `Main.dll` (`1.02.00` /
-`PoweredSetecSoft` for the stock package); the serial also derives the stream-cipher key.
+`ServerVersion` / `ServerSerial` must match the client's `Main.dll` (`1.02.00` for the stock package;
+`SharpSSeMU99B-v1` is the serial of our own client and the server default; see
+[`TESTING_WITH_REAL_CLIENT.md`](TESTING_WITH_REAL_CLIENT.md) for the stock client); the serial also derives the stream-cipher key.
 
 The PostgreSQL connection string format:
 

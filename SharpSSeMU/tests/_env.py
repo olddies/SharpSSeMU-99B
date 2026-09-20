@@ -373,7 +373,7 @@ def server_data(*parts: str) -> str:
     return str(MU_ROOT / "MuServer99B" / "Data" / Path(*parts))
 
 
-SERIAL = "PoweredSetecSoft"
+SERIAL = "SharpSSeMU99B-v1"
 VERSION = "1.02.00"
 
 

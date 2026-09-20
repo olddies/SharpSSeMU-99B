@@ -21,14 +21,14 @@ own `Main.dll`) lists:
 IpAddress = 127.0.0.1
 IpAddressPort = 44405
 ClientVersion = 1.02.00
-ClientSerial = PoweredSetecSoft
+ClientSerial = <your client's serial>
 ```
 
 So the `Main.dll` in `MuClient/` **already points at `127.0.0.1:44405`** — the ConnectServer port.
 Nothing needs patching with MuMaker for a local test. If the client cannot connect, this is the
 first thing to check (see *Troubleshooting* below).
 
-`ClientVersion = 1.02.00` and `ClientSerial = PoweredSetecSoft` are exactly the values to put in the
+`ClientVersion = 1.02.00` and `ClientSerial = <your client's serial>` are exactly the values to put in the
 GameServer configuration so the login version/serial check matches (step 4).
 
 ## 1. Prerequisites
@@ -168,7 +168,7 @@ ServerName = SSeMU GameServer_0
 ServerCode = 0
 ServerPort = 55900
 ServerVersion = 1.02.00
-ServerSerial = PoweredSetecSoft
+ServerSerial = SharpSSeMU99B-v1
 ServerEncDecKey1 = 0
 ServerEncDecKey2 = 0
 ServerMaxUserNumber = 300
@@ -180,8 +180,14 @@ ConnectServerAddress = 127.0.0.1
 ConnectServerPort = 55557
 ```
 
-`ServerVersion` and `ServerSerial` must be exactly these (they are what the real client expects,
-see step 0); the serial also derives the stream-cipher key.
+`ServerVersion` and `ServerSerial` must match the values your real client uses (step 0); the serial also derives
+the stream-cipher key.
+
+> **About the serial.** SharpSSeMU-99B uses its own default serial, `SharpSSeMU99B-v1` (16 characters, set in
+> `ServerSerial`), and so does our own client (`MuMain-099B`, `Serial` in `WSclient.cpp`). The **stock** client's
+> serial is baked into its own files and cannot be changed by this project: to use the stock client, set
+> `ServerSerial` in `GameServer.ini` to the `ClientSerial` value shown in your client's configuration. Client and
+> server must have the same serial; it also derives the stream-cipher key.
 
 ### `MuServer.GameServer\bin\Debug\net10.0\Hack\Enc2.dat` and `Hack\Dec1.dat`
 

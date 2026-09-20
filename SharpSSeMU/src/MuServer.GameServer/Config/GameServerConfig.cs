@@ -80,7 +80,7 @@ public sealed class GameServerConfig
             (byte)versionBuff[0], (byte)versionBuff[2], (byte)versionBuff[3], (byte)versionBuff[5], (byte)versionBuff[6],
         };
 
-        string serial = ini.GetString("GameServerInfo", "ServerSerial", "PoweredSetecSoft");
+        string serial = ini.GetString("GameServerInfo", "ServerSerial", "SharpSSeMU99B-v1");
         var serialBytes = new byte[17];
         System.Text.Encoding.ASCII.GetBytes(serial.PadRight(17, '\0')[..17]).CopyTo(serialBytes, 0);
 

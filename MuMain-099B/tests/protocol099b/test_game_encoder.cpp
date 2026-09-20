@@ -31,7 +31,7 @@ constexpr Mu099B::BlockCipher::KeyTable Dec1 = {
     {0x0000BD1Du, 0x0000B455u, 0x00003B43u, 0x00009239u},
 };
 
-const std::string kSerial = "PoweredSetecSoft";
+const std::string kSerial = "SharpSSeMU99B-v1";
 
 Mu099B::StreamCipher MakeStream()
 {

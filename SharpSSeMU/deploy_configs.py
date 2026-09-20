@@ -66,7 +66,7 @@ for p in [cs_bin, js_bin, ds_bin, gs_bin]:
     "ServerCode = 0\n"
     "ServerPort = 55900\n"
     "ServerVersion = 1.02.00\n"
-    "ServerSerial = PoweredSetecSoft\n"
+    "ServerSerial = SharpSSeMU99B-v1\n"
     "ServerEncDecKey1 = 0\n"
     "ServerEncDecKey2 = 0\n"
     "ServerMaxUserNumber = 300\n"

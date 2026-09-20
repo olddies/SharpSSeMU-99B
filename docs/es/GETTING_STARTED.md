@@ -129,8 +129,8 @@ Si una corrida anterior dejó puertos ocupados: `python SharpSSeMU/kill_ports.py
 
 ## 6. Conectar un cliente
 
-**Cliente original** (`MuClient/main.exe`): su `Main.dll` ya apunta a `127.0.0.1:44405`
-(`ClientVersion = 1.02.00`, `ClientSerial = PoweredSetecSoft`, los mismos valores que `GameServer.ini`).
+**Cliente original** (`MuClient/main.exe`; poné en `ServerSerial` de `GameServer.ini` su `ClientSerial`, ver la nota del serial en la guía de pruebas): su `Main.dll` ya apunta a `127.0.0.1:44405`
+(`ClientVersion = 1.02.00`, `ClientSerial = <your client's serial>`, los mismos valores que `GameServer.ini`).
 Abrí `main.exe` e iniciá sesión con `test` / `test`. Guía paso a paso de esta vía:
 [`SharpSSeMU/COMO_PROBAR_CON_CLIENTE_REAL.md`](../../SharpSSeMU/COMO_PROBAR_CON_CLIENTE_REAL.md).
 
@@ -188,7 +188,7 @@ ServerName = SSeMU GameServer_0
 ServerCode = 0
 ServerPort = 55900
 ServerVersion = 1.02.00
-ServerSerial = PoweredSetecSoft
+ServerSerial = SharpSSeMU99B-v1
 ServerMaxUserNumber = 300
 JoinServerAddress = 127.0.0.1
 JoinServerPort = 55970

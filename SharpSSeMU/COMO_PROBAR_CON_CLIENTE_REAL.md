@@ -22,7 +22,7 @@ propio `Main.dll` del paquete) figura:
 IpAddress = 127.0.0.1
 IpAddressPort = 44405
 ClientVersion = 1.02.00
-ClientSerial = PoweredSetecSoft
+ClientSerial = <your client's serial>
 ```
 
 Esto indica que el `Main.dll` que ya está en `MuClient/` **ya viene apuntando a `127.0.0.1:44405`**
@@ -30,7 +30,7 @@ Esto indica que el `Main.dll` que ya está en `MuClient/` **ya viene apuntando a
 esta prueba local. Si al final el cliente no logra conectar, es la primera cosa a revisar (ver
 sección de problemas comunes, al final).
 
-Los valores `ClientVersion = 1.02.00` y `ClientSerial = PoweredSetecSoft` son justamente los que
+Los valores `ClientVersion = 1.02.00` y `ClientSerial = <your client's serial>` son justamente los que
 hay que poner en la configuración de GameServer para que la validación de versión/serial del login
 coincida (ver paso 3).
 
@@ -180,7 +180,7 @@ ServerName = SSeMU GameServer_0
 ServerCode = 0
 ServerPort = 55900
 ServerVersion = 1.02.00
-ServerSerial = PoweredSetecSoft
+ServerSerial = SharpSSeMU99B-v1
 ServerEncDecKey1 = 0
 ServerEncDecKey2 = 0
 ServerMaxUserNumber = 300
@@ -192,8 +192,13 @@ ConnectServerAddress = 127.0.0.1
 ConnectServerPort = 55557
 ```
 
-`ServerVersion` y `ServerSerial` tienen que ser exactamente esos (son los que espera el cliente
-real, ver paso 0).
+`ServerVersion` y `ServerSerial` tienen que coincidir con los que usa tu cliente real (ver paso 0).
+
+> **Sobre el serial.** SharpSSeMU-99B usa su propio serial por defecto, `SharpSSeMU99B-v1` (16 caracteres, en
+> `ServerSerial`), y también lo usa nuestro cliente (`MuMain-099B`, `Serial` en `WSclient.cpp`). El serial del
+> cliente **original** está dentro de sus propios archivos y este proyecto no puede cambiarlo: para usar el cliente
+> original, poné en `ServerSerial` (`GameServer.ini`) el valor de `ClientSerial` que muestra la configuración de tu
+> cliente. Cliente y servidor deben tener el mismo serial; además de él sale la clave del cifrado de flujo.
 
 ### `MuServer.GameServer\bin\Debug\net10.0\Hack\Enc2.dat` y `Hack\Dec1.dat`
 

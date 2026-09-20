@@ -266,7 +266,7 @@ sesión fantasma). 5/5 casos OK. El script de prueba queda en
 
 **Segunda ronda de pruebas, con ConnectServer sumado a la cadena** (para validar el flujo completo
 que usa el cliente real: ConnectServer → lista de servidores → resolución de IP → GameServer),
-usando los valores reales del paquete (`ServerVersion=1.02.00`, `ServerSerial=PoweredSetecSoft`,
+usando los valores reales del paquete (`ServerVersion=1.02.00`, `ServerSerial = the stock package's serial`,
 sacados de `MuServer99B/GameServer/DATA/GameServerInfo - Common.dat` y de
 `MuServer99B/Tools/GetMainInfo/MainInfo.ini`) encontró y corrigió dos bugs más:
 
@@ -1847,7 +1847,7 @@ ServerName = SSeMU GameServer_0
 ServerCode = 0
 ServerPort = 55900
 ServerVersion = 1.02.00
-ServerSerial = PoweredSetecSoft
+ServerSerial = SharpSSeMU99B-v1
 ServerEncDecKey1 = 0
 ServerEncDecKey2 = 0
 ServerMaxUserNumber = 300

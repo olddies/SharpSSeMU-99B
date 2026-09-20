@@ -251,7 +251,7 @@ the disconnect notification works and left no ghost session). 5/5 cases OK. The 
 
 **Second round of tests, with ConnectServer added to the chain** (to validate the full flow the real
 client uses: ConnectServer → server list → IP resolution → GameServer), using the package's real values
-(`ServerVersion=1.02.00`, `ServerSerial=PoweredSetecSoft`, taken from
+(`ServerVersion=1.02.00`, `ServerSerial = the stock package's serial`, taken from
 `MuServer99B/GameServer/DATA/GameServerInfo - Common.dat` and `MuServer99B/Tools/GetMainInfo/MainInfo.ini`),
 it found and fixed two more bugs:
 
@@ -1749,7 +1749,7 @@ ServerName = SSeMU GameServer_0
 ServerCode = 0
 ServerPort = 55900
 ServerVersion = 1.02.00
-ServerSerial = PoweredSetecSoft
+ServerSerial = SharpSSeMU99B-v1
 ServerEncDecKey1 = 0
 ServerEncDecKey2 = 0
 ServerMaxUserNumber = 300

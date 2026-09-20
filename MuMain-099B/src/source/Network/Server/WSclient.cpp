@@ -122,7 +122,7 @@ MASTER_LEVEL_VALUE	Master_Level_Data;
 // del .ini del servidor: el login rebota si no, y ademas del serial se deriva
 // el cifrado de flujo del socket de juego.
 BYTE Version[SIZE_PROTOCOLVERSION] = { '1', '0', '2', '0', '0' };
-BYTE Serial[SIZE_PROTOCOLSERIAL + 1] = { "PoweredSetecSoft" };
+BYTE Serial[SIZE_PROTOCOLSERIAL + 1] = { "SharpSSeMU99B-v1" };
 Connection* SocketClient = nullptr;
 bool EnableSocket = false;
 

@@ -25,13 +25,13 @@ Mu099B::StreamCipher FromSerial(const std::string& serial)
 
 TEST_CASE("Las claves salen del ServerSerial igual que en InitHackCheck")
 {
-    // 'PoweredSetecSoft' es el serial que usan los tests end-to-end del servidor.
+    // 'SharpSSeMU99B-v1' es el serial que usan los tests end-to-end del servidor.
     // Estos dos valores no salen de leer el código: salen de descifrar el saludo
     // que manda un GameServer real, que es la única fuente que no puede estar de
     // acuerdo con un error nuestro.
-    const auto cipher = FromSerial("PoweredSetecSoft");
-    CHECK(cipher.Key1() == 0x3B);
-    CHECK(cipher.Key2() == 0xDA);
+    const auto cipher = FromSerial("SharpSSeMU99B-v1");
+    CHECK(cipher.Key1() == 0xE1);
+    CHECK(cipher.Key2() == 0xD5);
 
     // Un serial vacío deja las constantes desnudas del original (0xBB / 0xCC).
     const auto empty = FromSerial("");
@@ -49,11 +49,11 @@ TEST_CASE("El serial se rellena hasta los 17 bytes del campo")
     // Escribir el relleno a mano tiene que dar exactamente lo mismo que dejar
     // que lo complete la función: si no, el largo del texto se cuela en la clave
     // y el flujo entero sale corrido.
-    std::string padded("PoweredSetecSoft");
+    std::string padded("SharpSSeMU99B-v1");
     padded.resize(Mu099B::ServerSerialFieldSize);  // completa con nulos
     REQUIRE(padded.size() == 17);
 
-    const auto implicit = FromSerial("PoweredSetecSoft");
+    const auto implicit = FromSerial("SharpSSeMU99B-v1");
     const auto explicitly = FromSerial(padded);
 
     CHECK(implicit.Key1() == explicitly.Key1());
@@ -62,7 +62,7 @@ TEST_CASE("El serial se rellena hasta los 17 bytes del campo")
 
 TEST_CASE("Cifrar y descifrar devuelve el original")
 {
-    const auto cipher = FromSerial("PoweredSetecSoft");
+    const auto cipher = FromSerial("SharpSSeMU99B-v1");
 
     std::vector<uint8_t> data;
     for (int i = 0; i < 256; ++i)
@@ -83,7 +83,7 @@ TEST_CASE("El cifrado es sin estado: no importa cómo se parta el flujo")
     // El framer alimenta lo que llegue del socket, que puede cortarse en
     // cualquier lado. Si el cifrado tuviera estado, descifrar por pedazos daría
     // distinto que descifrar todo junto.
-    const auto cipher = FromSerial("PoweredSetecSoft");
+    const auto cipher = FromSerial("SharpSSeMU99B-v1");
 
     std::vector<uint8_t> whole(64);
     for (size_t i = 0; i < whole.size(); ++i)
@@ -104,7 +104,7 @@ TEST_CASE("El cifrado es sin estado: no importa cómo se parta el flujo")
 
 TEST_CASE("Un serial distinto produce un flujo distinto")
 {
-    const auto a = FromSerial("PoweredSetecSoft");
+    const auto a = FromSerial("SharpSSeMU99B-v1");
     const auto b = FromSerial("OtroSerialDistinto");
     REQUIRE(a.Key1() != b.Key1());
 

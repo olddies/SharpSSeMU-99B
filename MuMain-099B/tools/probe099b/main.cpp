@@ -165,7 +165,7 @@ int main(int argc, char** argv)
     const auto port = static_cast<uint16_t>(std::atoi(argv[2]));
     const std::string account = argv[3];
     const std::string password = argv[4];
-    const std::string serial = argc > 5 ? argv[5] : "PoweredSetecSoft";
+    const std::string serial = argc > 5 ? argv[5] : "SharpSSeMU99B-v1";
 
     Mu099B::GameSocket socket;
     std::printf("conectando a %s:%u (serial \"%s\")\n", host.c_str(), port, serial.c_str());
@@ -186,7 +186,7 @@ int main(int argc, char** argv)
     }
 
     const Mu099B::BYTE version[] = {'1', '0', '2', '0', '0'};
-    const Mu099B::BYTE clientSerial[] = "PoweredSetecSoft";
+    const Mu099B::BYTE clientSerial[] = "SharpSSeMU99B-v1";
 
     std::printf("\n[login como \"%s\"]\n", account.c_str());
     const auto login = Mu099B::BuildLoginRequest(account.c_str(), password.c_str(),
