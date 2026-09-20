@@ -90,6 +90,24 @@ editá las cadenas de conexión al principio de ese script (o los `JoinServer.in
 
 Para un despliegue Release / Linux ver [`SharpSSeMU/README.md`](../../SharpSSeMU/README.md#deployment).
 
+### Importar y validar tus datos del juego
+
+Este repositorio no incluye las tablas del juego (items, monstruos, spawns, tiendas...). Dos herramientas en
+`SharpSSeMU/tools/data/` arman y revisan la carpeta de datos a partir de **tu propio** paquete original:
+
+```bash
+# copia sólo lo que lee el GameServer (byte a byte) y valida el resultado
+python SharpSSeMU/tools/data/import_data.py --source MuServer99B --dest <carpeta de salida del GameServer>
+
+# validar una carpeta ya existente (la que contiene Data/ y Hack/)
+python SharpSSeMU/tools/data/validate_data.py --root <carpeta de salida del GameServer>
+```
+
+El validador explica en claro qué falta o es inconsistente (archivos faltantes, ids duplicados, tiendas que venden
+items no definidos, warps a gates inexistentes, archivos de terreno de tamaño incorrecto, puertos o serial inválidos
+en la configuración...). Los errores hay que corregirlos antes de arrancar el GameServer; las advertencias son
+informativas (por ejemplo, eventos cuyos mapas no usás). Con `--dry-run` el importador sólo lista lo que copiaría.
+
 ## 5. Levantar los servidores
 
 Windows, cuatro consolas (ConnectServer → JoinServer → DataServer → GameServer, con las demoras correctas):
