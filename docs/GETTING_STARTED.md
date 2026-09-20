@@ -181,6 +181,8 @@ dotnet run            # → http://localhost:5281
 
 - **Password:** set `Admin:Password` in `appsettings.json`. If it is empty, a random password is
   generated on start-up and printed to the console.
+- **Rate presets:** the *Rates* page has one-click presets (Classic x1, Soft x10, Fast x100, Testing) that fill in
+  experience, drop and zen values. They only load the values into the page; nothing is written until you press *Save*.
 - **What it edits:** the real game data files (`Data/…` and `GameServerInfo - *.dat`, keeping
   comments and formatting; a `.bak` is written the first time), and — for the *Characters* page —
   the PostgreSQL database directly (stats, inventory, warehouse, with a searchable item picker).

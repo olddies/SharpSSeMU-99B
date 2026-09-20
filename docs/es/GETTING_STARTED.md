@@ -179,6 +179,9 @@ dotnet run            # → http://localhost:5281
 > desde `bin/` no resuelve los recursos estáticos del panel y la página se ve rota.
 
 - **Contraseña:** definí `Admin:Password` en `appsettings.json`. Si está vacía, se genera una al azar al arrancar y se imprime en la consola.
+- **Preajustes de tasas:** la página *Tasas* tiene preajustes de un clic (Clásico x1, Suave x10, Rápido x100, Pruebas)
+  que completan los valores de experiencia, drops y zen. Sólo cargan los valores en la página; no se escribe nada
+  hasta que pulsás *Guardar*.
 - **Qué edita:** los archivos de datos reales del juego (`Data/…` y `GameServerInfo - *.dat`, conservando comentarios y formato; se escribe un `.bak` la primera vez) y — en la página *Personajes* — la base PostgreSQL directamente (stats, inventario, baúl, con selector de items con búsqueda).
 - **En vivo vs. reinicio:** el GameServer lee su configuración **una sola vez al arrancar**, así que las ediciones de archivos aplican tras reiniciarlo. Solo *Cuentas conectadas* y *Mensaje global* actúan sobre el servidor en marcha.
 - **Personajes:** un personaje conectado vive en la memoria del GameServer y su autoguardado pisa tu edición — desconectalo antes de editarlo.

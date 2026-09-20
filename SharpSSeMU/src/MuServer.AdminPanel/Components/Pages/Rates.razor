@@ -20,6 +20,24 @@
 }
 else
 {
+    <MudPaper Class="pa-4 mb-4" Elevation="0">
+        <MudText Typo="Typo.subtitle1" Class="mb-1">@L["Presets"]</MudText>
+        <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mb-3">
+            @L["A preset fills in experience, drop and zen values in one click. Nothing is saved until you review the values below and press Save."]
+        </MudText>
+        <div class="d-flex flex-wrap gap-2">
+            @foreach (var preset in RatePresets.All)
+            {
+                <MudTooltip Text="@L[preset.Description]">
+                    <MudButton Variant="@(ActivePresetId == preset.Id ? Variant.Filled : Variant.Outlined)"
+                               Color="Color.Primary" Size="Size.Small" OnClick="@(() => ApplyPreset(preset))">
+                        @L[preset.Name]
+                    </MudButton>
+                </MudTooltip>
+            }
+        </div>
+    </MudPaper>
+
     <MudTextField T="string" @bind-Value="_filter" Label="@L["Search setting"]" Variant="Variant.Outlined"
                   Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
                   Immediate="true" Clearable="true" Margin="Margin.Dense" Class="mb-4" Style="max-width: 420px;" />
@@ -88,6 +106,23 @@ else
             : group.Settings.Where(s =>
                 s.Label.Contains(_filter, StringComparison.OrdinalIgnoreCase)
                 || s.Key.Contains(_filter, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>The preset whose values are all equal to what is currently shown (saved or pending), if any.</summary>
+    private string? ActivePresetId =>
+        RatePresets.All.FirstOrDefault(p => p.Values.All(kv => GetValue(SettingOf(kv.Key)) == kv.Value))?.Id;
+
+    private static RateSetting SettingOf(string key) =>
+        RateSettings.Groups.SelectMany(g => g.Settings).First(s => s.Key == key);
+
+    private void ApplyPreset(RatePreset preset)
+    {
+        foreach (var (key, value) in preset.Values)
+        {
+            _pending[key] = value;
+        }
+
+        Snackbar.Add(L.F("Preset \"{0}\" loaded: review the values and press Save.", L[preset.Name]), Severity.Info);
+    }
 
     protected override void OnInitialized() => Reload();
 
