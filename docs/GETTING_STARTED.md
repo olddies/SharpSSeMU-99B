@@ -132,8 +132,8 @@ If a previous run left ports occupied: `python SharpSSeMU/kill_ports.py`.
 
 **Original client** (`MuClient/main.exe`): its `Main.dll` already points at `127.0.0.1:44405`
 (`ClientVersion = 1.02.00`, `ClientSerial = PoweredSetecSoft` — the same values as
-`GameServer.ini`). Start `main.exe` and log in with `test` / `test`. Step-by-step notes for this
-route (in Spanish): [`SharpSSeMU/COMO_PROBAR_CON_CLIENTE_REAL.md`](../SharpSSeMU/COMO_PROBAR_CON_CLIENTE_REAL.md).
+`GameServer.ini`). Start `main.exe` and log in with `test` / `test`. Step-by-step manual
+walkthrough for this route: [`SharpSSeMU/TESTING_WITH_REAL_CLIENT.md`](../SharpSSeMU/TESTING_WITH_REAL_CLIENT.md).
 
 **Ported client** (this repo's `MuMain-099B`): build it ([BUILDING](BUILDING.md#client)), then run
 `Main.exe`. Its `config.ini` (next to the executable) holds the target:

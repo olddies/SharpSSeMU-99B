@@ -1,5 +1,7 @@
 > **Guía manual (histórica).** Explica paso a paso, a mano, lo que hoy automatiza `deploy_configs.py`.
 > Para el camino actual ver [`../docs/es/GETTING_STARTED.md`](../docs/es/GETTING_STARTED.md).
+>
+> 🌐 [English](TESTING_WITH_REAL_CLIENT.md) · **Español**
 
 # Cómo compilar y encender todo para probar con el cliente oficial
 
@@ -41,7 +43,7 @@ coincida (ver paso 3).
     Docker).
   - Si ya tenés Docker Desktop: `docker run --name mu-postgres -e POSTGRES_PASSWORD=postgres -p 5432:5432 -d postgres:14`
 
-Verificá que `dotnet --version` responda `8.x` desde una consola (cmd o PowerShell) antes de
+Verificá que `dotnet --version` responda `10.x` desde una consola (cmd o PowerShell) antes de
 seguir.
 
 ## 2. Crear la base de datos
@@ -53,12 +55,13 @@ CREATE DATABASE muonline;
 CREATE ROLE muserver LOGIN PASSWORD 'muserver' SUPERUSER;
 ```
 
-Después aplicá los 3 esquemas, en este orden, contra la base `muonline`:
+Después aplicá los 4 esquemas, en este orden, contra la base `muonline`:
 
 ```
 SharpSSeMU/db/postgres/001_accounts.sql
 SharpSSeMU/db/postgres/002_characters.sql
 SharpSSeMU/db/postgres/003_default_class_seed.sql
+SharpSSeMU/db/postgres/004_friends.sql
 ```
 
 Con `psql`:
@@ -67,6 +70,7 @@ Con `psql`:
 psql -U postgres -d muonline -f "SharpSSeMU\db\postgres\001_accounts.sql"
 psql -U postgres -d muonline -f "SharpSSeMU\db\postgres\002_characters.sql"
 psql -U postgres -d muonline -f "SharpSSeMU\db\postgres\003_default_class_seed.sql"
+psql -U postgres -d muonline -f "SharpSSeMU\db\postgres\004_friends.sql"
 ```
 
 Esto ya deja sembradas dos cuentas de prueba: **`test`/`test`** y **`admin`/`admin`** (ver
@@ -99,10 +103,13 @@ paquete, coherentes entre sí):
 [ConnectServerInfo]
 ConnectServerPortTCP = 44405
 ConnectServerPortUDP = 55557
-MaxConnectionPerIP = 5
-MaxPacketPerSecond = 10
+ConnectServerMaxUserNumber = 500
+MaxConnectionPerIP = 50
+MaxPacketPerSecond = 0
 MaxConnectionIdle = 60
 ```
+
+`MaxConnectionPerIP` **no puede ser 0**: con 0 el ConnectServer acepta el socket del cliente y lo corta enseguida.
 
 ### `MuServer.ConnectServer\bin\Debug\net10.0\BlackList.txt`
 
@@ -194,6 +201,13 @@ Estos dos son binarios, no de texto — copialos tal cual desde
 `MuServer99B\Data\Hack\Enc2.dat` y `MuServer99B\Data\Hack\Dec1.dat` a una subcarpeta `Hack\` nueva
 dentro de `MuServer.GameServer\bin\Debug\net10.0\`.
 
+### `MuServer.GameServer\bin\Debug\net10.0\Data\` — los datos del juego
+
+Copiá la carpeta **completa** `MuServer99B\Data\` (monstruos, spawns, items, skills, tiendas, eventos,
+`Move.txt` …) a una subcarpeta `Data\` junto a los binarios del GameServer, y copiá también los ocho
+`MuServer99B\GameServer\DATA\GameServerInfo - *.dat` a esa misma `Data\`. Sin esto el GameServer no
+tiene mundo que cargar.
+
 ## 5. Prender todo, en este orden
 
 Cada uno en su propia ventana de consola (para ver los logs y poder pararlos por separado). El
@@ -226,18 +240,15 @@ Ejecutá `MuClient\main.exe`. Debería:
 2. Al elegirlo, conectar directo a GameServer (127.0.0.1:55900).
 3. Mostrar la pantalla de login — usá `test` / `test` o `admin` / `admin`.
 
-**Importante sobre el alcance actual**: el login va a funcionar (entra la cuenta, valida clave),
-pero después de eso el cliente se va a quedar esperando en la pantalla de selección de personaje,
-porque **todavía no porté la Fase 2 de GameServer** (mundo, personajes, mapas — ver el README
-principal). Si el login funciona, ya es la confirmación de que las 4 capas de cifrado y el
-protocolo están bien — es exactamente el límite esperado en este punto del proyecto.
+Que el login funcione ya confirma que las capas de cifrado y el protocolo están bien. Después
+podés crear o elegir un personaje y entrar al mundo. Qué está y qué no está implementado dentro del
+juego: ver [`../docs/es/STATUS.md`](../docs/es/STATUS.md). Para usar el **cliente portado**, ver
+[`../docs/es/BUILDING.md`](../docs/es/BUILDING.md#cliente).
 
 ## Problemas comunes
 
 - **El cliente no conecta ni siquiera al principio**: la hipótesis del paso 0 sobre que
-  `Main.dll` ya apunta a `127.0.0.1:44405` no se pudo confirmar 100% desde acá (es un binario de
-  Windows, no lo puedo ejecutar). Si no conecta, avisame el error exacto que tira el cliente y
-  reviso si hace falta usar `MuServer99B/Tools/MuMaker/MuMaker.exe` para parchear la IP en una
+  `Main.dll` ya apunta a `127.0.0.1:44405` no se pudo verificar sin ejecutar el binario. Si no conecta, usá `MuServer99B/Tools/MuMaker/MuMaker.exe` para parchear la IP en una
   copia de `Main.dll` (esa herramienta genera un cliente distribuible con la IP grabada).
 - **"database does not exist" o error de conexión en JoinServer/DataServer**: revisá que
   Postgres esté escuchando en el puerto que pusiste en el `.ini` (5432 por defecto) y que el rol
