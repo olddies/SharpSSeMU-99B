@@ -1925,7 +1925,7 @@ void ReceiveBuy099B(std::span<const BYTE> ReceiveBuffer)
     constexpr BYTE BuyFailed = 0xFE;
     constexpr BYTE BuyFailedSilent = 0xFF;
 
-    // CORREGIDO: mismo bug que ReceiveGetItem099B (ver protocolo-099b.md) -- BuyCost es la bandera
+    // CORREGIDO: mismo bug que ReceiveGetItem099B (ver protocol-099b.md) -- BuyCost es la bandera
     // que evita mandar un segundo pedido de compra mientras se espera la respuesta del primero
     // (NewUINPCShop.cpp: `if (BuyCost == 0) { SendItemBuy(...); BuyCost = ItemValue(...); }`). Este
     // receptor nunca la devolvía a 0 en ninguna salida, así que la primera compra -- fallara o no --
@@ -3820,7 +3820,7 @@ void ReceiveMagicList099B(std::span<const BYTE> ReceiveBuffer)
         }
     }
 
-    // CORREGIDO: mismo bug que ReceiveGetItem099B/ReceiveBuy099B (ver protocolo-099b.md) -- el
+    // CORREGIDO: mismo bug que ReceiveGetItem099B/ReceiveBuy099B (ver protocol-099b.md) -- el
     // dialecto viejo (ReceiveMagicList, arriba en este archivo) recalcula SkillNumber/
     // SkillMasterNumber después de tocar el array Skill[], y la ventana de selección de habilidad
     // (NewUIMainFrameWindow.cpp) lee ese contador -- NO recorre Skill[] buscando slots no vacíos.

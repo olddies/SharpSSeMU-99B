@@ -44,7 +44,7 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-DATOS = (REPO.parent.parent / "SharpSSeMU" / "src" / "MuServer.GameServer"
+DATOS = (REPO.parent / "SharpSSeMU" / "src" / "MuServer.GameServer"
          / "bin" / "Debug" / "net10.0" / "Data" / "Item")
 ITEM = DATOS / "Item.txt"
 VALORES = DATOS / "ItemValue.txt"

@@ -32,7 +32,7 @@ from PIL import Image
 
 REPO = Path(__file__).resolve().parents[2]
 DESTINO = REPO / "src" / "bin" / "Data" / "Interface"
-ORIGEN = REPO.parent.parent / "MuClient" / "Data" / "Interface"
+ORIGEN = REPO.parent / "MuClient" / "Data" / "Interface"
 
 OZJ_HEADER = 24
 OZT_HEADER = 4

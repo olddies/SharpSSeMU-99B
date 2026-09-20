@@ -137,7 +137,7 @@ Requirements: PostgreSQL binaries, .NET 10 SDK, and the original package folders
 **Known state:** `full_chain` and `fase1` pass completely. The other phases run far (16–36 green
 assertions, including all protocol steps) and stop at one point — the `WorldTestClient` combat
 sequence — for a fixture-balance reason (the test monster kills the 60-HP starting character),
-not a protocol one. Details in `SharpSSeMU/tests/README.md` (Spanish).
+not a protocol one. Details in `SharpSSeMU/tests/README.md`.
 
 ## Regenerating the protocol library
 
@@ -146,8 +146,8 @@ sources available in `Source/`:
 
 ```bash
 cd MuMain-099B/tools/protogen
-GS="../../../../Source/Source/Emulator 0.99 (2.1.7)/GameServer"
-CS="../../../../Source/Source/Emulator 0.99 (2.1.7)/ConnectServer"
+GS="../../../Source/Source/Emulator 0.99 (2.1.7)/GameServer"
+CS="../../../Source/Source/Emulator 0.99 (2.1.7)/ConnectServer"
 python parse_protocol.py    --source-dir "$GS" --source-dir "$CS" --out protocol_099b.json
 python annotate_opcodes.py  --ir protocol_099b.json --source-dir "$GS" --source-dir "$CS"
 python emit_cpp.py          --ir protocol_099b.json --out ../../src/source/Protocol099B/Protocol099B.generated.h
@@ -155,4 +155,4 @@ python emit_cpp.py          --ir protocol_099b.json --out ../../src/source/Proto
 
 The parser refuses to run against the wrong emulator tree (it checks for the `0.99B CHS` marker).
 Audit scripts (`audit_client_coverage.py`, `audit_client_structs.py`, `audit_muservercs.py`)
-cross-check client and server against the IR. See `tools/protogen/README.md` (Spanish).
+cross-check client and server against the IR. See `tools/protogen/README.md`.

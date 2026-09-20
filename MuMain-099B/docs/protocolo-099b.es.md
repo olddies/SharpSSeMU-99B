@@ -1,3 +1,5 @@
+🌐 [English](protocol-099b.md) · **Español**
+
 # El port al protocolo 0.99B
 
 Este cliente nació como el fork de Season 5.2 de Sven, encaminado a Season 6.
@@ -528,7 +530,7 @@ yo mismo.
 Lo que falta, y por qué:
 
 - **La interfaz** sigue con el aspecto de Season 6. No es un intercambio de
-  archivos; ver [`ui-099b.md`](ui-099b.md).
+  archivos; ver [`ui-099b.md`](ui-099b.es.md).
 - **El medidor de AG** quedó en la posición de Season 6.
 - Un test end-to-end de combate falla porque el personaje de prueba muere contra
   el monstruo de prueba. Es balance del servidor, no del port.

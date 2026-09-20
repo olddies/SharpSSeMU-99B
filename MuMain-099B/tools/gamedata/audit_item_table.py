@@ -39,7 +39,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 LOCAL = REPO / "src" / "bin" / "Data" / "Local"
-SERVIDOR = (REPO.parent.parent / "SharpSSeMU" / "src" / "MuServer.GameServer"
+SERVIDOR = (REPO.parent / "SharpSSeMU" / "src" / "MuServer.GameServer"
             / "bin" / "Debug" / "net10.0" / "Data" / "Item" / "Item.txt")
 
 BUX = bytes([0xFC, 0xCF, 0xAB])

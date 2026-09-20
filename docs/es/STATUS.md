@@ -8,7 +8,7 @@ El proyecto es **jugable pero incompleto**. Se ejercitó de punta a punta con te
 sesiones prácticas con un cliente real; esperá asperezas fuera de los caminos marcados como
 funcionales. Los arreglos encontrados jugando están registrados en el
 [diario de desarrollo del servidor](../../SharpSSeMU/docs/development-log.es.md) y en el
-[documento de protocolo del cliente](../../MuMain-099B/docs/protocolo-099b.md).
+[documento de protocolo del cliente](../../MuMain-099B/docs/protocolo-099b.es.md).
 
 - [Servidor](#servidor) · [Cliente](#cliente) · [Limitaciones conocidas](#limitaciones-conocidas) · [Roadmap](#roadmap) · [Arreglado recientemente](#arreglado-recientemente)
 

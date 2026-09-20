@@ -122,7 +122,7 @@ Después abrí un cliente apuntando a `127.0.0.1:44405` e iniciá sesión con la
 | [`docs/es/ARCHITECTURE.md`](docs/es/ARCHITECTURE.md) | Componentes, puertos, flujo de datos, capas de protocolo/cifrado, cómo se verifica el port |
 | [`docs/es/STATUS.md`](docs/es/STATUS.md) | Qué anda, qué es parcial, qué falta, roadmap, limitaciones conocidas |
 | [`SharpSSeMU/README.md`](SharpSSeMU/README.md) | Referencia del servidor *(inglés)*: módulos, configuración, AdminPanel, estructura del código |
-| [`MuMain-099B/docs/protocolo-099b.md`](MuMain-099B/docs/protocolo-099b.md) | Análisis a fondo del port del protocolo: las trampas, los arreglos, las herramientas de auditoría |
+| [`MuMain-099B/docs/protocolo-099b.es.md`](MuMain-099B/docs/protocolo-099b.es.md) | Análisis a fondo del port del protocolo: las trampas, los arreglos, las herramientas de auditoría |
 | [`SharpSSeMU/docs/development-log.es.md`](SharpSSeMU/docs/development-log.es.md) | Diario cronológico completo del servidor |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | Cómo contribuir (incluye resumen en español) |
 

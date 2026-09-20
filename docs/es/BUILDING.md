@@ -145,8 +145,8 @@ SSeMU 0.99B en `Source/`:
 
 ```bash
 cd MuMain-099B/tools/protogen
-GS="../../../../Source/Source/Emulator 0.99 (2.1.7)/GameServer"
-CS="../../../../Source/Source/Emulator 0.99 (2.1.7)/ConnectServer"
+GS="../../../Source/Source/Emulator 0.99 (2.1.7)/GameServer"
+CS="../../../Source/Source/Emulator 0.99 (2.1.7)/ConnectServer"
 python parse_protocol.py    --source-dir "$GS" --source-dir "$CS" --out protocol_099b.json
 python annotate_opcodes.py  --ir protocol_099b.json --source-dir "$GS" --source-dir "$CS"
 python emit_cpp.py          --ir protocol_099b.json --out ../../src/source/Protocol099B/Protocol099B.generated.h

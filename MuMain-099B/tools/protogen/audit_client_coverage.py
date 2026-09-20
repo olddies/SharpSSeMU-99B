@@ -22,7 +22,7 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-SERVER = REPO.parent.parent / "SharpSSeMU" / "src" / "MuServer.GameServer"
+SERVER = REPO.parent / "SharpSSeMU" / "src" / "MuServer.GameServer"
 WSCLIENT = REPO / "src" / "source" / "Network" / "Server" / "WSclient.cpp"
 
 # Opcodes que el GameServer manda al DataServer, no al cliente: salen de los

@@ -4,7 +4,7 @@
 Single source of truth for the wire format shared by the C++ client and the
 C# server (SharpSSeMU). Both sides are generated from this IR rather than
 transcribed by hand -- hand transcription is what produced the six layout
-bugs documented in SharpSSeMU/docs/development-log.es.md (CharSet 13-vs-18, ItemInfo 5-vs-12,
+bugs documented in SharpSSeMU/docs/development-log.md (CharSet 13-vs-18, ItemInfo 5-vs-12,
 PartyLife 1-byte-per-member, Teleport.gate BYTE-vs-WORD, field order in
 PMSG_VIEWPORT_PLAYER, MAX_DS_LEVEL 4-vs-7).
 

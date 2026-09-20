@@ -1,6 +1,6 @@
 # SharpSSeMU — the SSeMU 0.99B server in C#/.NET 10
 
-🌐 **English** · a Spanish chronological development log lives in [`docs/development-log.es.md`](docs/development-log.es.md)
+🌐 **English** · the detailed chronological development log is in [`docs/development-log.md`](docs/development-log.md) (Spanish original: [`development-log.es.md`](docs/development-log.es.md))
 
 A C# re-implementation of the SSeMU 2.1.7 MU Online **0.99B** server. It keeps the original binary
 protocol byte for byte, so both the **original, unmodified client** (`main.exe` + `Main.dll`) and
@@ -126,7 +126,7 @@ next to the GameServer. Ports are listed above; only **44405** (ConnectServer) a
 SharpSSeMU/
 ├── SharpSSeMU.sln
 ├── db/postgres/                   schema + seed
-├── docs/development-log.es.md     chronological log (Spanish)
+├── docs/development-log.md     chronological log (English; Spanish original: development-log.es.md)
 ├── deploy_configs.py, run_servers.py, kill_ports.py, test_start.py, start_servers.bat
 ├── tests/                         Python e2e tests + _env.py (disposable PostgreSQL cluster)
 └── src/

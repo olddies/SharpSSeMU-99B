@@ -7,7 +7,7 @@ honest. Please read this page and [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 
 ## Ways to help
 
-- **Client UI → 0.99B look** — the biggest open item ([`docs/ui-099b.md`](MuMain-099B/docs/ui-099b.md), Spanish).
+- **Client UI → 0.99B look** — the biggest open item ([`docs/ui-099b.md`](MuMain-099B/docs/ui-099b.md)).
 - **Missing server systems** — see the roadmap in [`docs/STATUS.md`](docs/STATUS.md).
 - **Bug reports from real play** — with the class, level, what you did, what you expected and what happened. Server console output and the `LOG/` files help a lot.
 - **Documentation and translations.**

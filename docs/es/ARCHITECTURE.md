@@ -82,7 +82,7 @@ debe descifrar *antes* de segmentar. Por eso el socket de juego del cliente es C
 la librería de red C# (que sigue atendiendo al ConnectServer, que va en claro).
 
 **Trampas que conviene conocer** (cada una costó depuración real; detalle en el
-[documento de protocolo](../../MuMain-099B/docs/protocolo-099b.md)):
+[documento de protocolo](../../MuMain-099B/docs/protocolo-099b.es.md)):
 
 - *Los errores no fallan: mienten.* Un struct un byte más corto lee campos corridos y muestra números
   equivocados; uno más largo hace que el paquete se descarte en silencio. Nada se rompe a la vista.

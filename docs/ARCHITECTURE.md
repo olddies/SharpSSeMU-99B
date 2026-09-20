@@ -79,8 +79,8 @@ Because layer 1 hides packet lengths, no generic framer can split the stream fir
 decrypt *before* segmenting. That is why the client's game socket is native C++ instead of using
 the C# network library (which still serves the ConnectServer, sent in the clear).
 
-**Traps worth knowing** (each cost real debugging time; details in the Spanish
-[protocol document](../MuMain-099B/docs/protocolo-099b.md)):
+**Traps worth knowing** (each cost real debugging time; details in the
+[protocol document](../MuMain-099B/docs/protocol-099b.md)):
 
 - *Errors do not fail, they lie.* A struct one byte too short reads shifted fields and shows wrong
   numbers; one too long makes the packet be silently discarded. Nothing crashes.

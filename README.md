@@ -122,8 +122,8 @@ Then start a client pointed at `127.0.0.1:44405` and log in with the seeded test
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Components, ports, data flow, protocol/crypto layers, how the port is verified |
 | [`docs/STATUS.md`](docs/STATUS.md) | What works, what is partial, what is missing, roadmap, known limitations |
 | [`SharpSSeMU/README.md`](SharpSSeMU/README.md) | Server reference: modules, configuration, AdminPanel, code layout |
-| [`MuMain-099B/docs/protocolo-099b.md`](MuMain-099B/docs/protocolo-099b.md) | *(Spanish)* Deep dive into the protocol port: the pitfalls, the fixes, the audit tools |
-| [`SharpSSeMU/docs/development-log.es.md`](SharpSSeMU/docs/development-log.es.md) | *(Spanish)* The full chronological development log of the server |
+| [`MuMain-099B/docs/protocol-099b.md`](MuMain-099B/docs/protocol-099b.md) | Deep dive into the protocol port: the pitfalls, the fixes, the audit tools |
+| [`SharpSSeMU/docs/development-log.md`](SharpSSeMU/docs/development-log.md) | The full chronological development log of the server |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | How to contribute |
 
 Spanish versions of the main guides live in [`docs/es/`](docs/es/).

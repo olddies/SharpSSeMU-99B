@@ -7,8 +7,8 @@ Legend: ✅ working · 🔶 partial / simplified · ❌ not implemented · ⛔ d
 The project is **playable but incomplete**. It has been exercised end-to-end by automated tests
 and by hands-on sessions with a real client; expect rough edges outside the paths listed as
 working. Fixes found by real play-testing are recorded in the
-[server development log](../SharpSSeMU/docs/development-log.es.md) and the
-[client protocol document](../MuMain-099B/docs/protocolo-099b.md) (both Spanish).
+[server development log](../SharpSSeMU/docs/development-log.md) and the
+[client protocol document](../MuMain-099B/docs/protocol-099b.md).
 
 - [Server](#server) · [Client](#client) · [Known limitations](#known-limitations) · [Roadmap](#roadmap) · [Recently fixed](#recently-fixed)
 

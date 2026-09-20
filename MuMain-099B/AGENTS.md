@@ -23,11 +23,11 @@ this codebase. Follow the style of surrounding code where the rules don't speak.
 This fork speaks the **MU Online 0.99B** protocol (SSeMU 2.1.7 emulator), not
 Season 6. Before touching networking, items, characters or the UI, read:
 
-- [`docs/protocolo-099b.md`](docs/protocolo-099b.md) *(Spanish)* — how the port
+- [`docs/protocol-099b.md`](docs/protocol-099b.md) — how the port
   is built, the three encryption layers, the deceptive encodings and the audit
   tools. Many bugs in this protocol do not fail loudly: they show wrong numbers
   or silently drop the packet.
-- [`docs/ui-099b.md`](docs/ui-099b.md) *(Spanish)* — bringing the UI to the
+- [`docs/ui-099b.md`](docs/ui-099b.md) — bringing the UI to the
   0.99B look. This is the pending part and where help is most needed.
 
 Protocol structs are **generated** from the emulator sources

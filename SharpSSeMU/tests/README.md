@@ -1,76 +1,71 @@
-# Tests end-to-end
+🌐 **English** · [Español](README.es.md)
 
-Cada test levanta la pila real (PostgreSQL + JoinServer + DataServer + GameServer,
-más ConnectServer en `full_chain`) y la ejercita con un cliente que habla el
-protocolo binario auténtico, cifrado incluido.
+# End-to-end tests
 
-## Requisitos
+Each test brings up the real stack (PostgreSQL + JoinServer + DataServer + GameServer, plus
+ConnectServer in `full_chain`) and exercises it with a client that speaks the authentic binary
+protocol, encryption included.
 
-* **PostgreSQL** instalado (cualquier versión reciente; probado con 16.14).
-  En Windows: `winget install PostgreSQL.PostgreSQL.16`.
-* **SDK de .NET 10**.
-* El paquete original completo al lado del repo: `MuClient/Data/` (claves de
-  cifrado) y `MuServer99B/Data/` (mapas, monstruos, items, eventos).
+## Requirements
 
-No hace falta configurar nada más. `_env.py` descubre PostgreSQL y `dotnet`
-solos, resuelve las rutas del repo desde su propia ubicación, y compila los
-proyectos que el test necesita antes de usarlos.
+* **PostgreSQL** installed (any recent version; tested with 16.14).
+  On Windows: `winget install PostgreSQL.PostgreSQL.16`.
+* **.NET 10 SDK**.
+* The complete original package next to the repo: `MuClient/Data/` (encryption keys) and
+  `MuServer99B/Data/` (maps, monsters, items, events).
 
-## Correrlos
+Nothing else needs configuring. `_env.py` discovers PostgreSQL and `dotnet` on its own, resolves the
+repo paths from its own location, and builds the projects the test needs before using them.
+
+## Running them
 
 ```bash
 python tests/gameserver_fase4_e2e_test.py
 ```
 
-Salen 0 si pasan y 1 si falla alguna aserción. Los `[OK]`/`[FALLO]` del cliente
-van a stdout, y al final se vuelca el log de cada servidor.
+They exit 0 if they pass and 1 if any assertion fails. The client's `[OK]`/`[FALLO]` (failure)
+lines go to stdout, and the log of each server is dumped at the end.
 
-## Aislamiento
+## Isolation
 
-Los tests **no tocan** una instalación de PostgreSQL existente ni necesitan sus
-credenciales: cada corrida hace `initdb` de un cluster desechable en el
-directorio temporal, lo levanta en un puerto libre con autenticación `trust` en
-loopback, y lo apaga al terminar. Los puertos de los cuatro servidores también se
-reservan dinámicamente, así que dos corridas seguidas no se pisan aunque una
-haya dejado un proceso colgado.
+The tests **do not touch** an existing PostgreSQL installation nor need its credentials: each run
+does an `initdb` of a disposable cluster in the temp directory, starts it on a free port with
+`trust` authentication on loopback, and shuts it down at the end. The ports of the four servers are
+also reserved dynamically, so two consecutive runs do not step on each other even if one left a
+process hanging.
 
-## Estado conocido
+## Known state
 
-`full_chain` y `fase1` pasan enteros. El resto llega lejos (16-36 aserciones en
-verde, incluida toda la parte de protocolo) y falla en **un** punto, siempre el
-mismo: la secuencia de combate del `WorldTestClient`.
+`full_chain` and `fase1` pass completely. The rest get far (16–36 assertions green, including all of
+the protocol part) and fail at **one** point, always the same one: the `WorldTestClient` combat
+sequence.
 
-La causa está diagnosticada y **no es de protocolo**: el monstruo de prueba
-contraataca y Hero1, con los 60 HP de un personaje recién creado, se muere en
-algún punto del recorrido; a partir de ahí no puede seguir atacando y el test
-espera un paquete que no va a llegar. Subirle la vida por fixture no alcanza
-(`RecalcCombatStats` recalcula `MaxLife` desde `Vitality` al entrar al mundo) y
-subirle `Vitality` desbalancea el resto (con 100 sube a nivel 26 de una sola
-muerte y rompe otros pasos). Es balance del servidor, no del test.
+The cause is diagnosed and **is not a protocol issue**: the test monster counter-attacks and Hero1,
+with the 60 HP of a freshly created character, dies at some point along the run; from then on it can
+no longer attack and the test waits for a packet that will never arrive. Raising its life through the
+fixture is not enough (`RecalcCombatStats` recomputes `MaxLife` from `Vitality` on entering the
+world) and raising `Vitality` unbalances the rest (with 100 it jumps to level 26 from a single kill
+and breaks other steps). It is server balance, not a test problem.
 
-Al arreglar la detección de muerte se destapó esto: antes el bucle daba por
-muerto al monstruo con solo ver un `0x17`, sin mirar **qué índice** murió. Como
-el servidor usa el mismo head para avisar que murió un jugador, el test cantaba
-`[OK] Mató al monstruo` cuando en realidad se había muerto el personaje y el
-monstruo estaba intacto. Ahora compara el índice y falla de verdad cuando el
-combate no sale.
+Fixing the death detection uncovered this: previously the loop considered the monster dead just by
+seeing a `0x17`, without looking at **which index** died. Since the server uses the same head to
+announce that a player died, the test reported `[OK] Killed the monster` when in reality the
+character had died and the monster was untouched. Now it compares the index and genuinely fails when
+the combat does not work out.
 
-## Notas de fixture que importan
+## Fixture notes that matter
 
-* **El monstruo de prueba tiene que ser el único.** El bloque de ataque del
-  `WorldTestClient` es compartido, no está gateado por argumentos, y ataca el
-  índice 0 dando por sentado que es el monstruo de prueba. El GameServer publica
-  sus 29 archivos de spawn reales en su propio `Data/`, y entre ellos está
-  `000 - Lorencia.txt`, que ordena antes que cualquier `000 - Test.txt`. Por eso
-  `seed_test_monster()` vacía el directorio de spawns antes de escribir el suyo.
-* **La salida de compilación se despliega primero y el fixture encima.** Al
-  revés, el `Data/` del GameServer pisa en silencio los archivos recortados que
-  el test acaba de escribir.
-* **Los servidores necesitan un stdin abierto.** Los tres corren un bucle
-  `Console.ReadLine()` para sus comandos de consola y terminan cuando devuelve
-  null. Heredar un stdin ya cerrado los mata apenas arrancan, justo después de
-  loguear que están listos: parece un problema de red y no lo es.
-* **`MaxConnectionPerIP` es obligatorio en `ConnectServer.ini`.**
-  `IpConnectionTracker.CheckIpAddress` rechaza la primera conexión de una IP
-  cuando el límite es 0 (compatibilidad con el original), así que sin esa clave
-  el ConnectServer acepta el socket y lo corta enseguida.
+* **The test monster has to be the only one.** The `WorldTestClient` attack block is shared, not
+  gated by arguments, and attacks index 0 assuming it is the test monster. The GameServer publishes
+  its 29 real spawn files in its own `Data/`, and among them is `000 - Lorencia.txt`, which sorts
+  before any `000 - Test.txt`. That is why `seed_test_monster()` empties the spawns directory before
+  writing its own.
+* **The build output is deployed first and the fixture on top.** The other way round, the
+  GameServer's `Data/` silently overwrites the trimmed files the test has just written.
+* **The servers need an open stdin.** All three run a `Console.ReadLine()` loop for their console
+  commands and terminate when it returns null. Inheriting an already-closed stdin kills them right
+  after they log that they are ready: it looks like a network problem and is not.
+* **`MaxConnectionPerIP` is mandatory in `ConnectServer.ini`.**
+  `IpConnectionTracker.CheckIpAddress` rejects the first connection from an IP when the limit is 0
+  (compatibility with the original), so without that key the ConnectServer accepts the socket and
+  drops it immediately.

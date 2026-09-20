@@ -139,7 +139,7 @@ TEST_CASE("El dinero del trade y del baul viaja en big-endian")
     REQUIRE(Mu099B::TradeMoneyRequest::Length == 7);
     CHECK(trade.Data[0] == 0xC1);
     CHECK(trade.Data[1] == 7);
-    CHECK(trade.Data[2] == 0x3A);  // PMSG_TRADE_MONEY_RECV::kHead -- ver docs/protocolo-099b.md
+    CHECK(trade.Data[2] == 0x3A);  // PMSG_TRADE_MONEY_RECV::kHead -- ver docs/protocol-099b.md
     CHECK(trade.Data[3] == 0x01);
     CHECK(trade.Data[4] == 0x02);
     CHECK(trade.Data[5] == 0x03);

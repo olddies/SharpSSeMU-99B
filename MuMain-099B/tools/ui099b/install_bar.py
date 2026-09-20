@@ -20,7 +20,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 DESTINO = REPO / "src" / "bin" / "Data" / "Interface"
-ORIGEN = REPO.parent.parent / "MuClient" / "Data" / "Interface"
+ORIGEN = REPO.parent / "MuClient" / "Data" / "Interface"
 
 # 0.99B -> el nombre con el que MuMain pide la textura. Los nombres no
 # coinciden entre versiones, pero el rol de cada pieza sí.

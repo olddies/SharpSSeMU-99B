@@ -13,9 +13,9 @@
 > It is part of the monorepo described in the [root README](../README.md);
 > start with the [getting-started guide](../docs/GETTING_STARTED.md) and the
 > [build guide](../docs/BUILDING.md).
-> Protocol port details (Spanish): [`docs/protocolo-099b.md`](docs/protocolo-099b.md).
-> The user interface still looks like Season 6 and is where help is most needed
-> (Spanish): [`docs/ui-099b.md`](docs/ui-099b.md).
+> Protocol port details: [`docs/protocol-099b.md`](docs/protocol-099b.md).
+> The user interface still looks like Season 6 and is where help is most needed;
+> see [`docs/ui-099b.md`](docs/ui-099b.md).
 > No game assets are included; see the root [`NOTICE.md`](../NOTICE.md).
 
 ---

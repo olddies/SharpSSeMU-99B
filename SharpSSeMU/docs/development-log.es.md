@@ -1,3 +1,5 @@
+🌐 [English](development-log.md) · **Español**
+
 > **Registro de desarrollo (en español).** Este documento es el diario cronológico del servidor:
 > qué se portó en cada fase y los bugs reales que se encontraron probando. Es histórico y muy detallado;
 > algunas secciones describen un estado ya superado. Para la guía actual (inglés) ver
@@ -1301,7 +1303,7 @@ exactamente como si el jugador hubiera confirmado combinar.
 
 Ningún cliente de este repo dispara hoy ese camino — `MuMain` no manda `0x88` todavía, su ventana de
 combinar es la de otra temporada y no está conectada a ningún archivo de 0.99B (ver la nota en
-`docs/protocolo-099b.md` de MuMain) — pero el bug es real e independiente de eso: cualquier cliente
+`docs/protocolo-099b.es.md` de MuMain) — pero el bug es real e independiente de eso: cualquier cliente
 0.99B que sí pregunte antes de combinar, que es el flujo normal, habría perdido los items y el zen
 sin haber aceptado nada.
 
@@ -1387,7 +1389,7 @@ Con eso arreglado la ventana abre, sincroniza lo que ya había en la caja, y ref
 arrastrados — pero el botón de combinar sigue sin funcionar: hace falta decidir qué tipo de mezcla
 corresponde al contenido de la caja (en el 0.99B real esto lo elegía el jugador con una pestaña,
 información que no está en ninguna fuente disponible acá) y pedir la tasa por `0x88` antes de
-confirmar. Esa pieza queda pendiente, documentada en `docs/protocolo-099b.md` de MuMain, porque
+confirmar. Esa pieza queda pendiente, documentada en `docs/protocolo-099b.es.md` de MuMain, porque
 necesita probarse contra el cliente real corriendo.
 
 ### Los monstruos de área se teletransportaban todos a la esquina de su rectángulo
@@ -1523,7 +1525,7 @@ que está enchufado para 0.99B) copiaba las stats nuevas pero nunca disparaba el
 sonido — el receptor del dialecto posterior si lo hace (`CreateJoint(BITMAP_FLARE, ...)` x15 + un
 `BITMAP_MAGIC`, o x20 si la clase ya es de segunda evolución, más `SOUND_LEVEL_UP`), pero no está
 conectado para 0.99B. Se portó el mismo bloque al final de `ReceiveLevelUp099B`. Detalle completo en
-[`protocolo-099b.md`](../../MuMain-099B/docs/protocolo-099b.md).
+[`protocolo-099b.es.md`](../../MuMain-099B/docs/protocolo-099b.es.md).
 
 ### MuMain — recoger items del piso se trababa después del primer intento
 
@@ -1532,7 +1534,7 @@ objetos) se podía levantar. `ReceiveGetItem099B` nunca reseteaba la bandera `Se
 mandar un pedido de recoger mientras se espera la respuesta del anterior — el propio código ya tenía
 un comentario prediciendo el bug (`WSclient.cpp:428`). Se portó el reset que sí tenía el receptor
 viejo, agregado a las cuatro salidas de la versión 099B. Detalle completo en
-[`protocolo-099b.md`](../../MuMain-099B/docs/protocolo-099b.md).
+[`protocolo-099b.es.md`](../../MuMain-099B/docs/protocolo-099b.es.md).
 
 ### GameServer — `AccountLevel` (VIP) se calculaba bien en JoinServer y se tiraba en GameServer
 

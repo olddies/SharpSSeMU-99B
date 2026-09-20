@@ -25,7 +25,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 LOCAL = REPO / "src" / "bin" / "Data" / "Local"
-DATOS = (REPO.parent.parent / "SharpSSeMU" / "src" / "MuServer.GameServer"
+DATOS = (REPO.parent / "SharpSSeMU" / "src" / "MuServer.GameServer"
          / "bin" / "Debug" / "net10.0" / "Data")
 LISTA = DATOS / "Monster" / "MonsterList.txt"
 SPAWNS = DATOS / "Monster" / "Spawn"
