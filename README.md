@@ -140,7 +140,7 @@ systems in [`docs/STATUS.md`](docs/STATUS.md), and real-client testing reports. 
 This is an independent, non-commercial fan/educational project. It is **not affiliated with or
 endorsed by Webzen** or the SSeMU authors, and it ships **no game assets**. "MU Online" belongs to
 its respective owners. Read [`NOTICE.md`](NOTICE.md) before redistributing anything, and note that
-**no open-source license has been chosen yet** (see the *License* section of that file).
+the original code is **MIT-licensed** ([`LICENSE`](LICENSE)); upstream-derived and third-party parts are excluded (see the *License* section of that file).
 
 ## Credits
 

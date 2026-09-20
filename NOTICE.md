@@ -51,19 +51,21 @@ include game assets or extracted proprietary data will not be accepted.
 
 ## License
 
-**No open-source license has been selected for the original code in this repository yet.** Until
-a `LICENSE` file is added by the maintainer, default copyright applies: you may view and fork the
-repository on GitHub, but you have no explicit permission to redistribute or reuse the code.
+The **original code and documentation** of this repository are released under the **MIT License** (see
+[`LICENSE`](LICENSE)). That covers `SharpSSeMU/` (server, AdminPanel, tests, tools, configuration files written
+for this project) and our own additions to the client.
 
-Choosing a license is not trivial here, because two parts are derivative works whose terms this
-project does not control:
+The MIT license does **not** extend to material this project does not own:
 
-1. `SharpSSeMU` is derived from the SSeMU emulator;
-2. `MuMain-099B` is a fork of an upstream client whose licensing you should check at the source.
+1. `MuMain-099B/` is a fork of [sven-n/MuMain](https://github.com/sven-n/MuMain), which publishes **no license**
+   (checked on GitHub). Its upstream-derived files keep whatever rights their authors hold; only our own additions
+   (the 0.99B network layer, `Protocol099B`, tests, tools) are MIT. If you need to reuse the upstream-derived client
+   code, ask its authors.
+2. SSeMU is a commercial product of SetecSoft Development (all rights reserved). Nothing of it is redistributed here;
+   `SharpSSeMU` is an independent re-implementation of the protocol and behaviour.
+3. "MU Online", its assets and data belong to Webzen Inc. and are not included.
 
-The maintainer should confirm the terms of those upstream works before picking a license (for the
-parts that are wholly original — e.g. the AdminPanel, the protocol generator, the tests and the
-documentation — a permissive license such as MIT or Apache-2.0 would be the usual choice).
+Not legal advice.
 
 ---
 
@@ -84,8 +86,8 @@ documentation — a permissive license such as MIT or Apache-2.0 would be the us
   fueron escritos para este proyecto (nombres de ajuste y valores por defecto, con agrupación y
   cabeceras propias); no se incluye texto ni diseño del paquete SSeMU, que es un producto comercial
   de SetecSoft Development (todos los derechos reservados) y no se redistribuye.
-- **Licencia:** **todavía no se eligió ninguna licencia open source** para el código original. Hasta
-  que el mantenedor agregue un archivo `LICENSE`, rige el copyright por defecto. Como `SharpSSeMU` y
-  `MuMain-099B` derivan de obras cuyos términos este proyecto no controla, conviene confirmarlos en
-  origen antes de elegir (para lo 100 % original — AdminPanel, generador de protocolo, tests,
-  documentación — lo habitual sería MIT o Apache-2.0).
+- **Licencia:** el **código y la documentación originales** de este repositorio se publican bajo la **licencia MIT**
+  (ver [`LICENSE`](LICENSE)): `SharpSSeMU/` (servidor, AdminPanel, tests, herramientas y archivos de configuración
+  escritos para este proyecto) y nuestras propias adiciones al cliente. La MIT **no** cubre lo que no es nuestro:
+  las partes de `MuMain-099B` derivadas de sven-n/MuMain (que no publica licencia), SSeMU (producto comercial de
+  SetecSoft Development, no se redistribuye) ni nada de Webzen / MU Online. No es asesoramiento legal.

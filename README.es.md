@@ -138,7 +138,7 @@ cliente real. Leé antes [`CONTRIBUTING.md`](CONTRIBUTING.md).
 Proyecto independiente, sin fines de lucro, de aficionados y educativo. **No está afiliado ni
 respaldado por Webzen** ni por los autores de SSeMU, y **no incluye assets del juego**. "MU Online"
 pertenece a sus respectivos dueños. Leé [`NOTICE.md`](NOTICE.md) antes de redistribuir algo, y tené
-en cuenta que **todavía no se eligió una licencia open source** (ver la sección *License* de ese archivo).
+en cuenta que el código original es **MIT** ([`LICENSE`](LICENSE)); las partes derivadas de terceros quedan excluidas (ver la sección *License* de ese archivo).
 
 ## Créditos
 
