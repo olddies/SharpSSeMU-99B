@@ -4,17 +4,14 @@
 @inject GameDataPaths DataPaths
 @inject ISnackbar Snackbar
 
-<PageTitle>Monstruos</PageTitle>
+<PageTitle>@L["Monsters"]</PageTitle>
 
-<MudText Typo="Typo.h4" Class="mb-1">Monstruos</MudText>
+<MudText Typo="Typo.h4" Class="mb-1">@L["Monsters"]</MudText>
 <MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">
-    Data/Monster/MonsterList.txt -- las estadísticas de cada tipo de monstruo. Esto define <b>qué es</b>
-    cada monstruo, no dónde aparece: los spawns viven en Data/Monster/Spawn/*.txt y no se editan acá.
+    @L["Data/Monster/MonsterList.txt -- the statistics of each monster type. This defines"] <b>@L["what"]</b> @L["each monster is, not where it appears: spawns live in Data/Monster/Spawn/*.txt and are not edited here."]
 </MudText>
 <MudAlert Severity="Severity.Info" Class="mb-4" Dense="true">
-    Los valores de vida/defensa/daño que ves acá son los del archivo; el GameServer les aplica encima
-    los multiplicadores globales de <b>Configuración → Monster Settings</b> (MonsterMaxLifeRate,
-    MonsterPhysiDamageRate, etc.) al instanciar cada monstruo.
+    @L["The life/defense/damage values you see here are the file's; the GameServer applies on top of them the global multipliers of"] <b>@L["Configuration"] → Monster Settings</b> @L["(MonsterMaxLifeRate, MonsterPhysiDamageRate, etc.) when instantiating each monster."]
 </MudAlert>
 
 @if (_rows is null)
@@ -28,31 +25,31 @@ else
                      Bordered="false" Dense="true" FixedHeader="true" Height="65vh"
                      Filterable="true" SortMode="SortMode.Multiple" QuickFilter="@QuickFilter">
             <ToolBarContent>
-                <MudTextField T="string" @bind-Value="_search" Placeholder="Buscar por nombre o índice"
+                <MudTextField T="string" @bind-Value="_search" Placeholder="@L["Search by name or index"]"
                               Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
                               Immediate="true" Clearable="true" Margin="Margin.Dense" Class="mt-0" />
             </ToolBarContent>
             <Columns>
-                <PropertyColumn Property="x => x.Index" Title="Índice" Editable="false" />
-                <PropertyColumn Property="x => x.Name" Title="Nombre" />
-                <PropertyColumn Property="x => x.Level" Title="Nivel" />
-                <PropertyColumn Property="x => x.MaxLife" Title="Vida" />
-                <PropertyColumn Property="x => x.MaxMana" Title="Maná" />
-                <PropertyColumn Property="x => x.DamageMin" Title="Daño mín." />
-                <PropertyColumn Property="x => x.DamageMax" Title="Daño máx." />
-                <PropertyColumn Property="x => x.Defense" Title="Defensa" />
-                <PropertyColumn Property="x => x.MagicDefense" Title="Def. mágica" />
-                <PropertyColumn Property="x => x.AttackRate" Title="Acierto" />
-                <PropertyColumn Property="x => x.DefenseRate" Title="Evasión" />
-                <PropertyColumn Property="x => x.MoveRange" Title="Rango mov." />
-                <PropertyColumn Property="x => x.AttackRange" Title="Rango atq." />
-                <PropertyColumn Property="x => x.ViewRange" Title="Visión" />
-                <PropertyColumn Property="x => x.MoveSpeed" Title="Vel. mov." />
-                <PropertyColumn Property="x => x.AttackSpeed" Title="Vel. atq." />
-                <PropertyColumn Property="x => x.RegenTime" Title="Respawn" />
-                <PropertyColumn Property="x => x.ItemRate" Title="% item" />
-                <PropertyColumn Property="x => x.MoneyRate" Title="% zen" />
-                <PropertyColumn Property="x => x.MaxItemLevel" Title="Nivel máx. item" />
+                <PropertyColumn Property="x => x.Index" Title="@L["Index"]" Editable="false" />
+                <PropertyColumn Property="x => x.Name" Title="@L["Name"]" />
+                <PropertyColumn Property="x => x.Level" Title="@L["Level"]" />
+                <PropertyColumn Property="x => x.MaxLife" Title="@L["Life"]" />
+                <PropertyColumn Property="x => x.MaxMana" Title="@L["Mana"]" />
+                <PropertyColumn Property="x => x.DamageMin" Title="@L["Min. damage"]" />
+                <PropertyColumn Property="x => x.DamageMax" Title="@L["Max. damage"]" />
+                <PropertyColumn Property="x => x.Defense" Title="@L["Defense"]" />
+                <PropertyColumn Property="x => x.MagicDefense" Title="@L["Magic def."]" />
+                <PropertyColumn Property="x => x.AttackRate" Title="@L["Hit rate"]" />
+                <PropertyColumn Property="x => x.DefenseRate" Title="@L["Dodge"]" />
+                <PropertyColumn Property="x => x.MoveRange" Title="@L["Move range"]" />
+                <PropertyColumn Property="x => x.AttackRange" Title="@L["Attack range"]" />
+                <PropertyColumn Property="x => x.ViewRange" Title="@L["View"]" />
+                <PropertyColumn Property="x => x.MoveSpeed" Title="@L["Move speed"]" />
+                <PropertyColumn Property="x => x.AttackSpeed" Title="@L["Attack speed"]" />
+                <PropertyColumn Property="x => x.RegenTime" Title="@L["Respawn"]" />
+                <PropertyColumn Property="x => x.ItemRate" Title="@L["% item"]" />
+                <PropertyColumn Property="x => x.MoneyRate" Title="@L["% zen"]" />
+                <PropertyColumn Property="x => x.MaxItemLevel" Title="@L["Max. item level"]" />
             </Columns>
         </MudDataGrid>
     </MudPaper>
@@ -60,14 +57,14 @@ else
     <div class="d-flex gap-2 mt-4">
         <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
                    OnClick="Save" Disabled="@_saving">
-            Guardar en MonsterList.txt
+            @L["Save to MonsterList.txt"]
         </MudButton>
         <MudButton Variant="Variant.Outlined" OnClick="ReloadAsync" Disabled="@_saving">
-            Descartar cambios
+            @L["Discard changes"]
         </MudButton>
     </div>
     <MudText Typo="Typo.caption" Class="mud-text-secondary mt-2">
-        Se guarda un respaldo (MonsterList.txt.bak) la primera vez que grabás en esta sesión.
+        @L.F("A backup ({0}) is saved the first time you save in this session.", "MonsterList.txt.bak")
     </MudText>
 }
 
@@ -116,11 +113,11 @@ else
             }
 
             MonsterFileRepository.Save(Path, _header, _rows);
-            Snackbar.Add($"Guardado: {_rows.Count} monstruos.", Severity.Success);
+            Snackbar.Add(L.F("Saved: {0} monsters.", _rows.Count), Severity.Success);
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"No se pudo guardar: {ex.Message}", Severity.Error);
+            Snackbar.Add(L.F("Could not save: {0}", ex.Message), Severity.Error);
         }
         finally
         {

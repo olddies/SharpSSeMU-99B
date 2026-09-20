@@ -142,7 +142,7 @@ public sealed class ItemValueTable
             Count++;
         }
 
-        Log.Add(LogColor.Green, "[ItemValueTable] {0} precios explicitos cargados", Count);
+        Log.Add(LogColor.Green, "[ItemValueTable] {0} explicit prices loaded", Count);
         return Count;
     }
 }

@@ -122,7 +122,7 @@ public sealed class MonsterInfoTable
             loaded++;
         }
 
-        Log.Add(LogColor.Blue, "[MonsterInfoTable] {0} tipos de monstruo cargados desde {1}", loaded, path);
+        Log.Add(LogColor.Blue, "[MonsterInfoTable] {0} monster types loaded from {1}", loaded, path);
         return loaded;
     }
 

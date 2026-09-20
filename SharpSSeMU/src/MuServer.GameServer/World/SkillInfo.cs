@@ -115,7 +115,7 @@ public sealed class SkillInfoTable
             };
         }
 
-        Log.Add(LogColor.Blue, "[SkillInfoTable] {0} skills cargados desde {1}", _byIndex.Count, path);
+        Log.Add(LogColor.Blue, "[SkillInfoTable] {0} skills loaded from {1}", _byIndex.Count, path);
         return _byIndex.Count;
     }
 }
@@ -158,7 +158,7 @@ public sealed class SkillDamageTable
             _rateByIndex[index] = rate;
         }
 
-        Log.Add(LogColor.Blue, "[SkillDamageTable] {0} entrada(s) cargadas desde {1}", _rateByIndex.Count, path);
+        Log.Add(LogColor.Blue, "[SkillDamageTable] {0} entry(ies) loaded from {1}", _rateByIndex.Count, path);
         return _rateByIndex.Count;
     }
 

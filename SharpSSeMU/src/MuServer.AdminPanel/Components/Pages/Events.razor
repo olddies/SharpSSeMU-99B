@@ -4,26 +4,23 @@
 @inject GameDataPaths DataPaths
 @inject ISnackbar Snackbar
 
-<PageTitle>Eventos</PageTitle>
+<PageTitle>@L["Events"]</PageTitle>
 
-<MudText Typo="Typo.h4" Class="mb-1">Eventos</MudText>
+<MudText Typo="Typo.h4" Class="mb-1">@L["Events"]</MudText>
 <MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">
-    Data/Event/*.dat -- horarios, duraciones y recompensas de Devil Square, Blood Castle, Chaos Castle,
-    Kalima, invasiones y bonus. Cada archivo trae varias tablas numeradas; los nombres de columna que
-    ves salen de los comentarios del propio archivo.
+    @L["Data/Event/*.dat -- schedules, durations and rewards of Devil Square, Blood Castle, Chaos Castle, Kalima, invasions and bonuses. Each file carries several numbered tables; the column names you see come from the file's own comments."]
 </MudText>
 <MudAlert Severity="Severity.Warning" Class="mb-4" Dense="true">
-    Ojo: de estos eventos el servidor sólo tiene portados <b>Devil Square</b> y <b>Blood Castle</b>. Los
-    demás archivos se editan y se guardan bien, pero todavía no hay sistema de juego atrás que los use.
+    @L["Note: of these events the server only has"] <b>Devil Square</b> @L["and"] <b>Blood Castle</b> @L["ported. The other files edit and save fine, but no game system uses them yet."]
 </MudAlert>
 
 @if (_files.Count == 0)
 {
-    <MudAlert Severity="Severity.Warning">No se encontró la carpeta Data/Event.</MudAlert>
+    <MudAlert Severity="Severity.Warning">@L["The Data/Event folder was not found."]</MudAlert>
 }
 else
 {
-    <MudSelect T="string" Value="_selectedFile" ValueChanged="OnFileChanged" Label="Archivo"
+    <MudSelect T="string" Value="_selectedFile" ValueChanged="OnFileChanged" Label="@L["File"]"
                Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Style="max-width: 420px;">
         @foreach (var file in _files)
         {
@@ -42,13 +39,13 @@ else
             <MudPaper Class="pa-3 mb-4" Elevation="0">
                 <div class="d-flex align-center gap-2 mb-3">
                     <MudText Typo="Typo.subtitle1">@SectionTitle(section)</MudText>
-                    <MudChip T="string" Size="Size.Small" Class="ma-0">@section.Rows.Count fila(s)</MudChip>
+                    <MudChip T="string" Size="Size.Small" Class="ma-0">@L.F("{0} row(s)", section.Rows.Count)</MudChip>
                 </div>
 
                 @if (section.ColumnTitles.Length == 0)
                 {
                     <MudAlert Severity="Severity.Info" Dense="true">
-                        No se pudieron deducir los nombres de columna de esta sección; se deja tal cual está en el archivo.
+                        @L["The column names of this section could not be deduced; it is left exactly as in the file."]
                     </MudAlert>
                 }
                 else
@@ -88,7 +85,7 @@ else
 
                     <MudButton Variant="Variant.Outlined" Size="Size.Small" StartIcon="@Icons.Material.Filled.Add"
                                Class="mt-2" OnClick="@(() => AddRow(section))">
-                        Agregar fila
+                        @L["Add row"]
                     </MudButton>
                 }
             </MudPaper>
@@ -97,10 +94,10 @@ else
         <div class="d-flex gap-2 mt-2 mb-8">
             <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
                        OnClick="Save" Disabled="@_saving">
-                Guardar @_selectedFile
+                @L.F("Save {0}", _selectedFile)
             </MudButton>
             <MudButton Variant="Variant.Outlined" OnClick="@(() => LoadFile(_selectedFile))" Disabled="@_saving">
-                Descartar cambios
+                @L["Discard changes"]
             </MudButton>
         </div>
     }
@@ -128,12 +125,12 @@ else
         }
     }
 
-    /// <summary>Le pone un nombre legible a la sección usando su primera columna, que en estos
-    /// archivos casi siempre dice de qué se trata la tabla.</summary>
-    private static string SectionTitle(TableSection section) =>
+    /// <summary>Gives the section a readable name using its first column, which in these
+    /// files almost always says what the table is about.</summary>
+    private string SectionTitle(TableSection section) =>
         section.ColumnTitles.Length > 0
-            ? $"Sección {section.Number} -- {string.Join(", ", section.ColumnTitles.Take(3))}…"
-            : $"Sección {section.Number}";
+            ? L.F("Section {0} -- {1}…", section.Number, string.Join(", ", section.ColumnTitles.Take(3)))
+            : L.F("Section {0}", section.Number);
 
     private void OnFileChanged(string file)
     {
@@ -177,11 +174,11 @@ else
             }
 
             SectionedTableRepository.Save(path, _header, _sections);
-            Snackbar.Add($"Guardado: {_sections.Sum(s => s.Rows.Count)} fila(s) en {_selectedFile}.", Severity.Success);
+            Snackbar.Add(L.F("Saved: {0} row(s) in {1}.", _sections.Sum(s => s.Rows.Count), _selectedFile), Severity.Success);
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"No se pudo guardar: {ex.Message}", Severity.Error);
+            Snackbar.Add(L.F("Could not save: {0}", ex.Message), Severity.Error);
         }
         finally
         {

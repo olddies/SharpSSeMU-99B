@@ -114,9 +114,9 @@ dotnet MuServer.DataServer.dll
 dotnet MuServer.GameServer.dll
 ```
 
-A healthy start-up makes the GameServer log (in Spanish) how many maps, monster types, spawned
+A healthy start-up makes the GameServer log how many maps, monster types, spawned
 monsters (~2 900), items, skills and NPC shops it loaded, and finish with
-`GameServer listo … en el puerto TCP 55900`.
+`GameServer ready on TCP port 55900`.
 
 | Server | Port | Role |
 |---|---|---|
@@ -221,3 +221,17 @@ ConnectServerPort = 55557
 | Inventory/stat edits reverted | The character was online; the GameServer autosave overwrote them. |
 
 Server logs are printed to each console and written to a `LOG/` folder beside each binary.
+
+## Language (English / Spanish)
+
+English is the primary language of the server logs and the AdminPanel; Spanish is a full second language.
+
+- **Server logs** — set `Language = en` (default) or `Language = es` in each server's `.ini`
+  (`[ConnectServerInfo]`, `[JoinServerInfo]`, `[DataServerInfo]`, `[GameServerInfo]`), or override it for the
+  process with the `MUSERVER_LANG` environment variable. The same setting translates the few notices the
+  GameServer sends to players.
+- **AdminPanel** — use the `EN | ES` switcher in the top bar. The choice is stored in a cookie; the first visit
+  follows the browser's `Accept-Language`.
+- **Adding a translation** — English text is the lookup key. Spanish lives in
+  `SharpSSeMU/src/MuServer.Shared/Localization/es/*.json` (`logs.json`, `messages.json`, `admin.json`). A missing
+  entry simply falls back to English.

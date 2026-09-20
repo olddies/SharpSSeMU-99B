@@ -32,14 +32,14 @@ public sealed class MoveTable
     {
         if (!File.Exists(path))
         {
-            Log.Add(LogColor.Red, "[MoveTable] Archivo no encontrado: {0}", path);
+            Log.Add(LogColor.Red, "[MoveTable] File not found: {0}", path);
             return;
         }
 
         var script = new MemScript();
         if (!script.SetBuffer(path))
         {
-            Log.Add(LogColor.Red, "[MoveTable] Error leyendo: {0}", script.GetLastError());
+            Log.Add(LogColor.Red, "[MoveTable] Read error: {0}", script.GetLastError());
             return;
         }
 
@@ -84,6 +84,6 @@ public sealed class MoveTable
             _byName[name] = entry;
         }
 
-        Log.Add(LogColor.Blue, "[MoveTable] Cargar {0} definición(es) de teletransporte desde {1}", _byIndex.Count, path);
+        Log.Add(LogColor.Blue, "[MoveTable] Loaded {0} warp definition(s) from {1}", _byIndex.Count, path);
     }
 }

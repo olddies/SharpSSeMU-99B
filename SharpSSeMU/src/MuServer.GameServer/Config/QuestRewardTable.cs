@@ -77,7 +77,7 @@ public sealed class QuestRewardTable
                 newOption, requireIndex, requireState, requireClass));
         }
 
-        Log.Add(LogColor.Blue, "[QuestRewardTable] {0} entradas cargadas desde {1}", entries.Count, path);
+        Log.Add(LogColor.Blue, "[QuestRewardTable] {0} entries loaded from {1}", entries.Count, path);
         return new QuestRewardTable(entries);
     }
 

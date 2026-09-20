@@ -2,7 +2,7 @@
 
 <MudDialog>
     <DialogContent>
-        <MudTextField T="string" @bind-Value="_search" Label="Buscar por nombre o índice" Variant="Variant.Outlined"
+        <MudTextField T="string" @bind-Value="_search" Label="@L["Search by name or index"]" Variant="Variant.Outlined"
                       Immediate="true" AutoFocus="true" Margin="Margin.Dense" Class="mb-2"
                       Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" />
 
@@ -20,16 +20,16 @@
 
         @if (!Filtered.Any())
         {
-            <MudText Typo="Typo.body2" Class="pa-2 mud-text-secondary">Sin resultados para "@_search".</MudText>
+            <MudText Typo="Typo.body2" Class="pa-2 mud-text-secondary">@L.F("No results for \"{0}\".", _search)</MudText>
         }
         else if (Filtered.Count() >= ResultLimit)
         {
-            <MudText Typo="Typo.caption" Class="pa-2 mud-text-secondary">Mostrando los primeros @ResultLimit -- afiná la búsqueda.</MudText>
+            <MudText Typo="Typo.caption" Class="pa-2 mud-text-secondary">@L.F("Showing the first {0} -- refine the search.", ResultLimit)</MudText>
         }
     </DialogContent>
     <DialogActions>
-        <MudButton OnClick="ClearSlot" Color="Color.Error">Vaciar slot</MudButton>
-        <MudButton OnClick="Cancel">Cancelar</MudButton>
+        <MudButton OnClick="ClearSlot" Color="Color.Error">@L["Empty slot"]</MudButton>
+        <MudButton OnClick="Cancel">@L["Cancel"]</MudButton>
     </DialogActions>
 </MudDialog>
 

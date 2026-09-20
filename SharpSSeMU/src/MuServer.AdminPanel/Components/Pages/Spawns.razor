@@ -4,21 +4,20 @@
 @inject GameDataPaths DataPaths
 @inject ISnackbar Snackbar
 
-<PageTitle>Spawns</PageTitle>
+<PageTitle>@L["Spawns"]</PageTitle>
 
-<MudText Typo="Typo.h4" Class="mb-1">Spawns de monstruos</MudText>
+<MudText Typo="Typo.h4" Class="mb-1">@L["Monster spawns"]</MudText>
 <MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">
-    Data/Monster/Spawn/*.txt -- dónde aparece cada monstruo, un archivo por mapa. Las estadísticas de
-    cada monstruo (vida, daño) se editan en <b>Monstruos</b>; acá sólo se define dónde y cuántos.
+    @L["Data/Monster/Spawn/*.txt -- where each monster appears, one file per map. Each monster's stats (life, damage) are edited in"] <b>@L["Monsters"]</b>@L["; here you only define where and how many."]
 </MudText>
 
 @if (_files.Count == 0)
 {
-    <MudAlert Severity="Severity.Warning">No se encontró la carpeta Data/Monster/Spawn.</MudAlert>
+    <MudAlert Severity="Severity.Warning">@L["The Data/Monster/Spawn folder was not found."]</MudAlert>
 }
 else
 {
-    <MudSelect T="string" Value="_selectedFile" ValueChanged="OnFileChanged" Label="Mapa"
+    <MudSelect T="string" Value="_selectedFile" ValueChanged="OnFileChanged" Label="@L["Map"]"
                Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Style="max-width: 420px;">
         @foreach (var file in _files)
         {
@@ -37,7 +36,7 @@ else
             <MudPaper Class="pa-3 mb-4" Elevation="0">
                 <div class="d-flex align-center gap-2 mb-2">
                     <MudText Typo="Typo.subtitle1">@BlockTitle(block.SpawnType)</MudText>
-                    <MudChip T="string" Size="Size.Small" Class="ma-0">@block.Rows.Count fila(s)</MudChip>
+                    <MudChip T="string" Size="Size.Small" Class="ma-0">@L.F("{0} row(s)", block.Rows.Count)</MudChip>
                 </div>
                 <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mb-2">@BlockHelp(block.SpawnType)</MudText>
 
@@ -45,17 +44,17 @@ else
                              Bordered="false" Dense="true" FixedHeader="true" Height="@GridHeight(block)"
                              SortMode="SortMode.Multiple">
                     <Columns>
-                        <PropertyColumn Property="x => x.MonsterClass" Title="Monstruo" />
-                        <TemplateColumn Title="Nombre" Editable="false" Sortable="false">
+                        <PropertyColumn Property="x => x.MonsterClass" Title="@L["Monster"]" />
+                        <TemplateColumn Title="@L["Name"]" Editable="false" Sortable="false">
                             <CellTemplate>@MonsterName(context.Item.MonsterClass)</CellTemplate>
                         </TemplateColumn>
-                        <PropertyColumn Property="x => x.Distance" Title="Radio" />
+                        <PropertyColumn Property="x => x.Distance" Title="@L["Radius"]" />
                         <PropertyColumn Property="x => x.X" Title="X" />
                         <PropertyColumn Property="x => x.Y" Title="Y" />
                         <PropertyColumn Property="x => x.X2" Title="X2" Hidden="@(!block.IsArea)" />
                         <PropertyColumn Property="x => x.Y2" Title="Y2" Hidden="@(!block.IsArea)" />
-                        <PropertyColumn Property="x => x.Count" Title="Cantidad" Hidden="@(!block.IsArea)" />
-                        <PropertyColumn Property="x => x.Direction" Title="Dirección" />
+                        <PropertyColumn Property="x => x.Count" Title="@L["Count"]" Hidden="@(!block.IsArea)" />
+                        <PropertyColumn Property="x => x.Direction" Title="@L["Direction"]" />
                         <TemplateColumn Title="" Editable="false" Sortable="false">
                             <CellTemplate>
                                 <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
@@ -67,7 +66,7 @@ else
 
                 <MudButton Variant="Variant.Outlined" Size="Size.Small" StartIcon="@Icons.Material.Filled.Add"
                            Class="mt-2" OnClick="@(() => AddRow(block))">
-                    Agregar spawn
+                    @L["Add spawn"]
                 </MudButton>
             </MudPaper>
         }
@@ -75,10 +74,10 @@ else
         <div class="d-flex gap-2 mt-2 mb-8">
             <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
                        OnClick="Save" Disabled="@_saving">
-                Guardar @_selectedFile
+                @L.F("Save {0}", _selectedFile)
             </MudButton>
             <MudButton Variant="Variant.Outlined" OnClick="@(() => LoadFile(_selectedFile))" Disabled="@_saving">
-                Descartar cambios
+                @L["Discard changes"]
             </MudButton>
         </div>
     }
@@ -122,24 +121,24 @@ else
     }
 
     private string MonsterName(int monsterClass) =>
-        _monsterNames.TryGetValue(monsterClass, out var name) ? name : "(desconocido)";
+        _monsterNames.TryGetValue(monsterClass, out var name) ? name : L["(unknown)"];
 
-    private static string BlockTitle(int type) => type switch
+    private string BlockTitle(int type) => type switch
     {
-        0 => "Posición fija",
-        1 => "Área (con cantidad)",
-        2 => "Posición fija con desvío aleatorio",
-        4 => "Posiciones de evento",
-        _ => $"Tipo {type}",
+        0 => L["Fixed position"],
+        1 => L["Area (with count)"],
+        2 => L["Fixed position with random offset"],
+        4 => L["Event positions"],
+        _ => L.F("Type {0}", type),
     };
 
-    private static string BlockHelp(int type) => type switch
+    private string BlockHelp(int type) => type switch
     {
-        0 => "Un monstruo por fila, en la coordenada exacta.",
-        1 => "Reparte la cantidad indicada de monstruos dentro del rectángulo X,Y - X2,Y2.",
-        2 => "Como la posición fija, pero el servidor le suma un desvío al azar de ±3 al cargar.",
-        4 => "No aparecen al arrancar: son las posiciones candidatas que usan los eventos (Devil Square, Blood Castle) para poner sus monstruos.",
-        _ => "Tipo de bloque no reconocido por el servidor -- se conserva tal cual.",
+        0 => L["One monster per row, at the exact coordinate."],
+        1 => L["Spreads the given number of monsters inside the X,Y - X2,Y2 rectangle."],
+        2 => L["Like the fixed position, but the server adds a random offset of ±3 on load."],
+        4 => L["They do not appear at start-up: they are the candidate positions events (Devil Square, Blood Castle) use to place their monsters."],
+        _ => L["Block type not recognised by the server -- kept as is."],
     };
 
     private static string GridHeight(SpawnBlock block) => block.Rows.Count > 12 ? "45vh" : "";
@@ -184,11 +183,11 @@ else
             }
 
             SpawnFileRepository.Save(path, _header, _blocks);
-            Snackbar.Add($"Guardado: {_blocks.Sum(b => b.Rows.Count)} spawn(s) en {_selectedFile}.", Severity.Success);
+            Snackbar.Add(L.F("Saved: {0} spawn(s) in {1}.", _blocks.Sum(b => b.Rows.Count), _selectedFile), Severity.Success);
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"No se pudo guardar: {ex.Message}", Severity.Error);
+            Snackbar.Add(L.F("Could not save: {0}", ex.Message), Severity.Error);
         }
         finally
         {

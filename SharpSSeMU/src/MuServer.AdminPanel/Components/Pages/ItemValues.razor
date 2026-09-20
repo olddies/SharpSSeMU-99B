@@ -6,15 +6,12 @@
 
 <PageTitle>Precios</PageTitle>
 
-<MudText Typo="Typo.h4" Class="mb-1">Precios de items</MudText>
+<MudText Typo="Typo.h4" Class="mb-1">@L["Item prices"]</MudText>
 <MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">
-    Data/Item/ItemValue.txt -- precios explícitos que <b>pisan</b> la fórmula general de precios. Acá
-    están las joyas, entradas de evento y pociones de asedio: si un item no figura en esta lista, su
-    precio de tienda sale de la fórmula, no de acá.
+    @L["Data/Item/ItemValue.txt -- explicit prices that"] <b>@L["override"]</b> @L["the general price formula. Jewels, event tickets and siege potions are here: if an item is not in this list, its shop price comes from the formula, not from here."]
 </MudText>
 <MudAlert Severity="Severity.Info" Class="mb-4" Dense="true">
-    El precio de compra es este valor; el de venta al NPC es un tercio. "Nivel" y "Grado" en
-    <b>*</b> significan "cualquiera" -- así una misma fila cubre todos los +0..+15 del item.
+    @L["The buy price is this value; the sell price to the NPC is a third of it. \"Level\" and \"Grade\" set to"] <b>*</b> @L["mean \"any\" -- so a single row covers every +0..+15 of the item."]
 </MudAlert>
 
 @if (_rows is null)
@@ -28,17 +25,17 @@ else
                      Bordered="false" Dense="true" FixedHeader="true" Height="62vh"
                      SortMode="SortMode.Multiple" QuickFilter="@QuickFilter">
             <ToolBarContent>
-                <MudTextField T="string" @bind-Value="_search" Placeholder="Buscar por nombre"
+                <MudTextField T="string" @bind-Value="_search" Placeholder="@L["Search by name"]"
                               Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
                               Immediate="true" Clearable="true" Margin="Margin.Dense" Class="mt-0" />
             </ToolBarContent>
             <Columns>
-                <PropertyColumn Property="x => x.Section" Title="Sección" />
-                <PropertyColumn Property="x => x.Sub" Title="Índice" />
-                <TemplateColumn Title="Item" Editable="false" Sortable="false">
+                <PropertyColumn Property="x => x.Section" Title="@L["Section"]" />
+                <PropertyColumn Property="x => x.Sub" Title="@L["Index"]" />
+                <TemplateColumn Title="@L["Item"]" Editable="false" Sortable="false">
                     <CellTemplate>@ItemName(context.Item)</CellTemplate>
                 </TemplateColumn>
-                <TemplateColumn Title="Nivel" Sortable="false">
+                <TemplateColumn Title="@L["Level"]" Sortable="false">
                     <CellTemplate>@(context.Item.Level?.ToString() ?? "*")</CellTemplate>
                     <EditTemplate>
                         <MudTextField T="string" Value="@(context.Item.Level?.ToString() ?? "*")"
@@ -46,7 +43,7 @@ else
                                       Margin="Margin.Dense" />
                     </EditTemplate>
                 </TemplateColumn>
-                <TemplateColumn Title="Grado" Sortable="false">
+                <TemplateColumn Title="@L["Grade"]" Sortable="false">
                     <CellTemplate>@(context.Item.Grade?.ToString() ?? "*")</CellTemplate>
                     <EditTemplate>
                         <MudTextField T="string" Value="@(context.Item.Grade?.ToString() ?? "*")"
@@ -54,8 +51,8 @@ else
                                       Margin="Margin.Dense" />
                     </EditTemplate>
                 </TemplateColumn>
-                <PropertyColumn Property="x => x.MoneyValue" Title="Precio (zen)" Format="N0" />
-                <PropertyColumn Property="x => x.Comment" Title="Comentario" />
+                <PropertyColumn Property="x => x.MoneyValue" Title="@L["Price (zen)"]" Format="N0" />
+                <PropertyColumn Property="x => x.Comment" Title="@L["Comment"]" />
             </Columns>
         </MudDataGrid>
     </MudPaper>
@@ -63,13 +60,13 @@ else
     <div class="d-flex gap-2 mt-4">
         <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
                    OnClick="Save" Disabled="@_saving">
-            Guardar en ItemValue.txt
+            @L["Save to ItemValue.txt"]
         </MudButton>
         <MudButton Variant="Variant.Outlined" OnClick="Reload" Disabled="@_saving">
-            Descartar cambios
+            @L["Discard changes"]
         </MudButton>
         <MudText Typo="Typo.caption" Class="mud-text-secondary align-self-center">
-            @_rows.Count precio(s) definido(s)
+            @L.F("{0} price(s) defined", _rows.Count)
         </MudText>
     </div>
 }
@@ -109,7 +106,7 @@ else
     }
 
     private string ItemName(ItemValueRow row) =>
-        _itemNames.TryGetValue(row.Index, out var name) ? name : "(desconocido)";
+        _itemNames.TryGetValue(row.Index, out var name) ? name : L["(unknown)"];
 
     private static int? ParseOptional(string? value) =>
         string.IsNullOrWhiteSpace(value) || value.Trim() == "*" ? null
@@ -143,11 +140,11 @@ else
             }
 
             ItemValueFileRepository.Save(Path, _header, _rows);
-            Snackbar.Add($"Guardado: {_rows.Count} precios.", Severity.Success);
+            Snackbar.Add(L.F("Saved: {0} prices.", _rows.Count), Severity.Success);
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"No se pudo guardar: {ex.Message}", Severity.Error);
+            Snackbar.Add(L.F("Could not save: {0}", ex.Message), Severity.Error);
         }
         finally
         {

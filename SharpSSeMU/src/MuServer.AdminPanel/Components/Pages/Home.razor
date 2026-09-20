@@ -3,57 +3,52 @@
 @inject ServerStatusRepository StatusRepository
 @implements IDisposable
 
-<PageTitle>Panel -- SSeMU 0.99B</PageTitle>
+<PageTitle>@L["Dashboard -- SSeMU 0.99B"]</PageTitle>
 
-<MudText Typo="Typo.h4" Class="mb-4">Panel</MudText>
+<MudText Typo="Typo.h4" Class="mb-4">@L["Dashboard"]</MudText>
 
 <MudGrid>
     <MudItem xs="12" sm="4">
         <MudPaper Class="pa-4" Elevation="0" Style="border:1px solid var(--mud-palette-lines-default)">
-            <MudText Typo="Typo.overline" Class="mud-text-secondary">Estado</MudText>
+            <MudText Typo="Typo.overline" Class="mud-text-secondary">@L["Status"]</MudText>
             @if (_status is null)
             {
-                <MudText Typo="Typo.h6" Color="Color.Default">Sin conexión</MudText>
-                <MudText Typo="Typo.body2" Class="mud-text-secondary">No se encontró Data/status.json -- ¿está corriendo el GameServer?</MudText>
+                <MudText Typo="Typo.h6" Color="Color.Default">@L["Offline"]</MudText>
+                <MudText Typo="Typo.body2" Class="mud-text-secondary">@L["Data/status.json not found -- is the GameServer running?"]</MudText>
             }
             else if (_status.IsStale)
             {
-                <MudText Typo="Typo.h6" Color="Color.Warning">Sin actualizar</MudText>
-                <MudText Typo="Typo.body2" Class="mud-text-secondary">Última señal hace @((int)(DateTime.UtcNow - _status.UpdatedAtUtc).TotalSeconds)s</MudText>
+                <MudText Typo="Typo.h6" Color="Color.Warning">@L["Not updating"]</MudText>
+                <MudText Typo="Typo.body2" Class="mud-text-secondary">@L.F("Last signal {0}s ago", (int)(DateTime.UtcNow - _status.UpdatedAtUtc).TotalSeconds)</MudText>
             }
             else
             {
-                <MudText Typo="Typo.h6" Color="Color.Success">@_status.ServerName -- en línea</MudText>
-                <MudText Typo="Typo.body2" Class="mud-text-secondary">Activo hace @FormatUptime(_status.Uptime)</MudText>
+                <MudText Typo="Typo.h6" Color="Color.Success">@L.F("{0} -- online", _status.ServerName)</MudText>
+                <MudText Typo="Typo.body2" Class="mud-text-secondary">@L.F("Up for {0}", FormatUptime(_status.Uptime))</MudText>
             }
         </MudPaper>
     </MudItem>
 
     <MudItem xs="12" sm="4">
         <MudPaper Class="pa-4" Elevation="0" Style="border:1px solid var(--mud-palette-lines-default)">
-            <MudText Typo="Typo.overline" Class="mud-text-secondary">Jugadores conectados</MudText>
+            <MudText Typo="Typo.overline" Class="mud-text-secondary">@L["Connected players"]</MudText>
             <MudText Typo="Typo.h4">@(_status?.PlayerCount.ToString() ?? "--") <MudText Typo="Typo.body2" Class="mud-text-secondary" Style="display:inline">/ @(_status?.MaxPlayers.ToString() ?? "--")</MudText></MudText>
         </MudPaper>
     </MudItem>
 
     <MudItem xs="12" sm="4">
         <MudPaper Class="pa-4" Elevation="0" Style="border:1px solid var(--mud-palette-lines-default)">
-            <MudText Typo="Typo.overline" Class="mud-text-secondary">Actualizado</MudText>
+            <MudText Typo="Typo.overline" Class="mud-text-secondary">@L["Updated"]</MudText>
             <MudText Typo="Typo.h6">@(_status is null ? "--" : _status.UpdatedAtUtc.ToLocalTime().ToString("HH:mm:ss"))</MudText>
         </MudPaper>
     </MudItem>
 </MudGrid>
 
 <MudText Typo="Typo.body2" Class="mud-text-secondary mt-6">
-    Todo lo que se edita acá se lee y se escribe directo sobre los archivos reales de Data/, sin capa
-    de base de datos intermedia: lo que ves es lo que hay en el archivo, y lo que guardás es lo que el
-    GameServer va a leer. Los comentarios y el formato de cada archivo se conservan intactos, y se deja
-    un .bak la primera vez que grabás.
+    @L["Everything edited here is read from and written straight to the real files in Data/, with no intermediate database layer: what you see is what is in the file, and what you save is what the GameServer will read. Each file's comments and formatting are preserved intact, and a .bak is left the first time you save."]
 </MudText>
 <MudText Typo="Typo.body2" Class="mud-text-secondary mt-2">
-    <b>Ojo:</b> el GameServer lee esos archivos una sola vez, al arrancar -- los cambios de
-    configuración recién aplican cuando lo reinicias. Lo único que actúa sobre el servidor en vivo son
-    "Cuentas conectadas" (lectura) y "Mensaje global" (llega en un par de segundos).
+    <b>@L["Note:"]</b> @L["The GameServer reads those files only once, at start-up -- configuration changes only apply when you restart it. The only things that act on the live server are \"Connected accounts\" (read-only) and \"Global message\" (arrives within a couple of seconds)."]
 </MudText>
 
 @code {

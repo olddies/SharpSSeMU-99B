@@ -4,6 +4,7 @@ using MuServer.GameServer.Config;
 using MuServer.GameServer.Net;
 using MuServer.GameServer.World;
 using MuServer.Shared.Crypto;
+using MuServer.Shared.Localization;
 using MuServer.Shared.Logging;
 using MuServer.Shared.Protocol;
 
@@ -407,13 +408,13 @@ public sealed class ClientProtocolHandler
                     break;
 
                 default:
-                    Log.Add(LogColor.Black, "[Protocol][{0}] Head 0x{1:X2} no implementado todavía (fuera del alcance de esta fase)", session.Index, head);
+                    Log.Add(LogColor.Black, "[Protocol][{0}] Head 0x{1:X2} not implemented yet (out of scope for this phase)", session.Index, head);
                     break;
             }
         }
         catch (Exception ex)
         {
-            Log.Add(LogColor.Red, "[Protocol][{0}] Error procesando head 0x{1:X2}: {2}", session.Index, head, ex);
+            Log.Add(LogColor.Red, "[Protocol][{0}] Error processing head 0x{1:X2}: {2}", session.Index, head, ex);
         }
     }
 
@@ -492,7 +493,7 @@ public sealed class ClientProtocolHandler
                 break;
 
             default:
-                Log.Add(LogColor.Black, "[Protocol][{0}] Head 0xF3:0x{1:X2} no implementado todavía", session.Index, subCode);
+                Log.Add(LogColor.Black, "[Protocol][{0}] Head 0xF3:0x{1:X2} not implemented yet", session.Index, subCode);
                 break;
         }
     }
@@ -674,7 +675,7 @@ public sealed class ClientProtocolHandler
 
         await session.SendAsync(ClientPacketBuilder.CharacterListSend(msg.MoveCnt, characters), ct);
 
-        Log.Add(LogColor.Blue, "[Protocol][{0}] Lista de personajes enviada ({1} personaje(s))", msg.Index, characters.Count);
+        Log.Add(LogColor.Blue, "[Protocol][{0}] Character list sent ({1} character(s))", msg.Index, characters.Count);
     }
 
     /// <summary>Puerto de CGCharacterCreateRecv (Protocol.cpp:2095-2153) -- pide a DataServer crear
@@ -719,7 +720,7 @@ public sealed class ClientProtocolHandler
         await session.SendAsync(
             ClientPacketBuilder.CharacterCreateSend(msg.Result, msg.Name, msg.Slot, msg.Level, clientClass, msg.Equipment), ct);
 
-        Log.Add(LogColor.Blue, "[Protocol][{0}] Crear personaje '{1}' -> result={2}", msg.Index, msg.Name, msg.Result);
+        Log.Add(LogColor.Blue, "[Protocol][{0}] Create character '{1}' -> result={2}", msg.Index, msg.Name, msg.Result);
     }
 
     /// <summary>Puerto de CConnectionManager::CGHardwareIdRecv (ConnectionManager.cpp:132-162) --
@@ -773,7 +774,7 @@ public sealed class ClientProtocolHandler
 
         if (msg.Result == 0)
         {
-            Log.Add(LogColor.Red, "[Protocol][{0}] DataServer no encontró el personaje '{1}'", msg.Index, msg.Name);
+            Log.Add(LogColor.Red, "[Protocol][{0}] DataServer did not find the character '{1}'", msg.Index, msg.Name);
             return;
         }
 
@@ -845,7 +846,7 @@ public sealed class ClientProtocolHandler
 
         if (!_maps.IsValidMap(player.Map))
         {
-            Log.Add(LogColor.Red, "[Protocol][{0}] Personaje '{1}' tenía mapa inválido {2}, reseteando a Lorencia (0, 125, 125)",
+            Log.Add(LogColor.Red, "[Protocol][{0}] Character '{1}' had an invalid map {2}, resetting to Lorencia (0, 125, 125)",
                 session.Index, player.Name, player.Map);
             player.Map = 0;
             player.X = 125;
@@ -865,7 +866,7 @@ public sealed class ClientProtocolHandler
         {
             player.IsDying = true;
             player.DiedAt = DateTime.UtcNow;
-            Log.Add(LogColor.Green, "[Protocol][{0}] '{1}' entró con 0 de vida -- se revive en el punto de reaparición",
+            Log.Add(LogColor.Green, "[Protocol][{0}] '{1}' entered with 0 life -- reviving at the respawn point",
                 session.Index, player.Name);
         }
 
@@ -901,7 +902,7 @@ public sealed class ClientProtocolHandler
         await _dataServer.SendAsync(
             DataServerCharacterPacketBuilder.ConnectCharacter((ushort)session.Index, session.Account, player.Name), ct);
 
-        Log.Add(LogColor.Blue, "[Protocol][{0}] '{1}' entró al mundo (Map={2} X={3} Y={4})",
+        Log.Add(LogColor.Blue, "[Protocol][{0}] '{1}' entered the world (Map={2} X={3} Y={4})",
             session.Index, player.Name, player.Map, player.X, player.Y);
     }
 
@@ -1190,13 +1191,13 @@ public sealed class ClientProtocolHandler
         {
             if (player.Level < move.MinLevel)
             {
-                await session.SendAsync(ChatPacketBuilder.NoticeSend($"Nivel requerido: {move.MinLevel}"), ct);
+                await session.SendAsync(ChatPacketBuilder.NoticeSend(Loc.F("Required level: {0}", move.MinLevel)), ct);
                 return;
             }
 
             if (player.Money < move.RequireMoney)
             {
-                await session.SendAsync(ChatPacketBuilder.NoticeSend($"Zen requerido: {move.RequireMoney}"), ct);
+                await session.SendAsync(ChatPacketBuilder.NoticeSend(Loc.F("Required zen: {0}", move.RequireMoney)), ct);
                 return;
             }
 
@@ -1999,7 +2000,7 @@ public sealed class ClientProtocolHandler
             // Verificar si el jugador ya conoce el skill
             if (player.HasSkill(skillId))
             {
-                await session.SendAsync(ChatPacketBuilder.NoticeSend("Ya has aprendido esta habilidad."), ct);
+                await session.SendAsync(ChatPacketBuilder.NoticeSend(Loc.T("You have already learned this skill.")), ct);
                 return;
             }
 
@@ -2012,7 +2013,7 @@ public sealed class ClientProtocolHandler
                     player.Energy < skillInfo.RequireEnergy ||
                     player.Leadership < skillInfo.RequireLeadership)
                 {
-                    await session.SendAsync(ChatPacketBuilder.NoticeSend("No cumples los requisitos para aprender esta habilidad."), ct);
+                    await session.SendAsync(ChatPacketBuilder.NoticeSend(Loc.T("You do not meet the requirements to learn this skill.")), ct);
                     return;
                 }
             }
@@ -2027,7 +2028,7 @@ public sealed class ClientProtocolHandler
                 // Notificar al cliente la adición de la habilidad en la barra
                 await session.SendAsync(SkillPacketBuilder.SkillAddSend((byte)learnedSlot, (ushort)skillId, item.Level), ct);
                 await SaveCharacterAsync(player, ct);
-                Log.Add(LogColor.Blue, "[Skill][{0}] '{1}' aprendió la habilidad #{2} (slot {3}) desde ítem ({4},{5})",
+                Log.Add(LogColor.Blue, "[Skill][{0}] '{1}' learned skill #{2} (slot {3}) from item ({4},{5})",
                     player.Index, player.Name, skillId, learnedSlot, section, sub);
             }
             return;
@@ -2404,13 +2405,13 @@ public sealed class ClientProtocolHandler
 
         if (!_monsters.TryGet(recv.NpcIndex, out var npc))
         {
-            Log.Add(LogColor.Red, "[Quest][{0}] OnNpcTalk: NpcIndex={1} no encontrado en _monsters (registro/viewport desincronizado?)", player.Name, recv.NpcIndex);
+            Log.Add(LogColor.Red, "[Quest][{0}] OnNpcTalk: NpcIndex={1} not found in _monsters (registry/viewport out of sync?)", player.Name, recv.NpcIndex);
             return;
         }
 
         if (npc.Map != player.Map)
         {
-            Log.Add(LogColor.Red, "[Quest][{0}] OnNpcTalk: NPC clase={1} mapa={2} != mapa del jugador={3}", player.Name, npc.MonsterClass, npc.Map, player.Map);
+            Log.Add(LogColor.Red, "[Quest][{0}] OnNpcTalk: NPC class={1} map={2} != player map={3}", player.Name, npc.MonsterClass, npc.Map, player.Map);
             return;
         }
 
@@ -2425,7 +2426,7 @@ public sealed class ClientProtocolHandler
         // devuelve null -> NpcTalk devuelve false -> sigue al switch de casos especiales de abajo, y si
         var questMatch = _quests.NpcTalk(npc.MonsterClass, player.Quest!, player.Level, player.Class, player.ChangeUp);
 
-        Log.Add(LogColor.Blue, "[Quest][{0}] OnNpcTalk: npc.Class={1} nivel={2} clase={3} changeUp={4} => questMatch={5}",
+        Log.Add(LogColor.Blue, "[Quest][{0}] OnNpcTalk: npc.Class={1} level={2} class={3} changeUp={4} => questMatch={5}",
             player.Name, npc.MonsterClass, player.Level, player.Class, player.ChangeUp,
             questMatch == null ? "null" : $"index={questMatch.Index} state={questMatch.CurrentState}");
 
@@ -2491,7 +2492,7 @@ public sealed class ClientProtocolHandler
             // en la Chaos Box, para no poder tener el mismo ítem "en dos lados" a la vez.
             if (player.ChaosBoxItems.Any(i => i.IsItem()))
             {
-                await session.SendAsync(ChatPacketBuilder.NoticeSend("Sacá primero los ítems de la Chaos Machine."), ct);
+                await session.SendAsync(ChatPacketBuilder.NoticeSend(Loc.T("Take the items out of the Chaos Machine first.")), ct);
                 return;
             }
 
@@ -3148,7 +3149,7 @@ public sealed class ClientProtocolHandler
 
         await session.SendAsync(CombatPacketBuilder.DamageSend(monster.Index, damage, 0, missFlag: false, monster.Life), ct);
 
-        Log.Add(LogColor.Black, "[Combat][{0}] '{1}' golpea a {2}(#{3}) por {4} (vida restante {5}/{6})",
+        Log.Add(LogColor.Black, "[Combat][{0}] '{1}' hits {2}(#{3}) for {4} (remaining life {5}/{6})",
             player.Index, player.Name, monster.Name, monster.Index, damage, monster.Life, monster.MaxLife);
 
         if (monster.Life > 0)
@@ -3327,7 +3328,7 @@ public sealed class ClientProtocolHandler
             }
         }
 
-        Log.Add(LogColor.Black, "[Skill][{0}] '{1}' castea '{2}' sobre {3}(#{4}) por {5} (maná {6}/{7}, vida restante {8}/{9})",
+        Log.Add(LogColor.Black, "[Skill][{0}] '{1}' casts '{2}' on {3}(#{4}) for {5} (mana {6}/{7}, remaining life {8}/{9})",
             player.Index, player.Name, skill.Name, monster.Name, monster.Index, damage, player.Mana, player.MaxMana, monster.Life, monster.MaxLife);
 
         if (monster.Life > 0)
@@ -3544,7 +3545,7 @@ public sealed class ClientProtocolHandler
             }
         }
 
-        Log.Add(LogColor.Blue, "[Combat][{0}] '{1}' mató a {2}(#{3}) -- respawn en {4}ms", killer.Index, killer.Name, monster.Name, monster.Index, monster.MaxRegenMillis + 1000);
+        Log.Add(LogColor.Blue, "[Combat][{0}] '{1}' killed {2}(#{3}) -- respawn in {4}ms", killer.Index, killer.Name, monster.Name, monster.Index, monster.MaxRegenMillis + 1000);
 
         await TryDropLootAsync(killer, monster, viewers, ct);
 
@@ -3975,7 +3976,7 @@ public sealed class ClientProtocolHandler
 
         await member.Session.SendAsync(CombatPacketBuilder.LevelUpSend(member), ct);
 
-        Log.Add(LogColor.Blue, "[Combat][{0}] '{1}' subió a nivel {2} (Puntos: {3})", member.Index, member.Name, member.Level, member.LevelUpPoint);
+        Log.Add(LogColor.Blue, "[Combat][{0}] '{1}' reached level {2} (Points: {3})", member.Index, member.Name, member.Level, member.LevelUpPoint);
 
         member.CharSaveTime = DateTime.UtcNow;
         await SaveCharacterAsync(member, ct);
@@ -4123,13 +4124,13 @@ public sealed class ClientProtocolHandler
         {
             if (statType == 4 && player.Class != 4)
             {
-                await session.SendAsync(ChatPacketBuilder.NoticeSend("[Server] Solo Dark Lord puede agregar puntos a Comando."), ct);
+                await session.SendAsync(ChatPacketBuilder.NoticeSend(Loc.T("[Server] Only Dark Lord can add points to Command.")), ct);
                 return;
             }
 
             if (amount <= 0 || player.LevelUpPoint < amount)
             {
-                await session.SendAsync(ChatPacketBuilder.NoticeSend($"[Server] Puntos insuficientes. Tienes {player.LevelUpPoint} punto(s)."), ct);
+                await session.SendAsync(ChatPacketBuilder.NoticeSend(Loc.F("[Server] Not enough points. You have {0} point(s).", player.LevelUpPoint)), ct);
                 return;
             }
 
@@ -4148,8 +4149,8 @@ public sealed class ClientProtocolHandler
             await session.SendAsync(WorldPacketBuilder.NewCharacterInfoSend(player), ct);
             await SaveCharacterAsync(player, ct);
 
-            string statName = statType switch { 0 => "Fuerza", 1 => "Agilidad", 2 => "Vitalidad", 3 => "Energía", 4 => "Comando", _ => "" };
-            await session.SendAsync(ChatPacketBuilder.NoticeSend($"[Server] +{amount} agregados a {statName}. Puntos restantes: {player.LevelUpPoint}"), ct);
+            string statName = statType switch { 0 => Loc.T("Strength"), 1 => Loc.T("Agility"), 2 => Loc.T("Vitality"), 3 => Loc.T("Energy"), 4 => Loc.T("Command"), _ => "" };
+            await session.SendAsync(ChatPacketBuilder.NoticeSend(Loc.F("[Server] +{0} added to {1}. Remaining points: {2}", amount, statName, player.LevelUpPoint)), ct);
             return;
         }
 
@@ -4157,7 +4158,7 @@ public sealed class ClientProtocolHandler
         {
             player.Money = 10_000_000u;
             await session.SendEncryptedAsync(ItemPacketBuilder.MoneySend(player.Money), ct);
-            await session.SendAsync(ChatPacketBuilder.NoticeSend("[Server] Te has otorgado 10,000,000 Zen."), ct);
+            await session.SendAsync(ChatPacketBuilder.NoticeSend(Loc.T("[Server] You have granted yourself 10,000,000 Zen.")), ct);
             return;
         }
 
@@ -4179,11 +4180,11 @@ public sealed class ClientProtocolHandler
                 player.SetItem(slot, newItem);
                 await session.SendEncryptedAsync(ItemPacketBuilder.ItemMoveSend(0, (byte)slot, newItem), ct);
                 await SaveCharacterAsync(player, ct);
-                await session.SendAsync(ChatPacketBuilder.NoticeSend($"[Server] Ítem #{targetItemIndex} agregado a tu inventario."), ct);
+                await session.SendAsync(ChatPacketBuilder.NoticeSend(Loc.F("[Server] Item #{0} added to your inventory.", targetItemIndex)), ct);
             }
             else
             {
-                await session.SendAsync(ChatPacketBuilder.NoticeSend("[Server] Inventario lleno."), ct);
+                await session.SendAsync(ChatPacketBuilder.NoticeSend(Loc.T("[Server] Inventory full.")), ct);
             }
             return;
         }
@@ -4212,13 +4213,13 @@ public sealed class ClientProtocolHandler
 
                     if (player.Level < move.MinLevel)
                     {
-                        await session.SendAsync(ChatPacketBuilder.NoticeSend($"Nivel requerido: {move.MinLevel}"), ct);
+                        await session.SendAsync(ChatPacketBuilder.NoticeSend(Loc.F("Required level: {0}", move.MinLevel)), ct);
                         return;
                     }
 
                     if (player.Money < move.RequireMoney)
                     {
-                        await session.SendAsync(ChatPacketBuilder.NoticeSend($"Zen requerido: {move.RequireMoney}"), ct);
+                        await session.SendAsync(ChatPacketBuilder.NoticeSend(Loc.F("Required zen: {0}", move.RequireMoney)), ct);
                         return;
                     }
 
@@ -4243,7 +4244,7 @@ public sealed class ClientProtocolHandler
             }
         }
 
-        await session.SendAsync(ChatPacketBuilder.NoticeSend($"[Server] Comando '/{cmd}' no reconocido."), ct);
+        await session.SendAsync(ChatPacketBuilder.NoticeSend(Loc.F("[Server] Command '/{0}' not recognised.", cmd)), ct);
     }
 
     /// <summary>
@@ -4298,7 +4299,7 @@ public sealed class ClientProtocolHandler
             // Destinatario no encontrado en ningún GameServer -- el original manda un notice code
             // (270 vía GCServerMsgSend); ese sistema de notificaciones cortas no está portado
             // todavía, así que por ahora el remitente solo nota que no le llegó respuesta.
-            Log.Add(LogColor.Black, "[Chat][{0}] Whisper de '{1}' a '{2}' -- destinatario no encontrado",
+            Log.Add(LogColor.Black, "[Chat][{0}] Whisper from '{1}' to '{2}' -- recipient not found",
                 sender.Index, sender.Name, msg.TargetName);
         }
 
@@ -4431,7 +4432,7 @@ public sealed class ClientProtocolHandler
 
         await BroadcastPartyListAsync(group, ct);
 
-        Log.Add(LogColor.Blue, "[Party][{0}] '{1}' se unió al grupo de '{2}' (grupo #{3}, {4} miembro(s))",
+        Log.Add(LogColor.Blue, "[Party][{0}] '{1}' joined the party of '{2}' (party #{3}, {4} member(s))",
             invitee.Index, invitee.Name, inviter.Name, group.Id, group.MemberIndices.Count);
     }
 
@@ -4922,7 +4923,7 @@ public sealed class ClientProtocolHandler
 
         if (player.Level < 100)
         {
-            await session.SendAsync(ChatPacketBuilder.NoticeSend("Requieres Nivel 100 para crear un Guild."), ct);
+            await session.SendAsync(ChatPacketBuilder.NoticeSend(Loc.T("You need level 100 to create a Guild.")), ct);
             return;
         }
 
@@ -4972,7 +4973,7 @@ public sealed class ClientProtocolHandler
 
         // C1:56:01 -- Éxito al crear Guild
         await session.SendAsync(PacketBuilder.BuildC1(0x56, new byte[] { 1 }), ct);
-        await session.SendAsync(ChatPacketBuilder.NoticeSend($"¡Guild [{guildName}] creado exitosamente!"), ct);
+        await session.SendAsync(ChatPacketBuilder.NoticeSend(Loc.F("Guild [{0}] created successfully!", guildName)), ct);
 
         await OnGuildListAsync(session, ct);
     }
@@ -5036,7 +5037,7 @@ public sealed class ClientProtocolHandler
 
         if (info == null)
         {
-            Log.Add(LogColor.Red, "[Quest][{0}] OnQuestState: GetInfoByIndex fue NULL for questIndex={1} curState={2}!", player.Name, questIndex, curState);
+            Log.Add(LogColor.Red, "[Quest][{0}] OnQuestState: GetInfoByIndex was NULL for questIndex={1} curState={2}!", player.Name, questIndex, curState);
             return;
         }
 
@@ -5044,7 +5045,7 @@ public sealed class ClientProtocolHandler
 
         if (!CheckQuestObjective(player, info.Index))
         {
-            Log.Add(LogColor.Red, "[Quest][{0}] OnQuestState: CheckQuestObjective devolvio FALSE para questIndex={1}!", player.Name, info.Index);
+            Log.Add(LogColor.Red, "[Quest][{0}] OnQuestState: CheckQuestObjective returned FALSE for questIndex={1}!", player.Name, info.Index);
             await session.SendAsync(QuestPacketBuilder.QuestResultSend((byte)info.Index, 0xFF, QuestTable.GetQuestState(player.Quest!, info.Index)), ct);
             return;
         }
@@ -5232,7 +5233,7 @@ public sealed class ClientProtocolHandler
                 await session.SendAsync(QuestPacketBuilder.QuestRewardSend(player.Index, (byte)info.Index, classByte, player.LevelUpPoint), ct);
                 await session.SendAsync(WorldPacketBuilder.NewCharacterCalcSend(player), ct);
                 await session.SendAsync(ItemPacketBuilder.ItemEquipmentSend(player), ct);
-                await session.SendAsync(ChatPacketBuilder.NoticeSend("¡Felicidades! Has evolucionado a la 2da Clase."), ct);
+                await session.SendAsync(ChatPacketBuilder.NoticeSend(Loc.T("Congratulations! You have evolved to the 2nd Class.")), ct);
                 continue;
             }
 

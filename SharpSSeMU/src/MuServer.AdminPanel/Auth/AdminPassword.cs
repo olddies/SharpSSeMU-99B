@@ -28,16 +28,16 @@ public sealed class AdminPassword
             IsGenerated = true;
 
             logger.LogWarning(
-                "No hay contraseña configurada para el panel. Se generó una para esta ejecución: {Password}\n" +
-                "Para fijar una permanente, poné \"Admin\": {{ \"Password\": \"loquesea\" }} en appsettings.json " +
-                "(o la variable de entorno Admin__Password).",
+                "No admin panel password is configured. One was generated for this run: {Password}\n" +
+                "To set a permanent one, put \"Admin\": {{ \"Password\": \"loquesea\" }} en appsettings.json " +
+                "(or the Admin__Password environment variable).",
                 configured);
         }
 
         _expected = Encoding.UTF8.GetBytes(configured);
     }
 
-    /// <summary>True si la contraseña es la generada al arrancar (sirve para avisarlo en el login).</summary>
+    /// <summary>True if the password is the one generated at start-up (used to warn about it on the login page).</summary>
     public bool IsGenerated { get; }
 
     public bool Matches(string? candidate)

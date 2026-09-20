@@ -1,3 +1,4 @@
+using MuServer.Shared.Localization;
 namespace MuServer.Shared.Crypto;
 
 /// <summary>
@@ -39,7 +40,7 @@ public sealed class GameClientFramer
     {
         if (_size + rawData.Length > _buffer.Length)
         {
-            throw new InvalidDataException("Buffer overflow: el cliente envió más datos de los permitidos sin completar un paquete válido.");
+            throw new InvalidDataException(Loc.T("Buffer overflow: the client sent more data than allowed without completing a valid packet."));
         }
 
         var dest = _buffer.AsSpan(_size, rawData.Length);
@@ -78,12 +79,12 @@ public sealed class GameClientFramer
             }
             else
             {
-                throw new InvalidDataException($"Cabecera de protocolo inválida: 0x{type:X2}");
+                throw new InvalidDataException(Loc.F("Invalid protocol header: 0x{0:X2}", type));
             }
 
             if (size < 3 || size > _buffer.Length)
             {
-                throw new InvalidDataException($"Tamaño de paquete inválido: {size}");
+                throw new InvalidDataException(Loc.F("Invalid packet size: {0}", size));
             }
 
             if (count + size > _size)
@@ -110,7 +111,7 @@ public sealed class GameClientFramer
 
                 if (plainWithSerial == null || plainWithSerial.Length < 1)
                 {
-                    throw new InvalidDataException("Checksum de bloque cifrado inválido (paquete corrupto o hack).");
+                    throw new InvalidDataException(Loc.T("Invalid encrypted-block checksum (corrupt packet or hack)."));
                 }
 
                 int serial = plainWithSerial[0];

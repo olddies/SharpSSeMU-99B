@@ -4,13 +4,11 @@
 @inject GameDataPaths DataPaths
 @inject ISnackbar Snackbar
 
-<PageTitle>Teletransportes</PageTitle>
+<PageTitle>@L["Warps"]</PageTitle>
 
-<MudText Typo="Typo.h4" Class="mb-1">Teletransportes</MudText>
+<MudText Typo="Typo.h4" Class="mb-1">@L["Warps"]</MudText>
 <MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">
-    Data/Move/Move.txt -- lo que el cliente muestra en la ventana de movimiento y lo que el
-    servidor de verdad acepta son el mismo archivo, así que un cambio acá aplica a los dos lados
-    sin desincronizarlos.
+    @L["Data/Move/Move.txt -- what the client shows in the move window and what the server really accepts are the same file, so a change here applies to both sides without desynchronising them."]
 </MudText>
 
 @if (_rows is null)
@@ -24,12 +22,12 @@ else
                      Bordered="false" Dense="true" FixedHeader="true" Height="70vh"
                      Filterable="true" SortMode="SortMode.Multiple">
             <Columns>
-                <PropertyColumn Property="x => x.Index" Title="Índice" Editable="false" />
-                <PropertyColumn Property="x => x.Name" Title="Nombre" />
+                <PropertyColumn Property="x => x.Index" Title="@L["Index"]" Editable="false" />
+                <PropertyColumn Property="x => x.Name" Title="@L["Name"]" />
                 <PropertyColumn Property="x => x.RequireMoney" Title="Zen" Format="N0" />
-                <PropertyColumn Property="x => x.MinLevel" Title="Nivel mín." />
-                <PropertyColumn Property="x => x.MaxLevel" Title="Nivel máx." />
-                <PropertyColumn Property="x => x.GateNumber" Title="Puerta" />
+                <PropertyColumn Property="x => x.MinLevel" Title="@L["Min. level"]" />
+                <PropertyColumn Property="x => x.MaxLevel" Title="@L["Max. level"]" />
+                <PropertyColumn Property="x => x.GateNumber" Title="@L["Gate"]" />
             </Columns>
         </MudDataGrid>
     </MudPaper>
@@ -37,14 +35,14 @@ else
     <div class="d-flex gap-2 mt-4">
         <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
                    OnClick="SaveAsync" Disabled="@_saving">
-            Guardar en Move.txt
+            @L["Save to Move.txt"]
         </MudButton>
         <MudButton Variant="Variant.Outlined" OnClick="ReloadAsync" Disabled="@_saving">
-            Descartar cambios
+            @L["Discard changes"]
         </MudButton>
     </div>
     <MudText Typo="Typo.caption" Class="mud-text-secondary mt-2">
-        Se guarda un respaldo (Move.txt.bak) la primera vez que grabás en esta sesión.
+        @L.F("A backup ({0}) is saved the first time you save in this session.", "Move.txt.bak")
     </MudText>
 }
 
@@ -88,11 +86,11 @@ else
             }
 
             MoveFileRepository.Save(path, _header, _rows);
-            Snackbar.Add($"Guardado: {_rows.Count} teletransportes.", Severity.Success);
+            Snackbar.Add(L.F("Saved: {0} warps.", _rows.Count), Severity.Success);
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"No se pudo guardar: {ex.Message}", Severity.Error);
+            Snackbar.Add(L.F("Could not save: {0}", ex.Message), Severity.Error);
         }
         finally
         {

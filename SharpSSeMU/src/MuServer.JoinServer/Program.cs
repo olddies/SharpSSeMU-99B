@@ -1,3 +1,5 @@
+using MuServer.Shared.Config;
+using MuServer.Shared.Localization;
 using MuServer.JoinServer.Config;
 using MuServer.JoinServer.Data;
 using MuServer.JoinServer.Db;
@@ -12,7 +14,9 @@ using MuServer.Shared.Logging;
 var baseDir = AppContext.BaseDirectory;
 Log.Configure(Path.Combine(baseDir, "LOG"));
 
-Log.Add(LogColor.Black, "SSeMU JoinServer (C# port) iniciando...");
+Loc.Configure(IniFile.Load(Path.Combine(baseDir, "JoinServer.ini")).GetString("JoinServerInfo", "Language", "en"));  // en | es
+
+Log.Add(LogColor.Black, "SSeMU JoinServer (C# port) starting...");
 
 var config = JoinServerConfig.Load(Path.Combine(baseDir, "JoinServer.ini"));
 
@@ -63,7 +67,7 @@ _ = Task.Run(async () =>
     }
 });
 
-Log.Add(LogColor.Blue, "JoinServer listo. TCP:{0} -> ConnectServer {1}:{2}. Comandos: 'reload allowlist' | 'exit'",
+Log.Add(LogColor.Blue, "JoinServer ready. TCP:{0} -> ConnectServer {1}:{2}. Commands: 'reload allowlist' | 'exit'",
     config.JoinServerPort, config.ConnectServerAddress, config.ConnectServerPort);
 
 while (!cts.Token.IsCancellationRequested)
@@ -75,7 +79,7 @@ while (!cts.Token.IsCancellationRequested)
         // Sin consola interactiva: no hay comandos que leer, pero el servidor sigue corriendo (mismo
         // bug que GameServer/Program.cs, portado igual -- antes esto mataba el proceso apenas
         // arrancaba en background/sin stdin real).
-        Log.Add(LogColor.Blue, "Sin consola interactiva: los comandos quedan deshabilitados, el servidor sigue corriendo.");
+        Log.Add(LogColor.Blue, "No interactive console: commands are disabled, the server keeps running.");
 
         try
         {

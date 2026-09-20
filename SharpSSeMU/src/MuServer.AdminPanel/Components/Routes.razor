@@ -1,9 +1,10 @@
 @using Microsoft.AspNetCore.Components.Authorization
+@inject Localizer L
 
 <Router AppAssembly="typeof(Program).Assembly" NotFoundPage="typeof(Pages.NotFound)">
     <Found Context="routeData">
-        @* AuthorizeRouteView + el [Authorize] global de _Imports dejan todo el panel detrás del login;
-           la página de login se exceptúa con [AllowAnonymous]. *@
+        @* AuthorizeRouteView + the global [Authorize] in _Imports keep the whole panel behind the login;
+           the login page is exempted with [AllowAnonymous]. *@
         <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)">
             <NotAuthorized>
                 <RedirectToLogin />
@@ -12,3 +13,10 @@
         <FocusOnNavigate RouteData="routeData" Selector="h1" />
     </Found>
 </Router>
+
+@code {
+    [Parameter]
+    public string Language { get; set; } = "en";
+
+    protected override void OnParametersSet() => L.Language = Language;
+}

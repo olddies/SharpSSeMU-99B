@@ -41,7 +41,7 @@ public sealed class BlackListStore
             }
         }
 
-        Log.Add(LogColor.Blue, "BlackList cargada: {0} IPs bloqueadas", _blocked.Count);
+        Log.Add(LogColor.Blue, "BlackList loaded: {0} blocked IPs", _blocked.Count);
     }
 
     /// <summary>true = permitido (no está en la lista negra), false = bloqueado.</summary>

@@ -1,4 +1,4 @@
-@inherits LayoutComponentBase
+﻿@inherits LayoutComponentBase
 
 <MudThemeProvider Theme="AdminTheme.Theme" IsDarkMode="true" />
 <MudPopoverProvider />
@@ -13,11 +13,12 @@
         </MudText>
         <MudSpacer />
         <ServerStatusBadge />
-        @* El logout es un POST normal por el mismo motivo que el login: la cookie se borra en la
-           respuesta HTTP, no desde el circuito de Blazor. *@
+        <span class="ml-3"><LanguageSwitcher /></span>
+        @* Logout is a normal POST for the same reason as login: the cookie is deleted on the HTTP
+           response, not from the Blazor circuit. *@
         <form method="post" action="/auth/logout" class="ml-3 d-flex">
             <AntiforgeryToken />
-            <MudTooltip Text="Salir">
+            <MudTooltip Text="@L["Sign out"]">
                 <MudIconButton Icon="@Icons.Material.Filled.Logout" Color="Color.Inherit"
                                ButtonType="ButtonType.Submit" />
             </MudTooltip>

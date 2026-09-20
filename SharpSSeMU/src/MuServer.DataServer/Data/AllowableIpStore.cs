@@ -51,7 +51,7 @@ public sealed class AllowableIpStore
             }
         }
 
-        Log.Add(LogColor.Blue, "AllowableIpList cargada: {0} IPs permitidas", _allowed.Count);
+        Log.Add(LogColor.Blue, "AllowableIpList loaded: {0} allowed IPs", _allowed.Count);
     }
 
     public bool IsAllowed(string ipAddress)

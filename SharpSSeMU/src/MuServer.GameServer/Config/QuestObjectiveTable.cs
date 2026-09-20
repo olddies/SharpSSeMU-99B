@@ -83,7 +83,7 @@ public sealed class QuestObjectiveTable
                 newOption, mapNumber, dropMinLevel, dropMaxLevel, itemDropRate, requireIndex, requireState, requireClass));
         }
 
-        Log.Add(LogColor.Blue, "[QuestObjectiveTable] {0} entradas cargadas desde {1}", entries.Count, path);
+        Log.Add(LogColor.Blue, "[QuestObjectiveTable] {0} entries loaded from {1}", entries.Count, path);
         return new QuestObjectiveTable(entries);
     }
 

@@ -75,13 +75,13 @@ public sealed class DataServerProtocolHandler
                 case 0xB0: await HandleFriendAsync(link, packet, ct); break;
 
                 default:
-                    Log.Add(LogColor.Green, "[DataServer] Head 0x{0:X2} no implementado todavía (Guild/Friend/Warehouse/Quest/CommandManager/CustomPick/GoldenArcher/etc.)", head);
+                    Log.Add(LogColor.Green, "[DataServer] Head 0x{0:X2} not implemented yet (Guild/Friend/Warehouse/Quest/CommandManager/CustomPick/GoldenArcher/etc.)", head);
                     break;
             }
         }
         catch (Exception ex)
         {
-            Log.Add(LogColor.Red, "[DataServer] Error procesando head 0x{0:X2}: {1}", head, ex);
+            Log.Add(LogColor.Red, "[DataServer] Error processing head 0x{0:X2}: {1}", head, ex);
         }
     }
 
@@ -99,7 +99,7 @@ public sealed class DataServerProtocolHandler
 
         await link.SendAsync(DataServerPacketBuilder.ServerInfoSend(1, (uint)itemCount), ct);
 
-        Log.Add(LogColor.Blue, "[DataServer] GameServer registrado: {0} ({1}:{2}) code={3}",
+        Log.Add(LogColor.Blue, "[DataServer] GameServer registered: {0} ({1}:{2}) code={3}",
             recv.ServerName, link.IpAddress, recv.ServerPort, recv.ServerCode);
     }
 
@@ -592,7 +592,7 @@ public sealed class DataServerProtocolHandler
             case 0x05: await OnFriendDeleteAsync(link, packet, ct); break;
 
             default:
-                Log.Add(LogColor.Green, "[DataServer] Head 0xB0:0x{0:X2} no manejado todavía (mail entre amigos, Fase 5)", subh);
+                Log.Add(LogColor.Green, "[DataServer] Head 0xB0:0x{0:X2} not handled yet (friend mail, Phase 5)", subh);
                 break;
         }
     }

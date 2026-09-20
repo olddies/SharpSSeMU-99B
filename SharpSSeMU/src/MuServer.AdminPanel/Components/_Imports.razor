@@ -11,6 +11,8 @@
 @using MuServer.AdminPanel.Components
 @using MuServer.AdminPanel.Components.Layout
 @using MudBlazor
+@using MuServer.Shared.Localization
+@inject MuServer.AdminPanel.Localizer L
 
-@* Todo el panel exige login; la página de /login se exceptúa con [AllowAnonymous]. *@
+@* The whole panel requires login; the /login page is exempted with [AllowAnonymous]. *@
 @attribute [Authorize]

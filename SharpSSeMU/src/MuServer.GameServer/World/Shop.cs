@@ -95,7 +95,7 @@ public sealed class ShopManagerTable
             _byNpcClass[npcClass] = shop;
         }
 
-        Log.Add(LogColor.Blue, "[ShopManagerTable] {0} tienda(s) cargadas desde {1}", _byNpcClass.Count, shopManagerPath);
+        Log.Add(LogColor.Blue, "[ShopManagerTable] {0} shop(s) loaded from {1}", _byNpcClass.Count, shopManagerPath);
         return _byNpcClass.Count;
     }
 

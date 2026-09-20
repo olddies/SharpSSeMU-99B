@@ -5,19 +5,19 @@
 @if (_status is null)
 {
     <MudChip T="string" Icon="@Icons.Material.Filled.CloudOff" Color="Color.Default" Size="Size.Small">
-        GameServer sin conexión
+        @L["GameServer offline"]
     </MudChip>
 }
 else if (_status.IsStale)
 {
     <MudChip T="string" Icon="@Icons.Material.Filled.WarningAmber" Color="Color.Warning" Size="Size.Small">
-        @_status.ServerName -- sin actualizar hace @((int)(DateTime.UtcNow - _status.UpdatedAtUtc).TotalSeconds)s
+        @L.F("{0} -- not updated for {1}s", _status.ServerName, (int)(DateTime.UtcNow - _status.UpdatedAtUtc).TotalSeconds)
     </MudChip>
 }
 else
 {
     <MudChip T="string" Icon="@Icons.Material.Filled.Circle" Color="Color.Success" Size="Size.Small">
-        @_status.ServerName -- @_status.PlayerCount / @_status.MaxPlayers jugadores
+        @L.F("{0} -- {1} / {2} players", _status.ServerName, _status.PlayerCount, _status.MaxPlayers)
     </MudChip>
 }
 

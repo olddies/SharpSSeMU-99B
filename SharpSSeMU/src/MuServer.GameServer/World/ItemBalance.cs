@@ -382,7 +382,7 @@ public sealed class ItemBalanceTable
             }
         }
 
-        Log.Add(LogColor.Blue, "[ItemBalanceTable] {0} items de balance cargados desde {1}", _byIndex.Count, path);
+        Log.Add(LogColor.Blue, "[ItemBalanceTable] {0} balance items loaded from {1}", _byIndex.Count, path);
         return _byIndex.Count;
     }
 

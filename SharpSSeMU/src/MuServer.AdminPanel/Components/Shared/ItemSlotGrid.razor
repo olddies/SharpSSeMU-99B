@@ -1,19 +1,19 @@
 @using MuServer.AdminPanel.Repositories
 
-@* Tabla HTML nativa en vez de MudDataGrid a propósito: un personaje tiene 108-120 slots, y
-   MudDataGrid en modo de edición por celda instancia un componente MudBlazor completo (con su
-   propio JS interop) por cada celda editable -- para 100+ filas x 8 columnas eso son varios
-   cientos de componentes vivos al mismo tiempo, y en la práctica se volvía tan pesado que el
-   circuito de Blazor Server se quedaba sin responder al SignalR keepalive y el panel entero se
-   colgaba en el "cargando" sin ningún error visible (el server terminaba de calcular todo, pero el
-   navegador nunca llegaba a aplicar el render). <input> nativos con @@bind no tienen ese costo.
+@* Native HTML table instead of MudDataGrid on purpose: a character has 108-120 slots, and
+   MudDataGrid in cell-edit mode instantiates a whole MudBlazor component (with its own JS
+   interop) per editable cell -- for 100+ rows x 8 columns that is several hundred live
+   components at once, and in practice it became so heavy that the Blazor Server circuit stopped
+   answering the SignalR keepalive and the whole panel hung on "loading" with no visible error
+   (the server finished computing everything, but the browser never got to apply the render).
+   Native <input>s with @@bind do not have that cost.
 
-   Por eso el botón de "buscar item" es un <button> nativo que llama a OnPickItem (un callback que le
-   pasa el padre) en vez de tener acá su propio <MudIconButton>/IDialogService/parámetro Catalog: quien
-   abre el diálogo de búsqueda es Characters.razor (un solo MudDialog para las dos grillas, montado una
-   sola vez), no esta grilla -- así ningún componente ni parámetro "pesado" se multiplica por fila. *@
+   That is also why the "pick item" button is a native <button> that calls OnPickItem (a callback
+   supplied by the parent) instead of having its own <MudIconButton>/IDialogService/Catalog
+   parameter here: whoever opens the search dialog is Characters.razor (a single MudDialog for both
+   grids, mounted once), not this grid -- so no "heavy" component or parameter is multiplied per row. *@
 <div class="mb-2">
-    <input @bind="_filter" @bind:event="oninput" placeholder="Filtrar por slot, índice o nombre..."
+    <input @bind="_filter" @bind:event="oninput" placeholder="@L["Filter by slot, index or name..."]"
            class="item-slot-filter" />
 </div>
 <div style="max-height: 50vh; overflow-y: auto;">
@@ -21,15 +21,15 @@
         <thead>
             <tr>
                 <th>Slot</th>
-                <th>Ubicación</th>
-                <th>Índice</th>
-                <th>Nombre</th>
-                <th>Nivel (+)</th>
-                <th>Durab.</th>
-                <th>Suerte</th>
-                <th>Habil.</th>
-                <th>Opción</th>
-                <th>Excel.</th>
+                <th>@L["Location"]</th>
+                <th>@L["Index"]</th>
+                <th>@L["Name"]</th>
+                <th>@L["Level (+)"]</th>
+                <th>@L["Durab."]</th>
+                <th>@L["Luck"]</th>
+                <th>@L["Skill"]</th>
+                <th>@L["Option"]</th>
+                <th>@L["Excel."]</th>
                 <th>Set</th>
                 <th></th>
             </tr>
@@ -43,7 +43,7 @@
                     <td>
                         <div class="item-slot-index-cell">
                             <input type="number" @bind="row.Index" class="item-slot-num" />
-                            <button type="button" class="item-slot-btn" title="Buscar item"
+                            <button type="button" class="item-slot-btn" title="@L["Search item"]"
                                     @onclick="@(() => OnPickItem(row))">🔍</button>
                         </div>
                     </td>
@@ -56,7 +56,7 @@
                     <td><input type="number" @bind="row.Excellent" min="0" class="item-slot-num" /></td>
                     <td><input type="number" @bind="row.SetItem" min="0" class="item-slot-num" /></td>
                     <td>
-                        <button type="button" class="item-slot-btn" title="Vaciar slot" disabled="@(row.Index < 0)"
+                        <button type="button" class="item-slot-btn" title="@L["Clear slot"]" disabled="@(row.Index < 0)"
                                 @onclick="@(() => Clear(row))">✕</button>
                     </td>
                 </tr>

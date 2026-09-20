@@ -4,22 +4,17 @@
 @inject GameDataPaths DataPaths
 @inject ISnackbar Snackbar
 
-<PageTitle>Configuración</PageTitle>
+<PageTitle>@L["Configuration"]</PageTitle>
 
-<MudText Typo="Typo.h4" Class="mb-1">Configuración</MudText>
+<MudText Typo="Typo.h4" Class="mb-1">@L["Configuration"]</MudText>
 <MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">
-    Los archivos Data/GameServerInfo - *.dat completos, tal cual los lee el GameServer al arrancar.
-    Los grupos y el orden salen de los comentarios del propio archivo, así que lo que ves acá es
-    exactamente lo que hay adentro -- nada está filtrado ni renombrado.
+    @L["The complete Data/GameServerInfo - *.dat files, exactly as the GameServer reads them at start-up. The groups and their order come from the file's own comments, so what you see here is exactly what is inside -- nothing is filtered or renamed."]
 </MudText>
 <MudAlert Severity="Severity.Warning" Class="mb-4" Dense="true">
-    El GameServer lee estos archivos <b>una sola vez, al arrancar</b>: cualquier cambio recién aplica
-    cuando lo reinicias. Ojo también con que muchos campos pertenecen a sistemas que todavía no están
-    portados (PK, comercio, guild, resets...): se guardan bien, pero no van a hacer nada hasta que ese
-    sistema exista.
+    @L["The GameServer reads these files"] <b>@L["only once, at start-up"]</b>@L[": any change only applies when you restart it. Note also that many fields belong to systems that are not ported yet (PK, trade, guild, resets...): they save fine, but will do nothing until that system exists."]
 </MudAlert>
 
-<MudSelect T="string" Value="_selectedFile" ValueChanged="OnFileChangedAsync" Label="Archivo"
+<MudSelect T="string" Value="_selectedFile" ValueChanged="OnFileChangedAsync" Label="@L["File"]"
            Variant="Variant.Outlined" Dense="true" Class="mb-4" Style="max-width: 420px;">
     @foreach (var file in ConfigFiles)
     {
@@ -33,18 +28,18 @@
 }
 else if (_doc.Groups.Count == 0)
 {
-    <MudAlert Severity="Severity.Info">Este archivo no tiene claves para editar.</MudAlert>
+    <MudAlert Severity="Severity.Info">@L["This file has no keys to edit."]</MudAlert>
 }
 else
 {
-    <MudTextField T="string" @bind-Value="_filter" Label="Buscar clave" Variant="Variant.Outlined"
+    <MudTextField T="string" @bind-Value="_filter" Label="@L["Search key"]" Variant="Variant.Outlined"
                   Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
                   Immediate="true" Clearable="true" Margin="Margin.Dense" Class="mb-4" Style="max-width: 420px;" />
 
     @if (!VisibleGroups.Any())
     {
         <MudAlert Severity="Severity.Info">
-            Ninguna clave de este archivo coincide con "@_filter".
+            @L.F("No key in this file matches \"{0}\".", _filter)
         </MudAlert>
     }
 
@@ -76,10 +71,10 @@ else
     <div class="d-flex gap-2 mt-2 mb-8">
         <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
                    OnClick="SaveAsync" Disabled="@_saving">
-            Guardar (@DirtyCount cambio@(DirtyCount == 1 ? "" : "s"))
+            @L.F("Save ({0} change(s))", DirtyCount)
         </MudButton>
         <MudButton Variant="Variant.Outlined" OnClick="ReloadAsync" Disabled="@_saving">
-            Descartar cambios
+            @L["Discard changes"]
         </MudButton>
     </div>
 }
@@ -123,8 +118,8 @@ else
     {
         _selectedFile = file;
         _backedUp = false;
-        // El filtro es de la búsqueda anterior: dejarlo puesto al cambiar de archivo da una página
-        // vacía sin explicación (las claves de un archivo no suelen existir en el otro).
+        // The filter belongs to the previous search: leaving it set when switching files gives an empty
+        // page with no explanation (a file's keys rarely exist in the other).
         _filter = null;
         return ReloadAsync();
     }
@@ -158,15 +153,15 @@ else
             var changed = DirtyCount;
             _doc.ApplyGroupEdits();
             _doc.Save(Path);
-            Snackbar.Add($"Guardado: {changed} valor(es) en {_selectedFile}.", Severity.Success);
+            Snackbar.Add(L.F("Saved: {0} value(s) in {1}.", changed, _selectedFile), Severity.Success);
 
-            // Se recarga para que OriginalValue vuelva a ser lo que hay en disco (si no, lo recién
-            // guardado seguiría contando como "cambio pendiente").
+            // Reload so that OriginalValue is again what is on disk (otherwise what was just saved
+            // would keep counting as a "pending change").
             await ReloadAsync();
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"No se pudo guardar: {ex.Message}", Severity.Error);
+            Snackbar.Add(L.F("Could not save: {0}", ex.Message), Severity.Error);
         }
         finally
         {

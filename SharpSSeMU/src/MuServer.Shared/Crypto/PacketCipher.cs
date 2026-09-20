@@ -1,3 +1,4 @@
+using MuServer.Shared.Localization;
 using System.Buffers.Binary;
 
 namespace MuServer.Shared.Crypto;
@@ -55,7 +56,7 @@ public sealed class PacketCipher
 
         if (header != 4370 || size != (6 + 48))
         {
-            throw new InvalidDataException($"Archivo de clave inválido: {path}");
+            throw new InvalidDataException(Loc.F("Invalid key file: {0}", path));
         }
 
         var modulus = new uint[4];

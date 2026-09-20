@@ -4,19 +4,14 @@
 @inject GameDataPaths DataPaths
 @inject ISnackbar Snackbar
 
-<PageTitle>Tasas</PageTitle>
+<PageTitle>@L["Rates"]</PageTitle>
 
-<MudText Typo="Typo.h4" Class="mb-1">Tasas del servidor</MudText>
+<MudText Typo="Typo.h4" Class="mb-1">@L["Server rates"]</MudText>
 <MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">
-    Lo que más se toca para configurar un servidor -- experiencia, drop, zen, joyas -- sacado a mano de
-    Data/GameServerInfo - Common.dat y con el nombre de lo que hace cada cosa. Es un atajo: los ~845
-    campos crudos siguen estando completos en <b>Configuración</b>.
+    @L["What is touched most when configuring a server -- experience, drops, zen, jewels -- picked by hand from Data/GameServerInfo - Common.dat and named after what each thing does. It is a shortcut: all ~845 raw fields are still available in"] <b>@L["Configuration"]</b>.
 </MudText>
 <MudAlert Severity="Severity.Warning" Class="mb-4" Dense="true">
-    El GameServer lee este archivo <b>al arrancar</b>: los cambios aplican recién cuando lo reinicias.
-    Los campos marcados con <MudChip T="string" Size="Size.Small" Class="ma-0">4 niveles de cuenta</MudChip>
-    se guardan en los cuatro (AL0-AL3) a la vez, porque el servidor no tiene cuentas premium y dejarlos
-    distintos sólo confunde.
+    @L["The GameServer reads this file"] <b>@L["at start-up"]</b>@L[": changes only apply when you restart it. Fields marked with"] <MudChip T="string" Size="Size.Small" Class="ma-0">@L["4 account levels"]</MudChip> @L["are written to all four (AL0-AL3) at once; use the Configuration page to give different values per account level."]
 </MudAlert>
 
 @if (_doc is null)
@@ -25,23 +20,23 @@
 }
 else
 {
-    <MudTextField T="string" @bind-Value="_filter" Label="Buscar ajuste" Variant="Variant.Outlined"
+    <MudTextField T="string" @bind-Value="_filter" Label="@L["Search setting"]" Variant="Variant.Outlined"
                   Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
                   Immediate="true" Clearable="true" Margin="Margin.Dense" Class="mb-4" Style="max-width: 420px;" />
 
     @foreach (var group in VisibleGroups)
     {
         <MudPaper Class="pa-4 mb-4" Elevation="0">
-            <MudText Typo="Typo.subtitle1" Class="mb-3">@group.Title</MudText>
+            <MudText Typo="Typo.subtitle1" Class="mb-3">@L[group.Title]</MudText>
             <MudGrid Spacing="3">
                 @foreach (var setting in VisibleSettings(group))
                 {
                     <MudItem xs="12" sm="6" md="4">
                         <MudNumericField T="int" Value="@GetValue(setting)"
                                          ValueChanged="@(v => SetValue(setting, v))"
-                                         Label="@setting.Label" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                         Label="@L[setting.Label]" Variant="Variant.Outlined" Margin="Margin.Dense" />
                         <MudText Typo="Typo.caption" Class="mud-text-secondary">
-                            @setting.Help
+                            @L[setting.Help]
                             <span class="rate-key">@setting.Key@(setting.PerAccountLevel ? "_AL0-3" : "")</span>
                         </MudText>
                     </MudItem>
@@ -52,16 +47,16 @@ else
 
     @if (!VisibleGroups.Any())
     {
-        <MudAlert Severity="Severity.Info">Ningún ajuste coincide con "@_filter".</MudAlert>
+        <MudAlert Severity="Severity.Info">@L.F("No setting matches \"{0}\".", _filter)</MudAlert>
     }
 
     <div class="d-flex gap-2 mt-2 mb-8">
         <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
                    OnClick="Save" Disabled="@_saving">
-            Guardar (@_pending.Count cambio@(_pending.Count == 1 ? "" : "s"))
+            @L.F("Save ({0} change(s))", _pending.Count)
         </MudButton>
         <MudButton Variant="Variant.Outlined" OnClick="Reload" Disabled="@_saving">
-            Descartar cambios
+            @L["Discard changes"]
         </MudButton>
     </div>
 }
@@ -117,7 +112,7 @@ else
     {
         if (_doc is null || _pending.Count == 0)
         {
-            Snackbar.Add("No hay cambios para guardar.", Severity.Info);
+            Snackbar.Add(L["There are no changes to save."], Severity.Info);
             return;
         }
 
@@ -154,12 +149,12 @@ else
             }
 
             _doc.Save(Path);
-            Snackbar.Add($"Guardado: {changed} ajuste(s). Reiniciá el GameServer para que apliquen.", Severity.Success);
+            Snackbar.Add(L.F("Saved: {0} setting(s). Restart the GameServer for them to apply.", changed), Severity.Success);
             Reload();
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"No se pudo guardar: {ex.Message}", Severity.Error);
+            Snackbar.Add(L.F("Could not save: {0}", ex.Message), Severity.Error);
         }
         finally
         {

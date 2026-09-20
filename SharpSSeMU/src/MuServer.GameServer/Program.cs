@@ -1,3 +1,5 @@
+using MuServer.Shared.Config;
+using MuServer.Shared.Localization;
 using MuServer.GameServer;
 using MuServer.GameServer.Config;
 using MuServer.GameServer.Net;
@@ -14,7 +16,9 @@ using MuServer.Shared.Logging;
 var baseDir = AppContext.BaseDirectory;
 Log.Configure(Path.Combine(baseDir, "LOG"));
 
-Log.Add(LogColor.Black, "SSeMU GameServer (C# port, Fase 2) iniciando...");
+Loc.Configure(IniFile.Load(Path.Combine(baseDir, "GameServer.ini")).GetString("GameServerInfo", "Language", "en"));  // en | es
+
+Log.Add(LogColor.Black, "SSeMU GameServer (C# port) starting...");
 
 var config = GameServerConfig.Load(Path.Combine(baseDir, "GameServer.ini"), baseDir);
 
@@ -43,7 +47,7 @@ var gsiEvent = GameServerInfoEvent.Load(config.ServerInfoEventPath);
 var gsiItem = GameServerInfoItem.Load(config.ServerInfoItemDatPath);
 var gsiSkill = GameServerInfoSkill.Load(config.ServerInfoSkillDatPath);
 var gsiCustom = GameServerInfoCustom.Load(config.ServerInfoCustomPath);
-Log.Add(LogColor.Blue, "[GameServerInfo] Cobertura completa cargada: Common/Character/ChaosMix/Command/Event/Item/Skill/Custom (845 campos reales, sin hardcodear)");
+Log.Add(LogColor.Blue, "[GameServerInfo] Full coverage loaded: Common/Character/ChaosMix/Command/Event/Item/Skill/Custom (845 real fields, nothing hard-coded)");
 
 PacketCipher packetCipher;
 
@@ -53,7 +57,7 @@ try
 }
 catch (Exception ex)
 {
-    Log.Add(LogColor.Red, "No se pudieron cargar las claves de cifrado ({0} / {1}): {2}", config.EncryptionKeyPath, config.DecryptionKeyPath, ex.Message);
+    Log.Add(LogColor.Red, "Could not load the encryption keys ({0} / {1}): {2}", config.EncryptionKeyPath, config.DecryptionKeyPath, ex.Message);
     return;
 }
 
@@ -118,7 +122,7 @@ foreach (var shop in shops.All)
     }
 }
 
-Log.Add(LogColor.Blue, "[ShopManagerTable] {0} NPC(s) de tienda spawneados", npcsSpawned);
+Log.Add(LogColor.Blue, "[ShopManagerTable] {0} shop NPC(s) spawned", npcsSpawned);
 
 // Misiones (Quest/QuestObjective/QuestReward) -- motor real data-driven (ver Config/QuestTable.cs)
 // que reemplaza la versión anterior hardcodeada de "hablar con Sebina/Marlon" (causaba
@@ -152,7 +156,7 @@ var joinServer = new JoinServerConnection(
         // Ver el comentario largo en JoinServerConnection.DispatchAsync (case 0x02): este puerto ya
         // cierra la sesión de forma proactiva cuando el socket se desconecta de verdad, así que no
         // hace falta buscarla de nuevo acá para cerrarla -- solo se deja registrado el resultado.
-        Log.Add(LogColor.Blue, "[JoinServer] Cuenta '{0}' liberada del lado JoinServer (index={1}, result={2})",
+        Log.Add(LogColor.Blue, "[JoinServer] Account '{0}' released on the JoinServer side (index={1}, result={2})",
             msg.Account, msg.Index, msg.Result);
         return Task.CompletedTask;
     });
@@ -270,14 +274,14 @@ globalMessagePoller.Start(cts.Token);
 var viewportTicker = new ViewportTicker(players, maps, monsters, parties, protocolHandler, characterBalance, groundItems, gates, skills, skillDamage);
 viewportTicker.Start(cts.Token);
 
-Log.Add(LogColor.Blue, "GameServer listo (Fase 2) en el puerto TCP {0}. Comandos: 'exit'", config.ServerPort);
+Log.Add(LogColor.Blue, "GameServer ready on TCP port {0}. Commands: 'exit'", config.ServerPort);
 
 // Ctrl+C / cierre de consola: apagado ordenado en vez de matar el proceso a lo bruto. Es la única
 // forma de parar el servidor cuando corre sin consola interactiva (ver el manejo de EOF de abajo).
 Console.CancelKeyPress += (_, e) =>
 {
     e.Cancel = true; // que no mate el proceso: cancelamos nosotros y salimos por el camino normal
-    Log.Add(LogColor.Blue, "Ctrl+C recibido, apagando...");
+    Log.Add(LogColor.Blue, "Ctrl+C received, shutting down...");
     cts.Cancel();
 };
 
@@ -291,7 +295,7 @@ while (!cts.Token.IsCancellationRequested)
         // cerrado): no hay comandos que leer, pero el servidor SÍ tiene que seguir corriendo. Antes
         // se salía acá, y eso mataba el proceso apenas arrancaba en cuanto no había una consola de
         // verdad detrás. Se espera la cancelación (Ctrl+C o cierre) en vez de terminar.
-        Log.Add(LogColor.Blue, "Sin consola interactiva: los comandos quedan deshabilitados, el servidor sigue corriendo.");
+        Log.Add(LogColor.Blue, "No interactive console: commands are disabled, the server keeps running.");
 
         try
         {

@@ -18,6 +18,7 @@ for p in [cs_bin, js_bin, ds_bin, gs_bin]:
 # 1. ConnectServer configs
 (cs_bin / "ConnectServer.ini").write_text(
     "[ConnectServerInfo]\n"
+    "Language = en\n"
     "ConnectServerPortTCP = 44405\n"
     "ConnectServerPortUDP = 55557\n"
     "ConnectServerMaxUserNumber = 500\n"
@@ -35,6 +36,7 @@ for p in [cs_bin, js_bin, ds_bin, gs_bin]:
 # 2. JoinServer configs
 (js_bin / "JoinServer.ini").write_text(
     "[JoinServerInfo]\n"
+    "Language = en\n"
     "JoinServerPostgres = Host=127.0.0.1;Port=5432;Database=muonline;Username=muserver;Password=muserver\n"
     "JoinServerPort = 55970\n"
     "ConnectServerAddress = 127.0.0.1\n"
@@ -48,6 +50,7 @@ for p in [cs_bin, js_bin, ds_bin, gs_bin]:
 # 3. DataServer configs
 (ds_bin / "DataServer.ini").write_text(
     "[DataServerInfo]\n"
+    "Language = en\n"
     "DataServerPostgres = Host=127.0.0.1;Port=5432;Database=muonline;Username=muserver;Password=muserver\n"
     "DataServerPort = 55960\n",
     encoding="utf-8"
@@ -58,6 +61,7 @@ for p in [cs_bin, js_bin, ds_bin, gs_bin]:
 # 4. GameServer configs
 (gs_bin / "GameServer.ini").write_text(
     "[GameServerInfo]\n"
+    "Language = en\n"
     "ServerName = SSeMU GameServer_0\n"
     "ServerCode = 0\n"
     "ServerPort = 55900\n"

@@ -14,7 +14,7 @@
         @foreach (var (label, rate) in Rows)
         {
             <tr>
-                <td>@label</td>
+                <td>@L[label]</td>
                 <td><MudNumericField T="int" @bind-Value="rate.Al0" Variant="Variant.Outlined" Margin="Margin.Dense" /></td>
                 <td><MudNumericField T="int" @bind-Value="rate.Al1" Variant="Variant.Outlined" Margin="Margin.Dense" /></td>
                 <td><MudNumericField T="int" @bind-Value="rate.Al2" Variant="Variant.Outlined" Margin="Margin.Dense" /></td>

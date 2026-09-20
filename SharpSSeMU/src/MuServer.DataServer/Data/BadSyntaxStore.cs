@@ -41,7 +41,7 @@ public sealed class BadSyntaxStore
             }
         }
 
-        Log.Add(LogColor.Blue, "BadSyntax cargado: {0} entradas", _banned.Count);
+        Log.Add(LogColor.Blue, "BadSyntax loaded: {0} entries", _banned.Count);
     }
 
     public bool CheckSyntax(string text)

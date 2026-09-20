@@ -1,3 +1,5 @@
+using MuServer.Shared.Config;
+using MuServer.Shared.Localization;
 using MuServer.DataServer.Config;
 using MuServer.DataServer.Data;
 using MuServer.DataServer.Db;
@@ -12,7 +14,9 @@ using MuServer.Shared.Logging;
 var baseDir = AppContext.BaseDirectory;
 Log.Configure(Path.Combine(baseDir, "LOG"));
 
-Log.Add(LogColor.Black, "SSeMU DataServer (C# port) iniciando...");
+Loc.Configure(IniFile.Load(Path.Combine(baseDir, "DataServer.ini")).GetString("DataServerInfo", "Language", "en"));  // en | es
+
+Log.Add(LogColor.Black, "SSeMU DataServer (C# port) starting...");
 
 var config = DataServerConfig.Load(Path.Combine(baseDir, "DataServer.ini"));
 
@@ -38,7 +42,7 @@ Console.CancelKeyPress += (_, e) =>
 var gameServerLink = new GameServerLinkServer(config.DataServerPort, allowList, registry, sessions, protocolHandler);
 gameServerLink.Start(cts.Token);
 
-Log.Add(LogColor.Blue, "DataServer listo en el puerto TCP {0}. Comandos: 'reload allowlist' | 'reload badsyntax' | 'exit'", config.DataServerPort);
+Log.Add(LogColor.Blue, "DataServer ready on TCP port {0}. Commands: 'reload allowlist' | 'reload badsyntax' | 'exit'", config.DataServerPort);
 
 while (!cts.Token.IsCancellationRequested)
 {
@@ -49,7 +53,7 @@ while (!cts.Token.IsCancellationRequested)
         // Sin consola interactiva: no hay comandos que leer, pero el servidor sigue corriendo (mismo
         // bug que GameServer/Program.cs, portado igual -- antes esto mataba el proceso apenas
         // arrancaba en background/sin stdin real).
-        Log.Add(LogColor.Blue, "Sin consola interactiva: los comandos quedan deshabilitados, el servidor sigue corriendo.");
+        Log.Add(LogColor.Blue, "No interactive console: commands are disabled, the server keeps running.");
 
         try
         {

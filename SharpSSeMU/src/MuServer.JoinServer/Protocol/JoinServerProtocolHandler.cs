@@ -125,7 +125,7 @@ public sealed class JoinServerProtocolHandler
             // El modo MD5 del original usa un esquema de "key index" propio (MD5_KEYVAL) sobre el
             // hash de la contraseña, no MD5 estándar puro. No está portado todavía — se deja la
             // conexión en modo texto plano (MD5Encryption=0) como único modo soportado por ahora.
-            Log.Add(LogColor.Red, "MD5Encryption=1 no está soportado todavía en este puerto; usar MD5Encryption=0.");
+            Log.Add(LogColor.Red, "MD5Encryption=1 is not supported yet in this port; use MD5Encryption=0.");
             await link.SendAsync(JoinServerPacketBuilder.ConnectAccountSend(msg.Index, msg.Account, "", 2, 0, 0, ""), ct);
             return;
         }

@@ -8,9 +8,7 @@
 
 <MudText Typo="Typo.h4" Class="mb-1">Items</MudText>
 <MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">
-    Data/Item/Item.txt -- el balance real que usa el GameServer para calcular daño/defensa y para
-    elegir qué items pueden dropear los monstruos. El archivo tiene 16 secciones con columnas
-    distintas cada una; elegí una categoría para ver y editar sus columnas.
+    @L["Data/Item/Item.txt -- the real balance the GameServer uses to compute damage/defense and to choose which items monsters can drop. The file has 16 sections, each with different columns; pick a category to view and edit its columns."]
 </MudText>
 
 @if (_rowsBySection is null)
@@ -19,11 +17,11 @@
 }
 else
 {
-    <MudSelect T="int" Value="_selectedSection" ValueChanged="OnSectionChangedAsync" Label="Categoría"
+    <MudSelect T="int" Value="_selectedSection" ValueChanged="OnSectionChangedAsync" Label="@L["Category"]"
                Variant="Variant.Outlined" Dense="true" Class="mb-4" Style="max-width: 360px;">
         @foreach (var (section, label) in ItemFileRepository.Sections)
         {
-            <MudSelectItem Value="section">@($"{section} -- {label}")</MudSelectItem>
+            <MudSelectItem Value="section">@($"{section} -- {L[label]}")</MudSelectItem>
         }
     </MudSelect>
 
@@ -32,32 +30,32 @@ else
                      Bordered="false" Dense="true" FixedHeader="true" Height="65vh"
                      Filterable="true" SortMode="SortMode.Multiple">
             <Columns>
-                <PropertyColumn Property="x => x.Sub" Title="Índice" Editable="false" />
-                <PropertyColumn Property="x => x.Name" Title="Nombre" />
-                <PropertyColumn Property="x => x.DropItem" Title="Dropea" />
+                <PropertyColumn Property="x => x.Sub" Title="@L["Index"]" Editable="false" />
+                <PropertyColumn Property="x => x.Name" Title="@L["Name"]" />
+                <PropertyColumn Property="x => x.DropItem" Title="@L["Drops"]" />
 
-                <PropertyColumn Property="x => x.Level" Title="Nivel" />
-                <PropertyColumn Property="x => x.Value" Title="Valor" Hidden="@(!HasValue)" />
-                <PropertyColumn Property="x => x.BuyMoney" Title="Precio" Hidden="@(!HasBuyMoney)" />
+                <PropertyColumn Property="x => x.Level" Title="@L["Level"]" />
+                <PropertyColumn Property="x => x.Value" Title="@L["Value"]" Hidden="@(!HasValue)" />
+                <PropertyColumn Property="x => x.BuyMoney" Title="@L["Price"]" Hidden="@(!HasBuyMoney)" />
 
-                <PropertyColumn Property="x => x.DamageMin" Title="Daño mín." Hidden="@(!HasDamage)" />
-                <PropertyColumn Property="x => x.DamageMax" Title="Daño máx." Hidden="@(!HasDamage)" />
-                <PropertyColumn Property="x => x.AttackSpeed" Title="Vel. ataque" Hidden="@(!HasAttackSpeed)" />
-                <PropertyColumn Property="x => x.MagicDamageRate" Title="% daño mágico" Hidden="@(!HasMagicDamageRate)" />
+                <PropertyColumn Property="x => x.DamageMin" Title="@L["Min. damage"]" Hidden="@(!HasDamage)" />
+                <PropertyColumn Property="x => x.DamageMax" Title="@L["Max. damage"]" Hidden="@(!HasDamage)" />
+                <PropertyColumn Property="x => x.AttackSpeed" Title="@L["Attack speed"]" Hidden="@(!HasAttackSpeed)" />
+                <PropertyColumn Property="x => x.MagicDamageRate" Title="@L["% magic damage"]" Hidden="@(!HasMagicDamageRate)" />
 
-                <PropertyColumn Property="x => x.Defense" Title="Defensa" Hidden="@(!HasDefense)" />
-                <PropertyColumn Property="x => x.DefenseSuccessRate" Title="% bloqueo" Hidden="@(!HasDefenseSuccessRate)" />
-                <PropertyColumn Property="x => x.MagicDefense" Title="Def. mágica" Hidden="@(!HasMagicDefense)" />
-                <PropertyColumn Property="x => x.WalkSpeed" Title="Vel. movimiento" Hidden="@(!HasWalkSpeed)" />
-                <PropertyColumn Property="x => x.Durability" Title="Durabilidad" Hidden="@(!HasDurability)" />
-                <PropertyColumn Property="x => x.SetAttr" Title="Set" Hidden="@(!HasSetAttr)" />
+                <PropertyColumn Property="x => x.Defense" Title="@L["Defense"]" Hidden="@(!HasDefense)" />
+                <PropertyColumn Property="x => x.DefenseSuccessRate" Title="@L["% block"]" Hidden="@(!HasDefenseSuccessRate)" />
+                <PropertyColumn Property="x => x.MagicDefense" Title="@L["Magic def."]" Hidden="@(!HasMagicDefense)" />
+                <PropertyColumn Property="x => x.WalkSpeed" Title="@L["Move speed"]" Hidden="@(!HasWalkSpeed)" />
+                <PropertyColumn Property="x => x.Durability" Title="@L["Durability"]" Hidden="@(!HasDurability)" />
+                <PropertyColumn Property="x => x.SetAttr" Title="@L["Set"]" Hidden="@(!HasSetAttr)" />
 
-                <PropertyColumn Property="x => x.RequireLevel" Title="Nivel req." Hidden="@(!HasRequireLevel)" />
-                <PropertyColumn Property="x => x.RequireStrength" Title="Fuerza req." Hidden="@(!HasRequireStr)" />
-                <PropertyColumn Property="x => x.RequireDexterity" Title="Agilidad req." Hidden="@(!HasRequireDex)" />
-                <PropertyColumn Property="x => x.RequireEnergy" Title="Energía req." Hidden="@(!HasRequireEne)" />
-                <PropertyColumn Property="x => x.RequireVitality" Title="Vitalidad req." Hidden="@(!HasRequireVit)" />
-                <PropertyColumn Property="x => x.RequireLeadership" Title="Mando req." Hidden="@(!HasRequireLead)" />
+                <PropertyColumn Property="x => x.RequireLevel" Title="@L["Req. level"]" Hidden="@(!HasRequireLevel)" />
+                <PropertyColumn Property="x => x.RequireStrength" Title="@L["Req. strength"]" Hidden="@(!HasRequireStr)" />
+                <PropertyColumn Property="x => x.RequireDexterity" Title="@L["Req. agility"]" Hidden="@(!HasRequireDex)" />
+                <PropertyColumn Property="x => x.RequireEnergy" Title="@L["Req. energy"]" Hidden="@(!HasRequireEne)" />
+                <PropertyColumn Property="x => x.RequireVitality" Title="@L["Req. vitality"]" Hidden="@(!HasRequireVit)" />
+                <PropertyColumn Property="x => x.RequireLeadership" Title="@L["Req. command"]" Hidden="@(!HasRequireLead)" />
             </Columns>
         </MudDataGrid>
     </MudPaper>
@@ -65,16 +63,14 @@ else
     <div class="d-flex gap-2 mt-4">
         <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
                    OnClick="SaveAsync" Disabled="@_saving">
-            Guardar en Item.txt
+            @L["Save to Item.txt"]
         </MudButton>
         <MudButton Variant="Variant.Outlined" OnClick="ReloadAsync" Disabled="@_saving">
-            Descartar cambios
+            @L["Discard changes"]
         </MudButton>
     </div>
     <MudText Typo="Typo.caption" Class="mud-text-secondary mt-2">
-        Guardar reescribe las 16 secciones del archivo completo (no sólo la categoría que estás
-        viendo), pero las que no tocaste quedan tal cual se cargaron. Se guarda un respaldo
-        (Item.txt.bak) la primera vez que grabás en esta sesión.
+        @L["Saving rewrites all 16 sections of the file (not only the category you are viewing), but those you did not touch stay exactly as loaded. A backup (Item.txt.bak) is saved the first time you save in this session."]
     </MudText>
 }
 
@@ -160,11 +156,11 @@ else
 
             ItemFileRepository.Save(path, _headers, _rowsBySection);
             var total = _rowsBySection.Values.Sum(r => r.Count);
-            Snackbar.Add($"Guardado: {total} items en 16 secciones.", Severity.Success);
+            Snackbar.Add(L.F("Saved: {0} items in 16 sections.", total), Severity.Success);
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"No se pudo guardar: {ex.Message}", Severity.Error);
+            Snackbar.Add(L.F("Could not save: {0}", ex.Message), Severity.Error);
         }
         finally
         {

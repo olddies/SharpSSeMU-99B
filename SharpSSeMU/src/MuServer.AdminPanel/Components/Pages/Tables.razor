@@ -6,25 +6,25 @@
 @inject ISnackbar Snackbar
 @inject NavigationManager Nav
 
-<PageTitle>@(_definition?.Title ?? "Tablas")</PageTitle>
+<PageTitle>@(L[_definition?.Title ?? "Data tables"])</PageTitle>
 
-<MudText Typo="Typo.h4" Class="mb-1">@(_definition?.Title ?? "Tablas de datos")</MudText>
+<MudText Typo="Typo.h4" Class="mb-1">@(L[_definition?.Title ?? "Data tables"])</MudText>
 
-<MudSelect T="string" Value="@_definition?.Id" ValueChanged="OnTableChanged" Label="Tabla"
+<MudSelect T="string" Value="@_definition?.Id" ValueChanged="OnTableChanged" Label="@L["Table"]"
            Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" Style="max-width: 420px;">
     @foreach (var table in FlatTableCatalog.Tables)
     {
-        <MudSelectItem Value="table.Id">@table.Title</MudSelectItem>
+        <MudSelectItem Value="table.Id">@L[table.Title]</MudSelectItem>
     }
 </MudSelect>
 
 @if (_definition is null)
 {
-    <MudAlert Severity="Severity.Info">Elegí una tabla para editarla.</MudAlert>
+    <MudAlert Severity="Severity.Info">@L["Pick a table to edit it."]</MudAlert>
 }
 else
 {
-    <MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">@_definition.Description</MudText>
+    <MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">@L[_definition.Description]</MudText>
 
     @if (_rows is null)
     {
@@ -33,10 +33,10 @@ else
     else if (_rows.Count == 0)
     {
         <MudAlert Severity="Severity.Info" Class="mb-4">
-            Este archivo no tiene filas. Podés agregar una con el botón de abajo.
+            @L["This file has no rows. You can add one with the button below."]
         </MudAlert>
         <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Add" OnClick="AddRow">
-            Agregar fila
+            @L["Add row"]
         </MudButton>
     }
     else
@@ -45,7 +45,7 @@ else
             <MudDataGrid Items="@_rows" T="FlatRow" Bordered="false" Dense="true" FixedHeader="true"
                          Height="62vh" SortMode="SortMode.None" QuickFilter="@QuickFilter">
                 <ToolBarContent>
-                    <MudTextField T="string" @bind-Value="_search" Placeholder="Buscar en la tabla"
+                    <MudTextField T="string" @bind-Value="_search" Placeholder="@L["Search the table"]"
                                   Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
                                   Immediate="true" Clearable="true" Margin="Margin.Dense" Class="mt-0" />
                 </ToolBarContent>
@@ -55,7 +55,7 @@ else
                         var index = i;
                         var column = _definition.Columns[index];
 
-                        <TemplateColumn Title="@column.Title" Sortable="false">
+                        <TemplateColumn Title="@L[column.Title]" Sortable="false">
                             <CellTemplate>
                                 <MudTextField T="string" Value="@context.Item[index]"
                                               ValueChanged="@(v => context.Item[index] = v ?? string.Empty)"
@@ -77,16 +77,16 @@ else
         <div class="d-flex gap-2 mt-4 mb-8 flex-wrap align-center">
             <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
                        OnClick="Save" Disabled="@_saving">
-                Guardar
+                @L["Save"]
             </MudButton>
             <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Add" OnClick="AddRow">
-                Agregar fila
+                @L["Add row"]
             </MudButton>
             <MudButton Variant="Variant.Outlined" OnClick="Reload" Disabled="@_saving">
-                Descartar cambios
+                @L["Discard changes"]
             </MudButton>
             <MudText Typo="Typo.caption" Class="mud-text-secondary">
-                @_rows.Count fila(s) -- se guarda un respaldo (.bak) la primera vez que grabás en esta sesión.
+                @L.F("{0} row(s) -- a backup (.bak) is saved the first time you save in this session.", _rows.Count)
             </MudText>
         </div>
     }
@@ -123,7 +123,7 @@ else
 
     private void OnTableChanged(string id)
     {
-        // Se navega en vez de recargar en el lugar para que la URL identifique la tabla abierta.
+        // Navigate instead of reloading in place so that the URL identifies the open table.
         Nav.NavigateTo($"/tables/{id}");
     }
 
@@ -172,11 +172,11 @@ else
             }
 
             FlatTableRepository.Save(path, _table, _definition.Columns);
-            Snackbar.Add($"Guardado: {_rows.Count} fila(s) en {_definition.Title}.", Severity.Success);
+            Snackbar.Add(L.F("Saved: {0} row(s) in {1}.", _rows.Count, L[_definition.Title]), Severity.Success);
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"No se pudo guardar: {ex.Message}", Severity.Error);
+            Snackbar.Add(L.F("Could not save: {0}", ex.Message), Severity.Error);
         }
         finally
         {

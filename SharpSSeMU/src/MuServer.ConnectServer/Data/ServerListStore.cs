@@ -64,7 +64,7 @@ public sealed class ServerListStore
             }
         }
 
-        Log.Add(LogColor.Blue, "ServerList cargado: {0} servidores", _servers.Count);
+        Log.Add(LogColor.Blue, "ServerList loaded: {0} servers", _servers.Count);
     }
 
     /// <summary>Ejecutado cada 1s (igual que TIMER_1000 del original): expira estados sin heartbeat.</summary>

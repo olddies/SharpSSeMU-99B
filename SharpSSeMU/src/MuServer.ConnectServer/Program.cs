@@ -1,3 +1,5 @@
+using MuServer.Shared.Config;
+using MuServer.Shared.Localization;
 using MuServer.ConnectServer;
 using MuServer.ConnectServer.Data;
 using MuServer.ConnectServer.Net;
@@ -12,7 +14,9 @@ using MuServer.Shared.Logging;
 var baseDir = AppContext.BaseDirectory;
 Log.Configure(Path.Combine(baseDir, "LOG"));
 
-Log.Add(LogColor.Black, "SSeMU ConnectServer (C# port) iniciando...");
+Loc.Configure(IniFile.Load(Path.Combine(baseDir, "ConnectServer.ini")).GetString("ConnectServerInfo", "Language", "en"));  // en | es
+
+Log.Add(LogColor.Black, "SSeMU ConnectServer (C# port) starting...");
 
 var config = ConnectServerConfig.Load(Path.Combine(baseDir, "ConnectServer.ini"));
 
@@ -66,7 +70,7 @@ _ = Task.Run(async () =>
     }
 });
 
-Log.Add(LogColor.Blue, "ConnectServer listo. TCP:{0} UDP:{1}. Comandos: 'reload blacklist' | 'reload serverlist' | 'reload config' | 'exit'", config.TcpPort, config.UdpPort);
+Log.Add(LogColor.Blue, "ConnectServer ready. TCP:{0} UDP:{1}. Commands: 'reload blacklist' | 'reload serverlist' | 'reload config' | 'exit'", config.TcpPort, config.UdpPort);
 
 while (!cts.Token.IsCancellationRequested)
 {
@@ -78,7 +82,7 @@ while (!cts.Token.IsCancellationRequested)
         // cerrado): no hay comandos que leer, pero el servidor SÍ tiene que seguir corriendo. Antes
         // se salía acá, y eso mataba el proceso apenas arrancaba en cuanto no había una consola de
         // verdad detrás (mismo bug que GameServer/Program.cs, portado igual).
-        Log.Add(LogColor.Blue, "Sin consola interactiva: los comandos quedan deshabilitados, el servidor sigue corriendo.");
+        Log.Add(LogColor.Blue, "No interactive console: commands are disabled, the server keeps running.");
 
         try
         {

@@ -21,26 +21,26 @@ public static class ChaosMixLayout
 
     public static readonly SingleGroup[] Singles =
     [
-        new("Caja del Caos (Chaos Box)", "ChaosItemMixRate"),
+        new("Chaos Box", "ChaosItemMixRate"),
         new("Dinorant", "DinorantMixRate"),
-        new("Fruta (sube/baja stat)", "FruitMixRate"),
-        new("Alas -- función real Wing2Mix (invocada por el tipo de wire \"Wing1\"/\"Wing3\")", "Wing2MixRate"),
-        new("Alas -- función real Wing1Mix (invocada por el tipo de wire \"Wing2\")", "Wing1MixRate"),
-        new("Mascota", "PetMixRate"),
+        new("Fruit (raises/lowers stat)", "FruitMixRate"),
+        new("Wings -- real Wing2Mix function (invoked by wire type \"Wing1\"/\"Wing3\")", "Wing2MixRate"),
+        new("Wings -- real Wing1Mix function (invoked by wire type \"Wing2\")", "Wing1MixRate"),
+        new("Pet", "PetMixRate"),
     ];
 
     public static readonly NumberedGroup[] Numbered =
     [
-        new("Cuadrado del Diablo", "DevilSquareMixRate", 4),
-        new("Castillo de Sangre", "BloodCastleMixRate", 7),
+        new("Devil Square", "DevilSquareMixRate", 4),
+        new("Blood Castle", "BloodCastleMixRate", 7),
     ];
 
     public static readonly PlusLevelGroup[] PlusLevels =
     [
-        new("Mejora +10", "PlusCommonItemLevelMixRate1", "PlusExcSetItemLevelMixRate1"),
-        new("Mejora +11", "PlusCommonItemLevelMixRate2", "PlusExcSetItemLevelMixRate2"),
-        new("Mejora +12", "PlusCommonItemLevelMixRate3", "PlusExcSetItemLevelMixRate3"),
-        new("Mejora +13", "PlusCommonItemLevelMixRate4", "PlusExcSetItemLevelMixRate4"),
+        new("Upgrade +10", "PlusCommonItemLevelMixRate1", "PlusExcSetItemLevelMixRate1"),
+        new("Upgrade +11", "PlusCommonItemLevelMixRate2", "PlusExcSetItemLevelMixRate2"),
+        new("Upgrade +12", "PlusCommonItemLevelMixRate3", "PlusExcSetItemLevelMixRate3"),
+        new("Upgrade +13", "PlusCommonItemLevelMixRate4", "PlusExcSetItemLevelMixRate4"),
     ];
 }
 

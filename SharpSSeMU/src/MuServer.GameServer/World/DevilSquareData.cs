@@ -140,7 +140,7 @@ public sealed class DevilSquareConfig
             }
         }
 
-        Log.Add(LogColor.Blue, "[DevilSquare] DevilSquare.dat cargado: {0} horario(s) de inicio, {1} bracket(s) con recompensa", config.Schedule.Count, config.RewardExperience.Count(r => r.Any(v => v != 0)));
+        Log.Add(LogColor.Blue, "[DevilSquare] DevilSquare.dat loaded: {0} start time(s), {1} bracket(s) with rewards", config.Schedule.Count, config.RewardExperience.Count(r => r.Any(v => v != 0)));
         return config;
     }
 }
@@ -211,7 +211,7 @@ public sealed class EventEntryLevelTable
             }
         }
 
-        Log.Add(LogColor.Blue, "[EventEntryLevel] {0} sección(es) cargadas desde {1}", table._sections.Count, path);
+        Log.Add(LogColor.Blue, "[EventEntryLevel] {0} section(s) loaded from {1}", table._sections.Count, path);
         return table;
     }
 
@@ -307,7 +307,7 @@ public sealed class EventStageSpawnTable
             }
         }
 
-        Log.Add(LogColor.Blue, "[EventStageSpawn] {0} fila(s) de Devil Square cargadas desde {1}", table._entries.Count, path);
+        Log.Add(LogColor.Blue, "[EventStageSpawn] {0} Devil Square row(s) loaded from {1}", table._entries.Count, path);
         return table;
     }
 

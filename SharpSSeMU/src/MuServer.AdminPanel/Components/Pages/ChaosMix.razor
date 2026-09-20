@@ -9,16 +9,10 @@
 
 <MudText Typo="Typo.h4" Class="mb-1">Chaos Machine</MudText>
 <MudText Typo="Typo.body2" Class="mud-text-secondary mb-2">
-    Data/GameServerInfo - ChaosMix.dat -- las tasas de éxito (%) que ChaosMixLogic usa de verdad
-    para calcular si una combinación de la Caja del Caos, +10/11/12/13, alas, mascota, etc. funciona.
-    <b>-1</b> significa "sin tasa fija de config": esas combinaciones (Caja del Caos y alas)
-    calculan el % con una fórmula en base al dinero invertido en vez de leer este valor.
+    @L["Data/GameServerInfo - ChaosMix.dat -- the success rates (%) that ChaosMixLogic really uses to work out whether a Chaos Box combination, +10/11/12/13, wings, pet, etc. succeeds."] <b>-1</b> @L["means \"no fixed rate from config\": those combinations (Chaos Box and wings) compute the % with a formula based on the money invested instead of reading this value."]
 </MudText>
 <MudAlert Severity="Severity.Info" Class="mb-4" Dense="true">
-    Las columnas AL1/AL2/AL3 son por nivel de cuenta premium -- el servidor no tiene ese sistema
-    portado todavía, así que el nivel de cuenta siempre vale 0 y sólo la columna <b>AL0</b> aplica
-    en el juego real hoy. Se muestran y se pueden editar las 4 igual, para no perder esos valores
-    del archivo y para cuando el sistema de cuentas premium se porte.
+    @L["The AL1/AL2/AL3 columns are per premium account level -- see the server documentation for how account levels are applied. All 4 are shown and editable so that no value in the file is lost."]
 </MudAlert>
 
 @if (_rates is null)
@@ -28,7 +22,7 @@
 else
 {
     <MudPaper Class="pa-4 mb-4" Elevation="0">
-        <MudText Typo="Typo.subtitle1" Class="mb-2">General</MudText>
+        <MudText Typo="Typo.subtitle1" Class="mb-2">@L["General"]</MudText>
         <RateGroupTable Rows="@(ChaosMixLayout.Singles.Select(g => (g.Title, _rates[g.Prefix])))" />
     </MudPaper>
 
@@ -36,31 +30,30 @@ else
     {
         <MudPaper Class="pa-4 mb-4" Elevation="0">
             <MudText Typo="Typo.subtitle1" Class="mb-2">@group.Title</MudText>
-            <RateGroupTable Rows="@(Enumerable.Range(1, group.Count).Select(n => ($"Mapa {n}", _rates[group.Prefix + n])))" />
+            <RateGroupTable Rows="@(Enumerable.Range(1, group.Count).Select(n => (L.F("Map {0}", n), _rates[group.Prefix + n])))" />
         </MudPaper>
     }
 
     <MudPaper Class="pa-4 mb-4" Elevation="0">
-        <MudText Typo="Typo.subtitle1" Class="mb-2">Mejora de nivel (+10 a +13)</MudText>
+        <MudText Typo="Typo.subtitle1" Class="mb-2">@L["Level upgrade (+10 to +13)"]</MudText>
         <RateGroupTable Rows="@(ChaosMixLayout.PlusLevels.SelectMany(g => new (string, RateSet)[]
         {
-            ($"{g.Title} -- item normal", _rates[g.CommonPrefix]),
-            ($"{g.Title} -- excelente/set", _rates[g.ExcSetPrefix]),
+            (L.F("{0} -- normal item", L[g.Title]), _rates[g.CommonPrefix]),
+            (L.F("{0} -- excellent/set", L[g.Title]), _rates[g.ExcSetPrefix]),
         }))" />
     </MudPaper>
 
     <div class="d-flex gap-2 mt-2">
         <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
                    OnClick="SaveAsync" Disabled="@_saving">
-            Guardar en ChaosMix.dat
+            @L["Save to ChaosMix.dat"]
         </MudButton>
         <MudButton Variant="Variant.Outlined" OnClick="ReloadAsync" Disabled="@_saving">
-            Descartar cambios
+            @L["Discard changes"]
         </MudButton>
     </div>
     <MudText Typo="Typo.caption" Class="mud-text-secondary mt-2">
-        Se guarda un respaldo ("GameServerInfo - ChaosMix.dat.bak") la primera vez que grabás en
-        esta sesión.
+        @L.F("A backup ({0}) is saved the first time you save in this session.", "GameServerInfo - ChaosMix.dat.bak")
     </MudText>
 }
 
@@ -103,11 +96,11 @@ else
             }
 
             ChaosMixConfigRepository.Save(Path, _doc, _rates);
-            Snackbar.Add("Guardado en GameServerInfo - ChaosMix.dat.", Severity.Success);
+            Snackbar.Add(L["Saved to GameServerInfo - ChaosMix.dat."], Severity.Success);
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"No se pudo guardar: {ex.Message}", Severity.Error);
+            Snackbar.Add(L.F("Could not save: {0}", ex.Message), Severity.Error);
         }
         finally
         {

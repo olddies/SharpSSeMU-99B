@@ -56,7 +56,7 @@ public sealed class MonsterRegistry
 
             if (index < 0)
             {
-                Log.Add(LogColor.Red, "[MonsterRegistry] Sin índices libres -- se alcanzó el límite de {0} monstruos", MaxIndex);
+                Log.Add(LogColor.Red, "[MonsterRegistry] No free indices -- the limit of {0} monsters was reached", MaxIndex);
                 break;
             }
 
@@ -100,7 +100,7 @@ public sealed class MonsterRegistry
             spawned++;
         }
 
-        Log.Add(LogColor.Blue, "[MonsterRegistry] {0} monstruo(s) instanciados", spawned);
+        Log.Add(LogColor.Blue, "[MonsterRegistry] {0} monster(s) instantiated", spawned);
         return spawned;
     }
 
@@ -159,7 +159,7 @@ public sealed class MonsterRegistry
 
         if (index < 0)
         {
-            Log.Add(LogColor.Red, "[MonsterRegistry] Sin índices libres -- se alcanzó el límite de {0} monstruos", MaxIndex);
+            Log.Add(LogColor.Red, "[MonsterRegistry] No free indices -- the limit of {0} monsters was reached", MaxIndex);
             return null;
         }
 
@@ -214,7 +214,7 @@ public sealed class MonsterRegistry
 
         if (index < 0)
         {
-            Log.Add(LogColor.Red, "[MonsterRegistry] Sin índices libres -- no se pudo spawnear el NPC de tienda {0}", shop.Name);
+            Log.Add(LogColor.Red, "[MonsterRegistry] No free indices -- could not spawn shop NPC {0}", shop.Name);
             return null;
         }
 

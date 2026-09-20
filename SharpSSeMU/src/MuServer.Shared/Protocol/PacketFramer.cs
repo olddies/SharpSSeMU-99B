@@ -1,3 +1,4 @@
+using MuServer.Shared.Localization;
 namespace MuServer.Shared.Protocol;
 
 /// <summary>
@@ -26,7 +27,7 @@ public sealed class PacketFramer
     {
         if (_size + data.Length > _buffer.Length)
         {
-            throw new InvalidDataException("Buffer overflow: el peer envió más datos de los permitidos sin completar un paquete válido.");
+            throw new InvalidDataException(Loc.T("Buffer overflow: the peer sent more data than allowed without completing a valid packet."));
         }
 
         data.CopyTo(_buffer.AsSpan(_size));
@@ -60,12 +61,12 @@ public sealed class PacketFramer
             }
             else
             {
-                throw new InvalidDataException($"Cabecera de protocolo inválida: 0x{type:X2}");
+                throw new InvalidDataException(Loc.F("Invalid protocol header: 0x{0:X2}", type));
             }
 
             if (size < 3 || size > _buffer.Length)
             {
-                throw new InvalidDataException($"Tamaño de paquete inválido: {size}");
+                throw new InvalidDataException(Loc.F("Invalid packet size: {0}", size));
             }
 
             if (count + size <= _size)

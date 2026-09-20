@@ -37,7 +37,7 @@ public static class MonsterSpawnTable
 
         if (!Directory.Exists(spawnDir))
         {
-            Log.Add(LogColor.Red, "[MonsterSpawnTable] No existe la carpeta de spawn: {0}", spawnDir);
+            Log.Add(LogColor.Red, "[MonsterSpawnTable] Spawn folder does not exist: {0}", spawnDir);
             return entries;
         }
 
@@ -64,7 +64,7 @@ public static class MonsterSpawnTable
             filesLoaded++;
         }
 
-        Log.Add(LogColor.Blue, "[MonsterSpawnTable] {0} archivo(s) de spawn cargados ({1} fila(s) de spawn en total)", filesLoaded, entries.Count);
+        Log.Add(LogColor.Blue, "[MonsterSpawnTable] {0} spawn file(s) loaded ({1} spawn row(s) in total)", filesLoaded, entries.Count);
         return entries;
     }
 

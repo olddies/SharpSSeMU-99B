@@ -157,7 +157,7 @@ public sealed class DataServerConnection
                         break;
 
                     default:
-                        Log.Add(LogColor.Black, "[DataServer] Head 0x{0:X2} recibido (dispatch completo pendiente para fases siguientes)", head);
+                        Log.Add(LogColor.Black, "[DataServer] Head 0x{0:X2} received (full dispatch pending for later phases)", head);
                         break;
                 }
             }

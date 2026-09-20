@@ -20,7 +20,7 @@ public sealed class MapRegistry
     {
         if (!Directory.Exists(terrainDir))
         {
-            Log.Add(LogColor.Red, "[MapRegistry] No existe la carpeta de terreno: {0}", terrainDir);
+            Log.Add(LogColor.Red, "[MapRegistry] Terrain folder does not exist: {0}", terrainDir);
             return 0;
         }
 
@@ -42,7 +42,7 @@ public sealed class MapRegistry
 
             if (map == null)
             {
-                Log.Add(LogColor.Red, "[MapRegistry] No se pudo cargar {0}", file);
+                Log.Add(LogColor.Red, "[MapRegistry] Could not load {0}", file);
                 continue;
             }
 
@@ -50,7 +50,7 @@ public sealed class MapRegistry
             loaded++;
         }
 
-        Log.Add(LogColor.Blue, "[MapRegistry] {0} mapas cargados desde {1}", loaded, terrainDir);
+        Log.Add(LogColor.Blue, "[MapRegistry] {0} maps loaded from {1}", loaded, terrainDir);
         return loaded;
     }
 

@@ -26,6 +26,7 @@ public static class Log
 
     public static void Add(LogColor color, string format, params object?[] args)
     {
+        format = Localization.Loc.T(format);
         var text = args.Length == 0 ? format : string.Format(format, args);
         var stamp = DateTime.Now.ToString("HH:mm:ss");
         var line = $"{stamp} {text}";

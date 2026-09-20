@@ -174,7 +174,7 @@ public sealed class DevilSquareManager
             SetStateEmpty(bracket);
         }
 
-        Log.Add(LogColor.Blue, "[Devil Square] ForceStart -- próxima apertura en ~{0}s ({1})", delaySeconds, level.HasValue ? $"bracket {level + 1}" : "todos los brackets");
+        Log.Add(LogColor.Blue, "[Devil Square] ForceStart -- next opening in ~{0}s ({1})", delaySeconds, level.HasValue ? $"bracket {level + 1}" : "todos los brackets");
     }
 
     public void Start(CancellationToken ct)
@@ -219,7 +219,7 @@ public sealed class DevilSquareManager
                 }
                 catch (Exception ex)
                 {
-                    Log.Add(LogColor.Red, "[DevilSquare] ({0}) Error en el tick: {1}", bracket.Level + 1, ex.Message);
+                    Log.Add(LogColor.Red, "[DevilSquare] ({0}) Error in tick: {1}", bracket.Level + 1, ex.Message);
                 }
             }
         }
@@ -289,7 +289,7 @@ public sealed class DevilSquareManager
     {
         if (bracket.Participants.Count == 0)
         {
-            Log.Add(LogColor.Black, "[Devil Square] ({0}) No hay suficientes usuarios -- vuelve a EMPTY", bracket.Level + 1);
+            Log.Add(LogColor.Black, "[Devil Square] ({0}) Not enough users -- back to EMPTY", bracket.Level + 1);
             SetStateEmpty(bracket);
             return;
         }
@@ -310,7 +310,7 @@ public sealed class DevilSquareManager
     {
         if (bracket.Participants.Count == 0)
         {
-            Log.Add(LogColor.Black, "[Devil Square] ({0}) No hay suficientes usuarios -- vuelve a EMPTY", bracket.Level + 1);
+            Log.Add(LogColor.Black, "[Devil Square] ({0}) Not enough users -- back to EMPTY", bracket.Level + 1);
             SetStateEmpty(bracket);
             return;
         }
@@ -456,7 +456,7 @@ public sealed class DevilSquareManager
                 ct);
         }
 
-        Log.Add(LogColor.Blue, "[Devil Square] ({0}) Evento terminado -- {1} participante(s) puntuados", bracket.Level + 1, ranked.Count);
+        Log.Add(LogColor.Blue, "[Devil Square] ({0}) Event finished -- {1} participant(s) scored", bracket.Level + 1, ranked.Count);
     }
 
     private async Task ApplyRewardAsync(DevilSquareBracket bracket, PlayerObject player, DevilSquareParticipant participant, CancellationToken ct)
@@ -539,7 +539,7 @@ public sealed class DevilSquareManager
             }
         }
 
-        Log.Add(LogColor.Blue, "[Devil Square] ({0}) Etapa {1}: {2} monstruo(s) agregados", bracket.Level + 1, stage, spawned);
+        Log.Add(LogColor.Blue, "[Devil Square] ({0}) Stage {1}: {2} monster(s) added", bracket.Level + 1, stage, spawned);
         await Task.CompletedTask;
     }
 
@@ -655,7 +655,7 @@ public sealed class DevilSquareManager
         await SendEnterResultAsync(session, 0, ct);
         await TeleportInAsync(player, bracket, ct);
 
-        Log.Add(LogColor.Blue, "[Devil Square] ({0}) '{1}' entró en X={2} Y={3} ({4} participante(s))",
+        Log.Add(LogColor.Blue, "[Devil Square] ({0}) '{1}' entered at X={2} Y={3} ({4} participant(s))",
             level + 1, player.Name, player.X, player.Y, bracket.Participants.Count);
     }
 

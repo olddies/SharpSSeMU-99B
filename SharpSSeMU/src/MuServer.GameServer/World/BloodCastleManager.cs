@@ -54,7 +54,7 @@ public sealed class BloodCastleManager
     {
         _running = true;
         _ = Task.Run(() => TickerLoopAsync(ct), ct);
-        Log.Add(LogColor.Blue, "[BloodCastle] Evento inicializado para niveles BC 1 a BC 6.");
+        Log.Add(LogColor.Blue, "[BloodCastle] Event initialised for levels BC 1 to BC 6.");
     }
 
     private async Task TickerLoopAsync(CancellationToken ct)
@@ -71,7 +71,7 @@ public sealed class BloodCastleManager
             }
             catch (Exception ex)
             {
-                Log.Add(LogColor.Red, "[BloodCastle] Error en TickerLoopAsync: {0}", ex.Message);
+                Log.Add(LogColor.Red, "[BloodCastle] Error in TickerLoopAsync: {0}", ex.Message);
             }
 
             await Task.Delay(1000, ct);

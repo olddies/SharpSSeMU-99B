@@ -1,5 +1,6 @@
 using MuServer.GameServer.Config;
 using MuServer.GameServer.Protocol;
+using MuServer.Shared.Localization;
 using MuServer.Shared.Logging;
 
 namespace MuServer.GameServer.World;
@@ -82,7 +83,7 @@ public sealed class ViewportTicker
             }
             catch (Exception ex)
             {
-                Log.Add(LogColor.Red, "[Viewport] Error en el tick: {0}", ex.Message);
+                Log.Add(LogColor.Red, "[Viewport] Error in tick: {0}", ex.Message);
             }
         }
     }
@@ -746,7 +747,7 @@ public sealed class ViewportTicker
                     monster.TargetIndex = -1;
 
                     // 1. Enviar aviso de muerte y actualizar barra de HP a 0 en la UI del cliente (0x26)
-                    await target.Session.SendAsync(ChatPacketBuilder.NoticeSend("Has muerto."), ct);
+                    await target.Session.SendAsync(ChatPacketBuilder.NoticeSend(Loc.T("You died.")), ct);
                     await target.Session.SendAsync(LifePacketBuilder.LifeSend(0xFF, 0), ct);
 
                     // 2. Transmitir el paquete de MUERTE REAL de MU 0.99B (0x17 PMSG_USER_DIE_SEND)

@@ -1,0 +1,9 @@
+@inject NavigationManager Nav
+
+@* Language switch: a normal POST (same reason as login/logout: the cookie is written on the HTTP response). *@
+<form method="post" action="/auth/lang" class="lang-switch">
+    <AntiforgeryToken />
+    <input type="hidden" name="returnUrl" value="@("/" + Nav.ToBaseRelativePath(Nav.Uri))" />
+    <button type="submit" name="lang" value="en" class="@(L.Language == "en" ? "active" : null)">EN</button>
+    <button type="submit" name="lang" value="es" class="@(L.Language == "es" ? "active" : null)">ES</button>
+</form>

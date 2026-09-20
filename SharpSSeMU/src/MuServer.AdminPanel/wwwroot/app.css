@@ -36,3 +36,13 @@ h1:focus {
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
     text-align: start;
 }
+/* Language switch (EN | ES) */
+.lang-switch { display: inline-flex; gap: 2px; }
+.lang-switch button {
+    background: transparent; color: inherit; border: 1px solid rgba(255,255,255,0.25);
+    padding: 2px 8px; font-size: 0.75rem; cursor: pointer; opacity: 0.7;
+}
+.lang-switch button:first-child { border-radius: 4px 0 0 4px; }
+.lang-switch button:last-child { border-radius: 0 4px 4px 0; }
+.lang-switch button.active { opacity: 1; background: rgba(255,255,255,0.15); font-weight: 600; }
+.lang-switch-floating { position: fixed; top: 12px; right: 16px; z-index: 10; }

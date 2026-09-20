@@ -3,41 +3,40 @@
 @inject ServerStatusRepository StatusRepository
 @implements IDisposable
 
-<PageTitle>Cuentas conectadas</PageTitle>
+<PageTitle>@L["Connected accounts"]</PageTitle>
 
-<MudText Typo="Typo.h4" Class="mb-1">Cuentas conectadas</MudText>
+<MudText Typo="Typo.h4" Class="mb-1">@L["Connected accounts"]</MudText>
 <MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">
-    Lectura en vivo de Data/status.json (el GameServer lo reescribe cada 3s) -- de sólo lectura, acá
-    no se edita nada del personaje.
+    @L["Live reading of Data/status.json (the GameServer rewrites it every 3s) -- read-only, nothing about the character can be edited here."]
 </MudText>
 
 @if (_status is null)
 {
     <MudAlert Severity="Severity.Warning">
-        No se encontró Data/status.json -- ¿está corriendo el GameServer?
+        @L["Data/status.json not found -- is the GameServer running?"]
     </MudAlert>
 }
 else if (_status.IsStale)
 {
     <MudAlert Severity="Severity.Warning">
-        El GameServer no actualiza su estado hace @((int)(DateTime.UtcNow - _status.UpdatedAtUtc).TotalSeconds)s -- la lista de abajo puede estar desactualizada.
+        @L.F("The GameServer has not updated its status for {0}s -- the list below may be out of date.", (int)(DateTime.UtcNow - _status.UpdatedAtUtc).TotalSeconds)
     </MudAlert>
 }
 else if (_status.Players.Count == 0)
 {
-    <MudAlert Severity="Severity.Info">No hay nadie conectado ahora mismo.</MudAlert>
+    <MudAlert Severity="Severity.Info">@L["Nobody is connected right now."]</MudAlert>
 }
 else
 {
     <MudSimpleTable Dense="true" Hover="true" Bordered="false" Striped="true">
         <thead>
             <tr>
-                <th>Cuenta</th>
-                <th>Personaje</th>
-                <th>Clase</th>
-                <th>Nivel</th>
-                <th>Reset</th>
-                <th>Mapa (código)</th>
+                <th>@L["Account"]</th>
+                <th>@L["Character"]</th>
+                <th>@L["Class"]</th>
+                <th>@L["Level"]</th>
+                <th>@L["Reset"]</th>
+                <th>@L["Map (code)"]</th>
             </tr>
         </thead>
         <tbody>

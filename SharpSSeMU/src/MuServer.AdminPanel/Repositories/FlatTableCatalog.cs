@@ -42,51 +42,51 @@ public static class FlatTableCatalog
 
     public static readonly FlatTableDefinition[] Tables =
     [
-        new("skills", "Skills", "Data/Skill/SkillList.txt -- daño, maná, alcance y requisitos de cada habilidad.",
+        new("skills", "Skills", "Data/Skill/SkillList.txt -- damage, mana, range and requirements of each skill.",
             ["Skill", "SkillList.txt"],
             With(
-                Num("Índice", 10), Text("Nombre", 37), Num("Daño", 9), Num("Maná", 8), Num("BP", 8),
-                Num("Alcance", 8), Num("Radio", 8), Num("Demora", 8), Num("Tipo", 7), Num("Efecto", 9),
-                Num("Nivel req.", 11), Num("Energía req.", 12), Num("Mando req.", 16),
-                Num("Muertes req.", 15), Num("Estado guild req.", 17), ClassColumns(8))),
+                Num("Index", 10), Text("Name", 37), Num("Damage", 9), Num("Mana", 8), Num("BP", 8),
+                Num("Range", 8), Num("Radius", 8), Num("Delay", 8), Num("Type", 7), Num("Effect", 9),
+                Num("Req. level", 11), Num("Req. energy", 12), Num("Req. command", 16),
+                Num("Req. kills", 15), Num("Req. guild status", 17), ClassColumns(8))),
 
-        new("skill-damage", "Daño de skills", "Data/Skill/SkillDamage.txt -- multiplicador de daño por skill (viene vacío de fábrica).",
+        new("skill-damage", "Skill damage", "Data/Skill/SkillDamage.txt -- damage multiplier per skill (empty by default).",
             ["Skill", "SkillDamage.txt"],
-            With(Num("Skill", 15), Num("% de daño", 12))),
+            With(Num("Skill", 15), Num("% damage", 12))),
 
-        new("gates", "Puertas", "Data/Move/Gate.txt -- las zonas que teletransportan, y a qué puerta llevan. Es lo que usan los teletransportes y los portales entre mapas.",
+        new("gates", "Gates", "Data/Move/Gate.txt -- the zones that teleport, and which gate they lead to. Used by warps and portals between maps.",
             ["Move", "Gate.txt"],
             With(
-                Num("Índice", 12), Num("Tipo", 11), Num("Mapa", 12),
-                Num("X inicio", 14), Num("Y inicio", 14), Num("X fin", 12), Num("Y fin", 12),
-                Num("Puerta destino", 13), Num("Dirección", 12),
-                Num("Nivel mín.", 11), Num("Nivel máx.", 11), Num("Reset mín.", 11), Num("Reset máx.", 11))),
+                Num("Index", 12), Num("Type", 11), Num("Map", 12),
+                Num("Start X", 14), Num("Start Y", 14), Num("End X", 12), Num("End Y", 12),
+                Num("Target gate", 13), Num("Direction", 12),
+                Num("Min. level", 11), Num("Max. level", 11), Num("Min. reset", 11), Num("Max. reset", 11))),
 
-        new("messages", "Mensajes", "Data/Message.txt -- los textos que manda el servidor. Los %d y %s son valores que el servidor rellena: hay que dejarlos donde están.",
+        new("messages", "Messages", "Data/Message.txt -- the texts the server sends. The %d and %s are values the server fills in: leave them where they are.",
             ["Message.txt"],
-            With(Num("Índice", 8), Text("Mensaje", 70))),
+            With(Num("Index", 8), Text("Message", 70))),
 
-        new("quests", "Quests", "Data/Quest/Quest.txt -- qué quest da cada NPC y qué hace falta para tomarla.",
+        new("quests", "Quests", "Data/Quest/Quest.txt -- which quest each NPC gives and what is needed to take it.",
             ["Quest", "Quest.txt"],
             With(
-                Num("Índice", 10), Num("NPC", 15), Num("Estado", 15),
-                Num("Quest req.", 15), Num("Estado req.", 15),
-                Num("Nivel mín.", 18), Num("Nivel máx.", 18), ClassColumns(5))),
+                Num("Index", 10), Num("NPC", 15), Num("State", 15),
+                Num("Req. quest", 15), Num("Req. state", 15),
+                Num("Min. level", 18), Num("Max. level", 18), ClassColumns(5))),
 
-        new("quest-objectives", "Objetivos de quest", "Data/Quest/QuestObjective.txt -- qué hay que juntar o matar en cada quest.",
+        new("quest-objectives", "Quest objectives", "Data/Quest/QuestObjective.txt -- what has to be collected or killed in each quest.",
             ["Quest", "QuestObjective.txt"],
             With(
-                Num("Orden", 9), Num("Tipo", 7), Num("Índice", 8), Num("Cantidad", 11), Num("Nivel", 8),
-                Num("Opción 1", 10), Num("Opción 2", 10), Num("Opción 3", 10), Num("Opción nueva", 12),
-                Num("Mapa", 12), Num("Nivel drop mín.", 15), Num("Nivel drop máx.", 15), Num("% drop", 15),
-                Num("Quest req.", 15), Num("Estado req.", 15), ClassColumns(5))),
+                Num("Order", 9), Num("Type", 7), Num("Index", 8), Num("Quantity", 11), Num("Level", 8),
+                Num("Option 1", 10), Num("Option 2", 10), Num("Option 3", 10), Num("New option", 12),
+                Num("Map", 12), Num("Min. drop level", 15), Num("Max. drop level", 15), Num("% drop", 15),
+                Num("Req. quest", 15), Num("Req. state", 15), ClassColumns(5))),
 
-        new("quest-rewards", "Recompensas de quest", "Data/Quest/QuestReward.txt -- qué da cada quest al completarse.",
+        new("quest-rewards", "Quest rewards", "Data/Quest/QuestReward.txt -- what each quest gives on completion.",
             ["Quest", "QuestReward.txt"],
             With(
-                Num("Orden", 9), Num("Tipo", 7), Num("Índice", 8), Num("Cantidad", 11), Num("Nivel", 8),
-                Num("Opción 1", 10), Num("Opción 2", 10), Num("Opción 3", 10), Num("Opción nueva", 12),
-                Num("Quest req.", 15), Num("Estado req.", 15), ClassColumns(5))),
+                Num("Order", 9), Num("Type", 7), Num("Index", 8), Num("Quantity", 11), Num("Level", 8),
+                Num("Option 1", 10), Num("Option 2", 10), Num("Option 3", 10), Num("New option", 12),
+                Num("Req. quest", 15), Num("Req. state", 15), ClassColumns(5))),
     ];
 
     public static FlatTableDefinition? ById(string id) => Tables.FirstOrDefault(t => t.Id == id);

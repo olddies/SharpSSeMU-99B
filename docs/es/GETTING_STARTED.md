@@ -113,9 +113,9 @@ dotnet MuServer.DataServer.dll
 dotnet MuServer.GameServer.dll
 ```
 
-Un arranque sano hace que el GameServer loguee (en español) cuántos mapas, tipos de monstruo,
+Un arranque sano hace que el GameServer loguee cuántos mapas, tipos de monstruo,
 monstruos instanciados (~2 900), items, skills y tiendas cargó, y termine con
-`GameServer listo … en el puerto TCP 55900`.
+`GameServer listo en el puerto TCP 55900` (o `GameServer ready on TCP port 55900` en inglés).
 
 | Servidor | Puerto | Rol |
 |---|---|---|
@@ -214,3 +214,16 @@ ConnectServerPort = 55557
 | Las ediciones de inventario/stats se revierten | El personaje estaba online; el autoguardado del GameServer las sobrescribió. |
 
 Los logs de los servidores salen por cada consola y se escriben en una carpeta `LOG/` junto a cada binario.
+
+## Idioma (inglés / español)
+
+El inglés es el idioma principal de los logs de los servidores y del AdminPanel; el español es un segundo idioma completo.
+
+- **Logs de los servidores** — poné `Language = en` (por defecto) o `Language = es` en el `.ini` de cada servidor
+  (`[ConnectServerInfo]`, `[JoinServerInfo]`, `[DataServerInfo]`, `[GameServerInfo]`), o forzalo para el proceso con
+  la variable de entorno `MUSERVER_LANG`. El mismo ajuste traduce los pocos avisos que el GameServer envía a los jugadores.
+- **AdminPanel** — usá el selector `EN | ES` de la barra superior. La elección se guarda en una cookie; la primera
+  visita sigue el `Accept-Language` del navegador.
+- **Agregar una traducción** — el texto en inglés es la clave. El español vive en
+  `SharpSSeMU/src/MuServer.Shared/Localization/es/*.json` (`logs.json`, `messages.json`, `admin.json`). Si falta una
+  entrada, simplemente se muestra en inglés.

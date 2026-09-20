@@ -15,10 +15,10 @@ public static class ItemFileRepository
 {
     public static readonly IReadOnlyList<(int Section, string Label)> Sections = new List<(int, string)>
     {
-        (0, "Espadas"), (1, "Hachas"), (2, "Mazas/Cetros"), (3, "Lanzas"), (4, "Arcos/Ballestas"),
-        (5, "Báculos"), (6, "Escudos"), (7, "Cascos"), (8, "Armaduras"), (9, "Pantalones"),
-        (10, "Guantes"), (11, "Botas"), (12, "Alas/Orbes/Jewel of Chaos"), (13, "Mascotas/Anillos/Pendientes/Misc"),
-        (14, "Joyas/Pociones/Consumibles"), (15, "Orbes/Pergaminos"),
+        (0, "Swords"), (1, "Axes"), (2, "Maces/Scepters"), (3, "Spears"), (4, "Bows/Crossbows"),
+        (5, "Staffs"), (6, "Shields"), (7, "Helms"), (8, "Armors"), (9, "Pants"),
+        (10, "Gloves"), (11, "Boots"), (12, "Wings/Orbs/Jewel of Chaos"), (13, "Pets/Rings/Pendants/Misc"),
+        (14, "Jewels/Potions/Consumables"), (15, "Orbs/Scrolls"),
     };
 
     public static (Dictionary<int, string> Headers, Dictionary<int, List<ItemRow>> RowsBySection) Load(string path)

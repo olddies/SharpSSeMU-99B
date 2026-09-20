@@ -135,7 +135,7 @@ public sealed class JoinServerConnection
                 break;
 
             default:
-                Log.Add(LogColor.Black, "[JoinServer] Head 0x{0:X2} no manejado todavía", head);
+                Log.Add(LogColor.Black, "[JoinServer] Head 0x{0:X2} not handled yet", head);
                 break;
         }
     }

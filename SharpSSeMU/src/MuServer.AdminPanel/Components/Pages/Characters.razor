@@ -9,14 +9,11 @@
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
 
-<PageTitle>Personajes</PageTitle>
+<PageTitle>@L["Characters"]</PageTitle>
 
-<MudText Typo="Typo.h4" Class="mb-1">Personajes</MudText>
+<MudText Typo="Typo.h4" Class="mb-1">@L["Characters"]</MudText>
 <MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">
-    Edita stats, inventario y baúl directo en la base de datos que usa DataServer. Si el personaje
-    está conectado ahora mismo, el GameServer tiene su propia copia en memoria y no se va a enterar
-    de este cambio hasta que se desconecte y vuelva a entrar -- para probar un cambio, hacelo con el
-    personaje desconectado, o vas a ver cómo el próximo autosave lo pisa con lo que tenía en memoria.
+    @L["Edits stats, inventory and warehouse directly in the database used by the DataServer. If the character is connected right now, the GameServer has its own in-memory copy and will not notice this change until they log out and back in -- to test a change, do it with the character disconnected, or you will see the next autosave overwrite it with what it had in memory."]
 </MudText>
 
 @if (_characters is null)
@@ -25,25 +22,25 @@
 }
 else
 {
-    <MudTextField T="string" Value="_search" ValueChanged="OnSearchChanged" Label="Buscar por nombre o cuenta"
+    <MudTextField T="string" Value="_search" ValueChanged="OnSearchChanged" Label="@L["Search by name or account"]"
                   Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Style="max-width:400px" Immediate="true"
                   Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" />
 
     <MudTable Items="@FilteredCharacters" Dense="true" Hover="true" FixedHeader="true" Height="35vh"
               T="CharacterSummary" OnRowClick="OnRowClickAsync">
         <HeaderContent>
-            <MudTh>Nombre</MudTh>
-            <MudTh>Cuenta</MudTh>
-            <MudTh>Clase</MudTh>
-            <MudTh>Nivel</MudTh>
+            <MudTh>@L["Name"]</MudTh>
+            <MudTh>@L["Account"]</MudTh>
+            <MudTh>@L["Class"]</MudTh>
+            <MudTh>@L["Level"]</MudTh>
             <MudTh>Zen</MudTh>
             <MudTh></MudTh>
         </HeaderContent>
         <RowTemplate>
-            <MudTd DataLabel="Nombre">@context.Name</MudTd>
-            <MudTd DataLabel="Cuenta">@context.Account</MudTd>
-            <MudTd DataLabel="Clase">@context.ClassName</MudTd>
-            <MudTd DataLabel="Nivel">@context.Level</MudTd>
+            <MudTd DataLabel="@L["Name"]">@context.Name</MudTd>
+            <MudTd DataLabel="@L["Account"]">@context.Account</MudTd>
+            <MudTd DataLabel="@L["Class"]">@context.ClassName</MudTd>
+            <MudTd DataLabel="@L["Level"]">@context.Level</MudTd>
             <MudTd DataLabel="Zen">@context.Money.ToString("N0")</MudTd>
             <MudTd>
                 @if (_selected?.Name == context.Name)
@@ -72,10 +69,10 @@ else
 
         <MudTabs Elevation="0" Rounded="true" Class="mt-2">
             <MudTabPanel Text="Stats">
-                <MudText Typo="Typo.subtitle2" Class="mb-2">Identidad</MudText>
+                <MudText Typo="Typo.subtitle2" Class="mb-2">@L["Identity"]</MudText>
                 <MudGrid>
                     <MudItem xs="6" sm="3">
-                        <MudSelect T="int" @bind-Value="_compactClass" Label="Clase" Variant="Variant.Outlined" Margin="Margin.Dense">
+                        <MudSelect T="int" @bind-Value="_compactClass" Label="@L["Class"]" Variant="Variant.Outlined" Margin="Margin.Dense">
                             <MudSelectItem Value="0">Dark Wizard</MudSelectItem>
                             <MudSelectItem Value="1">Dark Knight</MudSelectItem>
                             <MudSelectItem Value="2">Fairy Elf</MudSelectItem>
@@ -84,72 +81,72 @@ else
                         </MudSelect>
                     </MudItem>
                     <MudItem xs="6" sm="3">
-                        <MudSelect T="int" @bind-Value="_changeUp" Label="Evolución (ChangeUp)" Variant="Variant.Outlined" Margin="Margin.Dense">
-                            <MudSelectItem Value="0">1ra (base)</MudSelectItem>
-                            <MudSelectItem Value="1">2da</MudSelectItem>
-                            <MudSelectItem Value="2">3ra</MudSelectItem>
-                            <MudSelectItem Value="3">4ta</MudSelectItem>
+                        <MudSelect T="int" @bind-Value="_changeUp" Label="@L["Evolution (ChangeUp)"]" Variant="Variant.Outlined" Margin="Margin.Dense">
+                            <MudSelectItem Value="0">@L["1st (base)"]</MudSelectItem>
+                            <MudSelectItem Value="1">@L["2nd"]</MudSelectItem>
+                            <MudSelectItem Value="2">@L["3rd"]</MudSelectItem>
+                            <MudSelectItem Value="3">@L["4th"]</MudSelectItem>
                         </MudSelect>
                     </MudItem>
                     <MudItem xs="6" sm="3">
-                        <MudNumericField T="int" @bind-Value="_clevel" Label="Nivel" Variant="Variant.Outlined" Margin="Margin.Dense" Min="1" Max="65535" />
+                        <MudNumericField T="int" @bind-Value="_clevel" Label="@L["Level"]" Variant="Variant.Outlined" Margin="Margin.Dense" Min="1" Max="65535" />
                     </MudItem>
                     <MudItem xs="6" sm="3">
-                        <MudNumericField T="int" @bind-Value="_levelUpPoint" Label="Puntos de nivel" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+                        <MudNumericField T="int" @bind-Value="_levelUpPoint" Label="@L["Level-up points"]" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
                     </MudItem>
                     <MudItem xs="6" sm="3">
-                        <MudNumericField T="long" @bind-Value="_experience" Label="Experiencia" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+                        <MudNumericField T="long" @bind-Value="_experience" Label="@L["Experience"]" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
                     </MudItem>
                     <MudItem xs="6" sm="3">
                         <MudNumericField T="long" @bind-Value="_money" Label="Zen" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" Max="4294967295" />
                     </MudItem>
                 </MudGrid>
 
-                <MudText Typo="Typo.subtitle2" Class="mt-4 mb-2">Atributos</MudText>
+                <MudText Typo="Typo.subtitle2" Class="mt-4 mb-2">@L["Attributes"]</MudText>
                 <MudGrid>
                     <MudItem xs="6" sm="2">
-                        <MudNumericField T="int" @bind-Value="_strength" Label="Fuerza" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+                        <MudNumericField T="int" @bind-Value="_strength" Label="@L["Strength"]" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
                     </MudItem>
                     <MudItem xs="6" sm="2">
-                        <MudNumericField T="int" @bind-Value="_dexterity" Label="Agilidad" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+                        <MudNumericField T="int" @bind-Value="_dexterity" Label="@L["Agility"]" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
                     </MudItem>
                     <MudItem xs="6" sm="2">
-                        <MudNumericField T="int" @bind-Value="_vitality" Label="Vitalidad" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+                        <MudNumericField T="int" @bind-Value="_vitality" Label="@L["Vitality"]" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
                     </MudItem>
                     <MudItem xs="6" sm="2">
-                        <MudNumericField T="int" @bind-Value="_energy" Label="Energía" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+                        <MudNumericField T="int" @bind-Value="_energy" Label="@L["Energy"]" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
                     </MudItem>
                     <MudItem xs="6" sm="2">
-                        <MudNumericField T="int" @bind-Value="_leadership" Label="Mando" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+                        <MudNumericField T="int" @bind-Value="_leadership" Label="@L["Command"]" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
                     </MudItem>
                 </MudGrid>
 
-                <MudText Typo="Typo.subtitle2" Class="mt-4 mb-2">Vida / Maná / BP</MudText>
+                <MudText Typo="Typo.subtitle2" Class="mt-4 mb-2">@L["Life / Mana / BP"]</MudText>
                 <MudGrid>
                     <MudItem xs="6" sm="2">
-                        <MudNumericField T="float" @bind-Value="_life" Label="Vida" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+                        <MudNumericField T="float" @bind-Value="_life" Label="@L["Life"]" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
                     </MudItem>
                     <MudItem xs="6" sm="2">
-                        <MudNumericField T="float" @bind-Value="_maxLife" Label="Vida máx." Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+                        <MudNumericField T="float" @bind-Value="_maxLife" Label="@L["Max life"]" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
                     </MudItem>
                     <MudItem xs="6" sm="2">
-                        <MudNumericField T="float" @bind-Value="_mana" Label="Maná" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+                        <MudNumericField T="float" @bind-Value="_mana" Label="@L["Mana"]" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
                     </MudItem>
                     <MudItem xs="6" sm="2">
-                        <MudNumericField T="float" @bind-Value="_maxMana" Label="Maná máx." Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+                        <MudNumericField T="float" @bind-Value="_maxMana" Label="@L["Max mana"]" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
                     </MudItem>
                     <MudItem xs="6" sm="2">
                         <MudNumericField T="float" @bind-Value="_bp" Label="BP" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
                     </MudItem>
                     <MudItem xs="6" sm="2">
-                        <MudNumericField T="float" @bind-Value="_maxBp" Label="BP máx." Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+                        <MudNumericField T="float" @bind-Value="_maxBp" Label="@L["Max BP"]" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
                     </MudItem>
                 </MudGrid>
 
-                <MudText Typo="Typo.subtitle2" Class="mt-4 mb-2">Posición</MudText>
+                <MudText Typo="Typo.subtitle2" Class="mt-4 mb-2">@L["Position"]</MudText>
                 <MudGrid>
                     <MudItem xs="6" sm="2">
-                        <MudNumericField T="int" @bind-Value="_mapNumber" Label="Mapa" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+                        <MudNumericField T="int" @bind-Value="_mapNumber" Label="@L["Map"]" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
                     </MudItem>
                     <MudItem xs="6" sm="2">
                         <MudNumericField T="int" @bind-Value="_mapPosX" Label="X" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" Max="255" />
@@ -158,11 +155,11 @@ else
                         <MudNumericField T="int" @bind-Value="_mapPosY" Label="Y" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" Max="255" />
                     </MudItem>
                     <MudItem xs="6" sm="2">
-                        <MudNumericField T="int" @bind-Value="_mapDir" Label="Dirección" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" Max="7" />
+                        <MudNumericField T="int" @bind-Value="_mapDir" Label="@L["Direction"]" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" Max="7" />
                     </MudItem>
                 </MudGrid>
 
-                <MudText Typo="Typo.subtitle2" Class="mt-4 mb-2">PK y frutas</MudText>
+                <MudText Typo="Typo.subtitle2" Class="mt-4 mb-2">@L["PK and fruits"]</MudText>
                 <MudGrid>
                     <MudItem xs="6" sm="2">
                         <MudNumericField T="int" @bind-Value="_pkCount" Label="PK Count" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
@@ -174,41 +171,40 @@ else
                         <MudNumericField T="int" @bind-Value="_pkTime" Label="PK Time" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
                     </MudItem>
                     <MudItem xs="6" sm="2">
-                        <MudNumericField T="int" @bind-Value="_fruitAddPoint" Label="Puntos fruta +" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+                        <MudNumericField T="int" @bind-Value="_fruitAddPoint" Label="@L["Fruit points +"]" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
                     </MudItem>
                     <MudItem xs="6" sm="2">
-                        <MudNumericField T="int" @bind-Value="_fruitSubPoint" Label="Puntos fruta -" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+                        <MudNumericField T="int" @bind-Value="_fruitSubPoint" Label="@L["Fruit points -"]" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
                     </MudItem>
                 </MudGrid>
 
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-4"
                            StartIcon="@Icons.Material.Filled.Save" OnClick="SaveStatsAsync" Disabled="@_saving">
-                    Guardar stats
+                    @L["Save stats"]
                 </MudButton>
             </MudTabPanel>
 
-            <MudTabPanel Text="@($"Inventario ({_inventory?.Count(i => i.Index >= 0) ?? 0}/{_inventory?.Count ?? 0})")">
+            <MudTabPanel Text="@(L.F("Inventory ({0}/{1})", _inventory?.Count(i => i.Index >= 0) ?? 0, _inventory?.Count ?? 0))">
                 @if (_inventory is not null)
                 {
                     <ItemSlotGrid Rows="_inventory" ResolveName="ResolveItemName" OnPickItem="OpenPickerAsync" />
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-4"
                                StartIcon="@Icons.Material.Filled.Save" OnClick="SaveInventoryAsync" Disabled="@_saving">
-                        Guardar inventario
+                        @L["Save inventory"]
                     </MudButton>
                 }
             </MudTabPanel>
 
-            <MudTabPanel Text="@($"Baúl -- cuenta ({_warehouse?.Count(i => i.Index >= 0) ?? 0}/{_warehouse?.Count ?? 0})")">
+            <MudTabPanel Text="@(L.F("Warehouse -- account ({0}/{1})", _warehouse?.Count(i => i.Index >= 0) ?? 0, _warehouse?.Count ?? 0))">
                 <MudText Typo="Typo.body2" Class="mud-text-secondary mb-2">
-                    El baúl es de la CUENTA, no del personaje: lo comparten los 5 personajes de
-                    @_selected.Account.
+                    @L.F("The warehouse belongs to the ACCOUNT, not the character: it is shared by the 5 characters of {0}.", _selected.Account)
                 </MudText>
                 <MudGrid Class="mb-2">
                     <MudItem xs="6" sm="3">
-                        <MudNumericField T="long" @bind-Value="_warehouseMoney" Label="Zen en el baúl" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" Max="4294967295" />
+                        <MudNumericField T="long" @bind-Value="_warehouseMoney" Label="@L["Zen in the warehouse"]" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" Max="4294967295" />
                     </MudItem>
                     <MudItem xs="6" sm="3">
-                        <MudNumericField T="int" @bind-Value="_warehousePassword" Label="Contraseña (0 = sin clave)" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" Max="9999" />
+                        <MudNumericField T="int" @bind-Value="_warehousePassword" Label="@L["Password (0 = none)"]" Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" Max="9999" />
                     </MudItem>
                 </MudGrid>
                 @if (_warehouse is not null)
@@ -216,7 +212,7 @@ else
                     <ItemSlotGrid Rows="_warehouse" ResolveName="ResolveItemName" OnPickItem="OpenPickerAsync" />
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-4"
                                StartIcon="@Icons.Material.Filled.Save" OnClick="SaveWarehouseAsync" Disabled="@_saving">
-                        Guardar baúl
+                        @L["Save warehouse"]
                     </MudButton>
                 }
             </MudTabPanel>
@@ -247,7 +243,7 @@ else
     private long _experience, _money;
     private float _life, _maxLife, _mana, _maxMana, _bp, _maxBp;
 
-    // Inventario / baúl
+    // Inventory / warehouse
     private List<ItemSlotRow>? _inventory;
     private List<ItemSlotRow>? _warehouse;
     private long _warehouseMoney;
@@ -274,15 +270,15 @@ else
 
     private string ResolveItemName(int wireIndex)
     {
-        if (wireIndex < 0) return "(vacío)";
-        return _itemBalance?.Get(wireIndex)?.Name ?? "(desconocido)";
+        if (wireIndex < 0) return L["(empty)"];
+        return _itemBalance?.Get(wireIndex)?.Name ?? L["(unknown)"];
     }
 
     private async Task OpenPickerAsync(ItemSlotRow row)
     {
         var catalog = _itemBalance?.All.ToList() ?? [];
         var parameters = new DialogParameters<ItemPickerDialog> { { x => x.Catalog, catalog } };
-        var dialogRef = await DialogService.ShowAsync<ItemPickerDialog>("Elegir item", parameters);
+        var dialogRef = await DialogService.ShowAsync<ItemPickerDialog>(L["Pick item"], parameters);
         var result = await dialogRef.Result;
 
         if (result is { Canceled: false } && result.Data is int selectedIndex)
@@ -306,7 +302,7 @@ else
             var row = await Repo.GetCharacterAsync(character.Account, character.Name, CancellationToken.None);
             if (row is null)
             {
-                Snackbar.Add("No se pudo cargar el personaje (¿lo borraron?).", Severity.Error);
+                Snackbar.Add(L["Could not load the character (was it deleted?)."], Severity.Error);
                 return;
             }
 
@@ -343,42 +339,42 @@ else
             var warehouse = await Repo.GetWarehouseAsync(character.Account, CancellationToken.None);
             if (warehouse is not null)
             {
-                _warehouse = BuildItemSlotRows(warehouse.Items, 120, i => $"Baúl {i + 1}");
+                _warehouse = BuildItemSlotRows(warehouse.Items, 120, i => L.F("Warehouse {0}", i + 1));
                 _warehouseMoney = warehouse.Money;
                 _warehousePassword = warehouse.Password;
             }
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"No se pudo cargar el personaje: {ex.Message}", Severity.Error);
+            Snackbar.Add(L.F("Could not load the character: {0}", ex.Message), Severity.Error);
         }
         finally
         {
             _loading = false;
-            // Explícito y no sólo confiando en el auto-render de Blazor tras el EventCallback: un
-            // bug real de esta misma página (corregido junto con este) llamaba a este método desde
-            // un lambda "fire-and-forget" (Action, no Func<Task>) que Blazor nunca esperaba -- el
-            // servidor terminaba de cargar todo bien pero el cliente jamás se enteraba, así que el
-            // panel se quedaba colgado en "cargando" sin ningún error visible. Ver OnRowClickAsync.
+            // Explicit rather than relying only on Blazor's auto-render after the EventCallback: a
+            // real bug on this very page (fixed along with this) called this method from a
+            // "fire-and-forget" lambda (Action, not Func<Task>) that Blazor never awaited -- the
+            // server finished loading everything fine but the client never found out, so the
+            // panel hung on "loading" with no visible error. See OnRowClickAsync.
             StateHasChanged();
         }
     }
 
-    private static string SlotLabel(int slot) => slot switch
+    private string SlotLabel(int slot) => slot switch
     {
-        Item.SlotWeapon1 => "Arma (mano izq.)",
-        Item.SlotWeapon2 => "Arma (mano der.)",
-        Item.SlotHelm => "Casco",
-        Item.SlotArmor => "Armadura",
-        Item.SlotPants => "Pantalón",
-        Item.SlotGloves => "Guantes",
-        Item.SlotBoots => "Botas",
-        Item.SlotWing => "Alas",
-        Item.SlotHelper => "Ayudante",
-        Item.SlotAmulet => "Amuleto",
-        Item.SlotRing1 => "Anillo 1",
-        Item.SlotRing2 => "Anillo 2",
-        _ => $"Inventario {slot - Item.InventoryWearSize + 1}",
+        Item.SlotWeapon1 => L["Weapon (left hand)"],
+        Item.SlotWeapon2 => L["Weapon (right hand)"],
+        Item.SlotHelm => L["Helm"],
+        Item.SlotArmor => L["Armor"],
+        Item.SlotPants => L["Pants"],
+        Item.SlotGloves => L["Gloves"],
+        Item.SlotBoots => L["Boots"],
+        Item.SlotWing => L["Wings"],
+        Item.SlotHelper => L["Helper"],
+        Item.SlotAmulet => L["Pendant"],
+        Item.SlotRing1 => L["Ring 1"],
+        Item.SlotRing2 => L["Ring 2"],
+        _ => L.F("Inventory {0}", slot - Item.InventoryWearSize + 1),
     };
 
     private static List<ItemSlotRow> BuildItemSlotRows(byte[] blob, int slotCount, Func<int, string> label)
@@ -456,11 +452,11 @@ else
                 };
             }
 
-            Snackbar.Add("Stats guardados.", Severity.Success);
+            Snackbar.Add(L["Stats saved."], Severity.Success);
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"No se pudo guardar: {ex.Message}", Severity.Error);
+            Snackbar.Add(L.F("Could not save: {0}", ex.Message), Severity.Error);
         }
         finally
         {
@@ -478,11 +474,11 @@ else
             var bytes = EncodeItemSlotRows(_inventory, Item.InventorySize);
             await Repo.SaveInventoryAsync(_selected.Account, _selected.Name, bytes, CancellationToken.None);
             _row = _row with { Inventory = bytes };
-            Snackbar.Add("Inventario guardado.", Severity.Success);
+            Snackbar.Add(L["Inventory saved."], Severity.Success);
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"No se pudo guardar: {ex.Message}", Severity.Error);
+            Snackbar.Add(L.F("Could not save: {0}", ex.Message), Severity.Error);
         }
         finally
         {
@@ -501,11 +497,11 @@ else
             var money = (uint)Math.Clamp(_warehouseMoney, 0, uint.MaxValue);
             var password = (ushort)Math.Clamp(_warehousePassword, 0, ushort.MaxValue);
             await Repo.SaveWarehouseAsync(_selected.Account, bytes, money, password, CancellationToken.None);
-            Snackbar.Add("Baúl guardado.", Severity.Success);
+            Snackbar.Add(L["Warehouse saved."], Severity.Success);
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"No se pudo guardar: {ex.Message}", Severity.Error);
+            Snackbar.Add(L.F("Could not save: {0}", ex.Message), Severity.Error);
         }
         finally
         {

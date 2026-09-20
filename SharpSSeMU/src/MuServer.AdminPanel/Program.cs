@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using MudBlazor.Services;
+using MuServer.AdminPanel;
 using MuServer.AdminPanel.Auth;
 using MuServer.AdminPanel.Components;
 using MuServer.AdminPanel.Config;
@@ -36,6 +37,8 @@ builder.Services.AddScoped(_ => new CharacterEditRepository(pgConnectionString))
 // El panel escribe la configuración del servidor, así que va detrás de una contraseña -- ver
 // Auth/AdminPassword.cs para de dónde sale.
 builder.Services.AddSingleton<AdminPassword>();
+builder.Services.AddScoped<Localizer>();
+builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
@@ -114,6 +117,29 @@ app.MapPost("/auth/logout", async (HttpContext http) =>
 {
     await http.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
     return Results.Redirect("/login");
+});
+
+// Language switch: a normal POST (like login/logout) because the cookie is written on the HTTP response.
+app.MapPost("/auth/lang", async (HttpContext http) =>
+{
+    var form = await http.Request.ReadFormAsync();
+    var lang = MuServer.Shared.Localization.Loc.Normalize(form["lang"].ToString());
+    var returnUrl = form["returnUrl"].ToString();
+
+    http.Response.Cookies.Append(Localizer.CookieName, lang, new CookieOptions
+    {
+        Expires = DateTimeOffset.UtcNow.AddYears(1),
+        SameSite = SameSiteMode.Lax,
+        IsEssential = true,
+        Path = "/",
+    });
+
+    var target = !string.IsNullOrEmpty(returnUrl) && Uri.IsWellFormedUriString(returnUrl, UriKind.Relative)
+        && returnUrl.StartsWith('/') && !returnUrl.StartsWith("//")
+        ? returnUrl
+        : "/";
+
+    return Results.Redirect(target);
 });
 
 app.Run();

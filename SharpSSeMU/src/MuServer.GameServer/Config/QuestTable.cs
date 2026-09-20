@@ -80,7 +80,7 @@ public sealed class QuestTable
             entries.Add(new QuestInfo(index, monsterClass, currentState, requireIndex, requireState, requireMinLevel, requireMaxLevel, requireClass));
         }
 
-        Log.Add(LogColor.Blue, "[QuestTable] {0} entradas cargadas desde {1}", entries.Count, path);
+        Log.Add(LogColor.Blue, "[QuestTable] {0} entries loaded from {1}", entries.Count, path);
         return new QuestTable(entries);
     }
 

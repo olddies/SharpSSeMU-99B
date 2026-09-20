@@ -4,26 +4,25 @@
 @inject GameDataPaths DataPaths
 @inject ISnackbar Snackbar
 
-<PageTitle>Mensaje global</PageTitle>
+<PageTitle>@L["Global message"]</PageTitle>
 
-<MudText Typo="Typo.h4" Class="mb-1">Mensaje global</MudText>
+<MudText Typo="Typo.h4" Class="mb-1">@L["Global message"]</MudText>
 <MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">
-    Manda un aviso a todos los jugadores conectados ahora mismo (no queda guardado para los que se
-    conecten después). El GameServer lo recoge en un plazo de hasta 2 segundos.
+    @L["Sends a notice to every player connected right now (it is not stored for those who connect later). The GameServer picks it up within 2 seconds."]
 </MudText>
 
 <MudPaper Class="pa-4" Elevation="0" Style="max-width: 640px;">
-    <MudTextField T="string" @bind-Value="_message" Label="Mensaje" Variant="Variant.Outlined"
+    <MudTextField T="string" @bind-Value="_message" Label="@L["Message"]" Variant="Variant.Outlined"
                    Lines="3" MaxLength="120" Counter="120" Class="mb-4" />
 
     <MudRadioGroup T="byte" @bind-Value="_type" Class="mb-4">
-        <MudRadio T="byte" Value="@((byte)0)" Color="Color.Primary">Noticia dorada en pantalla</MudRadio>
-        <MudRadio T="byte" Value="@((byte)1)" Color="Color.Primary">Mensaje azul en el chat</MudRadio>
+        <MudRadio T="byte" Value="@((byte)0)" Color="Color.Primary">@L["Golden on-screen notice"]</MudRadio>
+        <MudRadio T="byte" Value="@((byte)1)" Color="Color.Primary">@L["Blue chat message"]</MudRadio>
     </MudRadioGroup>
 
     <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Send"
                OnClick="Send" Disabled="@(_sending || string.IsNullOrWhiteSpace(_message))">
-        Enviar
+        @L["Send"]
     </MudButton>
 </MudPaper>
 
@@ -38,12 +37,12 @@
         try
         {
             GlobalMessageRepository.Send(DataPaths.Root, _message.Trim(), _type);
-            Snackbar.Add("Mensaje mandado.", Severity.Success);
+            Snackbar.Add(L["Message sent."], Severity.Success);
             _message = string.Empty;
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"No se pudo mandar: {ex.Message}", Severity.Error);
+            Snackbar.Add(L.F("Could not send: {0}", ex.Message), Severity.Error);
         }
         finally
         {

@@ -4,37 +4,35 @@
 @inject AdminPassword AdminPassword
 @attribute [AllowAnonymous]
 
-@* Sin @rendermode a propósito: esta página se sirve como HTML estático y el formulario hace un POST
-   normal a /login. Un circuito de Blazor no puede escribir la cookie de sesión (los headers ya se
-   mandaron cuando arranca), así que el login tiene que ser un POST de toda la vida. *@
+@* No @rendermode on purpose: this page is served as static HTML and the form does a normal POST
+   to /login. A Blazor circuit cannot write the session cookie (the headers were already sent when it
+   starts), so the login has to be a plain old POST. *@
 
-<PageTitle>Entrar</PageTitle>
+<PageTitle>@L["Sign in"]</PageTitle>
 
 <div class="login-wrap">
     <div class="login-card">
         <h1>SSeMU <span>0.99B</span></h1>
-        <p class="sub">Panel de administración</p>
+        <p class="sub">@L["Administration panel"]</p>
 
         @if (Failed)
         {
-            <div class="alert">Contraseña incorrecta.</div>
+            <div class="alert">@L["Wrong password."]</div>
         }
 
         @if (AdminPassword.IsGenerated)
         {
             <div class="note">
-                No hay contraseña configurada: se generó una al arrancar y está impresa en la consola
-                del panel. Para fijar una permanente, agregá <code>Admin:Password</code> en
-                appsettings.json.
+                @L["No password is configured: one was generated at start-up and printed in the panel console. To set a permanent one, add"] <code>Admin:Password</code> @L["to appsettings.json."]
             </div>
         }
 
         <form method="post" action="/auth/login">
             <AntiforgeryToken />
             <input type="hidden" name="returnUrl" value="@ReturnUrl" />
-            <label for="password">Contraseña</label>
+            <label for="password">@L["Password"]</label>
             <input id="password" name="password" type="password" autofocus autocomplete="current-password" />
-            <button type="submit">Entrar</button>
+            <button type="submit">@L["Sign in"]</button>
         </form>
     </div>
 </div>

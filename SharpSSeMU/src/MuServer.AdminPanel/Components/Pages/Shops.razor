@@ -4,13 +4,11 @@
 @inject GameDataPaths DataPaths
 @inject ISnackbar Snackbar
 
-<PageTitle>Tiendas</PageTitle>
+<PageTitle>@L["Shops"]</PageTitle>
 
-<MudText Typo="Typo.h4" Class="mb-1">Tiendas</MudText>
+<MudText Typo="Typo.h4" Class="mb-1">@L["Shops"]</MudText>
 <MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">
-    Data/ShopManager.txt (dónde está parado cada NPC) y Data/Shop/*.txt (qué vende cada uno). El
-    nombre de cada item sale de Item.txt, así que si no aparece ninguno es porque ese índice no existe
-    en el archivo de items.
+    @L["Data/ShopManager.txt (where each NPC stands) and Data/Shop/*.txt (what each one sells). Each item's name comes from Item.txt, so if none shows up it is because that index does not exist in the items file."]
 </MudText>
 
 @if (_npcs is null)
@@ -20,8 +18,8 @@
 else
 {
     <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" Class="pt-2">
-        <MudTabPanel Text="Items por tienda" Icon="@Icons.Material.Filled.Storefront">
-            <MudSelect T="ShopNpcRow" Value="_selectedNpc" ValueChanged="OnNpcChanged" Label="Tienda"
+        <MudTabPanel Text="@L["Items per shop"]" Icon="@Icons.Material.Filled.Storefront">
+            <MudSelect T="ShopNpcRow" Value="_selectedNpc" ValueChanged="OnNpcChanged" Label="@L["Shop"]"
                        Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" Style="max-width: 460px;"
                        ToStringFunc="@(n => n is null ? "" : $"{n.NpcIndex} -- {n.ShopPath}")">
                 @foreach (var npc in _npcs)
@@ -40,19 +38,19 @@ else
                     <MudDataGrid Items="@_shopItems" T="ShopItemRow" EditMode="DataGridEditMode.Cell" ReadOnly="false"
                                  Bordered="false" Dense="true" FixedHeader="true" Height="55vh" SortMode="SortMode.Multiple">
                         <Columns>
-                            <PropertyColumn Property="x => x.Section" Title="Sección" />
-                            <PropertyColumn Property="x => x.Sub" Title="Índice" />
+                            <PropertyColumn Property="x => x.Section" Title="@L["Section"]" />
+                            <PropertyColumn Property="x => x.Sub" Title="@L["Index"]" />
                             <TemplateColumn Title="Item" Editable="false" Sortable="false">
                                 <CellTemplate>
                                     @ItemName(context.Item)
                                 </CellTemplate>
                             </TemplateColumn>
-                            <PropertyColumn Property="x => x.Level" Title="Nivel" />
-                            <PropertyColumn Property="x => x.Durability" Title="Durabilidad" />
+                            <PropertyColumn Property="x => x.Level" Title="@L["Level"]" />
+                            <PropertyColumn Property="x => x.Durability" Title="@L["Durability"]" />
                             <PropertyColumn Property="x => x.Skill" Title="Skill" />
-                            <PropertyColumn Property="x => x.Luck" Title="Suerte" />
-                            <PropertyColumn Property="x => x.Additional" Title="Adicional" />
-                            <PropertyColumn Property="x => x.Excellent" Title="Excelente" />
+                            <PropertyColumn Property="x => x.Luck" Title="@L["Luck"]" />
+                            <PropertyColumn Property="x => x.Additional" Title="@L["Additional"]" />
+                            <PropertyColumn Property="x => x.Excellent" Title="@L["Excellent"]" />
                             <PropertyColumn Property="x => x.SetOption" Title="Set" />
                             <TemplateColumn Title="" Editable="false" Sortable="false">
                                 <CellTemplate>
@@ -67,32 +65,32 @@ else
                 <div class="d-flex gap-2 mt-4 align-center flex-wrap">
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
                                OnClick="SaveShop" Disabled="@_saving">
-                        Guardar items de la tienda
+                        @L["Save shop items"]
                     </MudButton>
                     <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Add" OnClick="AddItem">
-                        Agregar item
+                        @L["Add item"]
                     </MudButton>
                     <MudButton Variant="Variant.Outlined" OnClick="@(() => LoadShopItems(_selectedNpc))" Disabled="@_saving">
-                        Descartar cambios
+                        @L["Discard changes"]
                     </MudButton>
                     <MudText Typo="Typo.caption" Class="mud-text-secondary">
-                        @_shopItems.Count item(s) a la venta
+                        @L.F("{0} item(s) for sale", _shopItems.Count)
                     </MudText>
                 </div>
             }
         </MudTabPanel>
 
-        <MudTabPanel Text="Ubicación de los NPC" Icon="@Icons.Material.Filled.PinDrop">
+        <MudTabPanel Text="@L["NPC locations"]" Icon="@Icons.Material.Filled.PinDrop">
             <MudPaper Class="pa-2" Elevation="0">
                 <MudDataGrid Items="@_npcs" T="ShopNpcRow" EditMode="DataGridEditMode.Cell" ReadOnly="false"
                              Bordered="false" Dense="true" FixedHeader="true" Height="55vh" SortMode="SortMode.Multiple">
                     <Columns>
                         <PropertyColumn Property="x => x.NpcIndex" Title="NPC" Editable="false" />
-                        <PropertyColumn Property="x => x.ShopPath" Title="Archivo de tienda" Editable="false" />
-                        <PropertyColumn Property="x => x.MapNumber" Title="Mapa" />
+                        <PropertyColumn Property="x => x.ShopPath" Title="@L["Shop file"]" Editable="false" />
+                        <PropertyColumn Property="x => x.MapNumber" Title="@L["Map"]" />
                         <PropertyColumn Property="x => x.LocationX" Title="X" />
                         <PropertyColumn Property="x => x.LocationY" Title="Y" />
-                        <PropertyColumn Property="x => x.Direction" Title="Dirección" />
+                        <PropertyColumn Property="x => x.Direction" Title="@L["Direction"]" />
                     </Columns>
                 </MudDataGrid>
             </MudPaper>
@@ -100,17 +98,17 @@ else
             <div class="d-flex gap-2 mt-4">
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
                            OnClick="SaveManager" Disabled="@_saving">
-                    Guardar en ShopManager.txt
+                    @L["Save to ShopManager.txt"]
                 </MudButton>
                 <MudButton Variant="Variant.Outlined" OnClick="LoadManager" Disabled="@_saving">
-                    Descartar cambios
+                    @L["Discard changes"]
                 </MudButton>
             </div>
         </MudTabPanel>
     </MudTabs>
 
     <MudText Typo="Typo.caption" Class="mud-text-secondary mt-4 d-block">
-        Se guarda un respaldo (.bak) de cada archivo la primera vez que grabás en esta sesión.
+        @L["A backup (.bak) of each file is saved the first time you save in this session."]
     </MudText>
 }
 
@@ -142,8 +140,8 @@ else
         }
     }
 
-    /// <summary>Índice combinado (sección*512+sub, igual que Item.GetItem) -> nombre, para poder
-    /// mostrar "Jewel of Bless" en vez de "14,013".</summary>
+    /// <summary>Combined index (section*512+sub, same as Item.GetItem) -> name, so that
+    /// "Jewel of Bless" can be shown instead of "14,013".</summary>
     private void LoadItemNames()
     {
         try
@@ -155,13 +153,13 @@ else
         }
         catch (Exception)
         {
-            // Sin Item.txt la página sigue sirviendo, sólo que sin nombres de item.
+            // Without Item.txt the page still works, just without item names.
             _itemNames = new Dictionary<int, string>();
         }
     }
 
     private string ItemName(ShopItemRow row) =>
-        _itemNames.TryGetValue(row.Sub + row.Section * 512, out var name) ? name : "(desconocido)";
+        _itemNames.TryGetValue(row.Sub + row.Section * 512, out var name) ? name : L["(unknown)"];
 
     private void LoadManager()
     {
@@ -190,7 +188,7 @@ else
 
         if (!File.Exists(path))
         {
-            _shopLoadError = $"No se encontró Data/Shop/{npc.ShopPath}.txt -- este NPC apunta a un archivo que no existe.";
+            _shopLoadError = L.F("Data/Shop/{0}.txt was not found -- this NPC points to a file that does not exist.", npc.ShopPath);
             return;
         }
 
@@ -237,11 +235,11 @@ else
             var path = ShopPathFor(_selectedNpc);
             Backup(path);
             ShopFileRepository.SaveShop(path, _shopHeader, _shopItems);
-            Snackbar.Add($"Guardado: {_shopItems.Count} item(s) en {_selectedNpc.ShopPath}.", Severity.Success);
+            Snackbar.Add(L.F("Saved: {0} item(s) in {1}.", _shopItems.Count, _selectedNpc.ShopPath), Severity.Success);
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"No se pudo guardar: {ex.Message}", Severity.Error);
+            Snackbar.Add(L.F("Could not save: {0}", ex.Message), Severity.Error);
         }
         finally
         {
@@ -261,11 +259,11 @@ else
         {
             Backup(ManagerPath);
             ShopFileRepository.SaveManager(ManagerPath, _managerHeader, _npcs);
-            Snackbar.Add($"Guardado: {_npcs.Count} NPC(s) de tienda.", Severity.Success);
+            Snackbar.Add(L.F("Saved: {0} shop NPC(s).", _npcs.Count), Severity.Success);
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"No se pudo guardar: {ex.Message}", Severity.Error);
+            Snackbar.Add(L.F("Could not save: {0}", ex.Message), Severity.Error);
         }
         finally
         {
