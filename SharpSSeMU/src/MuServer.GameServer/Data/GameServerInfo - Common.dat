@@ -178,10 +178,10 @@ PetDurabilityRate = 100
 ;==================================================
 ; Add settings
 ;==================================================
-AddExperienceRate_AL0 = 10000
-AddExperienceRate_AL1 = 10000
-AddExperienceRate_AL2 = 10000
-AddExperienceRate_AL3 = 10000
+AddExperienceRate_AL0 = 1
+AddExperienceRate_AL1 = 1
+AddExperienceRate_AL2 = 1
+AddExperienceRate_AL3 = 1
 AddEventExperienceRate_AL0 = 1
 AddEventExperienceRate_AL1 = 1
 AddEventExperienceRate_AL2 = 1
