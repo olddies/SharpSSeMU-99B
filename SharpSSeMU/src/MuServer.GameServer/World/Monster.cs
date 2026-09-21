@@ -64,7 +64,10 @@ public sealed class Monster
     /// ObjectManager.cpp:789-865). Without party sharing yet (Social/Party not ported) -- the split here is
     /// always "each attacker takes the part proportional to THEIR damage", like the original does even without
     /// a party.</summary>
-    public Dictionary<int, int> DamageByAttacker { get; } = new();
+    // Thread-safe on purpose: hits arrive on the packet threads while the respawn tick (MonsterRegistry.Respawn)
+    // clears it from the ticker thread. With a plain Dictionary a hit landing right at the respawn instant could
+    // corrupt it and spin the packet handler forever.
+    public System.Collections.Concurrent.ConcurrentDictionary<int, int> DamageByAttacker { get; } = new();
 
     /// <summary>Players who currently have it in their viewport -- simplified port of the reverse list
     /// VpPlayer2[] (Util.cpp::MsgSendV2), used to direct damage/death packets only to whoever is really

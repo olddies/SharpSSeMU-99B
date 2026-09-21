@@ -3086,8 +3086,7 @@ public sealed class ClientProtocolHandler
         // to 100% (no change), which is the default of an untouched package.
 
         monster.Life = Math.Max(monster.Life - damage, 0);
-        monster.DamageByAttacker.TryGetValue(player.Index, out var accumulated);
-        monster.DamageByAttacker[player.Index] = accumulated + damage;
+        monster.DamageByAttacker.AddOrUpdate(player.Index, damage, (_, previous) => previous + damage);
 
         await session.SendAsync(CombatPacketBuilder.DamageSend(monster.Index, damage, 0, missFlag: false, monster.Life), ct);
 
@@ -3245,8 +3244,7 @@ public sealed class ClientProtocolHandler
         damage = _skillDamage.Apply(skill.Index, damage);
 
         monster.Life = Math.Max(monster.Life - damage, 0);
-        monster.DamageByAttacker.TryGetValue(player.Index, out var accumulated);
-        monster.DamageByAttacker[player.Index] = accumulated + damage;
+        monster.DamageByAttacker.AddOrUpdate(player.Index, damage, (_, previous) => previous + damage);
 
         await session.SendAsync(CombatPacketBuilder.DamageSend(monster.Index, damage, 0, missFlag: false, monster.Life), ct);
 
@@ -3412,8 +3410,7 @@ public sealed class ClientProtocolHandler
         damage = _skillDamage.Apply(skill.Index, damage);
 
         monster.Life = Math.Max(monster.Life - damage, 0);
-        monster.DamageByAttacker.TryGetValue(player.Index, out var accumulated);
-        monster.DamageByAttacker[player.Index] = accumulated + damage;
+        monster.DamageByAttacker.AddOrUpdate(player.Index, damage, (_, previous) => previous + damage);
 
         await player.Session.SendAsync(CombatPacketBuilder.DamageSend(monster.Index, damage, 0, missFlag: false, monster.Life), ct);
 
@@ -3878,11 +3875,15 @@ public sealed class ClientProtocolHandler
             }
         }
 
+        // The reward packet's damage field is sent as 0: the hit itself already shows its own damage number
+        // (PMSG_DAMAGE_SEND), and the client draws a second, yellow number at the monster from this field, so
+        // a killing blow used to show two numbers (the real hit, plus the credited total capped at the
+        // monster's life).
         // Port of ObjectManager.cpp:857-864: if there was a level-up, this packet's experience popup sends 0
         // (the notice is already given by GCLevelUpSend/LevelUpSend further below) -- otherwise, it sends the
         // real experience gained.
         await member.Session.SendAsync(
-            CombatPacketBuilder.MonsterDieSend(monsterIndex, leveledUp ? 0u : (uint)Math.Max(experience, 0), damageCredit,
+            CombatPacketBuilder.MonsterDieSend(monsterIndex, leveledUp ? 0u : (uint)Math.Max(experience, 0), 0,
                 (uint)Math.Min(member.Experience, uint.MaxValue), WorldPacketBuilder.NextExperience(member.Level)),
             ct);
 
