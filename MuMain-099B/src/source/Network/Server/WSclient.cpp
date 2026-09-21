@@ -6448,7 +6448,8 @@ void ReceiveExperience099B(std::span<const BYTE> ReceiveBuffer)
     g_pMainFrame->SetGetExp(static_cast<DWORD>(gained));
 
     const int Index = FindCharacterIndex(Key);
-    if (Index >= 0)
+    // A damage of 0 means "nothing to show": the hit already drew its own number from PMSG_DAMAGE_SEND.
+    if (Index >= 0 && Index < MAX_CHARACTERS_CLIENT && damage > 0)
     {
         CHARACTER* c = &CharactersClient[Index];
         vec3_t Light;
