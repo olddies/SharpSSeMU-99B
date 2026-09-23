@@ -10,7 +10,8 @@ conectarte con el cliente real (`MuClient/main.exe`). Se usa Windows para todo (
 el cliente solo corre ahí — .NET 10 es multiplataforma, así que los servidores andan igual en
 Windows para esta prueba local. Para producción después se pueden mover a un Linux.
 
-Todo corre en `127.0.0.1` (tu misma PC), así que no hace falta abrir puertos ni configurar
+Todo corre en tu misma PC (loopback; el cliente original debe apuntar a `127.0.0.2`, no a `127.0.0.1`,
+ver el paso 0), así que no hace falta abrir puertos ni configurar
 firewall para esta prueba.
 
 ## 0. Buena noticia sobre el cliente
@@ -25,10 +26,13 @@ ClientVersion = 1.02.00
 ClientSerial = <your client's serial>
 ```
 
-Esto indica que el `Main.dll` que ya está en `MuClient/` **ya viene apuntando a `127.0.0.1:44405`**
-— el mismo puerto que usa ConnectServer. No debería hacer falta parchear nada con MuMaker para
-esta prueba local. Si al final el cliente no logra conectar, es la primera cosa a revisar (ver
-sección de problemas comunes, al final).
+**No uses `127.0.0.1` con el cliente original.** El `main.exe` de Webzen revisa la dirección antes de
+conectar y aborta si es exactamente `127.0.0.1` ("Failed to connect" y después "You are disconnected
+from the server"; el ConnectServer nunca ve la conexión). Sirve cualquier otra dirección de loopback,
+porque todo `127.0.0.0/8` es local y los servidores escuchan en todas las direcciones. Poné
+`IpAddress = 127.0.0.2` en `MuClient/GetMainInfo/MainInfo.ini`, corré `GetMainInfo` para regenerar
+`ServerInfo.sse` y copialo junto a `main.exe`. La dirección del GameServer en `ServerList.dat` tampoco
+puede ser `127.0.0.1` (paso 4), porque el cliente hace la misma comprobación al pasar al GameServer.
 
 Los valores `ClientVersion = 1.02.00` y `ClientSerial = <your client's serial>` son justamente los que
 hay que poner en la configuración de GameServer para que la validación de versión/serial del login
@@ -121,12 +125,13 @@ end
 ### `MuServer.ConnectServer\bin\Debug\net10.0\ServerList.dat`
 
 ```
-   0            "GameServer_0"   "127.0.0.1"        55900       1
+   0            "GameServer_0"   "127.0.0.2"        55900       1
 end
 ```
 
 (Si mirás `MuServer99B/ConnectServer/ServerList.dat`, el original apunta a una IP de LAN vieja del
-desarrollador — por eso hay que usar esta versión con `127.0.0.1`, no copiar la original tal cual.)
+desarrollador — por eso hay que usar esta versión de loopback, no copiar la original tal cual. No puede
+ser `127.0.0.1`: el cliente original rechaza esa dirección, ver el paso 0.)
 
 ### `MuServer.JoinServer\bin\Debug\net10.0\JoinServer.ini`
 
@@ -242,7 +247,8 @@ lo que confirmé con un test automatizado antes de escribir esta guía — ver
 Ejecutá `MuClient\main.exe`. Debería:
 
 1. Conectar a ConnectServer y mostrar "GameServer_0" en la lista de servidores.
-2. Al elegirlo, conectar directo a GameServer (127.0.0.1:55900).
+2. Al elegirlo, conectar directo a GameServer (`127.0.0.2:55900`). Hacelo antes de un minuto: el
+   ConnectServer cierra cada conexión a los `MaxConnectionIdle` segundos (60), como el original.
 3. Mostrar la pantalla de login — usá `test` / `test` o `admin` / `admin`.
 
 Que el login funcione ya confirma que las capas de cifrado y el protocolo están bien. Después
@@ -252,9 +258,11 @@ juego: ver [`../docs/es/STATUS.md`](../docs/es/STATUS.md). Para usar el **client
 
 ## Problemas comunes
 
-- **El cliente no conecta ni siquiera al principio**: la hipótesis del paso 0 sobre que
-  `Main.dll` ya apunta a `127.0.0.1:44405` no se pudo verificar sin ejecutar el binario. Si no conecta, usá `MuServer99B/Tools/MuMaker/MuMaker.exe` para parchear la IP en una
-  copia de `Main.dll` (esa herramienta genera un cliente distribuible con la IP grabada).
+- **"You are disconnected from the server" en la pantalla de título y nada en el log del
+  ConnectServer**: el cliente apunta a `127.0.0.1`, que el `main.exe` original rechaza. Usá
+  `127.0.0.2` (paso 0).
+- **El mismo mensaje después de elegir el servidor**: o `ServerList.dat` sigue dando `127.0.0.1` para
+  el GameServer, o pasaron más de 60 s en la lista de servidores (el timeout del ConnectServer).
 - **"database does not exist" o error de conexión en JoinServer/DataServer**: revisá que
   Postgres esté escuchando en el puerto que pusiste en el `.ini` (5432 por defecto) y que el rol
   `muserver` exista.

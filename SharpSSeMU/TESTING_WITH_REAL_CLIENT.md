@@ -10,7 +10,8 @@ real, original client (`MuClient/main.exe`) to them. Windows is used throughout 
 only runs there — .NET 10 is cross-platform, so the servers behave the same on Windows for this
 local test and can be moved to Linux later for production.
 
-Everything runs on `127.0.0.1`, so no ports need opening and no firewall configuration is needed.
+Everything runs on this machine (loopback), so no ports need opening and no firewall configuration is
+needed. The original client, however, must be pointed at `127.0.0.2` rather than `127.0.0.1` (see step 0).
 
 ## 0. About the client
 
@@ -24,9 +25,13 @@ ClientVersion = 1.02.00
 ClientSerial = <your client's serial>
 ```
 
-So the `Main.dll` in `MuClient/` **already points at `127.0.0.1:44405`** — the ConnectServer port.
-Nothing needs patching with MuMaker for a local test. If the client cannot connect, this is the
-first thing to check (see *Troubleshooting* below).
+**Do not use `127.0.0.1` with the original client.** Webzen's `main.exe` checks the resolved address
+before connecting and aborts if it is exactly `127.0.0.1` ("Failed to connect", then "You are
+disconnected from the server" — the ConnectServer never sees the connection). Any other loopback
+address works, since all of `127.0.0.0/8` is local and the servers listen on every address. Set
+`IpAddress = 127.0.0.2` in `MuClient/GetMainInfo/MainInfo.ini`, run `GetMainInfo` to regenerate
+`ServerInfo.sse`, and copy it next to `main.exe`. The GameServer address in `ServerList.dat` must also
+avoid `127.0.0.1` (step 4), because the client runs the same check when it moves to the GameServer.
 
 `ClientVersion = 1.02.00` and `ClientSerial = <your client's serial>` are exactly the values to put in the
 GameServer configuration so the login version/serial check matches (step 4).
@@ -109,12 +114,13 @@ end
 ### `MuServer.ConnectServer\bin\Debug\net10.0\ServerList.dat`
 
 ```
-   0            "GameServer_0"   "127.0.0.1"        55900       1
+   0            "GameServer_0"   "127.0.0.2"        55900       1
 end
 ```
 
 (`MuServer99B/ConnectServer/ServerList.dat` points at an old LAN IP of the original developer, so
-use this `127.0.0.1` version instead of copying the original as is.)
+use this loopback version instead of copying the original as is. It must not be `127.0.0.1`: the
+original client refuses that address, see step 0.)
 
 ### `MuServer.JoinServer\bin\Debug\net10.0\JoinServer.ini`
 
@@ -228,7 +234,8 @@ automated test `tests/full_chain_e2e_test.py` checks).
 Run `MuClient\main.exe`. It should:
 
 1. connect to the ConnectServer and show "GameServer_0" in the server list;
-2. on selecting it, connect straight to the GameServer (`127.0.0.1:55900`);
+2. on selecting it, connect straight to the GameServer (`127.0.0.2:55900`) — do it within a minute,
+   the ConnectServer closes each connection after `MaxConnectionIdle` (60 s) like the original;
 3. show the login screen — use `test` / `test` or `admin` / `admin`;
 4. let you create or pick a character and enter the world.
 
@@ -239,10 +246,11 @@ To use the **ported client** instead, see [`../docs/BUILDING.md`](../docs/BUILDI
 
 ## Troubleshooting
 
-- **The client cannot connect at all**: the step-0 assumption (that `Main.dll` already points at
-  `127.0.0.1:44405`) is the first thing to verify. If it does not, use
-  `MuServer99B/Tools/MuMaker/MuMaker.exe` to patch the IP in a copy of `Main.dll` (that tool
-  produces a distributable client with the IP baked in).
+- **"You are disconnected from the server" on the title screen and nothing in the ConnectServer
+  log**: the client is pointed at `127.0.0.1`, which the original `main.exe` refuses. Use
+  `127.0.0.2` (step 0).
+- **Same message after picking the server**: either `ServerList.dat` still gives `127.0.0.1` for the
+  GameServer, or more than 60 s passed on the server list (the ConnectServer timeout).
 - **"database does not exist" or a connection error in JoinServer/DataServer**: check that
   PostgreSQL is listening on the port in the `.ini` (5432 by default) and that the `muserver`
   role exists.
