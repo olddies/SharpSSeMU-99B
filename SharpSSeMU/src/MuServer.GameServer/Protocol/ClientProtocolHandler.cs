@@ -107,6 +107,8 @@ public sealed class ClientProtocolHandler
     public async Task OnConnectAsync(ClientSession session, CancellationToken ct)
     {
         var packet = ClientPacketBuilder.ConnectClientSend(1, (ushort)session.Index, _config.ServerVersion, _config.ServerCode);
+        Log.Add(LogColor.Black, "[Protocol][{0}] Sent ConnectClientSend (C1:F1:00, index={0}, version={1}, code={2})",
+            session.Index, System.Text.Encoding.ASCII.GetString(_config.ServerVersion), _config.ServerCode);
         await session.SendAsync(packet, ct);
     }
 
@@ -119,6 +121,7 @@ public sealed class ClientProtocolHandler
     /// the slot in memory. </summary>
     public async Task OnDisconnectAsync(ClientSession session, CancellationToken ct)
     {
+        Log.Add(LogColor.Black, "[Protocol][{0}] OnDisconnectAsync (LoginMessageSent={1}, Account='{2}')", session.Index, session.LoginMessageSent, session.Account);
         _pendingLogins.TryRemove(session.Index, out _);
         _pendingCharacterInfo.TryRemove(session.Index, out _);
         _pendingCharacterList.TryRemove(session.Index, out _);
@@ -722,8 +725,12 @@ public sealed class ClientProtocolHandler
         bool wellFormed = hardwareId.Length == 44
             && hardwareId[8] == '-' && hardwareId[17] == '-' && hardwareId[26] == '-' && hardwareId[35] == '-';
 
+        Log.Add(LogColor.Black, "[Protocol][{0}] Received HWID: '{1}' (len={2}, wellFormed={3})",
+            session.Index, hardwareId, hardwareId.Length, wellFormed);
+
         if (!wellFormed)
         {
+            Log.Add(LogColor.Red, "[Protocol][{0}] Malformed HWID! Closing socket.", session.Index);
             session.Connected = false;
             session.Socket.Close();
         }
