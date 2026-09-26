@@ -10,7 +10,8 @@
 
 # Local dev leftovers at the top level (archives, videos, stray files)
 /*.zip
-/release/            # output of SharpSSeMU/tools/release/build_release.py
+# output of SharpSSeMU/tools/release/build_release.py
+/release/
 /*.mp4
 /ziQjxIaT
 
