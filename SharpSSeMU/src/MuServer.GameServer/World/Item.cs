@@ -49,10 +49,10 @@ public sealed class Item
     public byte Level { get; set; } // 0-15
     public byte Durability { get; set; }
     public uint Serial { get; set; }
-    public byte Option1 { get; set; } // Luck (0/1)
-    public byte Option2 { get; set; } // Skill (0/1, solo armas)
-    public byte Option3 { get; set; } // Excelente: bits 0-1 en byte1, bit ">3" en byte3 (ver ToWireBytes)
-    public byte NewOption { get; set; } // +nivel adicional / flags de excelente (bits 0-5)
+    public byte Option1 { get; set; } // skill (0/1) -- bit 7 of byte 1, CItem::m_Option1
+    public byte Option2 { get; set; } // luck (0/1) -- bit 2 of byte 1, CItem::m_Option2
+    public byte Option3 { get; set; } // additional option 0-7 (+4 each): bits 0-1 of byte 1 plus bit 6 of byte 3
+    public byte NewOption { get; set; } // excellent options, one bit each (bits 0-5)
     public byte SetOption { get; set; } // set-item, nibble bajo
 
     public bool IsItem() => Index >= 0 && Index < MaxItem;

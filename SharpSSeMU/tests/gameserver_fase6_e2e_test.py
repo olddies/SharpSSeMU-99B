@@ -70,9 +70,11 @@ try:
     # that the shared flow (phases 4/5) assumes. Level 15 falls within [10,99], the "Common" range of Devil
     # Square 1 in EventEntryLevel.dat. High Strength because the event's real monsters (Skeleton Archer /
     # Cyclops: HP 850-1100, Defense 35-45) are unbeatable with the Strength of a newly created character under
-    # this phase's placeholder damage formula -- technical debt already documented in the README.
+    # this phase's placeholder damage formula -- technical debt already documented in the README. High
+    # Vitality and current life (Life is read from the row; Vitality only raises MaxLife) so it survives the ~40 monsters of stage 0 until the event closes: a Hero3 that dies respawns in
+    # town, leaves the bracket and the event ends with no score (0x93) -- which is the original's behaviour.
     pg.sql("UPDATE character SET map_number=0, map_pos_x=210, map_pos_y=150, "
-           "clevel=15, strength=800, inventory = decode('"
+           "clevel=15, strength=800, vitality=32000, life=90000, inventory = decode('"
            + _env.inventory_hex({13: _env.item_bytes(DEVIL_INVITATION, level=1, durability=1)})
            + "','hex') WHERE name='Hero3';")
 

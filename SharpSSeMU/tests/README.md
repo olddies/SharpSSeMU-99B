@@ -36,22 +36,26 @@ process hanging.
 
 ## Known state
 
-`full_chain` and `fase1` pass completely. The rest get far (16–36 assertions green, including all of
-the protocol part) and fail at **one** point, always the same one: the `WorldTestClient` combat
-sequence.
+All ten tests pass (`full_chain`, `fase1`-`fase6`, `grounditem`, `shop`, `skills`).
 
-The cause is diagnosed and **is not a protocol issue**: the test monster counter-attacks and Hero1,
-with the 60 HP of a freshly created character, dies at some point along the run; from then on it can
-no longer attack and the test waits for a packet that will never arrive. Raising its life through the
-fixture is not enough (`RecalcCombatStats` recomputes `MaxLife` from `Vitality` on entering the
-world) and raising `Vitality` unbalances the rest (with 100 it jumps to level 26 from a single kill
-and breaks other steps). It is server balance, not a test problem.
+The long-standing "one failure in the combat sequence" was not server balance: the harness started
+each server with its console piped to the test and never read the pipe while the test ran. Once the
+server had written enough, the pipe filled up and the server blocked inside `Console.WriteLine`,
+holding the log lock, so the test waited for a packet that could not be sent. Server consoles now go
+to `console.log` in each runtime folder (`%TEMP%/muservercs-e2e/rt-<tag>/<server>/`), and the tail is
+printed at the end as before.
 
-Fixing the death detection uncovered this: previously the loop considered the monster dead just by
-seeing a `0x17`, without looking at **which index** died. Since the server uses the same head to
-announce that a player died, the test reported `[OK] Killed the monster` when in reality the
-character had died and the monster was untouched. Now it compares the index and genuinely fails when
-the combat does not work out.
+Two rules the combat steps rely on:
+
+* **The killing blow sends no `0xD9`**, as in the original `CharacterLifeCheck`: the hit that kills
+  ends in the monster's `0x17`, and its damage travels in the `0x9C` reward packet.
+  `FakeMuClient.WaitForAttackOutcomeAsync` waits for either outcome.
+* **`0x17` also announces a player's death**, so the death check compares the index that died with
+  the monster's. Before that, a character dying looked like "killed the monster".
+
+The fixtures seed what each scenario needs: Hero3 (Devil Square) gets high Vitality **and** current
+Life, because `Life` is read from the character row and Vitality only raises `MaxLife`; the
+ground-item test adds two deterministic drop monsters (`Deployment.seed_drop_monsters`).
 
 ## Fixture notes that matter
 

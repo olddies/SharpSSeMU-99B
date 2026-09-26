@@ -246,6 +246,7 @@ class ServerSet:
     def __init__(self, tag: str):
         self.base = Path(tempfile.gettempdir()) / "muservercs-e2e" / f"rt-{tag}"
         self.procs: dict[str, subprocess.Popen] = {}
+        self.consoles: dict[str, tuple] = {}
 
     def runtime_dir(self, name: str) -> Path:
         d = self.base / name
@@ -274,12 +275,17 @@ class ServerSet:
         # console commands and finish when it returns null. Inheriting an already closed stdin (the normal case
         # when running without a terminal) makes them exit as soon as they start, right after logging that they
         # are ready -- which looks like a network problem and is not.
+        # stdout goes to a file, never to a pipe: nobody reads the pipe while the test runs, so a chatty server
+        # fills its buffer and then blocks forever inside Console.WriteLine (holding the log lock), which looks
+        # like a protocol hang in the middle of the test.
+        console = open(cwd / "console.log", "w", encoding="utf-8", errors="replace")
         p = subprocess.Popen(
             [DOTNET, str(dll)], cwd=str(cwd),
             stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+            stdout=console, stderr=subprocess.STDOUT, text=True,  # text: tests write console commands to stdin
             encoding="utf-8", errors="replace")
         self.procs[name] = p
+        self.consoles[name] = (console, cwd / "console.log")
         return p
 
     def report_deaths(self) -> list[str]:
@@ -294,15 +300,21 @@ class ServerSet:
         time.sleep(0.5)
         for name, p in self.procs.items():
             try:
-                out, _ = p.communicate(timeout=5)
-                if print_logs:
-                    print(f"--- {name} ---")
-                    print((out or "")[-4000:])
+                p.wait(timeout=5)
             except Exception:
                 try:
                     p.kill()
                 except Exception:
                     pass
+            console, path = self.consoles.get(name, (None, None))
+            if console is not None:
+                console.close()
+                if print_logs:
+                    print(f"--- {name} ---")
+                    try:
+                        print(path.read_text(encoding="utf-8", errors="replace")[-4000:])
+                    except OSError:
+                        pass
 
 
 # -- helpers de protocolo compartidos por los tests -------------------------
@@ -460,6 +472,9 @@ class Deployment:
         tcp_port = free_port(tcp_port)
         self.connect_tcp_port = tcp_port
         connect_dir = self.servers.runtime_dir("connect")
+        # Build output first, fixture on top (same rule as the other servers): the ConnectServer's bin folder
+        # can carry a local ServerList.dat/ConnectServer.ini that would otherwise overwrite these.
+        self.servers.deploy("MuServer.ConnectServer", connect_dir)
         # MaxConnectionPerIP has to be there: IpConnectionTracker.CheckIpAddress rejects the FIRST connection
         # from an IP when the limit is 0 (compatibility with the original), so without this key the
         # ConnectServer accepts the socket and cuts it right away -- it shows up as a ConnectionAborted on the
@@ -476,7 +491,6 @@ class Deployment:
         (connect_dir / "ServerList.dat").write_text(
             f'   0            "GameServer_0"   "127.0.0.1"        {self.game_port}       1\nend\n',
             encoding="utf-8")
-        self.servers.deploy("MuServer.ConnectServer", connect_dir)
         self._start_and_wait("connect", "MuServer.ConnectServer", connect_dir, tcp_port)
 
     def start_infra(self) -> None:
@@ -559,6 +573,34 @@ class Deployment:
         x, y = self.MONSTER_POS
         (spawn_dir / "000 - Test.txt").write_text(
             f"0\n3    0    {x}    {y}    3\nend\n", encoding="utf-8")
+
+    # Two extra deterministic monsters for the ground-item test, cloned from the Spider (class 3) as classes
+    # 276/277 (free ids after Kundun): 276 always drops an item (ItemRate=1, Level 20 so Item.txt has drops for
+    # it) and 277 always drops money (MoneyRate=1, the item roll practically never wins). MoveRange 0 keeps them
+    # within Hero1's reach. They take monster indexes 1 and 2, right after the shared test monster (index 0).
+    DROP_MONSTERS = (
+        '276       0      "Test Item Dropper"                  20      30        0         4           7           1'
+        '         0              8            1             0           0            1             5           400'
+        '         1800          10          2           1          1000000     6              0              0'
+        '             0             0             0             0             0             0',
+        '277       0      "Test Money Dropper"                 20      30        0         4           7           1'
+        '         0              8            1             0           0            1             5           400'
+        '         1800          10          2           1000000    1           6              0              0'
+        '             0             0             0             0             0             0',
+    )
+
+    def seed_drop_monsters(self) -> None:
+        """Adds monsters 1 (always drops an item) and 2 (always drops money) next to the test monster.
+        Call after seed_test_monster()."""
+        monster_list = self.game_dir / "Data" / "Monster" / "MonsterList.txt"
+        text = monster_list.read_text(encoding="utf-8", errors="replace")
+        head, sep, tail = text.rpartition("end")
+        monster_list.write_text(head + "\n".join(self.DROP_MONSTERS) + "\n" + sep + tail, encoding="utf-8")
+        x, y = self.MONSTER_POS
+        spawn = self.game_dir / "Data" / "Monster" / "Spawn" / "000 - Test.txt"
+        spawn.write_text(
+            f"0\n3    0    {x}    {y}    3\n276    0    {x}    {y - 1}    3\n277    0    {x}    {y + 1}    3\nend\n",
+            encoding="utf-8")
 
     def place_heroes(self, hero1: str = "Hero1", hero2: str = "Hero2") -> None:
         """Ubica a los dos héroes en las posiciones de prueba estándar."""

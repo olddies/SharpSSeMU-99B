@@ -34,6 +34,7 @@ public sealed class GameServerConfig
     public required string MonsterSpawnPath { get; init; } // Data/Monster/Spawn/*.txt
     public required string EventPath { get; init; } // Data/Event (DevilSquare.dat, EventEntryLevel.dat, EventStageSpawn.dat)
     public required string ItemPath { get; init; } // Data/Item/Item.txt (balance real de items -- Fase 4, segunda pasada)
+    public required string ItemOptionPath { get; init; } // Data/Item/ItemOption.txt (skill/luck/additional/excellent options -- see World/ItemOption.cs)
     public required string ItemValuePath { get; init; } // Data/Item/ItemValue.txt (precios explicitos -- ver World/ItemValue.cs)
     public required string CharacterInfoPath { get; init; } // Data/GameServerInfo - Character.dat (constantes de CharacterCalcAttribute)
     public required string ServerInfoCommonPath { get; init; } // Data/GameServerInfo - Common.dat (rates globales -- ver Config/ServerInfoConfig.cs)
@@ -114,6 +115,7 @@ public sealed class GameServerConfig
             MonsterSpawnPath = ini.GetString("GameServerInfo", "MonsterSpawnPath", Path.Combine(baseDir, "Data", "Monster", "Spawn")),
             EventPath = ini.GetString("GameServerInfo", "EventPath", Path.Combine(baseDir, "Data", "Event")),
             ItemPath = ini.GetString("GameServerInfo", "ItemPath", Path.Combine(baseDir, "Data", "Item", "Item.txt")),
+            ItemOptionPath = ini.GetString("GameServerInfo", "ItemOptionPath", Path.Combine(baseDir, "Data", "Item", "ItemOption.txt")),
             ItemValuePath = ini.GetString("GameServerInfo", "ItemValuePath", Path.Combine(baseDir, "Data", "Item", "ItemValue.txt")),
             CharacterInfoPath = ini.GetString("GameServerInfo", "CharacterInfoPath", Path.Combine(baseDir, "Data", "GameServerInfo - Character.dat")),
             ServerInfoCommonPath = ini.GetString("GameServerInfo", "ServerInfoCommonPath", Path.Combine(baseDir, "Data", "GameServerInfo - Common.dat")),

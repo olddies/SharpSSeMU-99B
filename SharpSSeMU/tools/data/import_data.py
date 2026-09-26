@@ -31,6 +31,7 @@ REPO_CONFIG_DIR = os.path.normpath(os.path.join(HERE, "..", "..", "src", "MuServ
 WANTED = [
     ("Item/Item.txt", "Data/Item/Item.txt"),
     ("Item/ItemValue.txt", "Data/Item/ItemValue.txt"),
+    ("Item/ItemOption.txt", "Data/Item/ItemOption.txt"),
     ("Monster/MonsterList.txt", "Data/Monster/MonsterList.txt"),
     ("Monster/Spawn", "Data/Monster/Spawn"),
     ("ShopManager.txt", "Data/ShopManager.txt"),

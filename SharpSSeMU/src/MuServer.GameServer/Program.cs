@@ -48,6 +48,20 @@ var gsiSkill = GameServerInfoSkill.Load(config.ServerInfoSkillDatPath);
 var gsiCustom = GameServerInfoCustom.Load(config.ServerInfoCustomPath);
 Log.Add(LogColor.Blue, "[GameServerInfo] Full coverage loaded: Common/Character/ChaosMix/Command/Event/Item/Skill/Custom (845 real fields, nothing hard-coded)");
 
+// The constants of the player-versus-monster damage formula and life recovery -- see World/PlayerAttackMath.cs.
+CombatRules.Current = new CombatRules
+{
+    GeneralDamageRatePvM = gsiCharacter.GeneralDamageRatePvM,
+    DamageRatePvM = gsiCharacter.DamageRatePvM.ToArray(),
+    ReflectDamageRatePvM = gsiCharacter.ReflectDamageRatePvM,
+    HpRecoveryRate = gsiCharacter.HPRecoveryRate.ToArray(),
+    SatanIncDamageConstA = gsiItem.SatanIncDamageConstA,
+    DinorantIncDamageConstA = gsiItem.DinorantIncDamageConstA,
+    AngelDecDamageConstA = gsiItem.AngelDecDamageConstA,
+    DinorantDecDamageConstA = gsiItem.DinorantDecDamageConstA,
+    DinorantDecDamageConstB = gsiItem.DinorantDecDamageConstB,
+};
+
 PacketCipher packetCipher;
 
 try
@@ -88,6 +102,12 @@ itemBalance.Load(config.ItemPath);
 // World/ItemValue.cs.
 var itemValues = new ItemValueTable();
 itemValues.Load(config.ItemValuePath);
+
+// What an item's skill, luck, additional and excellent flags actually give (CItemOption) -- see World/ItemOption.cs.
+// Without it every item behaves as a plain one.
+var itemOptions = new ItemOptionTable();
+itemOptions.Load(config.ItemOptionPath);
+ItemCombatMath.Options = itemOptions;
 var characterBalance = CharacterBalanceConfig.Load(config.CharacterInfoPath, config.ServerInfoCommonPath);
 
 // "Skills" phase: magic and mana -- see World/SkillInfo.cs, Config/CharacterBalanceConfig.cs (magic
@@ -209,6 +229,13 @@ var dataServer = new DataServerConnection(
         if (protocolHandler != null)
         {
             await protocolHandler.OnWarehouseFromDataServerAsync(packet, ct);
+        }
+    },
+    onCharacterMisc: async (head, packet, ct) =>
+    {
+        if (protocolHandler != null)
+        {
+            await protocolHandler.OnCharacterMiscFromDataServerAsync(head, packet, ct);
         }
     });
 

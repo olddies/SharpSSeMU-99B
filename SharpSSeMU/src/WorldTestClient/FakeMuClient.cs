@@ -206,6 +206,63 @@ public sealed class FakeMuClient
         throw new TimeoutException($"[{Name}] Timeout esperando head 0x{head:X2}" + (subHead != null ? $":0x{subHead:X2}" : ""));
     }
 
+    /// <summary>Drops every packet already received and not consumed yet (e.g. periodic mana/HP updates that
+    /// piled up during a wait), so the next WaitForAsync sees only what arrives from now on.</summary>
+    public void DiscardPending()
+    {
+        while (_incoming.Reader.TryRead(out _))
+        {
+        }
+    }
+
+    /// <summary>Like <see cref="WaitForAsync"/>, but returns the first packet whose head is any of
+    /// <paramref name="heads"/> (the others are discarded the same way).</summary>
+    public async Task<DecodedPacket> WaitForAnyAsync(TimeSpan timeout, params byte[] heads)
+    {
+        using var cts = new CancellationTokenSource(timeout);
+
+        try
+        {
+            await foreach (var pkt in _incoming.Reader.ReadAllAsync(cts.Token))
+            {
+                if (Array.IndexOf(heads, pkt.Head) >= 0)
+                {
+                    return pkt;
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+
+        throw new TimeoutException($"[{Name}] Timeout esperando heads " + string.Join(",", heads.Select(h => $"0x{h:X2}")));
+    }
+
+    /// <summary>Waits for the outcome of one attack on a monster: PMSG_DAMAGE_SEND (0xD9, hit or miss that
+    /// left it alive) or, for the killing blow -- which sends no 0xD9, as in the original CharacterLifeCheck --
+    /// its death (0x17 with <paramref name="monsterIndex"/>). Returns true when the monster died.</summary>
+    public async Task<bool> WaitForAttackOutcomeAsync(int monsterIndex, TimeSpan timeout)
+    {
+        var deadline = DateTime.UtcNow + timeout;
+
+        while (true)
+        {
+            var left = deadline - DateTime.UtcNow;
+            var pkt = await WaitForAnyAsync(left > TimeSpan.Zero ? left : TimeSpan.FromMilliseconds(1), 0xD9, 0x17);
+
+            if (pkt.Head == 0xD9)
+            {
+                return false;
+            }
+
+            // 0x17 also announces a PLAYER's death: [3..4] = index of the one who died.
+            if (((pkt.Full[3] << 8) | pkt.Full[4]) == monsterIndex)
+            {
+                return true;
+            }
+        }
+    }
+
     private async Task SendRawAsync(byte[] logicalC1OrC2)
     {
         var copy = (byte[])logicalC1OrC2.Clone();

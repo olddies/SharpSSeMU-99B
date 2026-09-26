@@ -22,6 +22,7 @@ try:
 
     dep = _env.Deployment("grounditem", pg)
     dep.seed_test_monster()
+    dep.seed_drop_monsters()
     dep.start_infra()
     dep.seed_characters((9100, "test", "Hero1"), (9101, "admin", "Hero2"))
     dep.place_heroes()

@@ -78,14 +78,23 @@ void Check(string name, bool ok, string extra = "")
 // on ALL attempts, hit or not (the original UseAttackSkill does it that way, not only on the one that finally
 // hits) -- that is why we return the number of attempts, so the caller can compute the total expected
 // deduction.
-async Task<(FakeMuClient.DecodedPacket ManaPkt, FakeMuClient.DecodedPacket DmgPkt, FakeMuClient.DecodedPacket SkillPkt, int Attempts)>
+async Task<(FakeMuClient.DecodedPacket ManaPkt, FakeMuClient.DecodedPacket? DmgPkt, FakeMuClient.DecodedPacket SkillPkt, int Attempts)>
     CastSkillUntilHitAsync(FakeMuClient client, byte skill, int targetIndex, int maxAttempts, CancellationToken ct)
 {
     for (int attempt = 1; attempt <= maxAttempts; attempt++)
     {
         await client.SendSkillAttackAsync(skill, targetIndex);
         var manaPkt = await client.WaitForAsync(0x27, TimeSpan.FromSeconds(5));
-        var dmgPkt = await client.WaitForAsync(0xD9, TimeSpan.FromSeconds(5));
+        // A killing cast sends no 0xD9 (as in the original CharacterLifeCheck): the 0x19 echo comes straight
+        // away and the damage packet is null.
+        var first = await client.WaitForAnyAsync(TimeSpan.FromSeconds(5), 0xD9, 0x19);
+
+        if (first.Head == 0x19)
+        {
+            return (manaPkt, null, first, attempt);
+        }
+
+        var dmgPkt = first;
 
         // PMSG_DAMAGE_SEND: bit 0x80 of byte [3] (high half of the target index) is the missFlag.
         bool missed = (dmgPkt.Full[3] & 0x80) != 0;
@@ -272,33 +281,12 @@ try
     for (int i = 0; i < 40 && !monsterDied; i++)
     {
         await clientA.SendAttackAsync(monsterIndex, 120, 3);
-        await clientA.WaitForAsync(0xD9, TimeSpan.FromSeconds(5)); // PMSG_DAMAGE_SEND (o miss, mismo head)
+        // The killing blow sends no 0xD9 (as in the original CharacterLifeCheck), so each attack ends in
+        // either a 0xD9 (monster still alive) or its 0x17 death.
+        // WaitForAttackOutcomeAsync checks WHICH index died: 0x17 also announces a PLAYER's death (a monster
+        // killing the character), which must not count as "I killed the monster".
+        monsterDied = await clientA.WaitForAttackOutcomeAsync(monsterIndex, TimeSpan.FromSeconds(5));
         hits++;
-
-        try
-        {
-            // PMSG_USER_DIE_SEND (C1:17) if it died on this hit. YOU HAVE TO LOOK AT WHICH INDEX died: the
-            // server uses the same head to announce that a PLAYER died (ViewportTicker sends UserDieSend when a
-            // monster kills someone), so accepting the mere arrival of the 0x17 makes the test claim "I killed
-            // the monster" when in fact the character itself died -- a false positive that hid that the attack
-            // never managed to do damage. Layout: [3..4]=index of the dead one, [5]=skill, [6..7]=index of the
-            // killer.
-            var diePkt = await clientA.WaitForAsync(0x17, TimeSpan.FromMilliseconds(300));
-            int deadIndex = (diePkt.Full[3] << 8) | diePkt.Full[4];
-
-            if (deadIndex == monsterIndex)
-            {
-                monsterDied = true;
-            }
-            else
-            {
-                Console.WriteLine($"[A] 0x17 recibido pero murió el índice {deadIndex}, no el monstruo {monsterIndex}");
-            }
-        }
-        catch (TimeoutException)
-        {
-            // it did not die on this hit, the loop continues
-        }
     }
 
     Check("[A] Mató al monstruo de prueba", monsterDied, $"(en {hits} golpe(s) de ataque)");
@@ -310,7 +298,7 @@ try
     await Task.Delay(TimeSpan.FromSeconds(12), cts.Token);
 
     await clientA.SendAttackAsync(monsterIndex, 120, 3);
-    var respawnDamage = await clientA.WaitForAsync(0xD9, TimeSpan.FromSeconds(5));
+    var respawnDamage = await clientA.WaitForAnyAsync(TimeSpan.FromSeconds(5), 0xD9, 0x17); // 0x17 if one hit killed it
     Check("[A] El monstruo revivió (respondió a un nuevo ataque tras el respawn)", true, $"({respawnDamage.Full.Length} bytes)");
 
     if (skillEnabled)
@@ -332,14 +320,26 @@ try
         // PMSG_MANA_SEND: [3]=type [4..5]=mana(BE) [6..7]=bp(BE).
         int mana1 = (manaPkt1.Full[4] << 8) | manaPkt1.Full[5];
         // PMSG_DAMAGE_SEND: [3]=hi(+missFlag) [4]=lo [5..6]=damage(BE, clampeado a 65000) ...
-        int skillDamage1 = (dmgPkt1.Full[5] << 8) | dmgPkt1.Full[6];
+        int skillDamage1 = dmgPkt1 == null ? -1 : (dmgPkt1.Full[5] << 8) | dmgPkt1.Full[6]; // -1 = killing cast
         // PMSG_SKILL_ATTACK_SEND: [3]=skill [4..5]=caster(BE) [6..7]=target(BE).
         byte skillEcho1 = skillPkt1.Full[3];
 
         Check("[A] SKILL_ATTACK_SEND (0x19) confirma el skill casteado", skillEcho1 == fireBall, $"(skill={skillEcho1}, intentos={attempts1})");
         Check("[A] Recibió DAMAGE_SEND del casteo de Fire Ball", true, $"(damage={skillDamage1}, mana tras casteo={mana1})");
 
-        var (manaPkt2, _, _, attempts2) =
+        if (dmgPkt1 == null)
+        {
+            // The first cast killed the monster (the 0x19 echo came with no damage packet): wait for its respawn
+            // so the second round has a live target -- a cast on a dead monster only spends mana.
+            // The wait regenerates mana, so the reference round is cast again on the respawned monster.
+            Console.WriteLine("[A] El primer casteo mató al monstruo -- esperando su respawn (~12s)");
+            await Task.Delay(TimeSpan.FromSeconds(12), cts.Token);
+            clientA.DiscardPending(); // the mana regen updates of the wait, so manaPkt1 is this cast's
+            (manaPkt1, _, _, _) = await CastSkillUntilHitAsync(clientA, fireBall, monsterIndex, maxCastAttempts, cts.Token);
+            mana1 = (manaPkt1.Full[4] << 8) | manaPkt1.Full[5];
+        }
+
+        var (manaPkt2, dmgPkt2, _, attempts2) =
             await CastSkillUntilHitAsync(clientA, fireBall, monsterIndex, maxCastAttempts, cts.Token);
         int mana2 = (manaPkt2.Full[4] << 8) | manaPkt2.Full[5];
         int expectedCost2 = fireBallMana * attempts2;
@@ -353,6 +353,14 @@ try
         int manaRegen = (manaRegenPkt.Full[4] << 8) | manaRegenPkt.Full[5];
         Check("[A] El maná se regeneró solo con el tiempo (sin castear de nuevo)", manaRegen > mana2,
             $"(mana antes de esperar={mana2}, mana tras ~3.5s={manaRegen})");
+
+        if (dmgPkt2 == null)
+        {
+            // The second round killed the monster: Phase 5 below attacks it again, so wait for its respawn.
+            Console.WriteLine("[A] El segundo casteo mató al monstruo -- esperando su respawn antes de la fase 5");
+            await Task.Delay(TimeSpan.FromSeconds(9), cts.Token);
+            clientA.DiscardPending();
+        }
     }
 
     if (shopEnabled)
@@ -451,16 +459,7 @@ try
             for (int i = 0; i < 15 && !died; i++)
             {
                 await client.SendAttackAsync(targetIndex, 120, 3);
-                await client.WaitForAsync(0xD9, TimeSpan.FromSeconds(5));
-
-                try
-                {
-                    await client.WaitForAsync(0x17, TimeSpan.FromMilliseconds(300));
-                    died = true;
-                }
-                catch (TimeoutException)
-                {
-                }
+                died = await client.WaitForAttackOutcomeAsync(targetIndex, TimeSpan.FromSeconds(5));
             }
 
             return died;
@@ -619,27 +618,7 @@ try
     for (int i = 0; i < 40 && !partyMonsterDied; i++)
     {
         await clientA.SendAttackAsync(monsterIndex, 120, 3);
-        await clientA.WaitForAsync(0xD9, TimeSpan.FromSeconds(5));
-
-        try
-        {
-            // Same care as in the phase 4 loop: the 0x17 also announces the death of a PLAYER, so it has to be
-            // confirmed that the index that died is the monster's before considering it dead.
-            var diePkt = await clientA.WaitForAsync(0x17, TimeSpan.FromMilliseconds(300));
-            int deadIndex = (diePkt.Full[3] << 8) | diePkt.Full[4];
-
-            if (deadIndex == monsterIndex)
-            {
-                partyMonsterDied = true;
-            }
-            else
-            {
-                Console.WriteLine($"[A] 0x17 recibido pero murió el índice {deadIndex}, no el monstruo {monsterIndex}");
-            }
-        }
-        catch (TimeoutException)
-        {
-        }
+        partyMonsterDied = await clientA.WaitForAttackOutcomeAsync(monsterIndex, TimeSpan.FromSeconds(5));
     }
 
     Check("[A] Remató al monstruo con el grupo activo", partyMonsterDied);
@@ -774,17 +753,8 @@ try
         for (int i = 0; i < 40 && !dsMonsterDied; i++)
         {
             await clientD.SendAttackAsync(dsMonsterIndex, 120, 3);
-            await clientD.WaitForAsync(0xD9, TimeSpan.FromSeconds(5));
+            dsMonsterDied = await clientD.WaitForAttackOutcomeAsync(dsMonsterIndex, TimeSpan.FromSeconds(5));
             dsHits++;
-
-            try
-            {
-                await clientD.WaitForAsync(0x17, TimeSpan.FromMilliseconds(300));
-                dsMonsterDied = true;
-            }
-            catch (TimeoutException)
-            {
-            }
         }
 
         Check("[D] Mató a un monstruo de Devil Square", dsMonsterDied, $"(en {dsHits} golpe(s))");

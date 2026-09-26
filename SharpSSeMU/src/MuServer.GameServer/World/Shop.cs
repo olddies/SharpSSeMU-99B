@@ -131,27 +131,18 @@ public sealed class ShopManagerTable
             int excellent = script.GetAsNumber();
             int setOption = script.GetAsNumber();
 
-            byte option3 = 0;
-
-            if (luck != 0)
-            {
-                option3 |= 1;
-            }
-
-            // Excellent: bits 0-5 of the file -> bits 0-1 in Option3, bit ">3" (that is, any bit >= 4th) also
-            // goes to Option3 (see Item.ToWireBytes) -- simplified port of CItem::SetExcellentOption, enough to
-            // represent any combination on the wire.
-            option3 |= (byte)(excellent & 3);
-
+            // CShop::Load/InsertItem (Shop.cpp:68-86, 149-175): the columns go straight to Option1 (skill),
+            // Option2 (luck), Option3 (additional) and NewOption (excellent). A durability of 0 means "the
+            // item's full durability" and is filled in by PackItems, which has the item table.
             result.Add(new Item
             {
                 Index = (short)Item.GetItem(section, sub),
                 Level = (byte)Math.Clamp(level, 0, 15),
                 Durability = (byte)Math.Clamp(durability, 0, 255),
-                Option1 = (byte)(luck != 0 ? 1 : 0),
-                Option2 = (byte)(skill != 0 ? 1 : 0),
-                Option3 = option3,
-                NewOption = (byte)(additional & 0x3F),
+                Option1 = (byte)(skill != 0 ? 1 : 0),
+                Option2 = (byte)(luck != 0 ? 1 : 0),
+                Option3 = (byte)Math.Clamp(additional, 0, 7),
+                NewOption = (byte)(excellent & 0x3F),
                 SetOption = (byte)(setOption & 15),
             });
         }
@@ -174,6 +165,11 @@ public sealed class ShopManagerTable
             if (!TryFindFreeRect(shop, w, h, out int slot))
             {
                 continue;
+            }
+
+            if (item.Durability == 0 && info != null)
+            {
+                item.Durability = (byte)ItemCombatMath.GetItemDurability(item, info);
             }
 
             shop.Slots[slot] = item;

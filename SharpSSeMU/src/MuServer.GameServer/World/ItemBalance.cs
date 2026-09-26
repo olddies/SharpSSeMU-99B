@@ -81,6 +81,9 @@ public sealed class ItemBalanceTable
 
     public IEnumerable<ItemBalance> All => _byIndex.Values;
 
+    /// <summary>Adds or replaces one item (used by the unit tests, which define their own items).</summary>
+    public void Add(ItemBalance info) => _byIndex[info.Index] = info;
+
     public int Load(string path)
     {
         var script = new MemScript();

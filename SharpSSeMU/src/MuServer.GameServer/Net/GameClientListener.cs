@@ -15,6 +15,11 @@ public sealed class GameClientListener
     private const int StartIndex = 9000; // OBJECT_START_USER (MAX_OBJECT-MAX_OBJECT_USER = 10000-1000)
     private const int MaxIndex = 10000; // MAX_OBJECT
 
+    /// <summary>Per-packet trace (raw bytes received, head/sub of every decoded packet). Off by default -- it
+    /// writes a line for every movement and attack packet -- and switched on with the environment variable
+    /// <c>MUSERVER_PACKET_LOG=1</c> when debugging a client that does not behave.</summary>
+    private static readonly bool PacketTrace = Environment.GetEnvironmentVariable("MUSERVER_PACKET_LOG") == "1";
+
     private readonly ushort _port;
     private readonly PacketCipher _packetCipher;
     private readonly GameStreamCipher _streamCipher;
@@ -131,18 +136,26 @@ public sealed class GameClientListener
                 {
                     received = await socket.ReceiveAsync(buffer, SocketFlags.None, ct);
                 }
-                catch (SocketException)
+                catch (SocketException ex)
                 {
+                    Log.Add(LogColor.Red, "[SocketManager][{0}] SocketException: {1} ({2})", index, ex.SocketErrorCode, ex.Message);
                     break;
                 }
                 catch (OperationCanceledException)
                 {
+                    Log.Add(LogColor.Red, "[SocketManager][{0}] Operation canceled", index);
                     break;
                 }
 
                 if (received == 0)
                 {
+                    Log.Add(LogColor.Red, "[SocketManager][{0}] Socket closed by remote client (0 bytes received)", index);
                     break;
+                }
+
+                if (PacketTrace)
+                {
+                    Log.Add(LogColor.Black, "[SocketManager][{0}] Received {1} raw bytes: {2}", index, received, Convert.ToHexString(buffer, 0, Math.Min(received, 32)));
                 }
 
                 List<GameClientFramer.DecodedPacket> packets;
@@ -153,13 +166,34 @@ public sealed class GameClientListener
                 }
                 catch (InvalidDataException ex)
                 {
-                    Log.Add(LogColor.Red, "[SocketManager][{0}] {1}", index, ex.Message);
+                    Log.Add(LogColor.Red, "[SocketManager][{0}] Framer InvalidDataException: {1}", index, ex.Message);
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    Log.Add(LogColor.Red, "[SocketManager][{0}] Framer unexpected exception: {1}", index, ex);
                     break;
                 }
 
                 foreach (var packet in packets)
                 {
-                    await _protocol.HandlePacketAsync(session, packet, ct);
+                    try
+                    {
+                        if (PacketTrace)
+                        {
+                            var pData = packet.Data;
+                            byte op = pData.Length > 2 ? (pData[0] == 0xC1 ? pData[2] : pData[3]) : (byte)0;
+                            byte sub = pData.Length > 3 ? (pData[0] == 0xC1 ? pData[3] : pData[4]) : (byte)0;
+                            Log.Add(LogColor.Black, "[SocketManager][{0}] Packet decoded: 0x{1:X2}:0x{2:X2} (enc={3}, len={4})", index, op, sub, packet.WasEncrypted, pData.Length);
+                        }
+
+                        await _protocol.HandlePacketAsync(session, packet, ct);
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Add(LogColor.Red, "[SocketManager][{0}] Exception in HandlePacketAsync: {1}", index, ex);
+                        break;
+                    }
                 }
             }
         }

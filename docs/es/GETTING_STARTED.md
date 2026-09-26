@@ -147,10 +147,21 @@ Si una corrida anterior dejó puertos ocupados: `python SharpSSeMU/kill_ports.py
 
 ## 6. Conectar un cliente
 
-**Cliente original** (`MuClient/main.exe`; poné en `ServerSerial` de `GameServer.ini` su `ClientSerial`, ver la nota del serial en la guía de pruebas): su `Main.dll` ya apunta a `127.0.0.1:44405`
-(`ClientVersion = 1.02.00`, `ClientSerial = <your client's serial>`, los mismos valores que `GameServer.ini`).
+**Cliente original** (`MuClient/main.exe`; poné en `ServerSerial` de `GameServer.ini` su `ClientSerial`, ver la nota del serial en la guía de pruebas): su `Main.dll` lee la dirección de
+`ServerInfo.sse` (lo genera `GetMainInfo` a partir de `MainInfo.ini`: `IpAddress`, `IpAddressPort = 44405`,
+`ClientVersion = 1.02.00`, `ClientSerial = <your client's serial>`, los mismos valores que `GameServer.ini`).
 Abrí `main.exe` e iniciá sesión con `test` / `test`. Guía paso a paso de esta vía:
 [`SharpSSeMU/COMO_PROBAR_CON_CLIENTE_REAL.md`](../../SharpSSeMU/COMO_PROBAR_CON_CLIENTE_REAL.md).
+
+> **El cliente original rechaza `127.0.0.1`.** El `main.exe` de Webzen revisa la dirección antes de
+> conectar y aborta si es exactamente `127.0.0.1` ("Failed to connect" y después "You are disconnected
+> from the server"; el ConnectServer nunca ve la conexión). Usá cualquier otra dirección de loopback,
+> como `127.0.0.2` (todo `127.0.0.0/8` es local y los servidores escuchan en todas las direcciones), o tu
+> IP de la red local. Configurala en **los dos** lugares a los que conecta el cliente: `IpAddress` en
+> `MainInfo.ini` (y regenerá `ServerInfo.sse`) y la dirección del GameServer en el `ServerList.dat` del
+> ConnectServer, porque el cliente hace la misma comprobación al pasar al GameServer. El cliente portado
+> de abajo no tiene esa comprobación. El ConnectServer además cierra toda conexión a los
+> `MaxConnectionIdle` segundos (60 por defecto, como el original): elegí el servidor antes de un minuto.
 
 **Cliente portado** (el `MuMain-099B` de este repo): compilalo ([BUILDING](BUILDING.md#cliente)) y
 ejecutá `Main.exe`. Su `config.ini` (junto al ejecutable) define el destino:

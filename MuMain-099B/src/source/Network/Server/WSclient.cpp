@@ -6448,7 +6448,9 @@ void ReceiveExperience099B(std::span<const BYTE> ReceiveBuffer)
     g_pMainFrame->SetGetExp(static_cast<DWORD>(gained));
 
     const int Index = FindCharacterIndex(Key);
-    if (Index >= 0)
+    // The killing blow sends no PMSG_DAMAGE_SEND (as in the original server); its number arrives here, drawn in
+    // the orange of MU's kill number. A damage of 0 means "nothing to show" (someone else landed the last hit).
+    if (Index >= 0 && Index < MAX_CHARACTERS_CLIENT && damage > 0)
     {
         CHARACTER* c = &CharactersClient[Index];
         vec3_t Light;
