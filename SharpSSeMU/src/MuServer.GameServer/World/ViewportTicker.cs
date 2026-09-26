@@ -39,6 +39,9 @@ public sealed class ViewportTicker
     /// only regenerates mana every 3rd tick (~3s) -- here the base tick is 200ms, so 15 ticks ≈ 3s.</summary>
     private const int ManaRegenTickInterval = 15;
 
+    /// <summary>Life is recovered every 5 seconds (CharacterAutoRecuperation: every 5th call of a 1-second proc).</summary>
+    private const int LifeRegenTickInterval = 25;
+
     public ViewportTicker(
         PlayerRegistry players, MapRegistry maps, MonsterRegistry? monsters = null,
         PartyRegistry? parties = null, ClientProtocolHandler? protocolHandler = null,
@@ -93,6 +96,11 @@ public sealed class ViewportTicker
         if (_tickCount % PartyLifeTickInterval == 0)
         {
             await TickPartyLifeAsync(ct);
+        }
+
+        if (_tickCount % LifeRegenTickInterval == 0)
+        {
+            await TickLifeRegenAsync(ct);
         }
 
         if (_tickCount % ManaRegenTickInterval == 0)
@@ -385,12 +393,18 @@ public sealed class ViewportTicker
                 continue;
             }
 
+            if (player.IsDying)
+            {
+                continue;
+            }
+
             int cls = Math.Clamp((int)player.Class, 0, 4);
             bool changed = false;
+            bool idle = (DateTime.UtcNow - player.LastCombatTime).TotalMilliseconds > 5000;
 
             if (player.Mana < player.MaxMana)
             {
-                int rate = _characterBalance.MpRecoveryRate[cls];
+                int rate = _characterBalance.MpRecoveryRate[cls] + (idle ? 3 : 0);
                 uint gain = (uint)Math.Max(((int)player.MaxMana * rate) / 100, 0);
                 player.Mana = Math.Min(player.Mana + gain, player.MaxMana);
                 changed = true;
@@ -398,7 +412,7 @@ public sealed class ViewportTicker
 
             if (player.BP < player.MaxBP)
             {
-                int rate = _characterBalance.BpRecoveryRate[cls];
+                int rate = _characterBalance.BpRecoveryRate[cls] + (idle ? 3 : 0);
                 uint gain = (uint)Math.Max(((int)player.MaxBP * rate) / 100, 0);
                 player.BP = Math.Min(player.BP + gain, player.MaxBP);
                 changed = true;
@@ -408,6 +422,32 @@ public sealed class ViewportTicker
             {
                 await player.Session.SendAsync(ManaPacketBuilder.ManaSend(0xFF, (int)player.Mana, (int)player.BP), ct);
             }
+        }
+    }
+
+    /// <summary>Life branch of CObjectManager::CharacterAutoRecuperation (ObjectManager.cpp:1695-1727): every 5
+    /// seconds, the class rate (0 in the shipped .dat) + 5 when the player has not fought for 5 seconds + the items'
+    /// HP recovery option, as a % of max life.</summary>
+    private async Task TickLifeRegenAsync(CancellationToken ct)
+    {
+        var now = DateTime.UtcNow;
+
+        foreach (var player in _players.All)
+        {
+            if (!player.WorldEntered || player.IsDying || player.Life >= player.MaxLife)
+            {
+                continue;
+            }
+
+            int cls = Math.Clamp((int)player.Class, 0, 4);
+            int rate = CombatRules.Current.HpRecoveryRate[cls]
+                + ((now - player.LastCombatTime).TotalMilliseconds > 5000 ? 5 : 0)
+                + player.HpRecoveryRate;
+
+            uint gain = (uint)Math.Max(((long)player.MaxLife * rate) / 100, 0);
+            player.Life = Math.Min(player.Life + gain, player.MaxLife);
+
+            await player.Session.SendAsync(LifePacketBuilder.LifeSend(0xFF, (int)player.Life), ct);
         }
     }
 
@@ -606,6 +646,7 @@ public sealed class ViewportTicker
                 if (now < monster.LastAttackTime.AddMilliseconds(attackCooldownMs)) continue;
 
                 monster.LastAttackTime = now;
+                target.LastCombatTime = now; // HP/MP/AG AutoRecuperationTime of the target (Attack.cpp:166-171)
 
                 // Turn the monster's direction towards the player
                 int signX = Math.Sign(target.X - monster.X);
@@ -671,27 +712,31 @@ public sealed class ViewportTicker
                     damage = attackMin + Random.Shared.Next(range);
                 }
 
+                damage -= targetDefense;
+                damage = Math.Max(damage, 0);
+
+                // Optional per-skill multiplier (SkillDamage.txt -- no-op with the real data), applied where
+                // GetAttackDamageWizard returns, before the graze.
+                if (skillInfo != null && _skillDamage != null)
+                {
+                    damage = _skillDamage.Apply(skillInfo.Index, damage);
+                }
+
                 if (graze)
                 {
                     damage = (damage * 30) / 100;
                 }
 
-                damage -= targetDefense;
-                damage = Math.Max(damage, 0);
+                // ---- Step 4: what the player wears against it (Attack.cpp:299-315): the damage reduction
+                // option, then the wings and the guardian pets ----
+                damage = PlayerAttackMath.ReduceMonsterHit(target, damage);
 
-                // ---- Step 3: damage floor by the ATTACKER's level (Attack.cpp:318-322) ----
+                // ---- Step 5: damage floor by the ATTACKER's level (Attack.cpp:318-322) ----
                 int minDamage = Math.Max(monster.Level / 10, 1);
 
                 if (damage < minDamage)
                 {
                     damage = minDamage + Random.Shared.Next(minDamage);
-                }
-
-                // ---- Step 4: optional per-skill multiplier (SkillDamage.txt -- no-op with the real data),
-                // only applies on the spell side, like GetAttackDamageWizard ----
-                if (skillInfo != null && _skillDamage != null)
-                {
-                    damage = _skillDamage.Apply(skillInfo.Index, damage);
                 }
 
                 target.Life = (uint)Math.Max(0, (long)target.Life - damage);
@@ -701,6 +746,13 @@ public sealed class ViewportTicker
                 if (target.Life > 0)
                 {
                     await target.Session.SendAsync(CombatPacketBuilder.DamageSend(target.Index, damage, 0, false, target.Life), ct);
+                }
+
+                // The damage reflect option (Attack.cpp:527-535): a part of the hit goes back to the monster,
+                // as an attack of the player's own (message 10). Only while the player is still standing.
+                if (damage > 0 && target.Life > 0 && target.DamageReflect > 0 && _protocolHandler != null)
+                {
+                    await _protocolHandler.ReflectDamageOnMonsterAsync(target, monster, damage * target.DamageReflect / 100, ct);
                 }
 
                 if (isSpell)

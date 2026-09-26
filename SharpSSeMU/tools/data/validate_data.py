@@ -92,7 +92,7 @@ REQUIRED_FILES = [
     "Hack/Dec1.dat",
 ]
 REQUIRED_DIRS = ["Data/Monster/Spawn", "Data/Shop", "Data/Terrain"]
-OPTIONAL_FILES = ["Data/Item/ItemValue.txt", "Data/Skill/SkillDamage.txt"]
+OPTIONAL_FILES = ["Data/Item/ItemValue.txt", "Data/Item/ItemOption.txt", "Data/Skill/SkillDamage.txt"]
 CONFIG_FILES = ["ChaosMix", "Character", "Command", "Common", "Custom", "Event", "Item", "Skill"]
 
 
@@ -109,7 +109,10 @@ def check_layout(root, rep):
             rep.error(rel, "missing or empty folder.")
     for rel in OPTIONAL_FILES:
         if not os.path.isfile(os.path.join(root, rel)):
-            rep.warn(rel, "optional file not found; the server falls back to its built-in formula.")
+            if rel.endswith("ItemOption.txt"):
+                rep.warn(rel, "optional file not found; items keep their skill/luck/excellent flags but grant no bonus from them.")
+            else:
+                rep.warn(rel, "optional file not found; the server falls back to its built-in formula.")
     for name in CONFIG_FILES:
         rel = "Data/GameServerInfo - %s.dat" % name
         if not os.path.isfile(os.path.join(root, rel)):

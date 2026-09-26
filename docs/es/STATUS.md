@@ -24,6 +24,7 @@ funcionales. Los arreglos encontrados jugando están registrados en el
 | Esquema PostgreSQL | ✅ | `db/postgres/001`–`004` (cuentas, personajes, semilla de clases, amigos) |
 | AdminPanel | 🔶 | edita todos los archivos de datos y personajes, estado en vivo, mensajes globales. Sin recarga en caliente; una sola contraseña compartida |
 | Tests end-to-end | ✅ | los 10 en verde (`full_chain`, `fase1`-`fase6`, `grounditem`, `shop`, `skills`) |
+| Tests unitarios | ✅ | NUnit, `SharpSSeMU/tests/MuServer.GameServer.Tests`: opciones de items, fórmula de daño, requisitos de drops de quest (`dotnet test`) |
 
 ### GameServer
 
@@ -39,7 +40,7 @@ funcionales. Los arreglos encontrados jugando están registrados en el
 | Tiendas de NPC (comprar / vender) | ✅ | 14 tiendas reales; el precio mostrado = el precio cobrado |
 | Baúl, Trade | ✅ | |
 | Chaos Machine | ✅ | fórmulas y tasas de éxito reales |
-| Combate: cuerpo a cuerpo | ✅ | tirada de acierto/esquiva, defensa (a la mitad contra jugadores), piso de daño — portado de `Attack.cpp` |
+| Combate: golpes y skills contra monstruos | ✅ | tirada de acierto/esquiva, defensa, golpes crítico / excelente / ignorar defensa (con su color en el cliente), alas y mascotas, multiplicadores de skills de DK/DL, piso de daño, ratios de daño PvM — portado de `Attack.cpp` |
 | Combate: monstruos atacan jugadores | ✅ | mismo pipeline que los jugadores; los hechizos usan el rango de daño propio del skill |
 | IA de monstruos | 🔶 | inactivo/patrulla/persecución/ataque; la elección de hechizo es heurística (`GetMonsterAttackSkill`) |
 | Skills y maná | 🔶 | ataques a un objetivo, de duración y multi-objetivo, aprendizaje por orbes, regeneración de maná/BP. Sin buffs/debuffs de `EffectList.txt`, sin combo/teleport de aliado |
@@ -51,8 +52,9 @@ funcionales. Los arreglos encontrados jugando están registrados en el
 | Devil Square | ✅ | máquina de estados completa, tickets, spawns por etapa, ranking |
 | Blood Castle, Chaos Castle, Kalima | ❌ | mismo motor de eventos que Devil Square, distintos datos/reglas |
 | Duelo, Personal Shop, Golden Archer, Mascotas (Dark Spirit/Raven), Teleport Ally, PartyMatching | ❌ | la mayoría necesita una segunda cuenta para probarse bien |
-| Opciones excelentes / de set en daño y defensa | ❌ | `ItemOption.txt` / `SetItemOption.txt` todavía no se cargan |
-| Multiplicadores globales de daño (`GeneralDamageRate*`, tablas por mapa) | ❌ | se tratan como 100 % |
+| Opciones de items: skill, suerte, adicional, excelentes | ✅ | `ItemOption.txt`; bonus base de los excelentes, durabilidad y requisitos; reflejo y reducción de daño, vida y maná al cazar, zen, recuperación de vida, bonus de set de armadura completo |
+| Items de set (ancient) | ❌ | `SetItemOption.txt` no se carga |
+| Tablas de daño por mapa (`DamageTable`) | ❌ | se tratan como 100 % (sí se aplican `GeneralDamageRatePvM` y los ratios PvM por clase) |
 | Sockets / pentagrama / Muun / Harmony | ⛔ | temporadas posteriores |
 | Illusion Temple, Castle Siege, Crywolf | ⛔ | no son parte de 0.99B (código muerto en el build original) |
 | Scripting Lua | ⛔ | el paquete no trae scripts reales |
@@ -88,7 +90,7 @@ El cliente es un **fork de MuMain (Season 5.2 → 6)** cuya capa de red se port�
 Orden sugerido, lo más fácil primero:
 
 1. **UI del cliente → aspecto 0.99B** (ver `docs/ui-099b.md`).
-2. **Cargar `ItemOption.txt` / `SetItemOption.txt`** → opciones excelentes y de set en stats y daño.
+2. **Loot**: opciones excelentes y niveles sorteados como en el original (`ItemOptionRate.txt`, `ExcellentOptionRate.txt`), `ItemBag`, tablas de jefes/eventos.
 3. **Blood Castle → Chaos Castle → Kalima** sobre el motor de Devil Square existente.
 4. **Duelo**, luego completar Guild (esquema + rangos + marcas), Personal Shop, Golden Archer.
 5. Loot de monstruos: `ItemBag`, tablas de drop de jefes y eventos.
@@ -104,6 +106,7 @@ Bugs encontrados jugando con un cliente real en la última sesión (todos verifi
 - **Número de daño al matar:** el golpe final mostraba dos números. Como el servidor original, ahora no manda paquete de daño; su número viaja en el paquete de recompensa, solo para quien lo dio (o su party).
 - **Cliente original:** no conectaba con `127.0.0.1` — el `main.exe` de Webzen rechaza esa dirección exacta. Ver [Primeros pasos](GETTING_STARTED.md#6-conectar-un-cliente).
 - El GameServer no atendía el **borrado de personaje** ni el **guardado de teclas rápidas**.
+- **Opciones de items:** skill y suerte estaban invertidos en drops, tiendas NPC y el AdminPanel; las tiendas vendían los items con durabilidad 0 (rotos); las armas mostraban su skill sin tener la opción de skill.
 - Los **tests end-to-end** se colgaban a mitad: el harness nunca leía el pipe de consola de los servidores y uno quedaba bloqueado escribiendo su log.
 
 - **Tienda:** solo funcionaba la primera compra — el handler 099B nunca limpiaba su bandera de "pedido en curso".

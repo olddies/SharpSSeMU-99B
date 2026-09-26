@@ -251,6 +251,10 @@ public sealed class PlayerObject
     public byte Dir { get; set; }
 
     public bool IsDying { get; set; }
+
+    /// <summary>Last time this player attacked or was attacked (HP/MP/BPAutoRecuperationTime of the original):
+    /// life, mana and AG recover faster after 5 seconds without fighting.</summary>
+    public DateTime LastCombatTime { get; set; } = DateTime.MinValue;
     public DateTime? DiedAt { get; set; }
 
     public int PhysiSpeed { get; set; }
@@ -473,39 +477,73 @@ public sealed class PlayerObject
 
     // ---------------------------------------------------------------- Fase 4: combate (primera pasada)
 
-    /// <summary>Port of OBJECTSTRUCT's combat fields (PhysiDamageMin/Max, Defense, AttackSuccessRate,
-    /// DefenseSuccessRate) -- see <see cref="RecalcCombatStats"/> for the real port of
-    /// CObjectManager::CharacterCalcAttribute (Phase 4, second pass, real item balance).</summary>
+    /// <summary>Port of OBJECTSTRUCT's combat fields. <see cref="PhysiDamageMin"/>/<see cref="PhysiDamageMax"/> are
+    /// the damage of a plain attack, already combining the hands the way CAttack::GetAttackDamage does (see
+    /// <see cref="RecalcCombatStats"/>); the per-hand values are kept too because skills add their own damage on
+    /// top of the same hands.</summary>
     public int PhysiDamageMin { get; set; }
     public int PhysiDamageMax { get; set; }
+    public int PhysiDamageMinRight { get; set; }
+    public int PhysiDamageMaxRight { get; set; }
+    public int PhysiDamageMinLeft { get; set; }
+    public int PhysiDamageMaxLeft { get; set; }
     public int Defense { get; set; }
     public int AttackSuccessRate { get; set; }
     public int DefenseSuccessRate { get; set; }
 
-    /// <summary>Base magic damage (Energy/const, see <see cref="RecalcCombatStats"/>) -- used by the attack
-    /// skills ("skills" phase), see ClientProtocolHandler.OnSkillAttackAsync.</summary>
+    /// <summary>Base magic damage (Energy/const plus item options). The staff/magic-sword "rise" is applied when a
+    /// spell is cast, on top of the spell's own damage (CAttack::GetAttackDamageWizard), not here.</summary>
     public int MagicDamageMin { get; set; }
     public int MagicDamageMax { get; set; }
+
+    // ---- Item options (CItemOption::InsertOption, cleared by gObjClearSpecialOption before every recalculation) ----
+
+    /// <summary>% chance of a critical hit: maximum damage (luck gives +5).</summary>
+    public int CriticalDamageRate { get; set; }
+    /// <summary>% chance of an excellent hit: 120% of the maximum damage.</summary>
+    public int ExcellentDamageRate { get; set; }
+    /// <summary>% chance of ignoring the target's defense.</summary>
+    public int IgnoreDefenseRate { get; set; }
+    /// <summary>Extra % of max life recovered every 5 seconds.</summary>
+    public int HpRecoveryRate { get; set; }
+    /// <summary>% of the zen a monster drops (100 = normal; the excellent "+40% zen" option makes it 140).</summary>
+    public int MoneyAmountDropRate { get; set; } = 100;
+    /// <summary>% of the damage received that is sent back to a player attacker.</summary>
+    public int DamageReflect { get; set; }
+    /// <summary>% of the damage received that is ignored.</summary>
+    public int DamageReduction { get; set; }
+    /// <summary>% of max life/mana recovered after killing a monster.</summary>
+    public int HuntHp { get; set; }
+    public int HuntMp { get; set; }
+    /// <summary>What the options add to life, mana, AG and leadership -- already included in MaxLife/MaxMana/MaxBP
+    /// (the original keeps AddLife apart and always shows MaxLife+AddLife).</summary>
+    public int AddLife { get; private set; }
+    public int AddMana { get; private set; }
+    public int AddBp { get; private set; }
+    public int AddLeadership { get; private set; }
+
+    /// <summary>Damage multiplier (%) of the Dark Knight's and Dark Lord's skills (200 + Energy/const, capped).</summary>
+    public int DkDamageMultiplierRate { get; set; } = 200;
+    public int DlDamageMultiplierRate { get; set; } = 200;
+
+    /// <summary>All five armour pieces (helm to boots, MG without helm) of the same model.</summary>
+    public bool ArmorSetBonus { get; private set; }
 
     /// <summary>Class index 0-4 = DW/DK/FE/MG/DL (same order as the raw <see cref="Class"/>, see
     /// ClientProtocolHandler.ClassFe=2 and CharacterBalanceConfig).</summary>
     private const int ClassDw = 0, ClassDk = 1, ClassFe = 2, ClassMg = 3, ClassDl = 4;
 
-    /// <summary> Port of CObjectManager::CharacterCalcAttribute (ObjectManager.cpp:1887-2523) -- Phase 4,
-    /// second pass (real combat balance, replaces the first pass's Str/Level placeholder). It covers base
-    /// physical damage per class, contribution of the equipped weapon(s) (with the +0..+15 level scaling of
-    /// <see cref="ItemCombatMath"/>), arrow/bolt bonus, dual-wield penalty, attack success rate and
-    /// defense/defense rate (dexterity + equipped armor/shield/ wing pieces). Explicitly documented
-    /// simplifications compared to the original: 1) No critical/excellent/set-item (they depend on
-    /// ItemOption.txt/SetItemOption.txt, not ported -- see the header comment of ItemCombatMath). 2) No
-    /// +5%..+30% Defense bonus for "5 armor pieces at the same high level" nor the +10% DefenseSuccessRate for
-    /// "same visual set" (ObjectManager.cpp:2314-2421) -- both depend on comparing SetItemOption/visual-index
-    /// between pieces, outside the scope of this pass. 3) No PhysiSpeed/MagicSpeed (attack speed) nor HP/MP/BP
-    /// from Vitality/Energy -- there is no server-side attack cooldown yet (the client already limits itself)
-    /// and Life/MaxLife come from DataServer, so they are not needed for combat to work. 4) No magic damage
-    /// (DW/MG/DL with spells) -- there is no skill system ported yet. 5) No PvP variants of hit/defense
-    /// (Attack.cpp: MissCheckPvP/GetTargetDefense at 50% against players) -- this combat phase only covers
-    /// player-versus-monster. </summary>
+    private static readonly int Bolt = Item.GetItem(4, 7);
+    private static readonly int Arrow = Item.GetItem(4, 15);
+
+    /// <summary> Port of CObjectManager::CharacterCalcAttribute (ObjectManager.cpp:1887-2523), in the same order:
+    /// the wing leadership option, base damage per hand plus the weapons, attack rate, attack speed, defense rate
+    /// and defense (with the +10% defense rate and +5..+30% defense of a full armour set), the item options
+    /// (luck, additional, excellent -- CItemOption::CalcItemCommonOption), the arrow/bolt bonus, the dual-wield
+    /// penalty, and finally max life/mana/AG with the options' extra life. Current life, mana and AG keep the
+    /// same percentage of the maximum, as in the original. Not ported: set items (none in this build), the Dark
+    /// Horse defense and the item requirement check that disables an item whose stats the player no longer
+    /// meets (m_IsValidItem) -- this port never lets such an item be equipped in the first place. </summary>
     public void RecalcCombatStats(ItemBalanceTable items, CharacterBalanceConfig cfg)
     {
         int cls = Class switch
@@ -513,15 +551,58 @@ public sealed class PlayerObject
             0 => ClassDw, 1 => ClassDk, 2 => ClassFe, 3 => ClassMg, _ => ClassDl,
         };
 
+        var options = ItemCombatMath.Options;
+
+        double totalHp = MaxLife != 0 ? Life * 100.0 / MaxLife : 100;
+        double totalMp = MaxMana != 0 ? Mana * 100.0 / MaxMana : 100;
+        double totalBp = MaxBP != 0 ? BP * 100.0 / MaxBP : 100;
+
+        // gObjClearSpecialOption (User.cpp:612-645)
+        CriticalDamageRate = 0;
+        ExcellentDamageRate = 0;
+        IgnoreDefenseRate = 0;
+        HpRecoveryRate = 0;
+        MoneyAmountDropRate = 100;
+        DamageReflect = 0;
+        DamageReduction = 0;
+        HuntHp = 0;
+        HuntMp = 0;
+        AddLife = 0;
+        AddMana = 0;
+        AddBp = 0;
+        AddLeadership = 0;
+
+        // The options of every worn item, once (CalcItemCommonOption skips broken items).
+        var worn = new List<(Item Item, List<ItemSpecial> Specials)>();
+
+        for (int slot = 0; slot < Item.InventoryWearSize; slot++)
+        {
+            var piece = Items[slot];
+
+            if (piece.IsItem() && piece.Durability != 0)
+            {
+                worn.Add((piece, options.GetSpecials(piece, items.Get(piece.Index))));
+            }
+        }
+
+        // ---- CalcItemCommonOption(lpObj,1): only the wing leadership, before the stats are used ----
+        foreach (var (piece, specials) in worn)
+        {
+            foreach (var special in specials)
+            {
+                if (special.OptionIndex == ItemOptionIndex.AddWingLeadership)
+                {
+                    AddLeadership += 10 + (special.Value * piece.Level);
+                }
+            }
+        }
+
+        uint leadership = Leadership + (uint)Math.Max(AddLeadership, 0);
+
         var right = Items[Item.SlotWeapon1];
         var left = Items[Item.SlotWeapon2];
         var rightInfo = right.IsItem() ? items.Get(right.Index) : null;
         var leftInfo = left.IsItem() ? items.Get(left.Index) : null;
-
-        // Ammunition (arrow/bolt) does NOT count as a "weapon" for dual-wield/damage sum -- it only contributes
-        // the percentage bonus of ObjectManager.cpp:2444-2459 (see below).
-        bool rightIsWeapon = rightInfo is { IsWeapon: true } && !rightInfo.IsAmmo;
-        bool leftIsWeapon = leftInfo is { IsWeapon: true } && !leftInfo.IsAmmo;
 
         // ---- Step 1: base physical damage per class (ObjectManager.cpp:1974-2053) ----
         int baseMin, baseMax;
@@ -529,20 +610,15 @@ public sealed class PlayerObject
         switch (cls)
         {
             case ClassDw:
-                baseMin = SafeDiv(Strength, cfg.PhysiDamageMinConstA[ClassDw]);
-                baseMax = SafeDiv(Strength, cfg.PhysiDamageMaxConstA[ClassDw]);
-                break;
-
             case ClassDk:
-                baseMin = SafeDiv(Strength, cfg.PhysiDamageMinConstA[ClassDk]);
-                baseMax = SafeDiv(Strength, cfg.PhysiDamageMaxConstA[ClassDk]);
+                baseMin = SafeDiv(Strength, cfg.PhysiDamageMinConstA[cls]);
+                baseMax = SafeDiv(Strength, cfg.PhysiDamageMaxConstA[cls]);
                 break;
 
             case ClassFe:
-                // Port of ObjectManager.cpp:1999-2012: alternative formula if the right-hand weapon is a
-                // bow/crossbow (section 4 of Item.txt), whichever slot it is in (some bows go in Weapon2
-                // according to Item.txt, see the comment of ItemBalance).
-                bool bow = rightInfo is { Section: 4 };
+                // ObjectManager.cpp:1999-2012: the bow formula when a bow or crossbow is in either hand (the arrows
+                // and bolts themselves do not count).
+                bool bow = (rightInfo is { Section: 4 } && right.Index != Arrow) || (leftInfo is { Section: 4 } && left.Index != Bolt);
 
                 if (bow)
                 {
@@ -556,157 +632,41 @@ public sealed class PlayerObject
                 }
                 break;
 
-            case ClassMg:
-                baseMin = SafeDiv(Strength, cfg.PhysiDamageMinConstA[ClassMg]) + SafeDiv(Energy, cfg.PhysiDamageMinConstB[ClassMg]);
-                baseMax = SafeDiv(Strength, cfg.PhysiDamageMaxConstA[ClassMg]) + SafeDiv(Energy, cfg.PhysiDamageMaxConstB[ClassMg]);
-                break;
-
-            default: // ClassDl
-                baseMin = SafeDiv(Strength, cfg.PhysiDamageMinConstA[ClassDl]) + SafeDiv(Energy, cfg.PhysiDamageMinConstB[ClassDl]);
-                baseMax = SafeDiv(Strength, cfg.PhysiDamageMaxConstA[ClassDl]) + SafeDiv(Energy, cfg.PhysiDamageMaxConstB[ClassDl]);
+            default: // MG, DL
+                baseMin = SafeDiv(Strength, cfg.PhysiDamageMinConstA[cls]) + SafeDiv(Energy, cfg.PhysiDamageMinConstB[cls]);
+                baseMax = SafeDiv(Strength, cfg.PhysiDamageMaxConstA[cls]) + SafeDiv(Energy, cfg.PhysiDamageMaxConstB[cls]);
                 break;
         }
 
-        // ---- Step 2: contribution of each equipped hand (ObjectManager.cpp:2055-2085) ---- The staff (section
-        // 5) only adds HALF of its damage to the physical branch (it is a "magic" weapon).
+        // ---- Step 2: each hand adds its item's damage (ObjectManager.cpp:2055-2085); a staff adds half ----
         int minRight = baseMin, maxRight = baseMax, minLeft = baseMin, maxLeft = baseMax;
 
-        if (rightInfo is { IsWeapon: true })
+        if (rightInfo != null)
         {
-            int wMin = ItemCombatMath.GetDamageMin(right, rightInfo);
-            int wMax = ItemCombatMath.GetDamageMax(right, rightInfo);
-            bool staff = rightInfo.Section == 5;
-            minRight += staff ? wMin / 2 : wMin;
-            maxRight += staff ? wMax / 2 : wMax;
+            int div = rightInfo.Section == 5 ? 2 : 1;
+            minRight += ItemCombatMath.GetDamageMin(right, rightInfo) / div;
+            maxRight += ItemCombatMath.GetDamageMax(right, rightInfo) / div;
         }
 
-        if (leftInfo is { IsWeapon: true })
+        if (leftInfo != null)
         {
-            int wMin = ItemCombatMath.GetDamageMin(left, leftInfo);
-            int wMax = ItemCombatMath.GetDamageMax(left, leftInfo);
-            bool staff = leftInfo.Section == 5;
-            minLeft += staff ? wMin / 2 : wMin;
-            maxLeft += staff ? wMax / 2 : wMax;
+            int div = leftInfo.Section == 5 ? 2 : 1;
+            minLeft += ItemCombatMath.GetDamageMin(left, leftInfo) / div;
+            maxLeft += ItemCombatMath.GetDamageMax(left, leftInfo) / div;
         }
 
-        // ---- Step 3: arrow/bolt bonus (ObjectManager.cpp:2444-2459) ---- Bow/crossbow in the right hand +
-        // ammunition with an upgrade level in the left -- the bonus uses the ammunition's RAW LEVEL
-        // (Item.Level), not its scaled damage (which is 0).
-        if (rightIsWeapon && rightInfo!.Section == 4 && leftInfo is { IsAmmo: true })
-        {
-            int rate = (left.Level * 2) + 1;
-            minRight += (minRight * rate / 100) + 1;
-            maxRight += (maxRight * rate / 100) + 1;
-        }
-
-        // ---- Step 4: dual-wield penalty (ObjectManager.cpp:2461-2473) ---- DK/MG/DL with two melee weapons
-        // (sections 0-3) at once -- both hands at 55%.
-        bool meleeDual = rightIsWeapon && leftIsWeapon && rightInfo!.Section <= 3 && leftInfo!.Section <= 3
-            && cls is ClassDk or ClassMg or ClassDl;
-
-        if (meleeDual)
-        {
-            minRight = minRight * 55 / 100;
-            maxRight = maxRight * 55 / 100;
-            minLeft = minLeft * 55 / 100;
-            maxLeft = maxLeft * 55 / 100;
-        }
-
-        // ---- Paso 5: total (Attack.cpp:1191-1258, simplificado a un solo golpe combinado) ----
-        int totalMin, totalMax;
-
-        if (rightIsWeapon && leftIsWeapon)
-        {
-            totalMin = minRight + minLeft;
-            totalMax = maxRight + maxLeft;
-        }
-        else if (rightIsWeapon)
-        {
-            totalMin = minRight;
-            totalMax = maxRight;
-        }
-        else if (leftIsWeapon)
-        {
-            totalMin = minLeft;
-            totalMax = maxLeft;
-        }
-        else
-        {
-            totalMin = baseMin;
-            totalMax = baseMax;
-        }
-
-        PhysiDamageMin = Math.Max(totalMin, 0);
-        PhysiDamageMax = Math.Max(totalMax, PhysiDamageMin + 1);
-
-        // ---- Paso 6: acierto de ataque (ObjectManager.cpp:2096-2136, rama PvM) ----
+        // ---- Step 3: attack success rate (ObjectManager.cpp:2096-2116, PvM branch) ----
         int asr = ((int)Level * cfg.AttackSuccessRateConstA[cls])
             + SafeDiv(Dexterity * (uint)cfg.AttackSuccessRateConstB[cls], cfg.AttackSuccessRateConstC[cls])
             + SafeDiv(Strength, cfg.AttackSuccessRateConstD[cls]);
 
         if (cls == ClassDl)
         {
-            asr += SafeDiv(Leadership, cfg.DlAttackSuccessRateConstE);
+            asr += SafeDiv(leadership, cfg.DlAttackSuccessRateConstE);
         }
 
-        AttackSuccessRate = Math.Max(asr, 0);
-
-        // ---- Step 7: defense and defense rate (ObjectManager.cpp:2230-2422) ---- Dexterity/const + sum of
-        // GetDefense()/GetDefenseSuccessRate() of Weapon2 (if it is a shield), Helm, Armor, Pants, Gloves,
-        // Boots and Wing -- each piece returns 0 if it is broken or if that section does not have the
-        // corresponding column (e.g. a weapon in Weapon2 has no DefenseSuccessRate, see World/ItemBalance.cs).
-        int def = SafeDiv(Dexterity, cfg.DefenseConstA[cls]);
-        int dsr = SafeDiv(Dexterity, cfg.DefenseSuccessRateConstA[cls]);
-
-        Span<int> armorSlots = stackalloc[]
-        {
-            Item.SlotWeapon2, Item.SlotHelm, Item.SlotArmor, Item.SlotPants, Item.SlotGloves, Item.SlotBoots, Item.SlotWing,
-        };
-
-        foreach (var slot in armorSlots)
-        {
-            var piece = Items[slot];
-
-            if (!piece.IsItem())
-            {
-                continue;
-            }
-
-            var info = items.Get(piece.Index);
-
-            if (info == null)
-            {
-                continue;
-            }
-
-            def += ItemCombatMath.GetDefense(piece, info);
-            dsr += ItemCombatMath.GetDefenseSuccessRate(piece, info);
-        }
-
-        Defense = Math.Max(def, 0);
-        DefenseSuccessRate = Math.Max(dsr, 0);
-
-        // ---- Step 8: base magic damage (ObjectManager.cpp:1980-1994 etc, "skills" phase) ---- Energy/const,
-        // identical for the 5 classes with the real values (9,4) but loaded per class anyway (see
-        // CharacterBalanceConfig). Magic weapon bonus (sword/staff with a MagicDamageRate column in Item.txt,
-        // e.g. "Dark Reign Blade"/"Rune Blade"/any staff) -- port of Attack.cpp:1341-1345, without the
-        // original's "fractional current durability" factor (1.0 is used if the weapon is not broken, the same
-        // kind of simplification as the rest of this port).
-        int magicMin = SafeDiv(Energy, cfg.MagicDamageMinConstA[cls]);
-        int magicMax = SafeDiv(Energy, cfg.MagicDamageMaxConstA[cls]);
-
-        if (rightInfo != null && right.Durability > 0 && (rightInfo.Section == 0 || rightInfo.Section == 5) && rightInfo.MagicDamageRate > 0)
-        {
-            int rise = (rightInfo.MagicDamageRate / 2) + (right.Level * 2);
-            magicMin += (magicMin * rise) / 100;
-            magicMax += (magicMax * rise) / 100;
-        }
-
-        MagicDamageMin = Math.Max(magicMin, 0);
-        MagicDamageMax = Math.Max(magicMax, MagicDamageMin + 1);
-
-        // ---- Attack Speed y Magic Speed (ObjectManager.cpp:2138-2228) ----
-        int basePhysiSpeed = cls switch
+        // ---- Step 4: attack and magic speed (ObjectManager.cpp:2138-2228) ----
+        int physiSpeed = cls switch
         {
             ClassDw => SafeDiv(Dexterity, 20),
             ClassDk => SafeDiv(Dexterity, 15),
@@ -715,7 +675,7 @@ public sealed class PlayerObject
             _ => SafeDiv(Dexterity, 10),
         };
 
-        int baseMagicSpeed = cls switch
+        int magicSpeed = cls switch
         {
             ClassDw => SafeDiv(Dexterity, 10),
             ClassDk => SafeDiv(Dexterity, 20),
@@ -724,61 +684,108 @@ public sealed class PlayerObject
             _ => SafeDiv(Dexterity, 10),
         };
 
-        int bonusSpeed = 0;
+        // A hand counts for speed when it holds a weapon (sections 0-5) that is not the arrows or the bolts.
+        bool rightSpeedItem = rightInfo != null && right.Index < Item.GetItem(6, 0) && right.Index != Bolt && right.Index != Arrow;
+        bool leftSpeedItem = leftInfo != null && left.Index < Item.GetItem(6, 0) && left.Index != Bolt && left.Index != Arrow;
+        int weaponSpeed = rightSpeedItem && leftSpeedItem ? (rightInfo!.AttackSpeed + leftInfo!.AttackSpeed) / 2
+            : rightSpeedItem ? rightInfo!.AttackSpeed
+            : leftSpeedItem ? leftInfo!.AttackSpeed
+            : 0;
 
-        int rightSpeed = (rightIsWeapon && rightInfo != null && right.Durability > 0) ? rightInfo.AttackSpeed : 0;
-        int leftSpeed = (leftIsWeapon && leftInfo != null && left.Durability > 0) ? leftInfo.AttackSpeed : 0;
+        physiSpeed += weaponSpeed;
+        magicSpeed += weaponSpeed;
 
-        if (rightIsWeapon && leftIsWeapon)
+        foreach (var slot in new[] { Item.SlotGloves, Item.SlotHelper, Item.SlotAmulet })
         {
-            bonusSpeed += (rightSpeed + leftSpeed) / 2;
-        }
-        else if (rightIsWeapon)
-        {
-            bonusSpeed += rightSpeed;
-        }
-        else if (leftIsWeapon)
-        {
-            bonusSpeed += leftSpeed;
-        }
+            var piece = Items[slot];
+            var info = piece.IsItem() ? items.Get(piece.Index) : null;
 
-        if (rightIsWeapon && (right.NewOption & 8) != 0) bonusSpeed += 7;
-        if (leftIsWeapon && (left.NewOption & 8) != 0) bonusSpeed += 7;
-
-        var gloves = Items[Item.SlotGloves];
-        if (gloves.IsItem() && gloves.Durability > 0)
-        {
-            var gInfo = items.Get(gloves.Index);
-            if (gInfo != null) bonusSpeed += gInfo.AttackSpeed;
-        }
-
-        var helper = Items[Item.SlotHelper];
-        if (helper.IsItem() && helper.Durability > 0)
-        {
-            var hInfo = items.Get(helper.Index);
-            if (hInfo != null) bonusSpeed += hInfo.AttackSpeed;
-        }
-
-        var amulet = Items[Item.SlotRing1];
-        if (amulet.IsItem() && amulet.Durability > 0)
-        {
-            var aInfo = items.Get(amulet.Index);
-            if (aInfo != null)
+            if (info != null)
             {
-                bonusSpeed += aInfo.AttackSpeed;
-                if ((amulet.NewOption & 8) != 0) bonusSpeed += 7;
+                physiSpeed += info.AttackSpeed;
+                magicSpeed += info.AttackSpeed;
             }
         }
 
-        PhysiSpeed = basePhysiSpeed + bonusSpeed;
-        MagicSpeed = baseMagicSpeed + bonusSpeed;
+        // ---- Step 5: defense success rate and defense (ObjectManager.cpp:2230-2422) ----
+        Span<int> armorSlots = stackalloc[]
+        {
+            Item.SlotWeapon2, Item.SlotHelm, Item.SlotArmor, Item.SlotPants, Item.SlotGloves, Item.SlotBoots, Item.SlotWing,
+        };
 
-        // ---- Step 9: recalculation of MaxLife and MaxMana (ObjectManager.cpp:2475-2508) ---- Base defaults
-        // and multipliers from DefaultClassInfo.txt: DW (0): BaseHP=60, LevelHP=1.0, VitHP=2.0; BaseMP=60,
-        // LevelMP=2.0, EneMP=2.0 DK (1): BaseHP=110, LevelHP=2.0, VitHP=3.0; BaseMP=20, LevelMP=0.5, EneMP=1.0
-        // FE (2): BaseHP=80, LevelHP=1.0, VitHP=2.0; BaseMP=30, LevelMP=1.5, EneMP=1.5 MG (3): BaseHP=110,
-        // LevelHP=1.0, VitHP=2.0; BaseMP=60, LevelMP=1.0, EneMP=2.0 DL (4): BaseHP=90, LevelHP=1.5, VitHP=2.0;
-        // BaseMP=40, LevelMP=1.0, EneMP=1.5
+        int dsr = SafeDiv(Dexterity, cfg.DefenseSuccessRateConstA[cls]);
+        int def = SafeDiv(Dexterity, cfg.DefenseConstA[cls]);
+
+        foreach (var slot in armorSlots)
+        {
+            var piece = Items[slot];
+            var info = piece.IsItem() ? items.Get(piece.Index) : null;
+
+            if (info != null)
+            {
+                dsr += ItemCombatMath.GetDefenseSuccessRate(piece, info);
+                def += ItemCombatMath.GetDefense(piece, info);
+            }
+        }
+
+        // Full armour set: the five pieces from helm to boots of the same model (the same sub-index in every
+        // section); the Magic Gladiator has no helm and that slot counts as a +15 piece.
+        ArmorSetBonus = false;
+        int lastModel = -1;
+
+        for (int slot = Item.SlotHelm; slot <= Item.SlotBoots; slot++)
+        {
+            if (slot == Item.SlotHelm && cls == ClassMg)
+            {
+                continue;
+            }
+
+            var piece = Items[slot];
+
+            if (!piece.IsItem() || (lastModel != -1 && piece.Index % Item.MaxItemType != lastModel))
+            {
+                ArmorSetBonus = false;
+                break;
+            }
+
+            ArmorSetBonus = true;
+            lastModel = piece.Index % Item.MaxItemType;
+        }
+
+        if (ArmorSetBonus)
+        {
+            dsr += dsr * 10 / 100;
+
+            var counts = new int[16];
+
+            for (int slot = Item.SlotHelm; slot <= Item.SlotBoots; slot++)
+            {
+                counts[slot == Item.SlotHelm && cls == ClassMg ? 15 : Items[slot].Level]++;
+            }
+
+            // +5% for five pieces at +10 or more, +10% at +11 ... +30% at +15 (each tier counts the higher levels).
+            int atLeast = 0;
+            int bonus = 0;
+
+            for (int level = 15; level >= 10; level--)
+            {
+                atLeast += counts[level];
+
+                if (atLeast == 5)
+                {
+                    bonus = (level - 9) * 5;
+                    break;
+                }
+            }
+
+            def += def * bonus / 100;
+        }
+
+        // ---- Step 6: base magic damage (ObjectManager.cpp:1974-2053) ----
+        int magicMin = SafeDiv(Energy, cfg.MagicDamageMinConstA[cls]);
+        int magicMax = SafeDiv(Energy, cfg.MagicDamageMaxConstA[cls]);
+
+        // ---- Step 7: base max life, mana and AG (ObjectManager.cpp:2475-2508; DefaultClassInfo.txt values) ----
         float[] baseHp = { 60f, 110f, 80f, 110f, 90f };
         float[] levelHp = { 1.0f, 2.0f, 1.0f, 1.0f, 1.5f };
         float[] vitHp = { 2.0f, 3.0f, 2.0f, 2.0f, 2.0f };
@@ -789,27 +796,215 @@ public sealed class PlayerObject
         float[] eneMp = { 2.0f, 1.0f, 1.5f, 2.0f, 1.5f };
         uint[] baseEne = { 30, 10, 15, 26, 15 };
 
-        float maxLife = baseHp[cls] + (levelHp[cls] * Math.Max((int)Level - 1, 0)) + ((float)Math.Max((int)Vitality - (int)baseVit[cls], 0) * vitHp[cls]);
-        float maxMana = baseMp[cls] + (levelMp[cls] * Math.Max((int)Level - 1, 0)) + ((float)Math.Max((int)Energy - (int)baseEne[cls], 0) * eneMp[cls]);
+        int maxLife = (int)Math.Max(baseHp[cls] + (levelHp[cls] * Math.Max((int)Level - 1, 0)) + ((float)Math.Max((int)Vitality - (int)baseVit[cls], 0) * vitHp[cls]), 1f);
+        int maxMana = (int)Math.Max(baseMp[cls] + (levelMp[cls] * Math.Max((int)Level - 1, 0)) + ((float)Math.Max((int)Energy - (int)baseEne[cls], 0) * eneMp[cls]), 1f);
 
-        MaxLife = (uint)Math.Max(maxLife, 1f);
-        MaxMana = (uint)Math.Max(maxMana, 1f);
-
-        // ---- Step 10: recalculation of MaxBP / AG (CharacterCalcBP, ObjectManager.cpp:1865-1884) ----
-        double maxBp = cls switch
+        // CharacterCalcBP (ObjectManager.cpp:1865-1884)
+        double maxBpBase = cls switch
         {
             ClassDw => (Strength * 0.20) + (Dexterity * 0.40) + (Vitality * 0.30) + (Energy * 0.20),
             ClassDk => (Strength * 0.15) + (Dexterity * 0.20) + (Vitality * 0.30) + (Energy * 1.00),
             ClassFe => (Strength * 0.30) + (Dexterity * 0.20) + (Vitality * 0.30) + (Energy * 0.20),
             ClassMg => (Strength * 0.20) + (Dexterity * 0.25) + (Vitality * 0.30) + (Energy * 0.15),
-            _ => (Strength * 0.30) + (Dexterity * 0.20) + (Vitality * 0.10) + (Energy * 0.15) + (Leadership * 0.30),
+            _ => (Strength * 0.30) + (Dexterity * 0.20) + (Vitality * 0.10) + (Energy * 0.15) + (leadership * 0.30),
         };
 
-        MaxBP = (uint)Math.Max(maxBp, 1.0);
+        int maxBp = (int)Math.Max(maxBpBase, 1.0);
 
-        Life = Math.Min(Life, MaxLife);
-        Mana = Math.Min(Mana, MaxMana);
-        BP = Math.Min(BP, MaxBP);
+        // ---- Step 8: CalcItemCommonOption(lpObj,0) -- every other option, item by item, in slot order ----
+        foreach (var (piece, specials) in worn)
+        {
+            foreach (var special in specials)
+            {
+                int v = special.Value;
+
+                switch (special.OptionIndex)
+                {
+                    case ItemOptionIndex.AddPhysiDamage:
+                        minRight += v; maxRight += v; minLeft += v; maxLeft += v;
+                        break;
+                    case ItemOptionIndex.AddMagicDamage:
+                        magicMin += v; magicMax += v;
+                        break;
+                    case ItemOptionIndex.AddDefenseSuccessRate:
+                        dsr += v;
+                        break;
+                    case ItemOptionIndex.AddDefense:
+                        def += v;
+                        break;
+                    case ItemOptionIndex.AddCriticalDamageRate:
+                        CriticalDamageRate += v;
+                        break;
+                    case ItemOptionIndex.AddHpRecoveryRate:
+                        HpRecoveryRate += v;
+                        break;
+                    case ItemOptionIndex.AddMoneyAmountDropRate:
+                        MoneyAmountDropRate += v;
+                        break;
+                    case ItemOptionIndex.MulDefenseSuccessRate:
+                        dsr += dsr * v / 100;
+                        break;
+                    case ItemOptionIndex.AddDamageReflect:
+                        DamageReflect += v;
+                        break;
+                    case ItemOptionIndex.AddDamageReduction:
+                        DamageReduction += v;
+                        break;
+                    case ItemOptionIndex.MulMp:
+                        AddMana += maxMana * v / 100;
+                        break;
+                    case ItemOptionIndex.MulHp:
+                        AddLife += maxLife * v / 100;
+                        break;
+                    case ItemOptionIndex.AddExcellentDamageRate:
+                        ExcellentDamageRate += v;
+                        break;
+                    case ItemOptionIndex.AddPhysiDamageByLevel when v != 0:
+                        minRight += Level / v; maxRight += Level / v; minLeft += Level / v; maxLeft += Level / v;
+                        break;
+                    case ItemOptionIndex.MulPhysiDamage:
+                        minRight += minRight * v / 100; maxRight += maxRight * v / 100;
+                        minLeft += minLeft * v / 100; maxLeft += maxLeft * v / 100;
+                        break;
+                    case ItemOptionIndex.AddMagicDamageByLevel when v != 0:
+                        magicMin += Level / v; magicMax += Level / v;
+                        break;
+                    case ItemOptionIndex.MulMagicDamage:
+                        magicMin += magicMin * v / 100; magicMax += magicMax * v / 100;
+                        break;
+                    case ItemOptionIndex.AddSpeed:
+                        physiSpeed += v; magicSpeed += v;
+                        break;
+                    case ItemOptionIndex.AddHuntHp:
+                        HuntHp += v;
+                        break;
+                    case ItemOptionIndex.AddHuntMp:
+                        HuntMp += v;
+                        break;
+                    case ItemOptionIndex.AddWingHp:
+                        AddLife += 50 + (v * piece.Level);
+                        break;
+                    case ItemOptionIndex.AddWingMp:
+                        AddMana += 50 + (v * piece.Level);
+                        break;
+                    case ItemOptionIndex.AddIgnoreDefenseRate:
+                        IgnoreDefenseRate += v;
+                        break;
+                    case ItemOptionIndex.AddBp:
+                        AddBp += v;
+                        break;
+                    case ItemOptionIndex.MulBp:
+                        AddBp += maxBp * v / 100;
+                        break;
+                    case ItemOptionIndex.AddHp:
+                        AddLife += v;
+                        break;
+                    case ItemOptionIndex.MulDamage:
+                        minRight += minRight * v / 100; maxRight += maxRight * v / 100;
+                        minLeft += minLeft * v / 100; maxLeft += maxLeft * v / 100;
+                        magicMin += magicMin * v / 100; magicMax += magicMax * v / 100;
+                        break;
+                }
+            }
+        }
+
+        // ---- Step 9: arrow/bolt bonus (ObjectManager.cpp:2444-2459): a crossbow in the right hand with bolts of
+        // +1 or more in the left, or a bow in the left with arrows in the right. The original computes the
+        // maximum's bonus from the (already raised) minimum -- kept as is. ----
+        bool rightCrossbow = rightInfo is { Section: 4, Slot: 0 } && right.Index != Arrow;
+        bool leftBow = leftInfo is { Section: 4, Slot: 1 } && left.Index != Bolt;
+
+        if (rightCrossbow)
+        {
+            if (left.Index == Bolt && left.Level > 0)
+            {
+                int rate = (left.Level * 2) + 1;
+                minRight += (minRight * rate / 100) + 1;
+                maxRight += (minRight * rate / 100) + 1;
+            }
+        }
+        else if (leftBow)
+        {
+            if (right.Index == Arrow && right.Level > 0)
+            {
+                int rate = (right.Level * 2) + 1;
+                minLeft += (minLeft * rate / 100) + 1;
+                maxLeft += (minLeft * rate / 100) + 1;
+            }
+        }
+
+        // ---- Step 10: dual-wield penalty (ObjectManager.cpp:2461-2473): DK/MG/DL with two melee weapons
+        // (sections 0-3) -- both hands at 55% ----
+        bool meleeRight = rightInfo != null && right.Index < Item.GetItem(4, 0);
+        bool meleeLeft = leftInfo != null && left.Index < Item.GetItem(4, 0);
+        bool dualHand = meleeRight && meleeLeft && cls is ClassDk or ClassMg or ClassDl;
+
+        if (dualHand)
+        {
+            minRight = minRight * 55 / 100;
+            maxRight = maxRight * 55 / 100;
+            minLeft = minLeft * 55 / 100;
+            maxLeft = maxLeft * 55 / 100;
+        }
+
+        PhysiDamageMinRight = minRight;
+        PhysiDamageMaxRight = maxRight;
+        PhysiDamageMinLeft = minLeft;
+        PhysiDamageMaxLeft = maxLeft;
+
+        // The hands a plain attack uses (CAttack::GetAttackDamage, Attack.cpp:1232-1256).
+        (int attackMin, int attackMax) = SelectAttackHands();
+        PhysiDamageMin = Math.Max(attackMin, 0);
+        PhysiDamageMax = Math.Max(attackMax, PhysiDamageMin + 1);
+
+        AttackSuccessRate = Math.Max(asr, 0);
+        DefenseSuccessRate = Math.Max(dsr, 0);
+        Defense = Math.Max(def, 0);
+        MagicDamageMin = Math.Max(magicMin, 0);
+        MagicDamageMax = Math.Max(magicMax, MagicDamageMin + 1);
+        PhysiSpeed = physiSpeed;
+        MagicSpeed = magicSpeed;
+
+        // Dark Knight and Dark Lord skill multipliers (ObjectManager.cpp:1983-1985, 2048-2050).
+        DkDamageMultiplierRate = Math.Min(200 + SafeDiv(Energy, cfg.DkDamageMultiplierConstA), cfg.DkDamageMultiplierMaxRate);
+        DlDamageMultiplierRate = Math.Min(200 + SafeDiv(Energy, cfg.DlDamageMultiplierConstA), cfg.DlDamageMultiplierMaxRate);
+
+        // ---- Step 11: max life/mana/AG with the options' extra, current values keeping their percentage ----
+        MaxLife = (uint)Math.Max(maxLife + AddLife, 1);
+        MaxMana = (uint)Math.Max(maxMana + AddMana, 1);
+        MaxBP = (uint)Math.Max(maxBp + AddBp, 1);
+
+        Life = (uint)Math.Min(MaxLife * totalHp / 100.0, MaxLife);
+        Mana = (uint)Math.Min(MaxMana * totalMp / 100.0, MaxMana);
+        BP = (uint)Math.Min(MaxBP * totalBp / 100.0, MaxBP);
+    }
+
+    /// <summary>Which hands a physical attack uses (CAttack::GetAttackDamage, Attack.cpp:1232-1256): both for a
+    /// DK/MG/DL with two melee weapons, the right hand for a melee weapon, staff or crossbow, the left hand for a
+    /// bow, and the left hand's base damage otherwise.</summary>
+    public (int Min, int Max) SelectAttackHands()
+    {
+        var right = Items[Item.SlotWeapon1];
+        var left = Items[Item.SlotWeapon2];
+        bool meleeRight = right.IsItem() && right.Index < Item.GetItem(4, 0);
+        bool meleeLeft = left.IsItem() && left.Index < Item.GetItem(4, 0);
+
+        if (meleeRight && meleeLeft && Class is ClassDk or ClassMg or ClassDl)
+        {
+            return (PhysiDamageMinRight + PhysiDamageMinLeft, PhysiDamageMaxRight + PhysiDamageMaxLeft);
+        }
+
+        if (meleeRight || (right.IsItem() && right.Index >= Item.GetItem(5, 0) && right.Index < Item.GetItem(6, 0)))
+        {
+            return (PhysiDamageMinRight, PhysiDamageMaxRight);
+        }
+
+        if (right.IsItem() && right.Index >= Item.GetItem(4, 0) && right.Index < Item.GetItem(5, 0) && right.Index != Arrow && right.Index != Bolt)
+        {
+            return (PhysiDamageMinRight, PhysiDamageMaxRight);
+        }
+
+        return (PhysiDamageMinLeft, PhysiDamageMaxLeft);
     }
 
     private static int SafeDiv(uint value, int div) => div <= 0 ? 0 : (int)(value / (uint)div);

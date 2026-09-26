@@ -193,7 +193,7 @@ public static class ChaosMixLogic
             int index = ChaosWeapons[Random.Shared.Next(ChaosWeapons.Length)];
             bool luck = Random.Shared.Next(100) < 50;
             byte level = (byte)Random.Shared.Next(0, 3);
-            var newItem = new Item { Index = (short)index, Level = level, Durability = 255, Option1 = (byte)(luck ? 1 : 0), Option3 = 1 };
+            var newItem = new Item { Index = (short)index, Level = level, Durability = 255, Option2 = (byte)(luck ? 1 : 0), Option3 = 1 };
             ClearBox(player);
             return new ChaosMixResult(true, 1, newItem, true, rate, zen);
         }
@@ -227,7 +227,7 @@ public static class ChaosMixLogic
             ? rates.PlusExcSetItemLevelMixRate[type, player.AccountLevel]
             : rates.PlusCommonItemLevelMixRate[type, player.AccountLevel];
 
-        if (targetItem.Option2 != 0) // Skill/Luck option del item -- ver comentario de Item.Option1/2
+        if (targetItem.Option2 != 0) // luck
         {
             rate += addLuckSuccessRate2[player.AccountLevel];
         }

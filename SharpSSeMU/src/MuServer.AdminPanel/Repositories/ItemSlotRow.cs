@@ -16,8 +16,8 @@ public sealed class ItemSlotRow
     public int Index { get; set; } = -1;
     public int Level { get; set; }
     public int Durability { get; set; }
-    public int Luck { get; set; } // Item.Option1, 0/1
-    public int Skill { get; set; } // Item.Option2, 0/1 (weapons only)
+    public int Luck { get; set; } // Item.Option2, 0/1
+    public int Skill { get; set; } // Item.Option1, 0/1 (weapons only)
     public int OptionLevel { get; set; } // Item.Option3: option level (+4/+8/+12/+16)
     public int Excellent { get; set; } // Item.NewOption: bits de excelente / nivel extra
     public int SetItem { get; set; } // Item.SetOption: set-item, nibble bajo
@@ -45,8 +45,8 @@ public sealed class ItemSlotRow
             OriginalIndex = index,
             Level = item.Level,
             Durability = item.Durability,
-            Luck = item.Option1,
-            Skill = item.Option2,
+            Luck = item.Option2,
+            Skill = item.Option1,
             OptionLevel = item.Option3,
             Excellent = item.NewOption,
             SetItem = item.SetOption,
@@ -61,8 +61,8 @@ public sealed class ItemSlotRow
             Index = (short)Index,
             Level = (byte)Math.Clamp(Level, 0, 15),
             Durability = (byte)Math.Clamp(Durability, 0, 255),
-            Option1 = (byte)Math.Clamp(Luck, 0, 1),
-            Option2 = (byte)Math.Clamp(Skill, 0, 1),
+            Option1 = (byte)Math.Clamp(Skill, 0, 1),
+            Option2 = (byte)Math.Clamp(Luck, 0, 1),
             Option3 = (byte)Math.Clamp(OptionLevel, 0, 255),
             NewOption = (byte)Math.Clamp(Excellent, 0, 255),
             SetOption = (byte)Math.Clamp(SetItem, 0, 255),

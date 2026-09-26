@@ -1058,8 +1058,10 @@ public sealed class ClientProtocolHandler
             var item = player.Items[s];
             if (!item.IsItem()) continue;
 
+            // The weapon's skill is only there when the item carries its skill option and a skill row of
+            // ItemOption.txt covers it (CItem::Convert clears m_Option1 otherwise, Item.cpp:505-511).
             var info = _itemBalance.Get(item.Index);
-            if (info != null && info.Skill > 0 && (item.Option1 != 0 || item.Option2 != 0 || info.Skill > 0))
+            if (info != null && info.Skill > 0 && ItemCombatMath.Options.HasSkill(item))
             {
                 ushort wSkill = GetWeaponSkillId(item.Index, info.Skill);
                 if (wSkill > 0 && addedSkillIds.Add(wSkill))
@@ -1993,10 +1995,13 @@ public sealed class ClientProtocolHandler
 
             if (targetItem.Level >= 9) return; // Soul solo sube hasta +9
 
-            int successRate = 50;
-            if (targetItem.Option1 != 0 || targetItem.Option2 != 0)
+            // CObjectManager::CharacterUseJewelOfSoul (ObjectManager.cpp:1554-1559): SoulSuccessRate, plus
+            // AddLuckSuccessRate1 when the item has luck.
+            int al = Math.Clamp(player.AccountLevel, 0, 3);
+            int successRate = _gsiCommon?.SoulSuccessRate[al] ?? 50;
+            if (targetItem.Option2 != 0)
             {
-                successRate += 25; // 75% if it has the Luck option
+                successRate += _gsiCommon?.AddLuckSuccessRate1[al] ?? 25;
             }
 
             bool success = Rng.Next(100) < successRate;
@@ -3176,33 +3181,12 @@ public sealed class ClientProtocolHandler
             }
         }
 
-        // ---- Step 2: target defense (CAttack::GetTargetDefense, Attack.cpp:1117-1154) ---- Without the
-        // halving reduction that applies when the target is an OBJECT_USER -- here the target is always a
-        // monster, so its Defense is used as is.
-        int targetDefense = Math.Max(monster.Defense, 0);
-
-        // ---- Step 3: raw damage (CAttack::GetAttackDamage, Attack.cpp:1156-1307, player branch) ----
-        int range = Math.Max(player.PhysiDamageMax - player.PhysiDamageMin, 1);
-        int damage = player.PhysiDamageMin + Rng.Next(range);
-
-        if (graze)
-        {
-            damage = (damage * 30) / 100; // "golpe de gracia" pese al mal roll de acierto/esquiva
-        }
-
-        damage -= targetDefense;
-        damage = Math.Max(damage, 0);
-
-        // ---- Step 4: per-level damage floor (Attack.cpp:365-366) ----
-        int minDamage = Math.Max(player.Level / 10, 1);
-
-        if (damage < minDamage)
-        {
-            damage = minDamage + Rng.Next(minDamage);
-        }
-
-        // Global multipliers (m_GeneralDamageRatePvM, per map/level DamageTable) not ported yet -- equivalent
-        // to 100% (no change), which is the default of an untouched package.
+        // ---- Step 2: the damage (CAttack::Attack, see World/PlayerAttackMath.cs): defense, critical/excellent,
+        // wings and pets, damage floor and the PvM damage rates ----
+        player.LastCombatTime = DateTime.UtcNow;
+        var hit = PlayerAttackMath.HitMonster(player, monster.Defense, 0, 0, 0, graze, _itemBalance, Rng);
+        int damage = hit.Damage;
+        await ApplyAttackerLifeCostAsync(player, hit.AttackerLifeLost, ct);
 
         monster.Life = Math.Max(monster.Life - damage, 0);
         monster.DamageByAttacker.AddOrUpdate(player.Index, damage, (_, previous) => previous + damage);
@@ -3212,7 +3196,7 @@ public sealed class ClientProtocolHandler
         // (GCMonsterDieSend, 0x9C) instead, so the client draws exactly one number for it.
         if (monster.Life > 0)
         {
-            await session.SendAsync(CombatPacketBuilder.DamageSend(monster.Index, damage, 0, missFlag: false, monster.Life), ct);
+            await session.SendAsync(CombatPacketBuilder.DamageSend(monster.Index, damage, hit.Effect, missFlag: false, monster.Life), ct);
         }
 
         Log.Add(LogColor.Black, "[Combat][{0}] '{1}' hits {2}(#{3}) for {4} (remaining life {5}/{6})",
@@ -3343,30 +3327,14 @@ public sealed class ClientProtocolHandler
             return;
         }
 
-        // ---- Step 2: raw magic damage (CAttack::GetAttackDamageWizard, Attack.cpp:1309-1384) ----
-        int damageMin = player.MagicDamageMin + skill.DamageMin;
-        int damageMax = player.MagicDamageMax + skill.DamageMax;
-        int range = Math.Max(damageMax - damageMin, 1);
-        int damage = damageMin + Rng.Next(range);
-
-        if (graze)
-        {
-            damage = (damage * 30) / 100;
-        }
-
-        damage -= Math.Max(monster.Defense, 0);
-        damage = Math.Max(damage, 0);
-
-        // ---- Step 3: per-level damage floor (same as the melee attack, Attack.cpp:365-366) ----
-        int minDamage = Math.Max(player.Level / 10, 1);
-
-        if (damage < minDamage)
-        {
-            damage = minDamage + Rng.Next(minDamage);
-        }
-
-        // ---- Step 4: optional per-skill multiplier (SkillDamage.txt -- no-op with the real data) ----
-        damage = _skillDamage.Apply(skill.Index, damage);
+        // ---- Step 2: the damage (CAttack::Attack, see World/PlayerAttackMath.cs): the magic formula for the
+        // Dark Wizard/Magic Gladiator spells, the hands plus the skill otherwise; SkillDamage.txt, the DK/DL
+        // multipliers, critical/excellent, wings and pets ----
+        player.LastCombatTime = DateTime.UtcNow;
+        var hit = PlayerAttackMath.HitMonster(player, monster.Defense, skill.Index, skill.DamageMin, skill.DamageMax, graze,
+            _itemBalance, Rng, _skillDamage.Apply);
+        int damage = hit.Damage;
+        await ApplyAttackerLifeCostAsync(player, hit.AttackerLifeLost, ct);
 
         monster.Life = Math.Max(monster.Life - damage, 0);
         monster.DamageByAttacker.AddOrUpdate(player.Index, damage, (_, previous) => previous + damage);
@@ -3376,7 +3344,7 @@ public sealed class ClientProtocolHandler
         // (GCMonsterDieSend, 0x9C) instead, so the client draws exactly one number for it.
         if (monster.Life > 0)
         {
-            await session.SendAsync(CombatPacketBuilder.DamageSend(monster.Index, damage, 0, missFlag: false, monster.Life), ct);
+            await session.SendAsync(CombatPacketBuilder.DamageSend(monster.Index, damage, hit.Effect, missFlag: false, monster.Life), ct);
         }
 
         // Port of GCSkillAttackSend (SkillManager.cpp:2665-2685): unicast to the caster itself + fan-out by
@@ -3520,25 +3488,11 @@ public sealed class ClientProtocolHandler
             return;
         }
 
-        bool isMagic = player.Class == 0 || skill.Index < 30 || skill.Index == 38 || skill.Index == 39;
-
-        int baseMin = isMagic ? player.MagicDamageMin : player.PhysiDamageMin;
-        int baseMax = isMagic ? player.MagicDamageMax : player.PhysiDamageMax;
-
-        int damageMin = baseMin + skill.DamageMin;
-        int damageMax = baseMax + skill.DamageMax;
-        int range = Math.Max(damageMax - damageMin, 1);
-        int damage = damageMin + Rng.Next(range);
-
-        if (graze) damage = (damage * 30) / 100;
-
-        damage -= Math.Max(monster.Defense, 0);
-        damage = Math.Max(damage, 0);
-
-        int minDamage = Math.Max(player.Level / 10, 1);
-        if (damage < minDamage) damage = minDamage + Rng.Next(minDamage);
-
-        damage = _skillDamage.Apply(skill.Index, damage);
+        player.LastCombatTime = DateTime.UtcNow;
+        var hit = PlayerAttackMath.HitMonster(player, monster.Defense, skill.Index, skill.DamageMin, skill.DamageMax, graze,
+            _itemBalance, Rng, _skillDamage.Apply);
+        int damage = hit.Damage;
+        await ApplyAttackerLifeCostAsync(player, hit.AttackerLifeLost, ct);
 
         monster.Life = Math.Max(monster.Life - damage, 0);
         monster.DamageByAttacker.AddOrUpdate(player.Index, damage, (_, previous) => previous + damage);
@@ -3548,11 +3502,93 @@ public sealed class ClientProtocolHandler
         // (GCMonsterDieSend, 0x9C) instead, so the client draws exactly one number for it.
         if (monster.Life > 0)
         {
-            await player.Session.SendAsync(CombatPacketBuilder.DamageSend(monster.Index, damage, 0, missFlag: false, monster.Life), ct);
+            await player.Session.SendAsync(CombatPacketBuilder.DamageSend(monster.Index, damage, hit.Effect, missFlag: false, monster.Life), ct);
             return;
         }
 
         await OnMonsterDeathAsync(player, monster, damage, (byte)skill.Index, ct);
+    }
+
+    /// <summary>Port of CObjectManager::CharacterMonsterDieHunt (ObjectManager.cpp:1648-1690), run two seconds
+    /// after the kill and only if the killer is still alive and in the world.</summary>
+    private static async Task RecoverAfterHuntAsync(PlayerObject player, int monsterLevel, CancellationToken ct)
+    {
+        try
+        {
+            await Task.Delay(2000, ct);
+
+            if (!player.WorldEntered || player.IsDying || !player.Session.Connected)
+            {
+                return;
+            }
+
+            int hp = (int)(((long)player.MaxLife * player.HuntHp) / 100) + monsterLevel;
+            int mp = (int)(((long)player.MaxMana * player.HuntMp) / 100);
+            int bp = (int)(player.MaxBP / 100);
+
+            if (hp != 0)
+            {
+                player.Life = (uint)Math.Min((long)player.Life + hp, player.MaxLife);
+                await player.Session.SendAsync(LifePacketBuilder.LifeSend(0xFF, (int)player.Life), ct);
+            }
+
+            if (mp != 0 || bp != 0)
+            {
+                player.Mana = (uint)Math.Min((long)player.Mana + mp, player.MaxMana);
+                player.BP = (uint)Math.Min((long)player.BP + bp, player.MaxBP);
+                await player.Session.SendAsync(ManaPacketBuilder.ManaSend(0xFF, (int)player.Mana, (int)player.BP), ct);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
+        {
+            Log.Add(LogColor.Red, "[Combat][{0}] Hunt recovery failed: {1}", player.Index, ex.Message);
+        }
+    }
+
+    /// <summary>A player's reflected damage hitting the monster that hit them -- message 10 of the original
+    /// (ObjectManager.cpp:356-361), which runs CAttack::Attack with the damage already decided: no hit roll, the
+    /// PvM damage rates, the reflect colour (effect 4), and it can kill the monster, with the usual reward.</summary>
+    public async Task ReflectDamageOnMonsterAsync(PlayerObject player, Monster monster, int reflected, CancellationToken ct)
+    {
+        if (!monster.Live || reflected <= 0 || !player.WorldEntered)
+        {
+            return;
+        }
+
+        int damage = PlayerAttackMath.ReflectOnMonster(player, reflected);
+
+        if (damage <= 0)
+        {
+            await player.Session.SendAsync(CombatPacketBuilder.DamageSend(monster.Index, 0, PlayerAttackMath.EffectReflect, missFlag: false, monster.Life), ct);
+            return;
+        }
+
+        monster.Life = Math.Max(monster.Life - damage, 0);
+        monster.DamageByAttacker.AddOrUpdate(player.Index, damage, (_, previous) => previous + damage);
+
+        if (monster.Life > 0)
+        {
+            await player.Session.SendAsync(CombatPacketBuilder.DamageSend(monster.Index, damage, PlayerAttackMath.EffectReflect, missFlag: false, monster.Life), ct);
+            return;
+        }
+
+        await OnMonsterDeathAsync(player, monster, damage, 0, ct);
+    }
+
+    /// <summary>The life the wings or the Imp/Dinorant cost for a hit (WingSprite/HelperSprite, Attack.cpp:623-706),
+    /// with the life update the original sends right away.</summary>
+    private static async Task ApplyAttackerLifeCostAsync(PlayerObject player, int lifeLost, CancellationToken ct)
+    {
+        if (lifeLost <= 0)
+        {
+            return;
+        }
+
+        player.Life = player.Life > (uint)lifeLost ? player.Life - (uint)lifeLost : 0;
+        await player.Session.SendAsync(LifePacketBuilder.LifeSend(0xFF, (int)player.Life), ct);
     }
 
     /// <summary> Port of CGPositionRecv (Protocol.cpp:557-610) -- player position synchronisation (0xD0).
@@ -3613,6 +3649,10 @@ public sealed class ClientProtocolHandler
         Log.Add(LogColor.Blue, "[Combat][{0}] '{1}' killed {2}(#{3}) -- respawn in {4}ms", killer.Index, killer.Name, monster.Name, monster.Index, monster.MaxRegenMillis + 1000);
 
         await TryDropLootAsync(killer, monster, viewers, ct);
+
+        // gObjAddMsgSendDelay(killer,3,monster,2000): two seconds later the killer recovers life (the monster's
+        // level plus the "life after hunting" option), mana (its option) and 1% of AG.
+        _ = RecoverAfterHuntAsync(killer, monster.Level, ct);
 
         // Port of CDevilSquare::MonsterDieProc (Phase 6) -- independent of the experience share below, it only
         // applies if the monster belongs to an active Devil Square run.
@@ -3802,12 +3842,15 @@ public sealed class ClientProtocolHandler
                 {
                     Index = (short)pick.Index,
                     Level = itemLevel,
-                    Durability = (byte)Math.Clamp(pick.Durability == 0 ? 1 : pick.Durability, 1, 255),
-                    Option1 = (byte)(luck ? 1 : 0),
-                    Option2 = (byte)(skill ? 1 : 0),
+                    Option1 = (byte)(skill ? 1 : 0),
+                    Option2 = (byte)(luck ? 1 : 0),
                     Option3 = option3,
                     NewOption = newOption
                 };
+
+                // A dropped item comes at its full durability for its level and options (the original creates it
+                // with GetItemDurability, ItemManager.cpp:393).
+                item.Durability = (byte)Math.Max(ItemCombatMath.GetItemDurability(item, pick), 1);
 
                 dropped = _groundItems.Drop(monster.Map, item, monster.X, monster.Y, killer.Index, ownerParty, GroundItemLifetime, GroundItemLootLock);
             }
@@ -3825,6 +3868,7 @@ public sealed class ClientProtocolHandler
             if (dropRateConfig <= 0) dropRateConfig = 100;
 
             long calcMoney = (baseMoney * dropRateConfig) / 100;
+            calcMoney = (calcMoney * killer.MoneyAmountDropRate) / 100; // the excellent "+zen" option (Monster.cpp:161)
             calcMoney = (calcMoney * Rng.Next(80, 121)) / 100;
 
             uint money = (uint)Math.Max(1, calcMoney);

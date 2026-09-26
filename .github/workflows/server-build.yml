@@ -24,5 +24,9 @@ jobs:
       - name: Build
         run: dotnet build SharpSSeMU/SharpSSeMU.sln --no-restore -c Release
 
+      # Unit tests: they build their own items and option rules, no game data needed.
+      - name: Unit tests
+        run: dotnet test SharpSSeMU/tests/MuServer.GameServer.Tests --no-build -c Release
+
       # The end-to-end tests need the original game package (not distributed), so
       # they are run locally -- see docs/BUILDING.md.
