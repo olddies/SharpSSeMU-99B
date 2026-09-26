@@ -696,7 +696,12 @@ public sealed class ViewportTicker
 
                 target.Life = (uint)Math.Max(0, (long)target.Life - damage);
 
-                await target.Session.SendAsync(CombatPacketBuilder.DamageSend(target.Index, damage, 0, false, target.Life), ct);
+                // CharacterLifeCheck (ObjectManager.cpp:2815-2947): the killing blow sends no damage packet,
+                // only the death that follows below.
+                if (target.Life > 0)
+                {
+                    await target.Session.SendAsync(CombatPacketBuilder.DamageSend(target.Index, damage, 0, false, target.Life), ct);
+                }
 
                 if (isSpell)
                 {
@@ -726,6 +731,9 @@ public sealed class ViewportTicker
                     target.IsDying = true;
                     target.DiedAt = now;
                     monster.TargetIndex = -1;
+
+                    Log.Add(LogColor.Blue, "[Combat][{0}] '{1}' was killed by {2}(#{3}) (Map={4} X={5} Y={6})",
+                        target.Index, target.Name, monster.Name, monster.Index, target.Map, target.X, target.Y);
 
                     // 1. Enviar aviso de muerte y actualizar barra de HP a 0 en la UI del cliente (0x26)
                     await target.Session.SendAsync(ChatPacketBuilder.NoticeSend(Loc.T("You died.")), ct);

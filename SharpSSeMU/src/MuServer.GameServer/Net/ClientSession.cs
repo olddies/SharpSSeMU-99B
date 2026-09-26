@@ -28,6 +28,14 @@ public sealed class ClientSession
     /// it only on entering the world.</summary>
     public int AccountLevel { get; set; }
 
+    /// <summary>Personal code (the account's personal ID) returned by JoinServer on login -- the character
+    /// delete request is checked against its last 7 characters (gObjCheckPersonalCode, User.cpp:1078).</summary>
+    public string PersonalCode { get; set; } = string.Empty;
+
+    /// <summary>Port of OBJECTSTRUCT::EnableDelCharacter: deleting is only accepted on the character selection
+    /// screen -- set on login and when going back to it, cleared when a character enters the world.</summary>
+    public bool EnableDelCharacter { get; set; }
+
     /// <summary>Not null once the player enters the world (after 0xF3:03) -- see World/PlayerObject.cs.</summary>
     public PlayerObject? Player { get; set; }
 

@@ -22,6 +22,7 @@ public sealed class DataServerConnection
     private readonly Func<GlobalWhisperEchoFromDataServer, CancellationToken, Task> _onGlobalWhisperEcho;
     private readonly Func<byte[], CancellationToken, Task> _onFriend;
     private readonly Func<byte[], CancellationToken, Task>? _onWarehouse;
+    private readonly Func<byte, byte[], CancellationToken, Task>? _onCharacterMisc;
 
     private Socket? _socket;
     private readonly PacketFramer _framer = new(maxPacketSize: 8192);
@@ -37,7 +38,8 @@ public sealed class DataServerConnection
         Func<GlobalWhisperResultFromDataServer, CancellationToken, Task> onGlobalWhisperResult,
         Func<GlobalWhisperEchoFromDataServer, CancellationToken, Task> onGlobalWhisperEcho,
         Func<byte[], CancellationToken, Task> onFriend,
-        Func<byte[], CancellationToken, Task>? onWarehouse = null)
+        Func<byte[], CancellationToken, Task>? onWarehouse = null,
+        Func<byte, byte[], CancellationToken, Task>? onCharacterMisc = null)
     {
         _address = address;
         _port = port;
@@ -51,6 +53,7 @@ public sealed class DataServerConnection
         _onGlobalWhisperEcho = onGlobalWhisperEcho;
         _onFriend = onFriend;
         _onWarehouse = onWarehouse;
+        _onCharacterMisc = onCharacterMisc;
     }
 
     public void Start(CancellationToken ct) => _ = ConnectLoopAsync(ct);
@@ -140,6 +143,11 @@ public sealed class DataServerConnection
 
                     case 0x05:
                         if (_onWarehouse != null) await _onWarehouse(packet, ct);
+                        break;
+
+                    case 0x03: // SDHP_CHARACTER_DELETE_RECV
+                    case 0x08: // SDHP_OPTION_DATA_RECV
+                        if (_onCharacterMisc != null) await _onCharacterMisc(head, packet, ct);
                         break;
 
                     case 0x72:

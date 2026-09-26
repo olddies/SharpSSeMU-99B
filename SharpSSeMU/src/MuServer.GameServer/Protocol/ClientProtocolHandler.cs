@@ -39,6 +39,7 @@ public sealed class ClientProtocolHandler
     private readonly ConcurrentDictionary<int, ClientSession> _pendingCharacterInfo = new();
     private readonly ConcurrentDictionary<int, ClientSession> _pendingCharacterList = new();
     private readonly ConcurrentDictionary<int, ClientSession> _pendingCharacterCreate = new();
+    private readonly ConcurrentDictionary<int, ClientSession> _pendingCharacterDelete = new();
     private static readonly Random Rng = Random.Shared;
 
     /// <summary>Port of MAX_PARTY_DISTANCE (Party.h) -- range (in tiles, not viewport) used to decide which
@@ -126,6 +127,7 @@ public sealed class ClientProtocolHandler
         _pendingCharacterInfo.TryRemove(session.Index, out _);
         _pendingCharacterList.TryRemove(session.Index, out _);
         _pendingCharacterCreate.TryRemove(session.Index, out _);
+        _pendingCharacterDelete.TryRemove(session.Index, out _);
 
         if (session.Player != null)
         {
@@ -434,6 +436,7 @@ public sealed class ClientProtocolHandler
                 }
 
                 await session.SendAsync(ClientPacketBuilder.CloseClientSend(closeType), ct);
+                session.EnableDelCharacter = true; // CharacterGameCloseSet (ObjectManager.cpp:693)
 
                 if (closeType == 0) // Exit Game
                 {
@@ -458,8 +461,16 @@ public sealed class ClientProtocolHandler
                 await OnCharacterCreateRequestAsync(session, p, ct);
                 break;
 
+            case 0x02:
+                await OnCharacterDeleteRequestAsync(session, p, ct);
+                break;
+
             case 0x03:
                 await OnCharacterInfoRecvAsync(session, p, ct);
+                break;
+
+            case 0x30:
+                await OnOptionDataRecvAsync(session, p, ct);
                 break;
 
             case 0x09:
@@ -491,6 +502,99 @@ public sealed class ClientProtocolHandler
             default:
                 Log.Add(LogColor.Black, "[Protocol][{0}] Head 0xF3:0x{1:X2} not implemented yet", session.Index, subCode);
                 break;
+        }
+    }
+
+    /// <summary>Port of CGCharacterDeleteRecv (Protocol.cpp:1194-1233) -- C1:F3:02 name[10] + PersonalCode[10].
+    /// Only on the selection screen (EnableDelCharacter), only if the server allows it
+    /// (CharacterDeleteSwitch) and only with the right personal code (gObjCheckPersonalCode, User.cpp:1078);
+    /// otherwise the answer is result=2. The guild fields go as "no guild": guild membership is not persisted by
+    /// this port yet. DataServer decides the rest (name syntax, the character belonging to the account).</summary>
+    private async Task OnCharacterDeleteRequestAsync(ClientSession session, byte[] p, CancellationToken ct)
+    {
+        if (!session.LoginMessageSent || session.Player != null || !session.EnableDelCharacter || p.Length < 24)
+        {
+            return;
+        }
+
+        // Without the Common config loaded (tests) the original defaults apply: PersonalCodeCheck=0 and
+        // CharacterDeleteSwitch=0 -- deleting is off unless the server enables it.
+        int personalCodeCheck = _gsiCommon?.PersonalCodeCheck ?? 0;
+        int deleteSwitch = _gsiCommon?.CharacterDeleteSwitch ?? 0;
+        string name = PacketBuilder.ReadFixedString(p.AsSpan(4, 10));
+        string personalCode = PacketBuilder.ReadFixedString(p.AsSpan(14, 10));
+
+        bool codeOk = personalCodeCheck == 0
+            || (session.PersonalCode.Length >= 13 && string.CompareOrdinal(personalCode, 0, session.PersonalCode, 6, 7) == 0);
+
+        if (deleteSwitch == 0 || !codeOk)
+        {
+            await session.SendAsync(PacketBuilder.BuildC1Sub(0xF3, 0x02, new byte[] { 2 }), ct);
+            return;
+        }
+
+        _pendingCharacterDelete[session.Index] = session;
+
+        await _dataServer.SendAsync(
+            DataServerCharacterPacketBuilder.CharacterDeleteRequest((ushort)session.Index, session.Account, name, 0, string.Empty), ct);
+    }
+
+    /// <summary>Port of CGOptionDataRecv (Protocol.cpp:1312-1322): the client saved its hot-keys/options;
+    /// they go straight to DataServer (C1:33), with no answer to the client.</summary>
+    private async Task OnOptionDataRecvAsync(ClientSession session, byte[] p, CancellationToken ct)
+    {
+        var player = session.Player;
+
+        if (player == null || p.Length < 4 + OptionData.WireSize)
+        {
+            return;
+        }
+
+        await _dataServer.SendAsync(
+            DataServerCharacterPacketBuilder.OptionDataSave((ushort)session.Index, session.Account, player.Name, OptionData.Read(p, 4)), ct);
+    }
+
+    /// <summary>DataServer answers for the selection screen and the key settings: C1:03 (DGCharacterDeleteRecv,
+    /// DSProtocol.cpp:397 -- index, account[11], result) and C1:08 (DGOptionDataRecv, DSProtocol.cpp:674 --
+    /// index, account[11], name[11], then the 15 option bytes).</summary>
+    public async Task OnCharacterMiscFromDataServerAsync(byte head, byte[] packet, CancellationToken ct)
+    {
+        if (packet.Length < 5)
+        {
+            return;
+        }
+
+        int index = packet[3] | (packet[4] << 8);
+        ClientSession? session;
+
+        if (head == 0x03)
+        {
+            _pendingCharacterDelete.TryRemove(index, out session);
+        }
+        else
+        {
+            session = _players.TryGet(index, out var player) ? player.Session : null;
+        }
+
+        if (session == null || !session.Connected)
+        {
+            return;
+        }
+
+        string account = PacketBuilder.ReadFixedString(packet.AsSpan(5, 11));
+
+        if (!string.Equals(account, session.Account, StringComparison.Ordinal))
+        {
+            return; // gObjIsAccountValid: the slot was reused by someone else meanwhile
+        }
+
+        if (head == 0x03 && packet.Length >= 17)
+        {
+            await session.SendAsync(PacketBuilder.BuildC1Sub(0xF3, 0x02, new[] { packet[16] }), ct);
+        }
+        else if (head == 0x08 && packet.Length >= 27 + OptionData.WireSize && session.Player != null)
+        {
+            await session.SendAsync(OptionData.Read(packet, 27).ToClientPacket(), ct);
         }
     }
 
@@ -606,6 +710,8 @@ public sealed class ClientProtocolHandler
         // MaxStatPoint, etc.) are fixed-length-4 C# arrays, so an out-of-range value would throw an
         // IndexOutOfRange instead of reading an invented row as the original would.
         session.AccountLevel = Math.Clamp((int)msg.AccountLevel, 0, 3);
+        session.PersonalCode = msg.PersonalCode;
+        session.EnableDelCharacter = msg.Result == 1; // gObjAdd sets it (User.cpp:307); only matters once logged in
 
         Log.Add(LogColor.Blue, "[Protocol][{0}] Login '{1}' -> result={2}", msg.Index, session.Account, msg.Result);
     }
@@ -745,6 +851,7 @@ public sealed class ClientProtocolHandler
         }
 
         var recv = CharacterInfoRecv.Parse(p);
+        session.EnableDelCharacter = false; // CGCharacterInfoRecv, Protocol.cpp:1244
         _pendingCharacterInfo[session.Index] = session;
 
         await _dataServer.SendAsync(
@@ -889,6 +996,11 @@ public sealed class ClientProtocolHandler
 
         await _dataServer.SendAsync(
             DataServerCharacterPacketBuilder.ConnectCharacter((ushort)session.Index, session.Account, player.Name), ct);
+
+        // DSProtocol.cpp:493: the saved key/option settings are asked for right after, and reach the client
+        // as C1:F3:30 when DataServer answers (OnCharacterMiscFromDataServerAsync).
+        await _dataServer.SendAsync(
+            DataServerCharacterPacketBuilder.OptionDataRequest((ushort)session.Index, session.Account, player.Name), ct);
 
         Log.Add(LogColor.Blue, "[Protocol][{0}] '{1}' entered the world (Map={2} X={3} Y={4})",
             session.Index, player.Name, player.Map, player.X, player.Y);
@@ -3095,7 +3207,13 @@ public sealed class ClientProtocolHandler
         monster.Life = Math.Max(monster.Life - damage, 0);
         monster.DamageByAttacker.AddOrUpdate(player.Index, damage, (_, previous) => previous + damage);
 
-        await session.SendAsync(CombatPacketBuilder.DamageSend(monster.Index, damage, 0, missFlag: false, monster.Life), ct);
+        // Port of CObjectManager::CharacterLifeCheck (ObjectManager.cpp:2815-2947): only a hit that leaves the
+        // target alive sends PMSG_DAMAGE_SEND. The killing blow's number travels in the death reward packet
+        // (GCMonsterDieSend, 0x9C) instead, so the client draws exactly one number for it.
+        if (monster.Life > 0)
+        {
+            await session.SendAsync(CombatPacketBuilder.DamageSend(monster.Index, damage, 0, missFlag: false, monster.Life), ct);
+        }
 
         Log.Add(LogColor.Black, "[Combat][{0}] '{1}' hits {2}(#{3}) for {4} (remaining life {5}/{6})",
             player.Index, player.Name, monster.Name, monster.Index, damage, monster.Life, monster.MaxLife);
@@ -3105,7 +3223,7 @@ public sealed class ClientProtocolHandler
             return;
         }
 
-        await OnMonsterDeathAsync(player, monster, ct);
+        await OnMonsterDeathAsync(player, monster, damage, 0, ct);
     }
 
     /// <summary> Simplified port of CSkillManager::CGSkillAttackRecv + UseAttackSkill + CAttack::
@@ -3253,7 +3371,13 @@ public sealed class ClientProtocolHandler
         monster.Life = Math.Max(monster.Life - damage, 0);
         monster.DamageByAttacker.AddOrUpdate(player.Index, damage, (_, previous) => previous + damage);
 
-        await session.SendAsync(CombatPacketBuilder.DamageSend(monster.Index, damage, 0, missFlag: false, monster.Life), ct);
+        // Port of CObjectManager::CharacterLifeCheck (ObjectManager.cpp:2815-2947): only a hit that leaves the
+        // target alive sends PMSG_DAMAGE_SEND. The killing blow's number travels in the death reward packet
+        // (GCMonsterDieSend, 0x9C) instead, so the client draws exactly one number for it.
+        if (monster.Life > 0)
+        {
+            await session.SendAsync(CombatPacketBuilder.DamageSend(monster.Index, damage, 0, missFlag: false, monster.Life), ct);
+        }
 
         // Port of GCSkillAttackSend (SkillManager.cpp:2665-2685): unicast to the caster itself + fan-out by
         // viewport to whoever is watching, block-encrypted (C3).
@@ -3276,7 +3400,7 @@ public sealed class ClientProtocolHandler
             return;
         }
 
-        await OnMonsterDeathAsync(player, monster, ct);
+        await OnMonsterDeathAsync(player, monster, damage, (byte)skill.Index, ct);
     }
 
     private async Task OnDurationSkillAttackAsync(ClientSession session, byte[] p, CancellationToken ct)
@@ -3419,12 +3543,16 @@ public sealed class ClientProtocolHandler
         monster.Life = Math.Max(monster.Life - damage, 0);
         monster.DamageByAttacker.AddOrUpdate(player.Index, damage, (_, previous) => previous + damage);
 
-        await player.Session.SendAsync(CombatPacketBuilder.DamageSend(monster.Index, damage, 0, missFlag: false, monster.Life), ct);
-
-        if (monster.Life <= 0)
+        // Port of CObjectManager::CharacterLifeCheck (ObjectManager.cpp:2815-2947): only a hit that leaves the
+        // target alive sends PMSG_DAMAGE_SEND. The killing blow's number travels in the death reward packet
+        // (GCMonsterDieSend, 0x9C) instead, so the client draws exactly one number for it.
+        if (monster.Life > 0)
         {
-            await OnMonsterDeathAsync(player, monster, ct);
+            await player.Session.SendAsync(CombatPacketBuilder.DamageSend(monster.Index, damage, 0, missFlag: false, monster.Life), ct);
+            return;
         }
+
+        await OnMonsterDeathAsync(player, monster, damage, (byte)skill.Index, ct);
     }
 
     /// <summary> Port of CGPositionRecv (Protocol.cpp:557-610) -- player position synchronisation (0xD0).
@@ -3458,7 +3586,9 @@ public sealed class ClientProtocolHandler
     /// (983-1041). Individual split only (no party -- Social/Party not ported yet): each attacker takes
     /// experience proportional to THEIR accumulated damage on this monster, just as the original does even
     /// outside a party. </summary>
-    private async Task OnMonsterDeathAsync(PlayerObject killer, Monster monster, CancellationToken ct)
+    /// <param name="lethalDamage">damage of the killing blow -- shown by the client from the reward packet.</param>
+    /// <param name="skill">skill that dealt it (0 = plain attack); the death packet carries it, as in GCUserDieSend.</param>
+    private async Task OnMonsterDeathAsync(PlayerObject killer, Monster monster, int lethalDamage, byte skill, CancellationToken ct)
     {
         monster.Live = false;
         monster.DiedAt = DateTime.UtcNow;
@@ -3469,7 +3599,7 @@ public sealed class ClientProtocolHandler
         // respawn timer elapses and gObjMonsterRegen calls gObjClearViewport, which only then removes it from
         // everybody's view (see RespawnDeadMonsters in ViewportTicker). Removing it immediately here -- as this
         // method used to do -- is what made monsters "vanish" with no visible death effect.
-        var dieSend = CombatPacketBuilder.UserDieSend(monster.Index, 0, killer.Index);
+        var dieSend = CombatPacketBuilder.UserDieSend(monster.Index, skill, killer.Index);
         var viewers = monster.VisibleTo.ToList();
 
         foreach (var viewerIndex in viewers)
@@ -3508,13 +3638,15 @@ public sealed class ClientProtocolHandler
             {
                 if (processedParties.Add(group.Id))
                 {
-                    await GrantPartyExperienceAsync(group, monster, ct);
+                    await GrantPartyExperienceAsync(group, monster, lethalDamage, ct);
                 }
 
                 continue;
             }
 
-            await GrantExperienceAsync(attacker, monster, damageDealt, ct);
+            // CharacterCalcExperienceSplit (ObjectManager.cpp:810-817): only the killer's packet shows the
+            // killing blow; everyone else who hit the monster gets 0 in that field.
+            await GrantExperienceAsync(attacker, monster, damageDealt, attacker.Index == killer.Index ? lethalDamage : 0, ct);
         }
     }
 
@@ -3725,7 +3857,7 @@ public sealed class ClientProtocolHandler
         dropped.JustDropped = false; // the "just fallen" appearance was already sent once
     }
 
-    private async Task GrantExperienceAsync(PlayerObject attacker, Monster monster, int damageDealt, CancellationToken ct)
+    private async Task GrantExperienceAsync(PlayerObject attacker, Monster monster, int damageDealt, int shownDamage, CancellationToken ct)
     {
         // Puerto de CharacterCalcExperienceAlone (ObjectManager.cpp:823-865).
         long level = ((long)(monster.Level + 25) * monster.Level) / 3;
@@ -3748,7 +3880,7 @@ public sealed class ClientProtocolHandler
         // /100 (map, bonus, reset) read from unported systems and still equal 100% (no change).
         experience *= WorldPacketBuilder.ServerInfo.AddExperienceRate[attacker.AccountLevel];
 
-        await ApplyExperienceGainAsync(attacker, monster.Index, experience, damageCredit, ct);
+        await ApplyExperienceGainAsync(attacker, monster.Index, experience, shownDamage, ct);
     }
 
     /// <summary> Port of CharacterCalcExperienceParty (ObjectManager.cpp:1345): unlike the solo split (by own
@@ -3760,7 +3892,7 @@ public sealed class ClientProtocolHandler
     /// class diversity (m_PartyGeneralExperience/m_PartySpecialExperience) are not ported yet -- equivalent to
     /// no bonus (documented in the README, the same kind of technical debt as the rest of this phase's global
     /// multipliers). </summary>
-    private async Task GrantPartyExperienceAsync(PartyGroup group, Monster monster, CancellationToken ct)
+    private async Task GrantPartyExperienceAsync(PartyGroup group, Monster monster, int lethalDamage, CancellationToken ct)
     {
         var members = new List<PlayerObject>();
 
@@ -3820,7 +3952,8 @@ public sealed class ClientProtocolHandler
         foreach (var member in inRange)
         {
             long share = (totalExperience * member.Level) / totalLevel;
-            await ApplyExperienceGainAsync(member, monster.Index, share, damageCredit, ct);
+            // CharacterCalcExperienceParty (ObjectManager.cpp:972-979): every member in range sees the killing blow.
+            await ApplyExperienceGainAsync(member, monster.Index, share, lethalDamage, ct);
         }
     }
 
@@ -3829,7 +3962,7 @@ public sealed class ClientProtocolHandler
     /// name="monsterIndex"/> is only for the packet's informational field (what was killed to gain this) --
     /// Phase 6 reuses it for event experience rewards (Devil Square), which has no associated real monster,
     /// with the sentinel -1 (0xFFFF on the wire, no real monster/player uses that index).</summary>
-    private async Task ApplyExperienceGainAsync(PlayerObject member, int monsterIndex, long experience, int damageCredit, CancellationToken ct)
+    private async Task ApplyExperienceGainAsync(PlayerObject member, int monsterIndex, long experience, int shownDamage, CancellationToken ct)
     {
         long addExperience = Math.Max(experience, 0);
         int maxLevelUp = WorldPacketBuilder.ServerInfo.MaxLevelUp;
@@ -3882,15 +4015,13 @@ public sealed class ClientProtocolHandler
             }
         }
 
-        // The reward packet's damage field is sent as 0: the hit itself already shows its own damage number
-        // (PMSG_DAMAGE_SEND), and the client draws a second, yellow number at the monster from this field, so
-        // a killing blow used to show two numbers (the real hit, plus the credited total capped at the
-        // monster's life).
+        // The damage field is the killing blow for whoever sees it (see OnMonsterDeathAsync) and 0 otherwise:
+        // the lethal hit sends no PMSG_DAMAGE_SEND, so this is its only number, as in GCMonsterDieSend.
         // Port of ObjectManager.cpp:857-864: if there was a level-up, this packet's experience popup sends 0
         // (the notice is already given by GCLevelUpSend/LevelUpSend further below) -- otherwise, it sends the
         // real experience gained.
         await member.Session.SendAsync(
-            CombatPacketBuilder.MonsterDieSend(monsterIndex, leveledUp ? 0u : (uint)Math.Max(experience, 0), 0,
+            CombatPacketBuilder.MonsterDieSend(monsterIndex, leveledUp ? 0u : (uint)Math.Max(experience, 0), shownDamage,
                 (uint)Math.Min(member.Experience, uint.MaxValue), WorldPacketBuilder.NextExperience(member.Level)),
             ct);
 

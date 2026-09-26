@@ -13,6 +13,45 @@ namespace MuServer.GameServer.Protocol;
 
 public static class DataServerCharacterPacketBuilder
 {
+    /// <summary>SDHP_CHARACTER_DELETE_SEND (GS->DS), C1:03: index+account+name+guild+GuildName[9]
+    /// (GDCharacterDeleteSend, DSProtocol.cpp:801).</summary>
+    public static byte[] CharacterDeleteRequest(ushort index, string account, string name, byte guild, string guildName)
+    {
+        var w = new PacketWriter();
+        w.WriteUInt16(index);
+        w.WriteFixedString(account, 11);
+        w.WriteFixedString(name, 11);
+        w.WriteByte(guild);
+        w.WriteFixedString(guildName, 9);
+        return PacketBuilder.BuildC1(0x03, w.ToArray());
+    }
+
+    /// <summary>SDHP_OPTION_DATA_SEND (GS->DS), C1:08: index+account+name (GDOptionDataSend, DSProtocol.cpp:888).</summary>
+    public static byte[] OptionDataRequest(ushort index, string account, string name)
+    {
+        var w = new PacketWriter();
+        w.WriteUInt16(index);
+        w.WriteFixedString(account, 11);
+        w.WriteFixedString(name, 11);
+        return PacketBuilder.BuildC1(0x08, w.ToArray());
+    }
+
+    /// <summary>SDHP_OPTION_DATA_SAVE_SEND (GS->DS), C1:33 (GDOptionDataSaveSend, DSProtocol.cpp:1075).</summary>
+    public static byte[] OptionDataSave(ushort index, string account, string name, OptionData data)
+    {
+        var w = new PacketWriter();
+        w.WriteUInt16(index);
+        w.WriteFixedString(account, 11);
+        w.WriteFixedString(name, 11);
+        w.WriteBytes(data.SkillKey, 10);
+        w.WriteByte(data.GameOption);
+        w.WriteByte(data.QKey);
+        w.WriteByte(data.WKey);
+        w.WriteByte(data.EKey);
+        w.WriteByte(data.ChatWindow);
+        return PacketBuilder.BuildC1(0x33, w.ToArray());
+    }
+
     /// <summary>SDHP_CHARACTER_INFO_SEND (GS->DS), C1:04: index+account+name -- espejo exacto de lo
     /// que MuServer.DataServer/Protocol/DataServerPackets.cs::CharacterInfoRecv.Parse espera leer.</summary>
     public static byte[] CharacterInfoRequest(ushort index, string account, string name)
@@ -2568,5 +2607,30 @@ public static class ShopPacketBuilder
         w.WriteByte(result);
         w.WriteUInt32(money);
         return PacketBuilder.BuildC1(0x33, w.ToArray());
+    }
+}
+
+/// <summary>The client's key/option settings (PMSG_OPTION_DATA_RECV/SEND, C1:F3:30): the 10 skill hot-keys,
+/// game options, the Q/W/E potion keys and the chat window layout. Same 15 bytes in both directions and in
+/// the DataServer packets.</summary>
+public sealed record OptionData(byte[] SkillKey, byte GameOption, byte QKey, byte WKey, byte EKey, byte ChatWindow)
+{
+    public const int WireSize = 15;
+
+    /// <summary>Reads the 15 bytes starting at <paramref name="offset"/>.</summary>
+    public static OptionData Read(byte[] p, int offset) =>
+        new(p.AsSpan(offset, 10).ToArray(), p[offset + 10], p[offset + 11], p[offset + 12], p[offset + 13], p[offset + 14]);
+
+    /// <summary>PMSG_OPTION_DATA_SEND (C1:F3:30) -- DGOptionDataRecv, DSProtocol.cpp:674.</summary>
+    public byte[] ToClientPacket()
+    {
+        var w = new PacketWriter();
+        w.WriteBytes(SkillKey, 10);
+        w.WriteByte(GameOption);
+        w.WriteByte(QKey);
+        w.WriteByte(WKey);
+        w.WriteByte(EKey);
+        w.WriteByte(ChatWindow);
+        return PacketBuilder.BuildC1Sub(0xF3, 0x30, w.ToArray());
     }
 }

@@ -210,6 +210,13 @@ var dataServer = new DataServerConnection(
         {
             await protocolHandler.OnWarehouseFromDataServerAsync(packet, ct);
         }
+    },
+    onCharacterMisc: async (head, packet, ct) =>
+    {
+        if (protocolHandler != null)
+        {
+            await protocolHandler.OnCharacterMiscFromDataServerAsync(head, packet, ct);
+        }
     });
 
 var devilSquare = new DevilSquareManager(
