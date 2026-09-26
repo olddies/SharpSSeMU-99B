@@ -41,6 +41,10 @@ binarios publicados — [GETTING_STARTED](GETTING_STARTED.md#8-referencia-de-con
 
 ## Cliente
 
+> **Experimental.** Para jugar, usá el cliente original 0.99B
+> ([Primeros pasos §6](GETTING_STARTED.md#6-conectar-un-cliente)); compilá este para trabajar en el
+> cliente open source.
+
 El cliente es un proyecto CMake (`MuMain-099B`), fork de
 [sven-n/MuMain](https://github.com/sven-n/MuMain); las guías de compilación upstream en
 [`MuMain-099B/docs/build/`](../../MuMain-099B/docs/build/README.md) (Visual Studio,

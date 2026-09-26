@@ -61,7 +61,8 @@ working. Fixes found by real play-testing are recorded in the
 
 ## Client
 
-The client is a **fork of MuMain (Season 5.2 → 6)** whose network layer has been ported to the
+**Experimental.** The recommended client is the original 0.99B one, which the server is verified
+against. The open-source client in this repository is a **fork of MuMain (Season 5.2 → 6)** whose network layer has been ported to the
 0.99B protocol.
 
 | Area | State | Notes |

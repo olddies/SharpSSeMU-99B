@@ -42,6 +42,10 @@ which file goes where.
 
 ## Client
 
+> **Experimental.** To play, use the original 0.99B client
+> ([Getting started §6](GETTING_STARTED.md#6-connect-a-client)); build this one to work on the
+> open-source client.
+
 The client is a CMake project (`MuMain-099B`). It is a fork of
 [sven-n/MuMain](https://github.com/sven-n/MuMain); the upstream build guides in
 [`MuMain-099B/docs/build/`](../MuMain-099B/docs/build/README.md) (Visual

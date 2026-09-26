@@ -7,10 +7,17 @@ MU Online **0.99B**, in two projects that name their origin:
 | Project | Based on | What it is |
 |---|---|---|
 | **[SharpSSeMU](SharpSSeMU/)** | **SSeMU** 2.1.7 (C++ emulator, SetecSoft) | A from-scratch **C#/.NET 10 re-implementation of the SSeMU 0.99B server** ("Sharp" = C#) |
-| **[MuMain-099B](MuMain-099B/)** | **[MuMain](https://github.com/sven-n/MuMain)** (sven-n) | A **fork of the open-source MuMain client**, ported to speak the exact 0.99B wire protocol ("099B" = the protocol it targets) |
+| **[MuMain-099B](MuMain-099B/)** *(experimental)* | **[MuMain](https://github.com/sven-n/MuMain)** (sven-n) | A **fork of the open-source MuMain client**, ported to speak the exact 0.99B wire protocol ("099B" = the protocol it targets) |
 
 Together they let you run and play a complete 0.99B private server on your own machine — and read,
 understand and extend every piece of it.
+
+> **Which client?** Play with the **original 0.99B client** (Webzen's `main.exe` with the SSeMU
+> `Main.dll`): it is what the server is ported and tested against, and it runs better. It is not
+> distributed here (see [NOTICE.md](NOTICE.md)); point the one you have at your server with
+> [`SharpSSeMU/tools/client/configure_client.py`](SharpSSeMU/tools/client/). **MuMain-099B** is an
+> **experimental** open-source alternative: its protocol layer is complete, but it still looks and plays
+> like Season 6.
 
 > **Status: work in progress, playable.** You can log in, create a character, walk the world,
 > fight monsters with the real damage formulas, level up, use items, jewels, shops, the Chaos
@@ -27,7 +34,7 @@ understand and extend every piece of it.
 | Folder | What it is | Language |
 |---|---|---|
 | [`SharpSSeMU/`](SharpSSeMU/) | The server, based on SSeMU: ConnectServer, JoinServer, DataServer, GameServer, a web **AdminPanel**, PostgreSQL schema and end-to-end tests | C# / .NET 10 |
-| [`MuMain-099B/`](MuMain-099B/) | The client, based on MuMain: a fork of [sven-n/MuMain](https://github.com/sven-n/MuMain) whose network layer was ported to 0.99B, with a generated-from-source protocol library and 152 unit tests | C++ / CMake (+ a small C# AOT library) |
+| [`MuMain-099B/`](MuMain-099B/) | **Experimental** open-source client, based on MuMain: a fork of [sven-n/MuMain](https://github.com/sven-n/MuMain) whose network layer was ported to 0.99B, with a generated-from-source protocol library and 152 unit tests | C++ / CMake (+ a small C# AOT library) |
 | [`docs/`](docs/) | Getting started, build guide, architecture, status/roadmap (English + Spanish) | Markdown |
 | [`scripts/`](scripts/) | Helper scripts (fetching pinned third-party sources) | PowerShell / Bash |
 
@@ -40,7 +47,7 @@ verified against). They are git-ignored so you can drop them next to the repo fo
 
 ```mermaid
 flowchart LR
-    C["Game client<br/>(MuMain fork or original main.exe)"]
+    C["Game client<br/>(original main.exe, or the experimental MuMain fork)"]
     CS["ConnectServer<br/>TCP 44405 · UDP 55557"]
     GS["GameServer<br/>TCP 55900"]
     JS["JoinServer<br/>TCP 55970"]
@@ -92,8 +99,16 @@ SharpSSeMU\start_servers.bat
 cd SharpSSeMU/src/MuServer.AdminPanel; dotnet run
 ```
 
-Then start a client pointed at `127.0.0.1:44405` and log in with the seeded test account
-(`test` / `test`). Building the client is covered in [`docs/BUILDING.md`](docs/BUILDING.md).
+Then point your original 0.99B client at the server and log in with the seeded test account
+(`test` / `test`):
+
+```powershell
+# the original client refuses 127.0.0.1 -- 127.0.0.2 is the same machine
+python SharpSSeMU/tools/client/configure_client.py set MuClient --ip 127.0.0.2 --port 44405 --from-server SharpSSeMU/src/MuServer.GameServer/bin/Debug/net10.0/GameServer.ini
+MuClient\main.exe
+```
+
+The experimental MuMain-099B client is built as described in [`docs/BUILDING.md`](docs/BUILDING.md).
 
 > ⚠️ The seeded accounts (`test`, `admin`) and the default database password exist for local
 > development only. Change them before exposing anything to a network.
@@ -108,7 +123,7 @@ Then start a client pointed at `127.0.0.1:44405` and log in with the seeded test
 - **AdminPanel**: a web UI (Blazor Server + MudBlazor) to edit rates, items, monsters, spawns, shops, skills, gates, quests, events and all `GameServerInfo - *.dat` files, browse/edit characters with a searchable item picker, and see live server status.
 - All 8 `GameServerInfo - *.dat` configuration files are loaded.
 
-**Client**
+**Client (MuMain-099B, experimental)**
 - Complete 0.99B network layer: 3 encryption layers, framing, every server→client packet handled and 57 of the 59 client→server opcodes.
 - Protocol library generated from the emulator source with compile-time layout checks; 152 unit tests.
 - Tooling to audit the client against the server (`tools/protogen/audit_*.py`, `tools/probe099b`).
@@ -130,9 +145,10 @@ Spanish versions of the main guides live in [`docs/es/`](docs/es/).
 
 ## Contributing
 
-Contributions are welcome — especially the **client UI** (the protocol speaks 0.99B but the
-interface still looks like Season 6; see the client's `docs/ui-099b.md`), the missing server
-systems in [`docs/STATUS.md`](docs/STATUS.md), and real-client testing reports. Please read
+Contributions are welcome — especially the missing server systems in
+[`docs/STATUS.md`](docs/STATUS.md) and testing reports with the original client. On the experimental
+client, the user interface is where help is most needed (the protocol speaks 0.99B but the interface
+still looks like Season 6; see the client's `docs/ui-099b.md`). Please read
 [`CONTRIBUTING.md`](CONTRIBUTING.md) first.
 
 ## Legal

@@ -30,8 +30,15 @@ ClientSerial = <your client's serial>
 conectar y aborta si es exactamente `127.0.0.1` ("Failed to connect" y después "You are disconnected
 from the server"; el ConnectServer nunca ve la conexión). Sirve cualquier otra dirección de loopback,
 porque todo `127.0.0.0/8` es local y los servidores escuchan en todas las direcciones. Poné
-`IpAddress = 127.0.0.2` en `MuClient/GetMainInfo/MainInfo.ini`, corré `GetMainInfo` para regenerar
-`ServerInfo.sse` y copialo junto a `main.exe`. La dirección del GameServer en `ServerList.dat` tampoco
+el cliente a `127.0.0.2` con la herramienta del repositorio (edita `ServerInfo.sse` en su lugar y guarda
+una copia):
+
+```bash
+python SharpSSeMU/tools/client/configure_client.py set MuClient --ip 127.0.0.2 --port 44405 --from-server SharpSSeMU/src/MuServer.GameServer/bin/Debug/net10.0/GameServer.ini
+```
+
+Con la herramienta del paquete, en cambio: `IpAddress = 127.0.0.2` en `MuClient/GetMainInfo/MainInfo.ini`,
+corré `GetMainInfo` y copiá el `ServerInfo.sse` nuevo junto a `main.exe`. La dirección del GameServer en `ServerList.dat` tampoco
 puede ser `127.0.0.1` (paso 4), porque el cliente hace la misma comprobación al pasar al GameServer.
 
 Los valores `ClientVersion = 1.02.00` y `ClientSerial = <your client's serial>` son justamente los que

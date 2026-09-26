@@ -7,10 +7,17 @@ MU Online **0.99B**, en dos proyectos cuyos nombres dicen de dónde vienen:
 | Proyecto | Basado en | Qué es |
 |---|---|---|
 | **[SharpSSeMU](SharpSSeMU/)** | **SSeMU** 2.1.7 (emulador C++, SetecSoft) | Una **reimplementación desde cero, en C#/.NET 10, del servidor SSeMU 0.99B** ("Sharp" = C#) |
-| **[MuMain-099B](MuMain-099B/)** | **[MuMain](https://github.com/sven-n/MuMain)** (sven-n) | Un **fork del cliente open source MuMain**, portado para hablar exactamente el protocolo 0.99B ("099B" = el protocolo al que apunta) |
+| **[MuMain-099B](MuMain-099B/)** *(experimental)* | **[MuMain](https://github.com/sven-n/MuMain)** (sven-n) | Un **fork del cliente open source MuMain**, portado para hablar exactamente el protocolo 0.99B ("099B" = el protocolo al que apunta) |
 
 Juntos permiten correr y jugar un servidor privado 0.99B completo en tu propia máquina — y leer,
 entender y extender cada pieza.
+
+> **¿Qué cliente?** Jugá con el **cliente original 0.99B** (el `main.exe` de Webzen con el `Main.dll`
+> de SSeMU): es contra el que se porta y se prueba el servidor, y anda mejor. No se distribuye acá (ver
+> [NOTICE.md](NOTICE.md)); apuntá el que tengas a tu servidor con
+> [`SharpSSeMU/tools/client/configure_client.py`](SharpSSeMU/tools/client/). **MuMain-099B** es una
+> alternativa open source **experimental**: su capa de protocolo está completa, pero todavía se ve y se
+> juega como Season 6.
 
 > **Estado: en desarrollo, jugable.** Podés iniciar sesión, crear un personaje, recorrer el mundo,
 > pelear contra monstruos con las fórmulas reales de daño, subir de nivel, usar items, joyas,
@@ -27,7 +34,7 @@ entender y extender cada pieza.
 | Carpeta | Qué es | Lenguaje |
 |---|---|---|
 | [`SharpSSeMU/`](SharpSSeMU/) | El servidor, basado en SSeMU: ConnectServer, JoinServer, DataServer, GameServer, un **AdminPanel** web, el esquema de PostgreSQL y tests end-to-end | C# / .NET 10 |
-| [`MuMain-099B/`](MuMain-099B/) | El cliente, basado en MuMain: fork de [sven-n/MuMain](https://github.com/sven-n/MuMain) con la capa de red portada a 0.99B, una librería de protocolo generada desde las fuentes originales y 152 tests unitarios | C++ / CMake (+ una pequeña librería C# AOT) |
+| [`MuMain-099B/`](MuMain-099B/) | Cliente open source **experimental**, basado en MuMain: fork de [sven-n/MuMain](https://github.com/sven-n/MuMain) con la capa de red portada a 0.99B, una librería de protocolo generada desde las fuentes originales y 152 tests unitarios | C++ / CMake (+ una pequeña librería C# AOT) |
 | [`docs/`](docs/) | Puesta en marcha, compilación, arquitectura y estado/roadmap (inglés + español) | Markdown |
 | [`scripts/`](scripts/) | Scripts auxiliares (bajar dependencias de terceros con versión fija) | PowerShell / Bash |
 
@@ -92,8 +99,16 @@ SharpSSeMU\start_servers.bat
 cd SharpSSeMU/src/MuServer.AdminPanel; dotnet run
 ```
 
-Después abrí un cliente apuntando a `127.0.0.1:44405` e iniciá sesión con la cuenta de prueba
-(`test` / `test`). Cómo compilar el cliente: [`docs/es/BUILDING.md`](docs/es/BUILDING.md).
+Después apuntá tu cliente original 0.99B al servidor e iniciá sesión con la cuenta de prueba
+(`test` / `test`):
+
+```powershell
+# el cliente original rechaza 127.0.0.1 -- 127.0.0.2 es la misma máquina
+python SharpSSeMU/tools/client/configure_client.py set MuClient --ip 127.0.0.2 --port 44405 --from-server SharpSSeMU/src/MuServer.GameServer/bin/Debug/net10.0/GameServer.ini
+MuClient\main.exe
+```
+
+El cliente experimental MuMain-099B se compila como explica [`docs/es/BUILDING.md`](docs/es/BUILDING.md).
 
 > ⚠️ Las cuentas sembradas (`test`, `admin`) y la contraseña por defecto de la base son solo para
 > desarrollo local. Cambialas antes de exponer algo a una red.
@@ -108,7 +123,7 @@ Después abrí un cliente apuntando a `127.0.0.1:44405` e iniciá sesión con la
 - **AdminPanel**: interfaz web (Blazor Server + MudBlazor) para editar tasas, items, monstruos, spawns, tiendas, skills, puertas, quests, eventos y todos los `GameServerInfo - *.dat`, ver/editar personajes con un selector de items con búsqueda, y ver el estado del servidor en vivo.
 - Se cargan los 8 archivos de configuración `GameServerInfo - *.dat`.
 
-**Cliente**
+**Cliente (MuMain-099B, experimental)**
 - Capa de red 0.99B completa: 3 capas de cifrado, framing, todos los paquetes servidor→cliente atendidos y 57 de los 59 opcodes cliente→servidor.
 - Librería de protocolo generada desde el código del emulador con verificación de layout en compilación; 152 tests unitarios.
 - Herramientas para auditar el cliente contra el servidor (`tools/protogen/audit_*.py`, `tools/probe099b`).
@@ -128,10 +143,10 @@ Después abrí un cliente apuntando a `127.0.0.1:44405` e iniciá sesión con la
 
 ## Contribuir
 
-Se agradecen las contribuciones — sobre todo la **interfaz del cliente** (el protocolo ya habla
-0.99B pero la UI sigue con aspecto de Season 6; ver `docs/ui-099b.md` del cliente), los sistemas
-que faltan en el servidor ([`docs/es/STATUS.md`](docs/es/STATUS.md)) y reportes de pruebas con
-cliente real. Leé antes [`CONTRIBUTING.md`](CONTRIBUTING.md).
+Se agradecen las contribuciones — sobre todo los sistemas que faltan en el servidor
+([`docs/es/STATUS.md`](docs/es/STATUS.md)) y reportes de pruebas con el cliente original. En el cliente
+experimental, donde más ayuda hace falta es la interfaz (el protocolo ya habla 0.99B pero la UI sigue
+con aspecto de Season 6; ver `docs/ui-099b.md` del cliente). Leé antes [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ## Legal
 

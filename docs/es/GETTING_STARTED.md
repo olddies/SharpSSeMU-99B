@@ -36,7 +36,7 @@ decir, en la raíz del repositorio:
 ```
 <raíz del repo>/
 ├── SharpSSeMU/            ← este repo (servidor)
-├── MuMain-099B/           ← este repo (cliente)
+├── MuMain-099B/           ← este repo (cliente experimental)
 ├── MuClient/              ← LO PONÉS VOS: el cliente 0.99B original
 │   ├── main.exe, Main.dll
 │   └── Data/              (necesita al menos Enc1.dat / Dec2.dat)
@@ -51,8 +51,8 @@ Las tres carpetas están en `.gitignore`. Cuáles necesitás depende de lo que q
 | Querés… | Necesitás |
 |---|---|
 | correr el servidor | `MuServer99B/Data` (+ `MuServer99B/GameServer/DATA`) |
-| jugar con el cliente original | `MuClient/` |
-| jugar con el cliente portado | una carpeta `Data/` de cliente en `MuMain-099B/src/bin/Data` (ver [BUILDING](BUILDING.md#cliente)) |
+| jugar (recomendado: el cliente original) | `MuClient/` |
+| jugar con el cliente portado experimental | una carpeta `Data/` de cliente en `MuMain-099B/src/bin/Data` (ver [BUILDING](BUILDING.md#cliente)) |
 | correr los tests end-to-end | `MuClient/Data/Enc1.dat` + `MuServer99B/Data` |
 | auditar el port contra el C++ original | `Source/` |
 
@@ -147,23 +147,32 @@ Si una corrida anterior dejó puertos ocupados: `python SharpSSeMU/kill_ports.py
 
 ## 6. Conectar un cliente
 
-**Cliente original** (`MuClient/main.exe`; poné en `ServerSerial` de `GameServer.ini` su `ClientSerial`, ver la nota del serial en la guía de pruebas): su `Main.dll` lee la dirección de
-`ServerInfo.sse` (lo genera `GetMainInfo` a partir de `MainInfo.ini`: `IpAddress`, `IpAddressPort = 44405`,
-`ClientVersion = 1.02.00`, `ClientSerial = <your client's serial>`, los mismos valores que `GameServer.ini`).
-Abrí `main.exe` e iniciá sesión con `test` / `test`. Guía paso a paso de esta vía:
+**Cliente original 0.99B (recomendado)** — `MuClient/main.exe`, el cliente contra el que se porta y se
+prueba este servidor. Su `Main.dll` lee a dónde conectar de `ServerInfo.sse`, junto a `main.exe`. Apuntalo a
+tu servidor con la herramienta del repositorio; solo cambia los campos de conexión y guarda una copia
+(`ServerInfo.sse.bak`):
+
+```bash
+python SharpSSeMU/tools/client/configure_client.py show MuClient
+python SharpSSeMU/tools/client/configure_client.py set MuClient --ip 127.0.0.2 --port 44405 --from-server SharpSSeMU/src/MuServer.GameServer/bin/Debug/net10.0/GameServer.ini
+```
+
+`--from-server` copia `ServerVersion` y `ServerSerial` de `GameServer.ini`: el cliente tiene que mandar los
+mismos (el serial además deriva las claves de cifrado). Abrí `main.exe`, elegí el servidor e iniciá sesión
+con `test` / `test`. Guía paso a paso de esta vía:
 [`SharpSSeMU/COMO_PROBAR_CON_CLIENTE_REAL.md`](../../SharpSSeMU/COMO_PROBAR_CON_CLIENTE_REAL.md).
 
 > **El cliente original rechaza `127.0.0.1`.** El `main.exe` de Webzen revisa la dirección antes de
 > conectar y aborta si es exactamente `127.0.0.1` ("Failed to connect" y después "You are disconnected
 > from the server"; el ConnectServer nunca ve la conexión). Usá cualquier otra dirección de loopback,
 > como `127.0.0.2` (todo `127.0.0.0/8` es local y los servidores escuchan en todas las direcciones), o tu
-> IP de la red local. Configurala en **los dos** lugares a los que conecta el cliente: `IpAddress` en
-> `MainInfo.ini` (y regenerá `ServerInfo.sse`) y la dirección del GameServer en el `ServerList.dat` del
-> ConnectServer, porque el cliente hace la misma comprobación al pasar al GameServer. El cliente portado
-> de abajo no tiene esa comprobación. El ConnectServer además cierra toda conexión a los
+> IP de la red local. Configurala en **los dos** lugares a los que conecta el cliente: el propio cliente
+> (la herramienta de arriba) y la dirección del GameServer en el `ServerList.dat` del ConnectServer
+> (`deploy_configs.py` ya escribe `127.0.0.2` ahí), porque el cliente hace la misma comprobación al pasar
+> al GameServer. El cliente portado de abajo no tiene esa comprobación. El ConnectServer además cierra toda conexión a los
 > `MaxConnectionIdle` segundos (60 por defecto, como el original): elegí el servidor antes de un minuto.
 
-**Cliente portado** (el `MuMain-099B` de este repo): compilalo ([BUILDING](BUILDING.md#cliente)) y
+**Cliente portado — experimental** (el `MuMain-099B` de este repo; protocolo completo, aspecto de Season 6): compilalo ([BUILDING](BUILDING.md#cliente)) y
 ejecutá `Main.exe`. Su `config.ini` (junto al ejecutable) define el destino:
 
 ```ini
