@@ -23,13 +23,14 @@ working. Fixes found by real play-testing are recorded in the
 | DataServer | ✅ | characters, inventories, warehouses, rankings, friends |
 | PostgreSQL schema | ✅ | `db/postgres/001`–`004` (accounts, characters, class seed, friends) |
 | AdminPanel | 🔶 | edits all data files and characters, live status, global messages. No hot-reload of config; single shared password |
-| End-to-end tests | 🔶 | `full_chain` + `fase1` fully green; other phases stop at one known fixture-balance point |
+| End-to-end tests | ✅ | all 10 green (`full_chain`, `fase1`-`fase6`, `grounditem`, `shop`, `skills`) |
 
 ### GameServer
 
 | Area | State | Notes |
 |---|---|---|
-| Login, character list / create / select | ✅ | which classes can be created is decided by the DataServer's `default_class_type` table |
+| Login, character list / create / select / delete | ✅ | which classes can be created is decided by the DataServer's `default_class_type` table; delete follows `CharacterDeleteSwitch` / `PersonalCodeCheck` |
+| Skill hot-keys and client options (`F3:30`) | ✅ | saved per character and sent back on entering the world |
 | World entry, movement, viewport, warps/gates, 15 maps | ✅ | ~2 900 monsters from the real spawn files |
 | Character stats & derived attributes | ✅ | real `CharacterCalcAttribute` per class; all 8 `GameServerInfo - *.dat` loaded |
 | Items & inventory (equip, move, requirements, repair) | ✅ | 5-byte 0.99B item encoding, real `Item.txt` balance |
@@ -100,6 +101,11 @@ Suggested order, easiest wins first:
 ## Recently fixed
 
 Bugs found by real play-testing in the latest session (all verified by rebuild + tests):
+
+- **Kill damage number:** the killing blow showed two numbers. Like the original server, it now sends no damage packet; its number travels in the kill reward packet, only to whoever landed it (or the party).
+- **Original client:** it could not connect with `127.0.0.1` — Webzen's `main.exe` refuses that exact address. See [Getting started](GETTING_STARTED.md#6-connect-a-client).
+- **Character delete** and **saved skill hot-keys** were not handled by the GameServer.
+- **End-to-end tests** hung halfway: the harness never read the servers' console pipe, so a server blocked writing its log.
 
 - **Shop:** only the first purchase worked — the 0.99B receive handler never cleared its in-flight flag.
 - **Combat:** monsters ignored player defense and never missed; spell attacks used the physical formula. Now they use the original pipeline.

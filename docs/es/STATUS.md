@@ -23,13 +23,14 @@ funcionales. Los arreglos encontrados jugando están registrados en el
 | DataServer | ✅ | personajes, inventarios, baúles, rankings, amigos |
 | Esquema PostgreSQL | ✅ | `db/postgres/001`–`004` (cuentas, personajes, semilla de clases, amigos) |
 | AdminPanel | 🔶 | edita todos los archivos de datos y personajes, estado en vivo, mensajes globales. Sin recarga en caliente; una sola contraseña compartida |
-| Tests end-to-end | 🔶 | `full_chain` + `fase1` completamente en verde; las otras fases se detienen en un punto conocido de balance del fixture |
+| Tests end-to-end | ✅ | los 10 en verde (`full_chain`, `fase1`-`fase6`, `grounditem`, `shop`, `skills`) |
 
 ### GameServer
 
 | Área | Estado | Notas |
 |---|---|---|
-| Login, lista / creación / selección de personaje | ✅ | qué clases se pueden crear lo decide la tabla `default_class_type` del DataServer |
+| Login, lista / creación / selección / borrado de personaje | ✅ | qué clases se pueden crear lo decide la tabla `default_class_type` del DataServer; el borrado sigue `CharacterDeleteSwitch` / `PersonalCodeCheck` |
+| Teclas rápidas de skills y opciones del cliente (`F3:30`) | ✅ | se guardan por personaje y se reenvían al entrar al mundo |
 | Entrada al mundo, movimiento, viewport, warps/puertas, 15 mapas | ✅ | ~2 900 monstruos de los archivos de spawn reales |
 | Stats de personaje y atributos derivados | ✅ | `CharacterCalcAttribute` real por clase; los 8 `GameServerInfo - *.dat` cargados |
 | Items e inventario (equipar, mover, requisitos, reparar) | ✅ | codificación de item 0.99B de 5 bytes, balance real de `Item.txt` |
@@ -99,6 +100,11 @@ Orden sugerido, lo más fácil primero:
 ## Arreglado recientemente
 
 Bugs encontrados jugando con un cliente real en la última sesión (todos verificados con recompilación + tests):
+
+- **Número de daño al matar:** el golpe final mostraba dos números. Como el servidor original, ahora no manda paquete de daño; su número viaja en el paquete de recompensa, solo para quien lo dio (o su party).
+- **Cliente original:** no conectaba con `127.0.0.1` — el `main.exe` de Webzen rechaza esa dirección exacta. Ver [Primeros pasos](GETTING_STARTED.md#6-conectar-un-cliente).
+- El GameServer no atendía el **borrado de personaje** ni el **guardado de teclas rápidas**.
+- Los **tests end-to-end** se colgaban a mitad: el harness nunca leía el pipe de consola de los servidores y uno quedaba bloqueado escribiendo su log.
 
 - **Tienda:** solo funcionaba la primera compra — el handler 099B nunca limpiaba su bandera de "pedido en curso".
 - **Combate:** los monstruos ignoraban la defensa del jugador y nunca fallaban; los hechizos usaban la fórmula física. Ahora usan el pipeline original.

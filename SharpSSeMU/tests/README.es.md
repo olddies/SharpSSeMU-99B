@@ -38,24 +38,26 @@ haya dejado un proceso colgado.
 
 ## Estado conocido
 
-`full_chain` y `fase1` pasan enteros. El resto llega lejos (16-36 aserciones en
-verde, incluida toda la parte de protocolo) y falla en **un** punto, siempre el
-mismo: la secuencia de combate del `WorldTestClient`.
+Pasan los diez tests (`full_chain`, `fase1`-`fase6`, `grounditem`, `shop`, `skills`).
 
-La causa está diagnosticada y **no es de protocolo**: el monstruo de prueba
-contraataca y Hero1, con los 60 HP de un personaje recién creado, se muere en
-algún punto del recorrido; a partir de ahí no puede seguir atacando y el test
-espera un paquete que no va a llegar. Subirle la vida por fixture no alcanza
-(`RecalcCombatStats` recalcula `MaxLife` desde `Vitality` al entrar al mundo) y
-subirle `Vitality` desbalancea el resto (con 100 sube a nivel 26 de una sola
-muerte y rompe otros pasos). Es balance del servidor, no del test.
+El "único fallo en la secuencia de combate" que arrastrábamos no era balance del servidor: el harness
+arrancaba cada servidor con la consola conectada por pipe al test y nunca la leía mientras el test
+corría. Cuando el servidor había escrito lo suficiente, el pipe se llenaba y el servidor quedaba
+bloqueado dentro de `Console.WriteLine`, con el lock del log tomado, así que el test esperaba un paquete
+que no se podía enviar. Ahora la consola de cada servidor va a `console.log` en su carpeta de runtime
+(`%TEMP%/muservercs-e2e/rt-<tag>/<servidor>/`) y el final se imprime igual que antes.
 
-Al arreglar la detección de muerte se destapó esto: antes el bucle daba por
-muerto al monstruo con solo ver un `0x17`, sin mirar **qué índice** murió. Como
-el servidor usa el mismo head para avisar que murió un jugador, el test cantaba
-`[OK] Mató al monstruo` cuando en realidad se había muerto el personaje y el
-monstruo estaba intacto. Ahora compara el índice y falla de verdad cuando el
-combate no sale.
+Dos reglas en las que se apoyan los pasos de combate:
+
+* **El golpe que mata no manda `0xD9`**, como en el `CharacterLifeCheck` original: termina en el `0x17`
+  del monstruo, y su daño viaja en el paquete de recompensa `0x9C`.
+  `FakeMuClient.WaitForAttackOutcomeAsync` espera cualquiera de los dos resultados.
+* **`0x17` también avisa la muerte de un jugador**, así que la comprobación compara el índice que murió
+  con el del monstruo. Antes, que muriera el personaje parecía "mató al monstruo".
+
+Los fixtures siembran lo que cada escenario necesita: Hero3 (Devil Square) recibe Vitality alta **y**
+vida actual, porque `Life` se lee de la fila del personaje y Vitality solo sube `MaxLife`; el test de
+items de piso agrega dos monstruos deterministas que dropean (`Deployment.seed_drop_monsters`).
 
 ## Notas de fixture que importan
 
