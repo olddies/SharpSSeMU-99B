@@ -104,6 +104,9 @@ public sealed class ServerInfoConfig
     public int[] BloodCastleMaxEntryCount { get; private set; } = new int[4];
     public bool BloodCastleNpcWithoutEntrance { get; private set; }
 
+    /// <summary>DropEventSwitch: the drop events of DropEvent.dat run.</summary>
+    public bool DropEventSwitch { get; private set; } = true;
+
     public static ServerInfoConfig Load(string commonPath, string eventPath)
     {
         var common = IniFile.Load(commonPath);
@@ -156,6 +159,7 @@ public sealed class ServerInfoConfig
             BloodCastleMaxUser = evt.GetInt("GameServerInfo", "BloodCastleMaxUser", 10),
             BloodCastleMaxEntryCount = Enumerable.Range(0, 4).Select(n => evt.GetInt("GameServerInfo", $"BloodCastleMaxEntryCount_AL{n}", 0)).ToArray(),
             BloodCastleNpcWithoutEntrance = evt.GetInt("GameServerInfo", "BloodCastleNPCWithoutEntrance", 0) != 0,
+            DropEventSwitch = evt.GetInt("GameServerInfo", "DropEventSwitch", 1) != 0,
         };
 
         return cfg;

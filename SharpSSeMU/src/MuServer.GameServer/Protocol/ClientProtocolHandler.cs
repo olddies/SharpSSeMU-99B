@@ -63,6 +63,8 @@ public sealed class ClientProtocolHandler
     private readonly GameServerInfoCommon? _gsiCommon;
     private readonly LootRoller _loot;
     private readonly ItemBagManager? _bags;
+    private readonly KalimaManager? _kalima;
+    private readonly DropEventManager? _dropEvents;
 
     public ClientProtocolHandler(
         GameServerConfig config, JoinServerConnection joinServer, DataServerConnection dataServer,
@@ -73,9 +75,11 @@ public sealed class ClientProtocolHandler
         GateTable? gates = null, MoveTable? moves = null, BloodCastleManager? bloodCastle = null, MessageTable? messages = null,
         QuestTable? quests = null, QuestObjectiveTable? questObjectives = null, QuestRewardTable? questRewards = null,
         GameServerInfoCommon? gsiCommon = null, ItemValueTable? itemValues = null,
-        GameServerInfoChaosMix? chaosMixRates = null, LootRoller? loot = null, ItemBagManager? bags = null)
+        GameServerInfoChaosMix? chaosMixRates = null, LootRoller? loot = null, ItemBagManager? bags = null, KalimaManager? kalima = null, DropEventManager? dropEvents = null)
     {
         _bags = bags;
+        _kalima = kalima;
+        _dropEvents = dropEvents;
         _loot = loot ?? new LootRoller(itemBalance, new ItemOptionRateTable(), new ExcellentOptionRateTable(), new MapDropTable(),
             new MapRateInfoTable(), new List<ItemDropRule>(), new List<MoneyDropRule>());
         _config = config;
@@ -1886,7 +1890,17 @@ public sealed class ClientProtocolHandler
 
         GroundItem? thrown = null;
 
-        if (bagRoll == null)
+        if (bagRoll == null && _kalima != null && item.Index == Item.GetItem(14, 28)) // Lost Map
+        {
+            // The map is used up opening the gate; when the gate cannot be opened there it stays in the bag.
+            if (!await _kalima.TryCreatePortalAsync(player, item.Level, recv.X, recv.Y, ct))
+            {
+                await session.SendAsync(ItemPacketBuilder.ItemDropSend(0, recv.Slot), ct);
+                return;
+            }
+
+        }
+        else if (bagRoll == null)
         {
             thrown = _groundItems.Drop(
                 player.Map, item, recv.X, recv.Y, player.Index, player.PartyNumber == -1 ? null : player.PartyNumber,
@@ -3733,6 +3747,11 @@ public sealed class ClientProtocolHandler
 
         // Port of CDevilSquare::MonsterDieProc (Phase 6) -- independent of the experience share below, it only
         // applies if the monster belongs to an active Devil Square run.
+        if (_kalima != null)
+        {
+            await _kalima.OnMonsterKilledAsync(monster, ct);
+        }
+
         if (_bloodCastle != null)
         {
             await _bloodCastle.OnMonsterKilledAsync(monster, ct);
@@ -3899,24 +3918,32 @@ public sealed class ClientProtocolHandler
 
         GroundItem? dropped = TryQuestItemDrop(owner, monster);
 
+        var server = WorldPacketBuilder.ServerInfo;
+        int al = Math.Clamp(owner.AccountLevel, 0, 3);
+
+        var lootContext = new LootContext
+        {
+            MonsterClass = monster.MonsterClass,
+            MonsterLevel = monster.Level,
+            Map = monster.Map,
+            ItemRate = monster.ItemRate,
+            MoneyRate = monster.MoneyRate,
+            Money = monster.Money,
+            AccountLevel = al,
+            PlayerMoneyAmountDropRate = owner.MoneyAmountDropRate,
+            ServerItemDropRate = server.ItemDropRate[al],
+            ServerMoneyAmountDropRate = server.MoneyAmountDropRate[al],
+        };
+
+        // A drop event that is on (DropEvent.dat) comes right after the quest item and before the drop rules.
+        if (dropped == null && _dropEvents?.Roll(lootContext, Rng) is { } eventItem)
+        {
+            dropped = _groundItems.Drop(monster.Map, eventItem, monster.X, monster.Y, owner.Index, ownerParty, GroundItemLifetime, GroundItemLootLock);
+        }
+
         if (dropped == null)
         {
-            var server = WorldPacketBuilder.ServerInfo;
-            int al = Math.Clamp(owner.AccountLevel, 0, 3);
-
-            var roll = _loot.Roll(new LootContext
-            {
-                MonsterClass = monster.MonsterClass,
-                MonsterLevel = monster.Level,
-                Map = monster.Map,
-                ItemRate = monster.ItemRate,
-                MoneyRate = monster.MoneyRate,
-                Money = monster.Money,
-                AccountLevel = al,
-                PlayerMoneyAmountDropRate = owner.MoneyAmountDropRate,
-                ServerItemDropRate = server.ItemDropRate[al],
-                ServerMoneyAmountDropRate = server.MoneyAmountDropRate[al],
-            }, Rng);
+            var roll = _loot.Roll(lootContext, Rng);
 
             if (roll?.Item != null)
             {

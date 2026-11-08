@@ -329,15 +329,24 @@ var bloodCastle = new BloodCastleManager(
     bloodCastleConfig, eventEntryLevels, eventStageSpawns, eventSpawnPool, monsterInfoTable, maps, monsters, players,
     gates, groundItems, dataServer.SendAsync, messages);
 
+var dropEvents = new DropEventManager(
+    DropEventManager.Load(Path.Combine(config.EventPath, "DropEvent.dat")), lootRoller, players, messages,
+    WorldPacketBuilder.ServerInfo.DropEventSwitch);
+
+var kalima = new KalimaManager(
+    KalimaManager.LoadNextPortals(Path.Combine(config.EventPath, "Kalima.dat")), monsters, monsterInfoTable, maps, players, gates);
+
 protocolHandler = new ClientProtocolHandler(
     config, joinServer, dataServer, players, maps, monsters, parties, itemBalance, characterBalance,
     skills, skillDamage, devilSquare, shops, groundItems, gates, moves, bloodCastle, messages,
-    questTable, questObjectiveTable, questRewardTable, gsiCommon, itemValues, gsiChaosMix, lootRoller, itemBags);
+    questTable, questObjectiveTable, questRewardTable, gsiCommon, itemValues, gsiChaosMix, lootRoller, itemBags, kalima, dropEvents);
 
 joinServer.Start(cts.Token);
 dataServer.Start(cts.Token);
 devilSquare.Start(cts.Token);
 bloodCastle.Start(cts.Token);
+kalima.Start(cts.Token);
+dropEvents.Start(cts.Token);
 
 var clientListener = new GameClientListener(config.ServerPort, packetCipher, streamCipher, protocolHandler);
 clientListener.Start(cts.Token);

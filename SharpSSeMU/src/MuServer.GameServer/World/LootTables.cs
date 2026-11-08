@@ -582,23 +582,36 @@ public sealed class LootRoller
         }
 
         var chosen = _itemRules[picked];
-        var item = new Item { Index = (short)chosen.ItemIndex };
-        int level = chosen.Level;
-
-        if (_optionRates.Pick(ItemOptionRateTable.LevelOption, chosen.Options[0], rng) is int l) level = l;
-        item.Level = (byte)level;
-        item.Option1 = (byte)(_optionRates.Pick(ItemOptionRateTable.SkillOption, chosen.Options[1], rng) ?? 0);
-        item.Option2 = (byte)(_optionRates.Pick(ItemOptionRateTable.LuckOption, chosen.Options[2], rng) ?? 0);
-        item.Option3 = (byte)(_optionRates.Pick(ItemOptionRateTable.AdditionalOption, chosen.Options[3], rng) ?? 0);
-        int excellentCount = _optionRates.Pick(ItemOptionRateTable.ExcellentCount, chosen.Options[4], rng) ?? 0;
-        item.NewOption = _excellent.MakeNewOption(chosen.ItemIndex, 1, excellentCount, rng);
-        int ruleSetValue = _optionRates.Pick(ItemOptionRateTable.SetOption, chosen.Options[5], rng) ?? 0;
-        item.SetOption = _sets.Types.MakeSetOption(chosen.ItemIndex, ruleSetValue, rng);
-        ItemCombatMath.Options.Normalize(item);
-        item.Durability = FullDurability(item, chosen.Durability);
-
-        return new LootDrop(item, 0);
+        return new LootDrop(BuildRuleItem(chosen.ItemIndex, chosen.Level, chosen.Durability, chosen.Options, rng), 0);
     }
+
+    /// <summary>The item a rule (an ItemDrop.txt row or a drop event's) hands out: the given level and durability, or
+    /// the ones rolled from the rows of ItemOptionRate.txt that its six option columns name (-1 for none), with the
+    /// excellent and set options made the way a drop makes them.</summary>
+    public Item BuildRuleItem(int itemIndex, int baseLevel, int durability, int[] options, Random rng)
+    {
+        var item = new Item { Index = (short)itemIndex };
+        int level = baseLevel;
+
+        if (_optionRates.Pick(ItemOptionRateTable.LevelOption, options[0], rng) is int l) level = l;
+        item.Level = (byte)level;
+        item.Option1 = (byte)(_optionRates.Pick(ItemOptionRateTable.SkillOption, options[1], rng) ?? 0);
+        item.Option2 = (byte)(_optionRates.Pick(ItemOptionRateTable.LuckOption, options[2], rng) ?? 0);
+        item.Option3 = (byte)(_optionRates.Pick(ItemOptionRateTable.AdditionalOption, options[3], rng) ?? 0);
+        int excellentCount = _optionRates.Pick(ItemOptionRateTable.ExcellentCount, options[4], rng) ?? 0;
+        item.NewOption = _excellent.MakeNewOption(itemIndex, 1, excellentCount, rng);
+        int setValue = _optionRates.Pick(ItemOptionRateTable.SetOption, options[5], rng) ?? 0;
+        item.SetOption = _sets.Types.MakeSetOption(itemIndex, setValue, rng);
+        ItemCombatMath.Options.Normalize(item);
+        item.Durability = FullDurability(item, durability);
+        return item;
+    }
+
+    /// <summary>Whether items drop on this map at all (MapManager.txt ItemDrop).</summary>
+    public bool ItemDropEnabled(int map) => _mapDrops.ItemDropEnabled(map);
+
+    /// <summary>Whether the server knows this item (Item.txt).</summary>
+    public bool KnowsItem(int itemIndex) => _items.Get(itemIndex) != null;
 
     private LootDrop? RollMoneyRules(LootContext ctx, Random rng)
     {
