@@ -108,15 +108,13 @@ public sealed class ClientProtocolHandler
         {
             _devilSquare.GrantExperience = (member, experience, ct) => ApplyExperienceGainAsync(member, -1, experience, 0, ct);
 
-            _devilSquare.GiveItemBag = async (member, specialValue, level, state, ct) =>
-            {
-                var roll = _bags?.DropBySpecialValue(specialValue, level, state, member.Class, member.ChangeUp, member.Map, Rng);
+            _devilSquare.GiveItemBag = GiveEventBagAsync;
+        }
 
-                if (roll != null)
-                {
-                    await DropBagAsync(member, roll, member.Map, member.X, member.Y, null, ct);
-                }
-            };
+        if (_bloodCastle != null)
+        {
+            _bloodCastle.GrantExperience = (member, experience, ct) => ApplyExperienceGainAsync(member, -1, experience, 0, ct);
+            _bloodCastle.GiveItemBag = GiveEventBagAsync;
         }
     }
 
@@ -150,6 +148,18 @@ public sealed class ClientProtocolHandler
             // on disconnecting, not only when they send an explicit PMSG_PARTY_DEL_MEMBER_RECV).
             // notifyRemoved=false: there is no point sending a packet to a socket that is closing.
             await RemovePlayerFromPartyAsync(session.Player, ct, notifyRemoved: false);
+
+            if (_bloodCastle != null)
+            {
+                try
+                {
+                    await _bloodCastle.OnPlayerLeftAsync(session.Player, ct);
+                }
+                catch (Exception ex)
+                {
+                    Log.Add(LogColor.Red, "[BloodCastle] Error when {0} left: {1}", session.Player.Name, ex.Message);
+                }
+            }
 
             _players.Remove(session.Index);
 
@@ -1793,6 +1803,11 @@ public sealed class ClientProtocolHandler
 
         await session.SendEncryptedAsync(ItemPacketBuilder.ItemGetSend((byte)freeSlot, ground.Item, ground.Index), ct);
 
+        if (_bloodCastle != null)
+        {
+            await _bloodCastle.OnItemPickedUpAsync(player, ground.Item, ct);
+        }
+
         // Tell everyone who saw the ground item that it is gone (CMap::ItemGive removes it from everybody's
         // viewport sweep, not only the one who picked it up) -- the next ViewportTicker tick already does it by
         // itself (Live=false), but sending the destroy here also for the one who picked it up avoids waiting
@@ -1869,13 +1884,15 @@ public sealed class ClientProtocolHandler
             bagRoll = _bags.DropByItemIndex(item.Index, item.Level, player.Class, player.ChangeUp, player.Map, Rng);
         }
 
+        GroundItem? thrown = null;
+
         if (bagRoll == null)
         {
-            var ground = _groundItems.Drop(
+            thrown = _groundItems.Drop(
                 player.Map, item, recv.X, recv.Y, player.Index, player.PartyNumber == -1 ? null : player.PartyNumber,
                 GroundItemLifetime, GroundItemLootLock);
 
-            if (ground == null)
+            if (thrown == null)
             {
                 await session.SendAsync(ItemPacketBuilder.ItemDropSend(0, recv.Slot), ct); // mapa lleno de items en el piso
                 return;
@@ -1888,6 +1905,10 @@ public sealed class ClientProtocolHandler
         if (bagRoll != null)
         {
             await DropBagAsync(player, bagRoll, player.Map, recv.X, recv.Y, null, ct);
+        }
+        else if (thrown != null && _bloodCastle != null)
+        {
+            await _bloodCastle.OnItemDroppedAsync(player, item, thrown, ct); // the Archangel's weapon
         }
 
         if (recv.Slot >= Item.InventoryWearSize)
@@ -2570,9 +2591,15 @@ public sealed class ClientProtocolHandler
             return;
         }
 
-        if (npc.MonsterClass == 232) // Messenger of Archangel (Blood Castle NPC en Devias)
+        if (npc.MonsterClass == 232 && _bloodCastle != null) // Archangel, inside the castle: takes the weapon
         {
-            await session.SendEncryptedAsync(ShopPacketBuilder.NpcTalkSend(6), ct);
+            await _bloodCastle.HandleAngelKingAsync(player, ct);
+            return;
+        }
+
+        if (npc.MonsterClass == 233 && _bloodCastle != null) // Messenger of Archangel, in Devias: opens the entry window
+        {
+            await _bloodCastle.HandleMessengerAsync(player, ct);
             return;
         }
 
@@ -3237,7 +3264,7 @@ public sealed class ClientProtocolHandler
         // wings and pets, damage floor and the PvM damage rates ----
         player.LastCombatTime = DateTime.UtcNow;
         var hit = PlayerAttackMath.HitMonster(player, monster.Defense, 0, 0, 0, graze, _itemBalance, Rng);
-        int damage = hit.Damage;
+        int damage = monster.Immune ? 0 : hit.Damage; // the Blood Castle gate and statues take none until their stage
         await ApplyAttackerLifeCostAsync(player, hit.AttackerLifeLost, ct);
 
         monster.Life = Math.Max(monster.Life - damage, 0);
@@ -3385,7 +3412,7 @@ public sealed class ClientProtocolHandler
         player.LastCombatTime = DateTime.UtcNow;
         var hit = PlayerAttackMath.HitMonster(player, monster.Defense, skill.Index, skill.DamageMin, skill.DamageMax, graze,
             _itemBalance, Rng, _skillDamage.Apply);
-        int damage = hit.Damage;
+        int damage = monster.Immune ? 0 : hit.Damage; // the Blood Castle gate and statues take none until their stage
         await ApplyAttackerLifeCostAsync(player, hit.AttackerLifeLost, ct);
 
         monster.Life = Math.Max(monster.Life - damage, 0);
@@ -3543,7 +3570,7 @@ public sealed class ClientProtocolHandler
         player.LastCombatTime = DateTime.UtcNow;
         var hit = PlayerAttackMath.HitMonster(player, monster.Defense, skill.Index, skill.DamageMin, skill.DamageMax, graze,
             _itemBalance, Rng, _skillDamage.Apply);
-        int damage = hit.Damage;
+        int damage = monster.Immune ? 0 : hit.Damage; // the Blood Castle gate and statues take none until their stage
         await ApplyAttackerLifeCostAsync(player, hit.AttackerLifeLost, ct);
 
         monster.Life = Math.Max(monster.Life - damage, 0);
@@ -3706,6 +3733,11 @@ public sealed class ClientProtocolHandler
 
         // Port of CDevilSquare::MonsterDieProc (Phase 6) -- independent of the experience share below, it only
         // applies if the monster belongs to an active Devil Square run.
+        if (_bloodCastle != null)
+        {
+            await _bloodCastle.OnMonsterKilledAsync(monster, ct);
+        }
+
         if (_devilSquare != null)
         {
             await _devilSquare.OnMonsterKilledAsync(monster, ct);
@@ -3920,6 +3952,26 @@ public sealed class ClientProtocolHandler
         }
 
         dropped.JustDropped = false; // the "just fallen" appearance was already sent once
+    }
+
+    /// <summary>The prize bag of an event (Devil Square, Blood Castle) falls around the winner.</summary>
+    private async Task GiveEventBagAsync(PlayerObject member, int specialValue, int level, int state, CancellationToken ct)
+    {
+        var roll = _bags?.DropBySpecialValue(specialValue, level, state, member.Class, member.ChangeUp, member.Map, Rng);
+
+        if (roll != null)
+        {
+            await DropBagAsync(member, roll, member.Map, member.X, member.Y, null, ct);
+        }
+    }
+
+    /// <summary>The Blood Castle learns that a player was killed (UserDieProc).</summary>
+    public async Task OnPlayerKilledAsync(PlayerObject player, CancellationToken ct)
+    {
+        if (_bloodCastle != null)
+        {
+            await _bloodCastle.OnPlayerDiedAsync(player, ct);
+        }
     }
 
     /// <summary>Port of the placement part of CItemBagEx::DropItem: puts what a bag gave on the ground around
@@ -4426,7 +4478,10 @@ public sealed class ClientProtocolHandler
                 targetItemIndex = Item.GetItem(sec, subIdx);
             }
 
-            var newItem = new Item { Index = (short)targetItemIndex, Level = 0, Durability = 255 };
+            // /item <section> <index> [level]: the level matters for the event tickets (the Invisibility Cloak of
+            // Blood Castle is level 1 for castle 1, the Devil's Invitation likewise).
+            byte itemLevel = cmd == "item" && parts.Length >= 4 && byte.TryParse(parts[3], out byte parsedLevel) ? Math.Min(parsedLevel, (byte)15) : (byte)0;
+            var newItem = new Item { Index = (short)targetItemIndex, Level = itemLevel, Durability = 255 };
             var info = _itemBalance.Get(targetItemIndex);
             int width = info?.Width ?? 1;
             int height = info?.Height ?? 1;
@@ -5020,13 +5075,21 @@ public sealed class ClientProtocolHandler
     {
         var player = session.Player;
 
-        if (player == null || !player.WorldEntered || _devilSquare == null)
+        if (player == null || !player.WorldEntered)
         {
             return;
         }
 
         var recv = EventRemainTimeRecv.Parse(p);
-        await _devilSquare.HandleRemainTimeQueryAsync(session, player, recv.EventType, ct);
+
+        if (recv.EventType == 2 && _bloodCastle != null)
+        {
+            await _bloodCastle.HandleRemainTimeQueryAsync(session, player, ct);
+        }
+        else if (_devilSquare != null)
+        {
+            await _devilSquare.HandleRemainTimeQueryAsync(session, player, recv.EventType, ct);
+        }
     }
 
     // ---------------------------------------------------------------- Phase 4: Chaos Machine (Chaos Box / Combinations)

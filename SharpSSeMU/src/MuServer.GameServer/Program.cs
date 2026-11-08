@@ -324,7 +324,10 @@ var messages = new MessageTable();
 string messagePath = Path.Combine(Path.GetDirectoryName(config.ItemPath) ?? "Data/Item", "..", "Message.txt");
 messages.Load(messagePath);
 
-var bloodCastle = new BloodCastleManager(players);
+var bloodCastleConfig = BloodCastleConfig.Load(Path.Combine(config.EventPath, "BloodCastle.dat"));
+var bloodCastle = new BloodCastleManager(
+    bloodCastleConfig, eventEntryLevels, eventStageSpawns, eventSpawnPool, monsterInfoTable, maps, monsters, players,
+    gates, groundItems, dataServer.SendAsync, messages);
 
 protocolHandler = new ClientProtocolHandler(
     config, joinServer, dataServer, players, maps, monsters, parties, itemBalance, characterBalance,
@@ -427,6 +430,15 @@ while (!cts.Token.IsCancellationRequested)
                 {
                     devilSquare.ForceStart(level);
                 }
+            }
+
+            if (trimmed.StartsWith("bc forcestart", StringComparison.OrdinalIgnoreCase))
+            {
+                // 'bc forcestart' | 'bc forcestart N' (castle, 1-based) | 'bc forcestart N S' (+ delay in seconds)
+                var parts = trimmed["bc forcestart".Length..].Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                int? level = parts.Length > 0 && int.TryParse(parts[0], out var n) ? n - 1 : null;
+                int delay = parts.Length > 1 && int.TryParse(parts[1], out var s) ? s : 40;
+                _ = bloodCastle.ForceStartAsync(level, delay);
             }
 
             break;

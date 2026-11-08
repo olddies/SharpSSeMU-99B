@@ -69,6 +69,25 @@ public sealed class GameMap
 
     public bool CheckAttr(int x, int y, byte mask) => (GetAttr(x, y) & mask) != 0;
 
+    /// <summary>Port of CMap::SetAttr: sets bits of a tile's attribute (the Blood Castle closes and opens its
+    /// zones with these).</summary>
+    public void SetAttr(int x, int y, byte mask)
+    {
+        if (InBounds(x, y))
+        {
+            _attr[IndexOf(x, y)] |= mask;
+        }
+    }
+
+    /// <summary>Port of CMap::DelAttr: clears bits of a tile's attribute.</summary>
+    public void DelAttr(int x, int y, byte mask)
+    {
+        if (InBounds(x, y))
+        {
+            _attr[IndexOf(x, y)] &= (byte)~mask;
+        }
+    }
+
     /// <summary>Puerto de CMap::SetStandAttr -- marca el tile como ocupado (bit 2).</summary>
     public void SetStandAttr(int x, int y)
     {

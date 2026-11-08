@@ -50,7 +50,8 @@ funcionales. Los arreglos encontrados jugando están registrados en el
 | Quests | 🔶 | opcodes de info/estado de quest conectados a las tablas reales |
 | Guild | 🔶 | lista / ventana del maestro / crear; falta trabajo de esquema para terminarla |
 | Devil Square | ✅ | máquina de estados completa, tickets, spawns por etapa, ranking, item del primer puesto desde su bolsa |
-| Blood Castle, Chaos Castle, Kalima | ❌ | mismo motor de eventos que Devil Square, distintos datos/reglas |
+| Blood Castle | 🔶 | el evento completo: entrada, etapas (monstruos, puente, puerta, estatua), el arma del Arcángel y el Arcángel, recompensas y premio en bolsa. El paquete solo trae el mapa del castillo 1. Sin límite diario de entradas ni restricción de PK todavía |
+| Chaos Castle, Kalima | ❌ | Chaos Castle necesita combate jugador contra jugador; Kalima necesita el portal del Lost Map |
 | Duelo, Personal Shop, Golden Archer, Mascotas (Dark Spirit/Raven), Teleport Ally, PartyMatching | ❌ | la mayoría necesita una segunda cuenta para probarse bien |
 | Opciones de items: skill, suerte, adicional, excelentes | ✅ | `ItemOption.txt`; bonus base de los excelentes, durabilidad y requisitos; reflejo y reducción de daño, vida y maná al cazar, zen, recuperación de vida, bonus de set de armadura completo |
 | Items de set (ancient) | ✅ | `SetItemType.txt` / `SetItemOption.txt`: los stats de una pieza, los bonos de dos o más piezas y del set completo, el aura, drops de set aleatorios (tasa por mapa, filas de `ItemDrop.txt`, bolsas como la de Kundun). Una pieza de set no se puede tirar al suelo |
@@ -92,7 +93,7 @@ Orden sugerido, lo más fácil primero:
 
 1. **UI del cliente → aspecto 0.99B** (ver `docs/ui-099b.md`).
 2. **Loot**: drop events, premios en bolsa de Blood Castle / Chaos Castle.
-3. **Blood Castle → Chaos Castle → Kalima** sobre el motor de Devil Square existente.
+3. **Chaos Castle** (necesita PvP antes) y **Kalima** (portal del Lost Map), y luego los drop events.
 4. **Duelo**, luego completar Guild (esquema + rangos + marcas), Personal Shop, Golden Archer.
 5. Efectos de skills (buffs/debuffs de `EffectList.txt`), combo y teleport de aliado.
 6. Recarga de config en caliente + endurecer el AdminPanel (autenticación por usuario).
@@ -106,6 +107,7 @@ Bugs encontrados jugando con un cliente real en la última sesión (todos verifi
 - **Número de daño al matar:** el golpe final mostraba dos números. Como el servidor original, ahora no manda paquete de daño; su número viaja en el paquete de recompensa, solo para quien lo dio (o su party).
 - **Cliente original:** no conectaba con `127.0.0.1` — el `main.exe` de Webzen rechaza esa dirección exacta. Ver [Primeros pasos](GETTING_STARTED.md#6-conectar-un-cliente).
 - El GameServer no atendía el **borrado de personaje** ni el **guardado de teclas rápidas**.
+- **Blood Castle:** era solo un temporizador. Ahora es el evento completo, y el Mensajero del Arcángel de Devias (clase 233) se confundía con el Arcángel (232), así que nadie podía abrir su ventana de entrada. La respuesta de tiempo restante de Devil Square también llevaba el nivel en vez del tipo de evento.
 - **Items de set:** no existían (nunca se leían los archivos). Ahora las piezas de set tienen sus propios stats, bonos y aura, caen como en el original y la bolsa de Kundun entrega de verdad sus cinco. Igual que en el original, ya no se pueden tirar al suelo los items de más de +4, los excelentes ni los de set.
 - **Bolsas de items:** los jefes, la Box of Luck, las cajas de Kundun, las medallas, los Starter Ring, los resultados del Chaos Machine y el premio de Devil Square faltaban o estaban fijados en el código. Ahora salen de `EventItemBagManager.txt` y `EventItemBag/` como en el original.
 - **Drops:** el ajuste *Probabilidad de drop de item* (`ItemDropRate`) se ignoraba, las opciones de los items soltados eran una estimación y el zen no seguía al original. Ahora los drops salen de los archivos originales (`MapManager.txt`, `ItemDrop.txt`, `ItemOptionRate.txt`, `ExcellentOptionRate.txt`...) y el zen de una muerte es la experiencia que dio; el valor por defecto del repo es ahora el del paquete original (`ItemDropRate` 100: cerca de la mitad de las muertes de un monstruo de nivel 47 sueltan un item).

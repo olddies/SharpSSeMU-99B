@@ -739,7 +739,7 @@ public sealed class DevilSquareManager
             enteredUser = 0;
         }
 
-        await session.SendAsync(DevilSquarePacketBuilder.RemainTimeSend((byte)level, remainH, enteredUser), ct);
+        await session.SendAsync(DevilSquarePacketBuilder.RemainTimeSend(eventType, remainH, enteredUser), ct);
     }
 
     // ---------------------------------------------------------------- Puntaje (CDevilSquare::MonsterDieProc)

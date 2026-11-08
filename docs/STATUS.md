@@ -50,7 +50,8 @@ working. Fixes found by real play-testing are recorded in the
 | Quests | 🔶 | quest info/state opcodes wired to the real quest tables |
 | Guild | 🔶 | list / master window / create; needs guild schema work to finish |
 | Devil Square | ✅ | full state machine, tickets, staged spawns, ranking, first-place item from its bag |
-| Blood Castle, Chaos Castle, Kalima | ❌ | same event engine as Devil Square, different data/rules |
+| Blood Castle | 🔶 | the whole event: entrance, stages (monsters, bridge, gate, statue), the Archangel's weapon and the Archangel, rewards and bag prize. The package only has the map of castle 1. No daily entry cap and no PK restriction yet |
+| Chaos Castle, Kalima | ❌ | Chaos Castle needs player-versus-player combat; Kalima needs the Lost Map portal |
 | Duel, Personal Shop, Golden Archer, Pets (Dark Spirit/Raven), Teleport Ally, PartyMatching | ❌ | most need a second account to test properly |
 | Item options: skill, luck, additional, excellent | ✅ | `ItemOption.txt`; excellent base bonuses, durability and requirements; damage reflect/reduction, life & mana after hunting, zen, HP recovery, full-armour set bonus |
 | Set (ancient) items | ✅ | `SetItemType.txt` / `SetItemOption.txt`: the stats of a set piece, the bonuses of two or more pieces and of the full set, the aura, random set drops (per-map rate, `ItemDrop.txt` rows, bags such as Kundun's). Set pieces cannot be thrown on the ground |
@@ -93,7 +94,7 @@ Suggested order, easiest wins first:
 
 1. **Client UI → 0.99B look** (see `docs/ui-099b.md`).
 2. **Loot**: drop events, Blood Castle / Chaos Castle bag rewards.
-3. **Blood Castle → Chaos Castle → Kalima** on the existing Devil Square engine.
+3. **Chaos Castle** (needs PvP first) and **Kalima** (Lost Map portal), then the drop events.
 4. **Duel**, then Guild completion (schema + ranks + marks), Personal Shop, Golden Archer.
 5. Skill effects (`EffectList.txt` buffs/debuffs), combo and ally-teleport.
 6. Config hot-reload + AdminPanel hardening (per-user auth).
@@ -107,6 +108,7 @@ Bugs found by real play-testing in the latest session (all verified by rebuild +
 - **Kill damage number:** the killing blow showed two numbers. Like the original server, it now sends no damage packet; its number travels in the kill reward packet, only to whoever landed it (or the party).
 - **Original client:** it could not connect with `127.0.0.1` — Webzen's `main.exe` refuses that exact address. See [Getting started](GETTING_STARTED.md#6-connect-a-client).
 - **Character delete** and **saved skill hot-keys** were not handled by the GameServer.
+- **Blood Castle:** it was only a timer. It is now the whole event, and the Messenger of the Archangel in Devias (class 233) was mistaken for the Archangel (232), so nobody could open its entry window. Devil Square's remaining-time reply also carried the level instead of the event type.
 - **Set items:** they did not exist (the files were never read). Set pieces now have their own stats, bonuses and aura, drop like in the original and Kundun's bag really gives its five. Like the original, items above +4, excellent items and set items can no longer be thrown on the ground.
 - **Item bags:** bosses, Box of Luck, the Kundun boxes, the medals, the Starter Rings, the Chaos Machine results and the Devil Square prize were missing or hard-coded. They now come from `EventItemBagManager.txt` and `EventItemBag/` like the original.
 - **Drops:** the *Item drop probability* setting (`ItemDropRate`) was ignored, the options of dropped items were a rough guess and the zen did not follow the original. Drops now come from the original files (`MapManager.txt`, `ItemDrop.txt`, `ItemOptionRate.txt`, `ExcellentOptionRate.txt`...) and a kill's zen is the experience it gave; the shipped default is now the original package's (`ItemDropRate` 100, about half the kills of a level-47 monster drop an item).

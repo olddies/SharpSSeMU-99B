@@ -96,6 +96,14 @@ public sealed class ServerInfoConfig
     /// hardcoded cap of 50 (arbitrary); the real one is 15.</summary>
     public int DevilSquareMaxUser { get; private set; } = 15;
 
+    /// <summary>BloodCastleEvent: the whole event on or off. BloodCastleMaxUser: players per castle.
+    /// BloodCastleMaxEntryCount_ALx: entries per day by account level (0 = no limit). BloodCastleNPCWithoutEntrance:
+    /// the Archangel's messenger talks to a player who has no cloak.</summary>
+    public bool BloodCastleEvent { get; private set; } = true;
+    public int BloodCastleMaxUser { get; private set; } = 10;
+    public int[] BloodCastleMaxEntryCount { get; private set; } = new int[4];
+    public bool BloodCastleNpcWithoutEntrance { get; private set; }
+
     public static ServerInfoConfig Load(string commonPath, string eventPath)
     {
         var common = IniFile.Load(commonPath);
@@ -143,6 +151,11 @@ public sealed class ServerInfoConfig
             MoneyDropTimeSeconds = common.GetInt("GameServerInfo", "MoneyDropTime", 30),
 
             DevilSquareMaxUser = evt.GetInt("GameServerInfo", "DevilSquareMaxUser", 15),
+
+            BloodCastleEvent = evt.GetInt("GameServerInfo", "BloodCastleEvent", 1) != 0,
+            BloodCastleMaxUser = evt.GetInt("GameServerInfo", "BloodCastleMaxUser", 10),
+            BloodCastleMaxEntryCount = Enumerable.Range(0, 4).Select(n => evt.GetInt("GameServerInfo", $"BloodCastleMaxEntryCount_AL{n}", 0)).ToArray(),
+            BloodCastleNpcWithoutEntrance = evt.GetInt("GameServerInfo", "BloodCastleNPCWithoutEntrance", 0) != 0,
         };
 
         return cfg;

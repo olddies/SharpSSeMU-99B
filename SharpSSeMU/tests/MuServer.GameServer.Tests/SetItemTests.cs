@@ -81,7 +81,7 @@ public class SetItemTests
     [Test]
     public void The_real_shipped_files_are_read_when_present()
     {
-        string data = FindDataFolder();
+        string? data = FindDataFolder();
         Assume.That(data, Is.Not.Null, "the game data package is not next to the repo");
 
         var rules = new SetItemRules();

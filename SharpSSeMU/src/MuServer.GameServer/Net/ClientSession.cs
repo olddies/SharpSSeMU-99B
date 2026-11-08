@@ -7,7 +7,7 @@ namespace MuServer.GameServer.Net;
 /// <summary>Port of the "real client connection" portion of OBJECTSTRUCT (User.h) — only what is needed for the
 /// connection lifecycle and login (Phase 1). The ~300 character/inventory/combat fields of OBJECTSTRUCT are
 /// added in later phases.</summary>
-public sealed class ClientSession
+public class ClientSession
 {
     public required int Index { get; init; }
     public required Socket Socket { get; init; }
@@ -42,7 +42,7 @@ public sealed class ClientSession
     private readonly SemaphoreSlim _sendLock = new(1, 1);
     private byte _sendSerial;
 
-    public async Task SendAsync(byte[] logicalPacket, CancellationToken ct)
+    public virtual async Task SendAsync(byte[] logicalPacket, CancellationToken ct)
     {
         // The original GameServer never applies XorData/serial when sending C1/C2 packets (see PacketCipher.cs)
         // -- only the socket stream cipher (GameStreamCipher) wraps the output. For C3/C4 use
@@ -59,7 +59,7 @@ public sealed class ClientSession
     /// afterwards, but here, since it is a new buffer, nothing needs restoring). Unlike receiving, sending
     /// NEVER applies XorData -- this is confirmed by reading the real DataSend, it is not an assumption.
     /// </summary>
-    public async Task SendEncryptedAsync(byte[] logicalC3Packet, CancellationToken ct)
+    public virtual async Task SendEncryptedAsync(byte[] logicalC3Packet, CancellationToken ct)
     {
         int size = logicalC3Packet.Length;
 
