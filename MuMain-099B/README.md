@@ -7,6 +7,10 @@
 [![MinGW Build](https://github.com/sven-n/MuMain/actions/workflows/mingw-build.yml/badge.svg?branch=main)](https://github.com/sven-n/MuMain/actions/workflows/mingw-build.yml)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/sven-n/MuMain)
 
+> **Status: experimental.** To play on SharpSSeMU, the recommended client is the original 0.99B one
+> (see the [getting-started guide](../docs/GETTING_STARTED.md#6-connect-a-client)). This fork's protocol
+> layer is complete, but it still looks and plays like Season 6.
+>
 > **About this fork:** this tree ports the client to the **MU Online 0.99B**
 > protocol (SSeMU 2.1.7 emulator) so it can be used against
 > [SharpSSeMU](../SharpSSeMU/), instead of continuing towards Season 6.

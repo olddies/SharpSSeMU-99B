@@ -61,7 +61,8 @@ funcionales. Los arreglos encontrados jugando están registrados en el
 
 ## Cliente
 
-El cliente es un **fork de MuMain (Season 5.2 → 6)** cuya capa de red se portó al protocolo 0.99B.
+**Experimental.** El cliente recomendado es el original 0.99B, contra el que se verifica el servidor.
+El cliente open source de este repositorio es un **fork de MuMain (Season 5.2 → 6)** cuya capa de red se portó al protocolo 0.99B.
 
 | Área | Estado | Notas |
 |---|---|---|

@@ -347,20 +347,25 @@ try
         Check("[A] La segunda ronda de casteo(s) descontó exactamente maná*intentos", mana2 == mana1 - expectedCost2,
             $"(mana1={mana1}, mana2={mana2}, intentos2={attempts2}, costo esperado={expectedCost2})");
 
+        if (dmgPkt2 == null)
+        {
+            // The second round killed the monster. The kill can level the character up, and a level-up refills
+            // mana -- so there would be nothing to regenerate. Wait for the respawn and spend mana again on the
+            // live monster (a fresh Spider has more life than one Fire Ball does damage), so the regeneration
+            // check below always starts from a mana below the maximum.
+            Console.WriteLine("[A] El segundo casteo mató al monstruo -- esperando su respawn y volviendo a gastar maná");
+            await Task.Delay(TimeSpan.FromSeconds(12), cts.Token);
+            clientA.DiscardPending();
+            (manaPkt2, _, _, _) = await CastSkillUntilHitAsync(clientA, fireBall, monsterIndex, maxCastAttempts, cts.Token);
+            mana2 = (manaPkt2.Full[4] << 8) | manaPkt2.Full[5];
+        }
+
         Console.WriteLine("\n=== Fase skills: esperando ~3.5s de regeneración periódica de maná ===");
         await Task.Delay(TimeSpan.FromSeconds(3.5), cts.Token);
         var manaRegenPkt = await clientA.WaitForAsync(0x27, TimeSpan.FromSeconds(5));
         int manaRegen = (manaRegenPkt.Full[4] << 8) | manaRegenPkt.Full[5];
         Check("[A] El maná se regeneró solo con el tiempo (sin castear de nuevo)", manaRegen > mana2,
             $"(mana antes de esperar={mana2}, mana tras ~3.5s={manaRegen})");
-
-        if (dmgPkt2 == null)
-        {
-            // The second round killed the monster: Phase 5 below attacks it again, so wait for its respawn.
-            Console.WriteLine("[A] El segundo casteo mató al monstruo -- esperando su respawn antes de la fase 5");
-            await Task.Delay(TimeSpan.FromSeconds(9), cts.Token);
-            clientA.DiscardPending();
-        }
     }
 
     if (shopEnabled)

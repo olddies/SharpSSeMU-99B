@@ -29,8 +29,15 @@ ClientSerial = <your client's serial>
 before connecting and aborts if it is exactly `127.0.0.1` ("Failed to connect", then "You are
 disconnected from the server" — the ConnectServer never sees the connection). Any other loopback
 address works, since all of `127.0.0.0/8` is local and the servers listen on every address. Set
-`IpAddress = 127.0.0.2` in `MuClient/GetMainInfo/MainInfo.ini`, run `GetMainInfo` to regenerate
-`ServerInfo.sse`, and copy it next to `main.exe`. The GameServer address in `ServerList.dat` must also
+the client at `127.0.0.2` with the repository's tool (it edits `ServerInfo.sse` in place, keeping a
+backup):
+
+```bash
+python SharpSSeMU/tools/client/configure_client.py set MuClient --ip 127.0.0.2 --port 44405 --from-server SharpSSeMU/src/MuServer.GameServer/bin/Debug/net10.0/GameServer.ini
+```
+
+With the package's own tool instead: `IpAddress = 127.0.0.2` in `MuClient/GetMainInfo/MainInfo.ini`, run
+`GetMainInfo` and copy the new `ServerInfo.sse` next to `main.exe`. The GameServer address in `ServerList.dat` must also
 avoid `127.0.0.1` (step 4), because the client runs the same check when it moves to the GameServer.
 
 `ClientVersion = 1.02.00` and `ClientSerial = <your client's serial>` are exactly the values to put in the

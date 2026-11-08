@@ -22,6 +22,31 @@ Log.Add(LogColor.Black, "SSeMU GameServer (C# port) starting...");
 
 var config = GameServerConfig.Load(Path.Combine(baseDir, "GameServer.ini"), baseDir);
 
+// The game tables are not shipped with this project (they come from the user's own original package): say what
+// is missing and how to get it, instead of failing on whichever file is read first.
+var missingData = GameDataCheck.FindMissing(config);
+
+if (missingData.Count > 0)
+{
+    Log.Add(LogColor.Red, "The game data is incomplete: {0} required file(s) or folder(s) are missing:", missingData.Count);
+
+    foreach (var path in missingData.Take(15))
+    {
+        Log.Add(LogColor.Red, "  - {0}", Path.GetRelativePath(baseDir, path));
+    }
+
+    if (missingData.Count > 15)
+    {
+        Log.Add(LogColor.Red, "  ... and {0} more", missingData.Count - 15);
+    }
+
+    Log.Add(LogColor.Red, "The game tables are not included in this project (see NOTICE.md). Import them from your own original SSeMU 0.99B package:");
+    Log.Add(LogColor.Red, "  python tools/data/import_data.py --source \"<your package folder>\" --dest \"{0}\"", baseDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)); // no trailing \ before the quote
+    Log.Add(LogColor.Red, "Details: docs/GETTING_STARTED.md, section \"Bring your own game files\".");
+    Environment.Exit(1);
+    return;
+}
+
 // Partial port of CServerInfo (see Config/ServerInfoConfig.cs) -- only the fields with a real consumer already
 // ported (experience formula, lifetime of items on the ground, monster rates, AddExperienceRate,
 // DevilSquareMaxUser). Set in WorldPacketBuilder.ServerInfo BEFORE spawning monsters (which already read the
