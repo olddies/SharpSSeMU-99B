@@ -60,6 +60,8 @@
  "[GameServerInfo] Full coverage loaded: Common/Character/ChaosMix/Command/Event/Item/Skill/Custom (845 real fields, nothing hard-coded)": "[GameServerInfo] Cobertura completa cargada: Common/Character/ChaosMix/Command/Event/Item/Skill/Custom (845 campos reales, sin hardcodear)",
  "[GateTable] Could not load {0}": "[GateTable] No se pudo cargar {0}",
  "[GateTable] Loaded {0} gate definitions from {1}": "[GateTable] {0} definiciones de gate cargadas desde {1}",
+ "[ItemBagManager] bag file {0} not found": "[ItemBagManager] No se encontró el archivo de bolsa {0}",
+ "[ItemBagManager] {0} bag(s) listed in {1}, {2} missing": "[ItemBagManager] {0} bolsa(s) listadas en {1}, {2} sin archivo",
  "[ItemBalanceTable] {0} balance items loaded from {1}": "[ItemBalanceTable] {0} items de balance cargados desde {1}",
  "[ItemDropRules] {0} item drop rule(s) loaded from {1}": "[ItemDropRules] {0} regla(s) de drop de items cargadas desde {1}",
  "[ItemOptionRateTable] {0} option rate row(s) loaded from {1}": "[ItemOptionRateTable] {0} fila(s) de tasas de opciones cargadas desde {1}",

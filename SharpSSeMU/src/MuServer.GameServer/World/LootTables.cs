@@ -719,14 +719,17 @@ public sealed class LootRoller
     }
 
     /// <summary>A given durability, or the item's full one when it is 0 (as GDCreateItemSend does).</summary>
-    private byte FullDurability(Item item, int given)
+    private byte FullDurability(Item item, int given) => FullDurability(_items, item, given);
+
+    /// <summary>A given durability, or the item's full one when it is 0; shared with the item bags.</summary>
+    public static byte FullDurability(ItemBalanceTable items, Item item, int given)
     {
         if (given > 0)
         {
             return (byte)Math.Clamp(given, 1, 255);
         }
 
-        var info = _items.Get(item.Index);
+        var info = items.Get(item.Index);
         return (byte)Math.Max(info == null ? 1 : ItemCombatMath.GetItemDurability(item, info), 1);
     }
 }

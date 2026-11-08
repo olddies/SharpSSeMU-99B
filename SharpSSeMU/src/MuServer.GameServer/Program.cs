@@ -162,6 +162,11 @@ LoadLootFile(config.MapRateInfoPath, () => mapRates.Load(config.MapRateInfoPath)
 LoadLootFile(config.ItemDropPath, () => itemDropRules = LootRoller.LoadItemRules(config.ItemDropPath));
 LoadLootFile(config.ItemMoneyDropPath, () => moneyDropRules = LootRoller.LoadMoneyRules(config.ItemMoneyDropPath));
 var lootRoller = new LootRoller(itemBalance, optionRates, excellentRates, mapDrops, mapRates, itemDropRules, moneyDropRules);
+
+// The item bags: what bosses drop, what boxes and medals open into and what the Chaos Machine and the events
+// hand out (see World/ItemBags.cs).
+var itemBags = new ItemBagManager(new ItemBagItemMaker(itemBalance, optionRates, excellentRates));
+LoadLootFile(config.ItemBagManagerPath, () => itemBags.Load(config.ItemBagManagerPath, config.ItemBagPath));
 var characterBalance = CharacterBalanceConfig.Load(config.CharacterInfoPath, config.ServerInfoCommonPath);
 
 // "Skills" phase: magic and mana -- see World/SkillInfo.cs, Config/CharacterBalanceConfig.cs (magic
@@ -317,7 +322,7 @@ var bloodCastle = new BloodCastleManager(players);
 protocolHandler = new ClientProtocolHandler(
     config, joinServer, dataServer, players, maps, monsters, parties, itemBalance, characterBalance,
     skills, skillDamage, devilSquare, shops, groundItems, gates, moves, bloodCastle, messages,
-    questTable, questObjectiveTable, questRewardTable, gsiCommon, itemValues, gsiChaosMix, lootRoller);
+    questTable, questObjectiveTable, questRewardTable, gsiCommon, itemValues, gsiChaosMix, lootRoller, itemBags);
 
 joinServer.Start(cts.Token);
 dataServer.Start(cts.Token);

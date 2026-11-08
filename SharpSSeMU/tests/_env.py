@@ -602,6 +602,13 @@ class Deployment:
             f"0\n3    0    {x}    {y}    3\n276    0    {x}    {y - 1}    3\n277    0    {x}    {y + 1}    3\nend\n",
             encoding="utf-8")
 
+    def seed_item_bag(self) -> None:
+        """Gives the Box of Luck (14,11) its real bag file and lists only that bag, so throwing the box on the
+        ground opens it."""
+        self.copy_server_data("EventItemBag", "Item", "Box of Luck.txt")
+        (self.game_dir / "Data" / "EventItemBagManager.txt").write_text(
+            '459 0 * * * * "Item\\Box of Luck"\nend\n', encoding="utf-8")
+
     def place_heroes(self, hero1: str = "Hero1", hero2: str = "Hero2") -> None:
         """Ubica a los dos héroes en las posiciones de prueba estándar."""
         self.place(hero1, *self.HERO1_POS)

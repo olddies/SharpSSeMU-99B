@@ -95,7 +95,7 @@ REQUIRED_DIRS = ["Data/Monster/Spawn", "Data/Shop", "Data/Terrain"]
 OPTIONAL_FILES = [
     "Data/Item/ItemValue.txt", "Data/Item/ItemOption.txt", "Data/Skill/SkillDamage.txt",
     "Data/Item/ItemOptionRate.txt", "Data/Item/ExcellentOptionRate.txt", "Data/Item/ItemDrop.txt",
-    "Data/Item/ItemMoneyDrop.txt", "Data/MapManager.txt", "Data/MapRateInfo.txt",
+    "Data/Item/ItemMoneyDrop.txt", "Data/MapManager.txt", "Data/MapRateInfo.txt", "Data/EventItemBagManager.txt",
 ]
 # What the server does without each optional file, for the warning.
 OPTIONAL_HINTS = {
@@ -106,6 +106,7 @@ OPTIONAL_HINTS = {
     "ItemMoneyDrop.txt": "no extra zen drop rules apply.",
     "MapManager.txt": "every map uses the default drop rates and no item rules or excellent drops apply.",
     "MapRateInfo.txt": "dropped items come without level, skill, luck or excellent options.",
+    "EventItemBagManager.txt": "bosses drop no bags, boxes and medals open into nothing and the Chaos Machine uses its built-in results.",
 }
 CONFIG_FILES = ["ChaosMix", "Character", "Command", "Common", "Custom", "Event", "Item", "Skill"]
 
@@ -407,6 +408,27 @@ def check_configs(root, rep):
                     rep.error(rel, "%s = %s is not a valid TCP/UDP port." % (k, vals[k]))
 
 
+def check_item_bags(root, rep):
+    """EventItemBagManager.txt names one bag file per row (Data/EventItemBag/<name>.txt); each must exist."""
+    rel = "Data/EventItemBagManager.txt"
+    p = os.path.join(root, rel)
+    if not os.path.isfile(p):
+        return
+    seen = 0
+    for n, toks, _ in rows(p):
+        if toks[0].lower() == "end":
+            break
+        if len(toks) < 7 or not toks[-1].startswith('"'):
+            rep.error("%s:%d" % (rel, n), "expected 6 numbers and a quoted bag name.")
+            continue
+        seen += 1
+        name = toks[-1].strip('"').replace("\\", os.sep)
+        if not os.path.isfile(os.path.join(root, "Data", "EventItemBag", name + ".txt")):
+            rep.warn("%s:%d" % (rel, n), "bag file Data/EventItemBag/%s.txt not found; that bag drops nothing." % name)
+    if seen == 0:
+        rep.warn(rel, "no bag is listed.")
+
+
 def validate(root):
     rep = Report()
     if not os.path.isdir(os.path.join(root, "Data")):
@@ -420,6 +442,7 @@ def validate(root):
     check_shops(root, rep, items, classes)
     check_gates(root, rep, terrain)
     check_skills(root, rep)
+    check_item_bags(root, rep)
     check_configs(root, rep)
     return rep
 

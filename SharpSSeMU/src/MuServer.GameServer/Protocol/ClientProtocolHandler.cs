@@ -62,6 +62,7 @@ public sealed class ClientProtocolHandler
     private readonly QuestRewardTable _questRewards;
     private readonly GameServerInfoCommon? _gsiCommon;
     private readonly LootRoller _loot;
+    private readonly ItemBagManager? _bags;
 
     public ClientProtocolHandler(
         GameServerConfig config, JoinServerConnection joinServer, DataServerConnection dataServer,
@@ -72,8 +73,9 @@ public sealed class ClientProtocolHandler
         GateTable? gates = null, MoveTable? moves = null, BloodCastleManager? bloodCastle = null, MessageTable? messages = null,
         QuestTable? quests = null, QuestObjectiveTable? questObjectives = null, QuestRewardTable? questRewards = null,
         GameServerInfoCommon? gsiCommon = null, ItemValueTable? itemValues = null,
-        GameServerInfoChaosMix? chaosMixRates = null, LootRoller? loot = null)
+        GameServerInfoChaosMix? chaosMixRates = null, LootRoller? loot = null, ItemBagManager? bags = null)
     {
+        _bags = bags;
         _loot = loot ?? new LootRoller(itemBalance, new ItemOptionRateTable(), new ExcellentOptionRateTable(), new MapDropTable(),
             new MapRateInfoTable(), new List<ItemDropRule>(), new List<MoneyDropRule>());
         _config = config;
@@ -105,6 +107,16 @@ public sealed class ClientProtocolHandler
         if (_devilSquare != null)
         {
             _devilSquare.GrantExperience = (member, experience, ct) => ApplyExperienceGainAsync(member, -1, experience, 0, ct);
+
+            _devilSquare.GiveItemBag = async (member, specialValue, level, state, ct) =>
+            {
+                var roll = _bags?.DropBySpecialValue(specialValue, level, state, member.Class, member.ChangeUp, member.Map, Rng);
+
+                if (roll != null)
+                {
+                    await DropBagAsync(member, roll, member.Map, member.X, member.Y, null, ct);
+                }
+            };
         }
     }
 
@@ -1828,18 +1840,45 @@ public sealed class ClientProtocolHandler
             return;
         }
 
-        var ground = _groundItems.Drop(
-            player.Map, item, recv.X, recv.Y, player.Index, player.PartyNumber == -1 ? null : player.PartyNumber,
-            GroundItemLifetime, GroundItemLootLock);
+        // Some items do not stay on the ground: thrown down they open a bag (Box of Luck, the Kundun boxes, the
+        // medals, the Starter Rings) and what the bag gives lands there instead (ItemManager.cpp:2770-2830).
+        BagRoll? bagRoll = null;
 
-        if (ground == null)
+        if (_bags != null && _bags.HasItemBag(item.Index, item.Level))
         {
-            await session.SendAsync(ItemPacketBuilder.ItemDropSend(0, recv.Slot), ct); // mapa lleno de items en el piso
-            return;
+            // A Starter Ring is worth nothing to someone below the level it is for.
+            if (item.Index == Item.GetItem(13, 20) && item.Level != 0
+                && ((player.Level < 40 && item.Level == 1) || (player.Level < 80 && item.Level == 2)))
+            {
+                int messageIndex = item.Level == 1 ? 257 : 258;
+                await session.SendAsync(ChatPacketBuilder.NoticeSend(_messages?.GetMessage(messageIndex) ?? Loc.T("Your level is too low for this ring.")), ct);
+                await session.SendAsync(ItemPacketBuilder.ItemDropSend(0, recv.Slot), ct);
+                return;
+            }
+
+            bagRoll = _bags.DropByItemIndex(item.Index, item.Level, player.Class, player.ChangeUp, player.Map, Rng);
+        }
+
+        if (bagRoll == null)
+        {
+            var ground = _groundItems.Drop(
+                player.Map, item, recv.X, recv.Y, player.Index, player.PartyNumber == -1 ? null : player.PartyNumber,
+                GroundItemLifetime, GroundItemLootLock);
+
+            if (ground == null)
+            {
+                await session.SendAsync(ItemPacketBuilder.ItemDropSend(0, recv.Slot), ct); // mapa lleno de items en el piso
+                return;
+            }
         }
 
         player.SetItem(recv.Slot, Item.Empty());
         await session.SendAsync(ItemPacketBuilder.ItemDropSend(1, recv.Slot), ct);
+
+        if (bagRoll != null)
+        {
+            await DropBagAsync(player, bagRoll, player.Map, recv.X, recv.Y, null, ct);
+        }
 
         if (recv.Slot >= Item.InventoryWearSize)
         {
@@ -3800,6 +3839,22 @@ public sealed class ClientProtocolHandler
         var owner = TopDamager(killer, monster);
         int? ownerParty = owner.PartyNumber == -1 ? null : owner.PartyNumber;
 
+        // Statue of Saint and the guards drop nothing at all, bags included (Monster.cpp:46-57).
+        if (monster.MonsterClass is 132 or 133 or 134 or 247 or 249)
+        {
+            return;
+        }
+
+        // The bag of a boss (Red Dragon, the golden monsters, Skeleton King, White Wizard, Kundun) comes before
+        // everything else, and when the monster has one nothing else drops (Monster.cpp:59).
+        var bossBag = _bags?.DropByMonsterClass(monster.MonsterClass, owner.Class, owner.ChangeUp, monster.Map, Rng);
+
+        if (bossBag != null)
+        {
+            await DropBagAsync(owner, bossBag, monster.Map, monster.X, monster.Y, viewerIndexes, ct);
+            return;
+        }
+
         GroundItem? dropped = TryQuestItemDrop(owner, monster);
 
         if (dropped == null)
@@ -3855,6 +3910,132 @@ public sealed class ClientProtocolHandler
         }
 
         dropped.JustDropped = false; // the "just fallen" appearance was already sent once
+    }
+
+    /// <summary>Port of the placement part of CItemBagEx::DropItem: puts what a bag gave on the ground around
+    /// (<paramref name="x"/>, <paramref name="y"/>) and shows it. Everything belongs to <paramref name="owner"/>. The
+    /// first drop of the bag lands on the spot itself; the others go to a random free tile within two of it (or at
+    /// the owner's feet when there is none). Set items are skipped: they do not exist here yet.</summary>
+    /// <param name="monsterViewers">The players who see the monster that dropped the bag, or null when the owner
+    /// dropped it (an opened box), in which case the owner and whoever sees them are told.</param>
+    private async Task DropBagAsync(PlayerObject owner, BagRoll roll, int map, int x, int y, IReadOnlyList<int>? monsterViewers, CancellationToken ct)
+    {
+        if (_groundItems == null)
+        {
+            return;
+        }
+
+        var gameMap = _maps.GetMap(map);
+        int? ownerParty = owner.PartyNumber == -1 ? null : owner.PartyNumber;
+        var dropped = new List<GroundItem>();
+
+        foreach (var loot in roll.Loot)
+        {
+            if (loot.SetItem)
+            {
+                continue;
+            }
+
+            int px = x, py = y;
+
+            if (loot.Scatter || (gameMap != null && gameMap.IsBlocked(px, py)))
+            {
+                if (!TryRandomFreeLocation(gameMap, ref px, ref py, 2, 2, 10))
+                {
+                    px = owner.X;
+                    py = owner.Y;
+                }
+            }
+
+            GroundItem? ground = null;
+
+            if (loot.Item != null)
+            {
+                ground = _groundItems.Drop(map, loot.Item, px, py, owner.Index, ownerParty, GroundItemLifetime, GroundItemLootLock);
+            }
+            else if (loot.Money > 0)
+            {
+                ground = _groundItems.DropMoney(map, px, py, (uint)Math.Min(loot.Money, uint.MaxValue), GroundItemLifetime);
+            }
+
+            if (ground != null)
+            {
+                dropped.Add(ground);
+            }
+        }
+
+        var recipients = new List<PlayerObject> { owner };
+
+        if (monsterViewers != null)
+        {
+            foreach (var viewerIndex in monsterViewers)
+            {
+                if (viewerIndex != owner.Index && _players.TryGet(viewerIndex, out var viewer))
+                {
+                    recipients.Add(viewer);
+                }
+            }
+        }
+        else
+        {
+            recipients.AddRange(_players.All.Where(other => other.Index != owner.Index && other.VisibleTo.Contains(owner.Index)));
+        }
+
+        foreach (var ground in dropped)
+        {
+            var appear = WorldPacketBuilder.ViewportItemAppear(new[] { ground });
+
+            foreach (var recipient in recipients)
+            {
+                await recipient.Session.SendAsync(appear, ct);
+            }
+
+            ground.JustDropped = false;
+        }
+
+        // The effect of the bag (CItemBagEx::DropItem, last switch): a server command shown at the owner.
+        (byte Type, byte X, byte Y)? effect = roll.UseEffect switch
+        {
+            1 => (0, owner.X, owner.Y),
+            2 => (2, owner.X, owner.Y),
+            3 => (58, (byte)(owner.Index >> 8), (byte)(owner.Index & 0xFF)),
+            _ => null,
+        };
+
+        if (effect is { } command)
+        {
+            var packet = PacketBuilder.BuildC1Sub(0xF3, 0x40, new[] { command.Type, command.X, command.Y });
+            await owner.Session.SendAsync(packet, ct);
+
+            foreach (var watcher in _players.All.Where(other => other.Index != owner.Index && other.VisibleTo.Contains(owner.Index)))
+            {
+                await watcher.Session.SendAsync(packet, ct);
+            }
+        }
+    }
+
+    /// <summary>Port of gObjGetRandomFreeLocation (User.cpp:878-898): up to <paramref name="count"/> tries at a spot
+    /// within (<paramref name="tx"/>, <paramref name="ty"/>) of the given one that is neither blocked nor a wall.</summary>
+    private static bool TryRandomFreeLocation(GameMap? map, ref int x, ref int y, int tx, int ty, int count)
+    {
+        int originX = x, originY = y;
+        tx = Math.Max(tx, 1);
+        ty = Math.Max(ty, 1);
+
+        for (int n = 0; n < count; n++)
+        {
+            x = (Rng.Next(tx + 1) * (Rng.Next(2) == 0 ? -1 : 1)) + originX;
+            y = (Rng.Next(ty + 1) * (Rng.Next(2) == 0 ? -1 : 1)) + originY;
+
+            if (map != null && !map.IsBlocked(x, y))
+            {
+                return true;
+            }
+        }
+
+        x = originX;
+        y = originY;
+        return false;
     }
 
     private async Task GrantExperienceAsync(PlayerObject attacker, Monster monster, int damageDealt, int shownDamage, CancellationToken ct)

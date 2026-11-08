@@ -56,9 +56,9 @@ public sealed class DevilSquareBracket
 /// rest of the flow (validation, teleport, score, reward, ranking) is faithful. - No text message catalogue
 /// (Message.txt/gMessage) -- the notices "Devil Square opens in N minutes", "you do not have enough level",
 /// etc. are not sent (there is no ported text notification system yet). The C1:92 packet (30-second klaxon,
-/// without text) IS sent. - ITEM reward (only 1st place, see EventItemBagManager.txt) is not ported -- it
-/// requires the recursive "bag" system of ItemBagManager which does not exist yet in this port. XP and Zen are
-/// granted in full and byte-exact against the DevilSquare.dat tables. - Daily entry limit per account
+/// without text) IS sent. - The ITEM reward (only 1st place, see EventItemBagManager.txt) comes from the item
+/// bags (<see cref="GiveItemBag"/>); XP and Zen are granted in full and byte-exact against the DevilSquare.dat
+/// tables. - Daily entry limit per account
 /// (DSCount/m_DevilSquareMaxEntryCount) not ported -- one can enter as many times as wanted while the window is
 /// open. - Spawn position selection: the original picks ONE free position at random per instance of
 /// CDevilSquare::SetMonster; here a monster is instantiated at EACH candidate position of the Type==4 pool for
@@ -100,6 +100,10 @@ public sealed class DevilSquareManager
     /// (DevilSquareManager is built before ClientProtocolHandler, like ViewportTicker/protocolHandler in
     /// Program.cs).</summary>
     public Func<PlayerObject, long, CancellationToken, Task>? GrantExperience { get; set; }
+
+    /// <summary>Drops the item bag of an event around a player: (player, special value, level, state). Set by the
+    /// protocol handler, which owns the bags and the ground items.</summary>
+    public Func<PlayerObject, int, int, int, CancellationToken, Task>? GiveItemBag { get; set; }
 
     public DevilSquareManager(
         DevilSquareConfig config, EventEntryLevelTable entryLevels, EventStageSpawnTable stageSpawns,
@@ -468,8 +472,12 @@ public sealed class DevilSquareManager
             await player.Session.SendEncryptedAsync(ItemPacketBuilder.MoneySend(player.Money), ct);
         }
 
-        // ITEM reward (only rank 0) NOT ported -- see the technical debt documented in this class's header (it
-        // requires a recursive ItemBagManager, outside this first pass).
+        // The item reward: EventItemBagManager.txt has a Devil Square bag per level for a state of 1 only, so
+        // just the first place gets one (CDevilSquare::GiveUserRewardItem passes rank + 1 as the state).
+        if (GiveItemBag != null)
+        {
+            await GiveItemBag(player, ItemBagManager.SpecialDevilSquare, bracket.Level, rank + 1, ct);
+        }
     }
 
     private async Task SendScoreListAsync(DevilSquareBracket bracket, List<DevilSquareParticipant> ranked, PlayerObject recipient, DevilSquareParticipant self, CancellationToken ct)

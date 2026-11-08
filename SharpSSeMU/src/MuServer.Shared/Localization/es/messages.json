@@ -4,6 +4,7 @@
  "You have already learned this skill.": "Ya has aprendido esta habilidad.",
  "You do not meet the requirements to learn this skill.": "No cumples los requisitos para aprender esta habilidad.",
  "Take the items out of the Chaos Machine first.": "Sacá primero los ítems de la Chaos Machine.",
+ "Your level is too low for this ring.": "Tu nivel es demasiado bajo para este anillo.",
  "[Server] Only Dark Lord can add points to Command.": "[Server] Solo Dark Lord puede agregar puntos a Comando.",
  "[Server] Not enough points. You have {0} point(s).": "[Server] Puntos insuficientes. Tienes {0} punto(s).",
  "[Server] +{0} added to {1}. Remaining points: {2}": "[Server] +{0} agregados a {1}. Puntos restantes: {2}",
