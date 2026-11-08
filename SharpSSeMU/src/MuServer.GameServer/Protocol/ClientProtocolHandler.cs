@@ -61,6 +61,7 @@ public sealed class ClientProtocolHandler
     private readonly QuestObjectiveTable _questObjectives;
     private readonly QuestRewardTable _questRewards;
     private readonly GameServerInfoCommon? _gsiCommon;
+    private readonly LootRoller _loot;
 
     public ClientProtocolHandler(
         GameServerConfig config, JoinServerConnection joinServer, DataServerConnection dataServer,
@@ -71,8 +72,10 @@ public sealed class ClientProtocolHandler
         GateTable? gates = null, MoveTable? moves = null, BloodCastleManager? bloodCastle = null, MessageTable? messages = null,
         QuestTable? quests = null, QuestObjectiveTable? questObjectives = null, QuestRewardTable? questRewards = null,
         GameServerInfoCommon? gsiCommon = null, ItemValueTable? itemValues = null,
-        GameServerInfoChaosMix? chaosMixRates = null)
+        GameServerInfoChaosMix? chaosMixRates = null, LootRoller? loot = null)
     {
+        _loot = loot ?? new LootRoller(itemBalance, new ItemOptionRateTable(), new ExcellentOptionRateTable(), new MapDropTable(),
+            new MapRateInfoTable(), new List<ItemDropRule>(), new List<MoneyDropRule>());
         _config = config;
         _joinServer = joinServer;
         _dataServer = dataServer;
@@ -3648,8 +3651,6 @@ public sealed class ClientProtocolHandler
 
         Log.Add(LogColor.Blue, "[Combat][{0}] '{1}' killed {2}(#{3}) -- respawn in {4}ms", killer.Index, killer.Name, monster.Name, monster.Index, monster.MaxRegenMillis + 1000);
 
-        await TryDropLootAsync(killer, monster, viewers, ct);
-
         // gObjAddMsgSendDelay(killer,3,monster,2000): two seconds later the killer recovers life (the monster's
         // level plus the "life after hunting" option), mana (its option) and 1% of AG.
         _ = RecoverAfterHuntAsync(killer, monster.Level, ct);
@@ -3666,6 +3667,7 @@ public sealed class ClientProtocolHandler
         // the WHOLE party is computed only once per party (not per attacker) -- hence processedParties, so as
         // not to process the same party twice if more than one member hit the monster.
         var processedParties = new HashSet<int>();
+        monster.Money = 0; // CharacterCalcExperienceSplit/Party (ObjectManager.cpp:795): rebuilt from the experience handed out
 
         foreach (var (attackerIndex, damageDealt) in monster.DamageByAttacker)
         {
@@ -3688,32 +3690,15 @@ public sealed class ClientProtocolHandler
             // killing blow; everyone else who hit the monster gets 0 in that field.
             await GrantExperienceAsync(attacker, monster, damageDealt, attacker.Index == killer.Index ? lethalDamage : 0, ct);
         }
+
+        // The loot comes after the experience: the monster's zen is the experience it gave.
+        await TryDropLootAsync(killer, monster, viewers, ct);
     }
 
-    /// <summary> VERY simplified port of gObjMonsterDieGiveItem (Monster.cpp:54-284) -- of the real cascade of
-    /// ~13 drop subsystems (per-monster-class ItemBag, boss/event drop tables, scheduled drop-events, random
-    /// set item, etc., see the research), this pass ONLY ports the "generic" path that covers the vast majority
-    /// of common field monsters: an item roll (according to <see cref="Monster.ItemRate"/>, reusing <see
-    /// cref="ItemBalanceTable.PickRandomDropItem"/> -- the same Item.txt/DropItem data Phase 4 of balance
-    /// already loads) OR, if no item came out, a money roll (according to <see cref="Monster.MoneyRate"/>).
-    /// Both rates are interpreted as "1 in N" (<c>Rng.Next(rate)==0</c>), the standard interpretation of these
-    /// two columns in MonsterList.txt. Outside this pass (documented in detail in the README): ItemBagManager
-    /// (special drops per monster class/event), random sets, random level/excellent/socket options on the
-    /// dropped item (it comes out "from the factory", +0 with no options), unique persistent serial via
-    /// DataServer (left at 0, the same as items bought in the Phase 8 shop -- the same level of simplification
-    /// already accepted there). </summary> <summary>Port of CQuestObjective::MonsterItemDrop
-    /// (QuestObjective.cpp:213-269) -- hooked into TryDropLootAsync BEFORE the generic item/money roll (the
-    /// same as Monster.cpp:59-67). It is evaluated against whoever did the most damage to the monster
-    /// (gObjMonsterGetTopHitDamageUser), not necessarily who dealt the final blow. The party-share variant
-    /// (MonsterItemDropParty, gServerInfo.m_QuestMonsterItemDropParty) is not ported -- it is evaluated only
-    /// against the top-damager, a documented simplification.</summary>
-    private GroundItem? TryQuestItemDrop(PlayerObject killer, Monster monster)
+    /// <summary>The player who did the most damage to the monster (gObjMonsterGetTopHitDamageUser): the one the drop
+    /// belongs to and whose account level and zen option count -- not necessarily who dealt the final blow.</summary>
+    private PlayerObject TopDamager(PlayerObject killer, Monster monster)
     {
-        if (_groundItems == null || _questObjectives.Entries.Count == 0)
-        {
-            return null;
-        }
-
         PlayerObject topDamager = killer;
         int topDamage = -1;
 
@@ -3724,6 +3709,19 @@ public sealed class ClientProtocolHandler
                 topDamage = damageDealt;
                 topDamager = attacker;
             }
+        }
+
+        return topDamager;
+    }
+
+    /// <summary>Port of CQuestObjective::MonsterItemDrop (QuestObjective.cpp:213-269) -- the first thing a kill can
+    /// drop, before the item and zen rules (Monster.cpp:59-67). It is evaluated against the top damager. The
+    /// party-share variant (MonsterItemDropParty, m_QuestMonsterItemDropParty) is not ported.</summary>
+    private GroundItem? TryQuestItemDrop(PlayerObject topDamager, Monster monster)
+    {
+        if (_groundItems == null || _questObjectives.Entries.Count == 0)
+        {
+            return null;
         }
 
         foreach (var info in _questObjectives.Entries)
@@ -3781,13 +3779,17 @@ public sealed class ClientProtocolHandler
                 NewOption = (byte)info.NewOption,
             };
 
-            int? ownerParty = killer.PartyNumber == -1 ? null : killer.PartyNumber;
-            return _groundItems.Drop(monster.Map, item, monster.X, monster.Y, killer.Index, ownerParty, GroundItemLifetime, GroundItemLootLock);
+            int? ownerParty = topDamager.PartyNumber == -1 ? null : topDamager.PartyNumber;
+            return _groundItems.Drop(monster.Map, item, monster.X, monster.Y, topDamager.Index, ownerParty, GroundItemLifetime, GroundItemLootLock);
         }
 
         return null;
     }
 
+    /// <summary>What a kill drops: port of gObjMonsterDieGiveItem (Monster.cpp:35-175) -- the quest item, then the
+    /// item and zen rules and the generic roll of <see cref="LootRoller"/>. Everything belongs to the player who did
+    /// the most damage, and that player's account level and zen option are the ones that count. Not ported: the
+    /// monster item bags (EventItemBag), the drop events and set items.</summary>
     private async Task TryDropLootAsync(PlayerObject killer, Monster monster, IReadOnlyList<int> viewerIndexes, CancellationToken ct)
     {
         if (_groundItems == null)
@@ -3795,84 +3797,38 @@ public sealed class ClientProtocolHandler
             return;
         }
 
-        int? ownerParty = killer.PartyNumber == -1 ? null : killer.PartyNumber;
+        var owner = TopDamager(killer, monster);
+        int? ownerParty = owner.PartyNumber == -1 ? null : owner.PartyNumber;
 
-        // Port of Monster.cpp:59-67: gQuestObjective.MonsterItemDrop is checked BEFORE the generic item/money
-        // drop (which follows below) -- if a quest item drops, THAT is this kill's drop, and neither of the
-        // other two rolls runs (see the "dropped == null" guard that follows).
-        GroundItem? dropped = TryQuestItemDrop(killer, monster);
+        GroundItem? dropped = TryQuestItemDrop(owner, monster);
 
-        int itemRate = monster.ItemRate <= 0 ? 10 : monster.ItemRate;
-        int moneyRate = monster.MoneyRate <= 0 ? 10 : monster.MoneyRate;
-
-        // In C++ (Monster.cpp:121,157): ItemRate/MoneyRate of MonsterList.txt define the roll. If
-        // Rng.Next(ItemRate) < 10 (base ItemDropRate 10), there is an item drop.
-        if (dropped == null && Rng.Next(itemRate) < 10)
+        if (dropped == null)
         {
-            var pick = _itemBalance.PickRandomDropItem(monster.Level, Rng);
+            var server = WorldPacketBuilder.ServerInfo;
+            int al = Math.Clamp(owner.AccountLevel, 0, 3);
 
-            if (pick != null)
+            var roll = _loot.Roll(new LootContext
             {
-                byte itemLevel = 0;
-                if (pick.Section < 12)
-                {
-                    int maxLvl = Math.Min(4, monster.Level / 20);
-                    if (maxLvl > 0) itemLevel = (byte)Rng.Next(0, maxLvl + 1);
-                }
+                MonsterClass = monster.MonsterClass,
+                MonsterLevel = monster.Level,
+                Map = monster.Map,
+                ItemRate = monster.ItemRate,
+                MoneyRate = monster.MoneyRate,
+                Money = monster.Money,
+                AccountLevel = al,
+                PlayerMoneyAmountDropRate = owner.MoneyAmountDropRate,
+                ServerItemDropRate = server.ItemDropRate[al],
+                ServerMoneyAmountDropRate = server.MoneyAmountDropRate[al],
+            }, Rng);
 
-                bool luck = pick.Section < 12 && Rng.Next(100) < 15;
-                bool skill = pick.Section < 6 && Rng.Next(100) < 30;
-                byte option3 = 0;
-                if (pick.Section < 12)
-                {
-                    int optRoll = Rng.Next(100);
-                    if (optRoll < 5) option3 = 2; // +8
-                    else if (optRoll < 20) option3 = 1; // +4
-                }
-
-                byte newOption = 0;
-                if (monster.Level >= 25 && Rng.Next(1500) == 0) // Excellent item roll
-                {
-                    byte[] excOpts = { 1, 2, 4, 8, 16, 32 };
-                    newOption = excOpts[Rng.Next(excOpts.Length)];
-                    itemLevel = 0;
-                }
-
-                var item = new Item
-                {
-                    Index = (short)pick.Index,
-                    Level = itemLevel,
-                    Option1 = (byte)(skill ? 1 : 0),
-                    Option2 = (byte)(luck ? 1 : 0),
-                    Option3 = option3,
-                    NewOption = newOption
-                };
-
-                // A dropped item comes at its full durability for its level and options (the original creates it
-                // with GetItemDurability, ItemManager.cpp:393).
-                item.Durability = (byte)Math.Max(ItemCombatMath.GetItemDurability(item, pick), 1);
-
-                dropped = _groundItems.Drop(monster.Map, item, monster.X, monster.Y, killer.Index, ownerParty, GroundItemLifetime, GroundItemLootLock);
+            if (roll?.Item != null)
+            {
+                dropped = _groundItems.Drop(monster.Map, roll.Item, monster.X, monster.Y, owner.Index, ownerParty, GroundItemLifetime, GroundItemLootLock);
             }
-        }
-        
-        if (dropped == null && Rng.Next(moneyRate) < 10)
-        {
-            long baseMoney = ((long)(monster.Level + 25) * monster.Level) / 3;
-            baseMoney += baseMoney / 4;
-
-            int dropRateConfig = WorldPacketBuilder.ServerInfo.MoneyAmountDropRate.Length > killer.AccountLevel
-                ? WorldPacketBuilder.ServerInfo.MoneyAmountDropRate[killer.AccountLevel]
-                : 100;
-
-            if (dropRateConfig <= 0) dropRateConfig = 100;
-
-            long calcMoney = (baseMoney * dropRateConfig) / 100;
-            calcMoney = (calcMoney * killer.MoneyAmountDropRate) / 100; // the excellent "+zen" option (Monster.cpp:161)
-            calcMoney = (calcMoney * Rng.Next(80, 121)) / 100;
-
-            uint money = (uint)Math.Max(1, calcMoney);
-            dropped = _groundItems.DropMoney(monster.Map, monster.X, monster.Y, money, GroundItemLifetime);
+            else if (roll is { Money: > 0 })
+            {
+                dropped = _groundItems.DropMoney(monster.Map, monster.X, monster.Y, (uint)Math.Min(roll.Money, uint.MaxValue), GroundItemLifetime);
+            }
         }
 
         if (dropped == null)
@@ -3923,6 +3879,7 @@ public sealed class ClientProtocolHandler
         // multiplier (not a percentage) indexed by AccountLevel. The other global multipliers that do apply
         // /100 (map, bonus, reset) read from unported systems and still equal 100% (no change).
         experience *= WorldPacketBuilder.ServerInfo.AddExperienceRate[attacker.AccountLevel];
+        monster.Money += experience; // lpMonster->Money += experience (ObjectManager.cpp:853)
 
         await ApplyExperienceGainAsync(attacker, monster.Index, experience, shownDamage, ct);
     }
@@ -3996,6 +3953,7 @@ public sealed class ClientProtocolHandler
         foreach (var member in inRange)
         {
             long share = (totalExperience * member.Level) / totalLevel;
+            monster.Money += share / inRange.Count; // lpMonster->Money += experience/PartyCount (ObjectManager.cpp:968)
             // CharacterCalcExperienceParty (ObjectManager.cpp:972-979): every member in range sees the killing blow.
             await ApplyExperienceGainAsync(member, monster.Index, share, lethalDamage, ct);
         }

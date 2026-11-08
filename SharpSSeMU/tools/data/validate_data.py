@@ -92,7 +92,21 @@ REQUIRED_FILES = [
     "Hack/Dec1.dat",
 ]
 REQUIRED_DIRS = ["Data/Monster/Spawn", "Data/Shop", "Data/Terrain"]
-OPTIONAL_FILES = ["Data/Item/ItemValue.txt", "Data/Item/ItemOption.txt", "Data/Skill/SkillDamage.txt"]
+OPTIONAL_FILES = [
+    "Data/Item/ItemValue.txt", "Data/Item/ItemOption.txt", "Data/Skill/SkillDamage.txt",
+    "Data/Item/ItemOptionRate.txt", "Data/Item/ExcellentOptionRate.txt", "Data/Item/ItemDrop.txt",
+    "Data/Item/ItemMoneyDrop.txt", "Data/MapManager.txt", "Data/MapRateInfo.txt",
+]
+# What the server does without each optional file, for the warning.
+OPTIONAL_HINTS = {
+    "ItemOption.txt": "items keep their skill/luck/excellent flags but grant no bonus from them.",
+    "ItemOptionRate.txt": "dropped items come without level, skill, luck or excellent options.",
+    "ExcellentOptionRate.txt": "dropped excellent items come without excellent options.",
+    "ItemDrop.txt": "no specific item (jewels, feathers, scrolls...) drops from monsters.",
+    "ItemMoneyDrop.txt": "no extra zen drop rules apply.",
+    "MapManager.txt": "every map uses the default drop rates and no item rules or excellent drops apply.",
+    "MapRateInfo.txt": "dropped items come without level, skill, luck or excellent options.",
+}
 CONFIG_FILES = ["ChaosMix", "Character", "Command", "Common", "Custom", "Event", "Item", "Skill"]
 
 
@@ -109,10 +123,8 @@ def check_layout(root, rep):
             rep.error(rel, "missing or empty folder.")
     for rel in OPTIONAL_FILES:
         if not os.path.isfile(os.path.join(root, rel)):
-            if rel.endswith("ItemOption.txt"):
-                rep.warn(rel, "optional file not found; items keep their skill/luck/excellent flags but grant no bonus from them.")
-            else:
-                rep.warn(rel, "optional file not found; the server falls back to its built-in formula.")
+            hint = OPTIONAL_HINTS.get(os.path.basename(rel), "the server falls back to its built-in formula.")
+            rep.warn(rel, "optional file not found; " + hint)
     for name in CONFIG_FILES:
         rel = "Data/GameServerInfo - %s.dat" % name
         if not os.path.isfile(os.path.join(root, rel)):

@@ -382,46 +382,6 @@ public sealed class ItemBalanceTable
         return _byIndex.Count;
     }
 
-    /// <summary> Simplified port of CMonsterManager::GetMonsterItem (MonsterManager.cpp:284-320): among all the
-    /// items with <c>DropItem=true</c> whose <see cref="ItemBalance.Level"/> "fits" the monster's level
-    /// (<c>(ItemLevel+4) >= MonsterLevel &amp;&amp; (ItemLevel-2) &lt;= MonsterLevel</c>, exact formula of the
-    /// original), it picks one at random uniformly. Simplified: the original pre-builds a table of candidates
-    /// per monster level on loading Item.txt (m_MonsterItemInfo, up to 100 candidates/level) and filters
-    /// excellent/socket eligibility at roll time; here the candidate list is recomputed on each roll with a
-    /// linear pass over all the loaded items (a few hundred in a real Item.txt, negligible cost) and it does
-    /// NOT filter by excellent/socket eligibility (that extra-rarity system is not ported in this pass, see
-    /// README) -- any candidate item can come out as a normal drop. </summary>
-    public ItemBalance? PickRandomDropItem(int monsterLevel, Random rng)
-    {
-        var candidates = new List<ItemBalance>();
-
-        foreach (var item in _byIndex.Values)
-        {
-            if (!item.DropItem)
-            {
-                continue;
-            }
-
-            if (item.Level + 4 >= monsterLevel && item.Level - 2 <= monsterLevel)
-            {
-                candidates.Add(item);
-            }
-        }
-
-        if (candidates.Count == 0)
-        {
-            foreach (var item in _byIndex.Values)
-            {
-                if (item.DropItem && item.Level <= monsterLevel + 5)
-                {
-                    candidates.Add(item);
-                }
-            }
-        }
-
-        return candidates.Count == 0 ? null : candidates[rng.Next(candidates.Count)];
-    }
-
     private static int[] ReadClassRow(MemScript script)
     {
         var reqClass = new int[5];

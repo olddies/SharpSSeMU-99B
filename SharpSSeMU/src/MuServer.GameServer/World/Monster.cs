@@ -49,6 +49,10 @@ public sealed class Monster
     public int ItemRate { get; init; }
     public int MoneyRate { get; init; }
 
+    /// <summary>The monster's zen (OBJECTSTRUCT::Money): not a fixed reward but the experience it gave, summed over
+    /// everyone who hit it -- set when it dies, before its loot is decided.</summary>
+    public long Money { get; set; }
+
     /// <summary>MONSTER_INFO.RegenTime*1000 (Monster.cpp:264) -- puerto de MaxRegenTime.</summary>
     public int MaxRegenMillis { get; init; }
 

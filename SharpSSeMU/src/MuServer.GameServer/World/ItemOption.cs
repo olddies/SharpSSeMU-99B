@@ -169,6 +169,21 @@ public sealed class ItemOptionTable
         return found;
     }
 
+    /// <summary>What CItem::Convert does to the flags of a freshly made item (Item.cpp:505-560): the skill, luck and
+    /// additional option stay only if a rule of ItemOption.txt covers them, otherwise they are cleared. With no
+    /// rules loaded at all nothing is cleared -- the flags just have no effect, as before the file was read.</summary>
+    public void Normalize(Item item)
+    {
+        if (Count == 0 || !item.IsItem())
+        {
+            return;
+        }
+
+        if (item.Option1 != 0 && Find(SpecialSlot.Option1, item) == null) item.Option1 = 0;
+        if (item.Option2 != 0 && Find(SpecialSlot.Option2, item) == null) item.Option2 = 0;
+        if (item.Option3 != 0 && Find(SpecialSlot.Option3, item) == null) item.Option3 = 0;
+    }
+
     /// <summary>True when the item really carries its skill (the skill flag set AND a skill row covering it) --
     /// in the original, Convert clears m_Option1 otherwise, so the skill never reaches the skill list.</summary>
     public bool HasSkill(Item item) => item.IsItem() && item.Option1 != 0 && Find(SpecialSlot.Option1, item) != null;

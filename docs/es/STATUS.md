@@ -45,7 +45,7 @@ funcionales. Los arreglos encontrados jugando están registrados en el
 | IA de monstruos | 🔶 | inactivo/patrulla/persecución/ataque; la elección de hechizo es heurística (`GetMonsterAttackSkill`) |
 | Skills y maná | 🔶 | ataques a un objetivo, de duración y multi-objetivo, aprendizaje por orbes, regeneración de maná/BP. Sin buffs/debuffs de `EffectList.txt`, sin combo/teleport de aliado |
 | Muerte, experiencia, subir de nivel, respawn | ✅ | el cadáver permanece visible hasta el respawn (como en el original) |
-| Loot | 🔶 | tirada genérica de item/zen por `ItemRate`/`MoneyRate` y drops de quests. Sin `ItemBag`, tablas de drop de jefes/eventos, opciones excelentes/set aleatorias |
+| Loot | 🔶 | como en el original: items de quest, reglas de `ItemDrop.txt` / `ItemMoneyDrop.txt` y después la tirada genérica (`ItemRate` del monstruo contra `ItemDropRate`, tasas por mapa de `MapManager.txt`, drops excelentes desde el nivel 25), con las opciones de nivel/skill/suerte/adicional/excelente sorteadas de `ItemOptionRate.txt` / `ExcellentOptionRate.txt`; el zen es la experiencia que dio el monstruo. Sin `ItemBag` (bolsas de jefes/eventos), drop events ni items de set |
 | Chat, susurro (entre GameServers), party (+reparto de XP), amigos | ✅ | correo entre amigos ❌ |
 | Quests | 🔶 | opcodes de info/estado de quest conectados a las tablas reales |
 | Guild | 🔶 | lista / ventana del maestro / crear; falta trabajo de esquema para terminarla |
@@ -91,14 +91,13 @@ El cliente open source de este repositorio es un **fork de MuMain (Season 5.2 �
 Orden sugerido, lo más fácil primero:
 
 1. **UI del cliente → aspecto 0.99B** (ver `docs/ui-099b.md`).
-2. **Loot**: opciones excelentes y niveles sorteados como en el original (`ItemOptionRate.txt`, `ExcellentOptionRate.txt`), `ItemBag`, tablas de jefes/eventos.
+2. **Loot**: `ItemBag` (bolsas de jefes y eventos), drop events, items de set.
 3. **Blood Castle → Chaos Castle → Kalima** sobre el motor de Devil Square existente.
 4. **Duelo**, luego completar Guild (esquema + rangos + marcas), Personal Shop, Golden Archer.
-5. Loot de monstruos: `ItemBag`, tablas de drop de jefes y eventos.
-6. Efectos de skills (buffs/debuffs de `EffectList.txt`), combo y teleport de aliado.
-7. Recarga de config en caliente + endurecer el AdminPanel (autenticación por usuario).
-8. Seguir la auditoría del cliente: llamadas restantes a la capa de red heredada, quitar código exclusivo de Season 6.
-9. Build Linux del cliente.
+5. Efectos de skills (buffs/debuffs de `EffectList.txt`), combo y teleport de aliado.
+6. Recarga de config en caliente + endurecer el AdminPanel (autenticación por usuario).
+7. Seguir la auditoría del cliente: llamadas restantes a la capa de red heredada, quitar código exclusivo de Season 6.
+8. Build Linux del cliente.
 
 ## Arreglado recientemente
 
@@ -107,6 +106,7 @@ Bugs encontrados jugando con un cliente real en la última sesión (todos verifi
 - **Número de daño al matar:** el golpe final mostraba dos números. Como el servidor original, ahora no manda paquete de daño; su número viaja en el paquete de recompensa, solo para quien lo dio (o su party).
 - **Cliente original:** no conectaba con `127.0.0.1` — el `main.exe` de Webzen rechaza esa dirección exacta. Ver [Primeros pasos](GETTING_STARTED.md#6-conectar-un-cliente).
 - El GameServer no atendía el **borrado de personaje** ni el **guardado de teclas rápidas**.
+- **Drops:** el ajuste *Probabilidad de drop de item* (`ItemDropRate`) se ignoraba, las opciones de los items soltados eran una estimación y el zen no seguía al original. Ahora los drops salen de los archivos originales (`MapManager.txt`, `ItemDrop.txt`, `ItemOptionRate.txt`, `ExcellentOptionRate.txt`...) y el zen de una muerte es la experiencia que dio; el valor por defecto del repo es ahora el del paquete original (`ItemDropRate` 100: cerca de la mitad de las muertes de un monstruo de nivel 47 sueltan un item).
 - **Opciones de items:** skill y suerte estaban invertidos en drops, tiendas NPC y el AdminPanel; las tiendas vendían los items con durabilidad 0 (rotos); las armas mostraban su skill sin tener la opción de skill.
 - Los **tests end-to-end** se colgaban a mitad: el harness nunca leía el pipe de consola de los servidores y uno quedaba bloqueado escribiendo su log.
 

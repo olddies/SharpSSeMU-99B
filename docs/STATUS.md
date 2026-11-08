@@ -45,7 +45,7 @@ working. Fixes found by real play-testing are recorded in the
 | Monster AI | 🔶 | idle/patrol/chase/attack; spell selection is heuristic (`GetMonsterAttackSkill`) |
 | Skills & mana | 🔶 | single-target, duration and multi-target attacks, learning via orbs, mana/BP regen. No `EffectList.txt` buffs/debuffs, no combo/ally-teleport |
 | Death, experience, level-up, respawn | ✅ | corpse stays visible until respawn (as in the original) |
-| Loot | 🔶 | generic item/zen roll from `ItemRate`/`MoneyRate` and quest drops. No `ItemBag`, boss/event drop tables, random excellent/set options |
+| Loot | 🔶 | as in the original: quest items, `ItemDrop.txt` / `ItemMoneyDrop.txt` rules, then the generic roll (monster `ItemRate` vs `ItemDropRate`, per-map rates from `MapManager.txt`, excellent drops from level 25), with level/skill/luck/additional/excellent options rolled from `ItemOptionRate.txt` / `ExcellentOptionRate.txt`; zen = the experience the monster gave. No `ItemBag` (boss/event bags), drop events or set items |
 | Chat, whisper (cross-GameServer), party (+XP sharing), friends | ✅ | friend mail ❌ |
 | Quests | 🔶 | quest info/state opcodes wired to the real quest tables |
 | Guild | 🔶 | list / master window / create; needs guild schema work to finish |
@@ -92,14 +92,13 @@ against. The open-source client in this repository is a **fork of MuMain (Season
 Suggested order, easiest wins first:
 
 1. **Client UI → 0.99B look** (see `docs/ui-099b.md`).
-2. **Loot**: excellent options and levels rolled like the original (`ItemOptionRate.txt`, `ExcellentOptionRate.txt`), `ItemBag`, boss/event tables.
+2. **Loot**: `ItemBag` (boss and event bags), drop events, set items.
 3. **Blood Castle → Chaos Castle → Kalima** on the existing Devil Square engine.
 4. **Duel**, then Guild completion (schema + ranks + marks), Personal Shop, Golden Archer.
-5. Monster loot: `ItemBag`, boss and event drop tables.
-6. Skill effects (`EffectList.txt` buffs/debuffs), combo and ally-teleport.
-7. Config hot-reload + AdminPanel hardening (per-user auth).
-8. Continue the client audit: remaining calls into the legacy network layer, removal of Season-6-only code.
-9. Linux client build.
+5. Skill effects (`EffectList.txt` buffs/debuffs), combo and ally-teleport.
+6. Config hot-reload + AdminPanel hardening (per-user auth).
+7. Continue the client audit: remaining calls into the legacy network layer, removal of Season-6-only code.
+8. Linux client build.
 
 ## Recently fixed
 
@@ -108,6 +107,7 @@ Bugs found by real play-testing in the latest session (all verified by rebuild +
 - **Kill damage number:** the killing blow showed two numbers. Like the original server, it now sends no damage packet; its number travels in the kill reward packet, only to whoever landed it (or the party).
 - **Original client:** it could not connect with `127.0.0.1` — Webzen's `main.exe` refuses that exact address. See [Getting started](GETTING_STARTED.md#6-connect-a-client).
 - **Character delete** and **saved skill hot-keys** were not handled by the GameServer.
+- **Drops:** the *Item drop probability* setting (`ItemDropRate`) was ignored, the options of dropped items were a rough guess and the zen did not follow the original. Drops now come from the original files (`MapManager.txt`, `ItemDrop.txt`, `ItemOptionRate.txt`, `ExcellentOptionRate.txt`...) and a kill's zen is the experience it gave; the shipped default is now the original package's (`ItemDropRate` 100, about half the kills of a level-47 monster drop an item).
 - **Item options:** skill and luck were swapped in drops, NPC shops and the AdminPanel; shops sold items at durability 0 (broken); weapons listed their skill without the skill option.
 - **End-to-end tests** hung halfway: the harness never read the servers' console pipe, so a server blocked writing its log.
 
