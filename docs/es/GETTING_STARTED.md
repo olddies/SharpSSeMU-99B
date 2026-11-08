@@ -243,6 +243,7 @@ ConnectServerPort = 55557
 
 | Síntoma | Causa probable / solución |
 |---|---|
+| El GameServer se detiene al arrancar con *Los datos del juego están incompletos* (`Hack\Enc2.dat`, `Data\Item\Item.txt`…) | Las tablas del juego y las claves de cifrado no vienen con este proyecto: importalas desde tu propio paquete original de SSeMU 0.99B (ver [Traé tus propios archivos del juego](#2-traé-tus-propios-archivos-del-juego) e [Importar y validar tus datos del juego](#importar-y-validar-tus-datos-del-juego)). El mensaje lista exactamente qué falta. |
 | El cliente se queda antes de la pantalla de selección de servidor | ConnectServer caído o puerto 44405 bloqueado. Mirá su consola. |
 | El cliente se queda en la selección de personaje | GameServer inalcanzable, o DataServer caído (es quien entrega la lista de personajes). |
 | "Cuenta llena" al crear una clase distinta de Dark Wizard | Falta la fila de la clase en `default_class_type`: volvé a aplicar `003_default_class_seed.sql`. |
