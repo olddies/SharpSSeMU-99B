@@ -6,7 +6,8 @@ namespace MuServer.GameServer.World;
 /// per-level scaling <c>+level*3</c> plus <c>((level-9)*(level-8))/2</c> from +10 to +15 (+1,+3,+6,+10,+15,+21).
 /// Shields scale Defense by a flat <c>+level</c> and get no excellent bonus; second wings and the Dark Horse scale
 /// it by <c>+level*2</c>. All the getters return 0 if the item is broken (<see cref="Item.Durability"/>==0),
-/// like the original. Set items (SetOption) do not exist in this build and are not handled. </summary>
+/// like the original. Set items (SetOption, see <see cref="SetItemRules"/>) get a bigger bonus than the excellent
+/// ones in place of it. </summary>
 public static class ItemCombatMath
 {
     /// <summary>The loaded Data/Item/ItemOption.txt -- the port's equivalent of the global gItemOption. Set once at
@@ -66,11 +67,28 @@ public static class ItemCombatMath
         return value;
     }
 
+    /// <summary>A set (ancient) item: it has a set variant (CItem::IsSetItem). Set items take the place of the
+    /// excellent bonus in the stats below, with a bigger one.</summary>
+    public static bool IsSet(Item item) => (item.SetOption & 3) != 0;
+
+    /// <summary>The item level Convert uses for a set item's stats: the base level plus 30 (Item.cpp:331-334).</summary>
+    private static int SetItemLevel(ItemBalance info) => info.Level + 30;
+
     public static int GetDamageMin(Item item, ItemBalance info)
     {
         if (item.Durability == 0 || info.DamageMin <= 0) return 0;
         int value = info.DamageMin;
-        if (HasExcellentStats(item, info)) value += ExcellentAttackBonus(item, info, info.DamageMin);
+
+        if (IsSet(item) && info.Level != 0)
+        {
+            value += ((info.DamageMin * 25) / info.Level) + 5;
+            value += (SetItemLevel(info) / 40) + 5;
+        }
+        else if (HasExcellentStats(item, info))
+        {
+            value += ExcellentAttackBonus(item, info, info.DamageMin);
+        }
+
         return LevelScaled(value, item.Level);
     }
 
@@ -78,7 +96,17 @@ public static class ItemCombatMath
     {
         if (item.Durability == 0 || info.DamageMax <= 0) return 0;
         int value = info.DamageMax;
-        if (HasExcellentStats(item, info)) value += ExcellentAttackBonus(item, info, info.DamageMin);
+
+        if (IsSet(item) && info.Level != 0)
+        {
+            value += ((info.DamageMin * 25) / info.Level) + 5;
+            value += (SetItemLevel(info) / 40) + 5;
+        }
+        else if (HasExcellentStats(item, info))
+        {
+            value += ExcellentAttackBonus(item, info, info.DamageMin);
+        }
+
         return LevelScaled(value, item.Level);
     }
 
@@ -87,7 +115,17 @@ public static class ItemCombatMath
     {
         if (item.Durability == 0 || info.MagicDamageRate <= 0) return 0;
         int value = info.MagicDamageRate;
-        if (HasExcellentStats(item, info)) value += ExcellentAttackBonus(item, info, info.MagicDamageRate);
+
+        if (IsSet(item) && info.Level != 0)
+        {
+            value += ((info.MagicDamageRate * 25) / info.Level) + 5;
+            value += (SetItemLevel(info) / 60) + 2;
+        }
+        else if (HasExcellentStats(item, info))
+        {
+            value += ExcellentAttackBonus(item, info, info.MagicDamageRate);
+        }
+
         return LevelScaled(value, item.Level);
     }
 
@@ -95,13 +133,27 @@ public static class ItemCombatMath
     {
         if (item.Durability == 0 || info.Defense <= 0) return 0;
         int value = info.Defense;
+        int setLevel = SetItemLevel(info);
 
         if (info.IsShield)
         {
-            return value + item.Level; // Item.cpp:457-462 -- no excellent bonus, no quadratic extra
+            // Item.cpp:457-462 -- no excellent bonus, no quadratic extra; a set shield gets its own bonus.
+            value += item.Level;
+
+            if (IsSet(item) && setLevel != 0)
+            {
+                value += ((value * 20) / setLevel) + 2;
+            }
+
+            return value;
         }
 
-        if (HasExcellentStats(item, info) && info.Level != 0)
+        if (IsSet(item) && info.Level != 0 && setLevel != 0)
+        {
+            value += ((value * 12) / info.Level) + (info.Level / 5) + 4;
+            value += ((value * 3) / setLevel) + (setLevel / 30) + 2;
+        }
+        else if (HasExcellentStats(item, info) && info.Level != 0)
         {
             value += ((value * 12) / info.Level) + (info.Level / 5) + 4;
         }
@@ -122,7 +174,12 @@ public static class ItemCombatMath
         if (item.Durability == 0 || info.DefenseSuccessRate <= 0) return 0;
         int value = info.DefenseSuccessRate;
 
-        if (HasExcellentStats(item, info) && info.Level != 0)
+        if (IsSet(item) && info.Level != 0)
+        {
+            value += ((value * 25) / info.Level) + 5;
+            value += (SetItemLevel(info) / 40) + 5;
+        }
+        else if (HasExcellentStats(item, info) && info.Level != 0)
         {
             value += ((value * 25) / info.Level) + 5;
         }
@@ -173,10 +230,18 @@ public static class ItemCombatMath
             dur = baseDur + level;
         }
 
-        // Excellent items last 15 points longer (ItemManager.cpp:451-461) -- not the Archangel weapons nor wings.
-        if (!IsArchangelWeapon(item.Index) && info.Slot != 7 && item.NewOption != 0)
+        // Set items last 20 points longer and excellent ones 15 (ItemManager.cpp:451-461) -- not the Archangel
+        // weapons nor wings.
+        if (!IsArchangelWeapon(item.Index) && info.Slot != 7)
         {
-            dur += 15;
+            if (IsSet(item))
+            {
+                dur += 20;
+            }
+            else if (item.NewOption != 0)
+            {
+                dur += 15;
+            }
         }
 
         return Math.Clamp(dur, 0, 255);
@@ -213,11 +278,11 @@ public static class ItemCombatMath
         return Math.Max(money, 1);
     }
 
-    /// <summary>The level Convert uses for the requirements (Item.cpp:229-234): excellent items count as 25 levels
-    /// higher. The local "NewOption" the original tests there is the one already cleared for the Archangel
+    /// <summary>The level Convert uses for the requirements (Item.cpp:229-234): excellent and set items count as 25
+    /// levels higher. The local "NewOption" the original tests there is the one already cleared for the Archangel
     /// weapons, wings and the Dinorant.</summary>
     private static int RequirementItemLevel(Item item, ItemBalance info) =>
-        info.Level + (HasExcellentStats(item, info) ? 25 : 0);
+        info.Level + (HasExcellentStats(item, info) || IsSet(item) ? 25 : 0);
 
     /// <summary>Port of CItem::Convert (Item.cpp:236-280) -- stat requirements scaled by the item's level. Strength
     /// also grows by 4 per step of the additional option when that option applies to the item (Item.cpp:566-593):
@@ -387,10 +452,10 @@ public static class ItemCombatMath
         }
 
         if (player.Level < GetRequireLevel(item, info)) return false;
-        if (player.Strength < GetRequireStrength(item, info)) return false;
-        if (player.Dexterity < GetRequireDexterity(item, info)) return false;
+        if (player.Strength + player.AddStrength < GetRequireStrength(item, info)) return false;
+        if (player.Dexterity + player.AddDexterity < GetRequireDexterity(item, info)) return false;
         if (player.Vitality < GetRequireVitality(item, info)) return false;
-        if (player.Energy < GetRequireEnergy(item, info)) return false;
+        if (player.Energy + player.AddEnergy < GetRequireEnergy(item, info)) return false;
         if (player.Leadership < GetRequireLeadership(item, info)) return false;
         if (!CanEquipClass(player.Class, player.ChangeUp, info)) return false;
         if (!CanEquipSlot(item, targetSlot, info, itemBalance, player)) return false;

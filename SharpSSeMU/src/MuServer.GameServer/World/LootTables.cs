@@ -403,8 +403,9 @@ public sealed class LootContext
 
 /// <summary> Port of the loot decision of gObjMonsterDieGiveItem (Monster.cpp:35-175) after the quest item: the
 /// ItemDrop.txt rules, the ItemMoneyDrop.txt rules and then the generic roll -- an item of the monster's level
-/// (excellent on a small chance) with its options rolled from ItemOptionRate.txt, or zen. Not ported: the monster
-/// item bags (EventItemBag), the drop events and set items. </summary>
+/// (excellent on a small chance, or a set item on another) with its options rolled from ItemOptionRate.txt, or
+/// zen. The monster item bags (EventItemBag) are rolled before this, by the ItemBagManager. Not ported: the drop
+/// events. </summary>
 public sealed class LootRoller
 {
     private const int MaxMonsterLevel = 150;
@@ -417,11 +418,13 @@ public sealed class LootRoller
     private readonly MapRateInfoTable _mapRates;
     private readonly List<ItemDropRule> _itemRules;
     private readonly List<MoneyDropRule> _moneyRules;
+    private readonly SetItemRules _sets;
 
     public LootRoller(
         ItemBalanceTable items, ItemOptionRateTable optionRates, ExcellentOptionRateTable excellent, MapDropTable mapDrops,
-        MapRateInfoTable mapRates, List<ItemDropRule> itemRules, List<MoneyDropRule> moneyRules)
+        MapRateInfoTable mapRates, List<ItemDropRule> itemRules, List<MoneyDropRule> moneyRules, SetItemRules? sets = null)
     {
+        _sets = sets ?? SetItemRules.Current;
         _items = items;
         _optionRates = optionRates;
         _excellent = excellent;
@@ -589,6 +592,8 @@ public sealed class LootRoller
         item.Option3 = (byte)(_optionRates.Pick(ItemOptionRateTable.AdditionalOption, chosen.Options[3], rng) ?? 0);
         int excellentCount = _optionRates.Pick(ItemOptionRateTable.ExcellentCount, chosen.Options[4], rng) ?? 0;
         item.NewOption = _excellent.MakeNewOption(chosen.ItemIndex, 1, excellentCount, rng);
+        int ruleSetValue = _optionRates.Pick(ItemOptionRateTable.SetOption, chosen.Options[5], rng) ?? 0;
+        item.SetOption = _sets.Types.MakeSetOption(chosen.ItemIndex, ruleSetValue, rng);
         ItemCombatMath.Options.Normalize(item);
         item.Durability = FullDurability(item, chosen.Durability);
 
@@ -635,6 +640,13 @@ public sealed class LootRoller
         int itemDropRate = ctx.ServerItemDropRate * _mapDrops.ItemDropRate(ctx.Map) / 100;
         int dropLevel = ctx.MonsterLevel;
         bool excellent = false;
+
+        // Set items: a chance per million per map, from level 25, and then nothing else drops (Monster.cpp:104-108).
+        if (ctx.MonsterLevel >= 25 && rng.Next(1000000) < _mapDrops.SetItemDropRate(ctx.Map))
+        {
+            var setItem = MakeRandomSetItem(ctx.Map, rng);
+            return setItem == null ? null : new LootDrop(setItem, 0);
+        }
 
         // Excellent drops: a chance per million per map, from level 25, taken from items 25 levels lower.
         if (ctx.MonsterLevel >= 25 && rng.Next(1000000) < _mapDrops.ExcItemDropRate(ctx.Map))
@@ -702,6 +714,7 @@ public sealed class LootRoller
         int luck = _optionRates.Pick(ItemOptionRateTable.LuckOption, Row(2), rng) ?? 0;
         int additional = _optionRates.Pick(ItemOptionRateTable.AdditionalOption, Row(3), rng) ?? 0;
         int excellentCount = plain ? 0 : _optionRates.Pick(ItemOptionRateTable.ExcellentCount, Row(4), rng) ?? 0;
+        int setValue = _optionRates.Pick(ItemOptionRateTable.SetOption, Row(5), rng) ?? 0;
 
         var item = new Item
         {
@@ -711,6 +724,43 @@ public sealed class LootRoller
             Option2 = (byte)(plain ? 0 : luck),
             Option3 = (byte)additional,
             NewOption = _excellent.MakeNewOption(itemIndex, 1, excellentCount, rng),
+            SetOption = _sets.Types.MakeSetOption(itemIndex, setValue, rng),
+        };
+
+        ItemCombatMath.Options.Normalize(item);
+        item.Durability = FullDurability(item, 0);
+        return item;
+    }
+
+    /// <summary>Port of CSetItemType::MakeRandomSetItem: a random set piece (weighted by its drop rate) with its
+    /// options rolled from the rows the map uses for set drops. Null when the server has no set item to drop.</summary>
+    public Item? MakeRandomSetItem(int map, Random rng)
+    {
+        int index = _sets.Types.GetRandomSetItem(_items, rng);
+
+        if (index < 0)
+        {
+            return null;
+        }
+
+        int Row(int option) => _mapRates.GetOption(option, map, MapRateInfoTable.DropSet);
+
+        int level = _optionRates.Pick(ItemOptionRateTable.LevelOption, Row(0), rng) ?? 0;
+        int skill = _optionRates.Pick(ItemOptionRateTable.SkillOption, Row(1), rng) ?? 0;
+        int luck = _optionRates.Pick(ItemOptionRateTable.LuckOption, Row(2), rng) ?? 0;
+        int additional = _optionRates.Pick(ItemOptionRateTable.AdditionalOption, Row(3), rng) ?? 0;
+        int excellentCount = _optionRates.Pick(ItemOptionRateTable.ExcellentCount, Row(4), rng) ?? 0;
+        int setValue = _optionRates.Pick(ItemOptionRateTable.SetOption, Row(5), rng) ?? 0;
+
+        var item = new Item
+        {
+            Index = (short)index,
+            Level = (byte)level,
+            Option1 = (byte)skill,
+            Option2 = (byte)luck,
+            Option3 = (byte)additional,
+            NewOption = _excellent.MakeNewOption(index, 1, excellentCount, rng),
+            SetOption = _sets.Types.MakeSetOption(index, setValue, rng),
         };
 
         ItemCombatMath.Options.Normalize(item);

@@ -161,11 +161,18 @@ LoadLootFile(config.MapManagerPath, () => mapDrops.Load(config.MapManagerPath));
 LoadLootFile(config.MapRateInfoPath, () => mapRates.Load(config.MapRateInfoPath));
 LoadLootFile(config.ItemDropPath, () => itemDropRules = LootRoller.LoadItemRules(config.ItemDropPath));
 LoadLootFile(config.ItemMoneyDropPath, () => moneyDropRules = LootRoller.LoadMoneyRules(config.ItemMoneyDropPath));
-var lootRoller = new LootRoller(itemBalance, optionRates, excellentRates, mapDrops, mapRates, itemDropRules, moneyDropRules);
+
+// The set (ancient) items: which pieces belong to a set and what each set grants (see World/SetItems.cs).
+var setItems = new SetItemRules();
+LoadLootFile(config.SetItemTypePath, () => setItems.Types.Load(config.SetItemTypePath));
+LoadLootFile(config.SetItemOptionPath, () => setItems.LoadSets(config.SetItemOptionPath));
+SetItemRules.Current = setItems;
+
+var lootRoller = new LootRoller(itemBalance, optionRates, excellentRates, mapDrops, mapRates, itemDropRules, moneyDropRules, setItems);
 
 // The item bags: what bosses drop, what boxes and medals open into and what the Chaos Machine and the events
 // hand out (see World/ItemBags.cs).
-var itemBags = new ItemBagManager(new ItemBagItemMaker(itemBalance, optionRates, excellentRates));
+var itemBags = new ItemBagManager(new ItemBagItemMaker(itemBalance, optionRates, excellentRates, setItems));
 LoadLootFile(config.ItemBagManagerPath, () => itemBags.Load(config.ItemBagManagerPath, config.ItemBagPath));
 var characterBalance = CharacterBalanceConfig.Load(config.CharacterInfoPath, config.ServerInfoCommonPath);
 

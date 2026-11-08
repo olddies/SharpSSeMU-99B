@@ -413,7 +413,7 @@ public sealed class ViewportTicker
             if (player.BP < player.MaxBP)
             {
                 int rate = _characterBalance.BpRecoveryRate[cls] + (idle ? 3 : 0);
-                uint gain = (uint)Math.Max(((int)player.MaxBP * rate) / 100, 0);
+                uint gain = (uint)Math.Max((((int)player.MaxBP * rate) / 100) + player.BpRecovery, 0);
                 player.BP = Math.Min(player.BP + gain, player.MaxBP);
                 changed = true;
             }

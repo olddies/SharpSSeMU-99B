@@ -24,9 +24,9 @@ public sealed class ItemBagGroup
 }
 
 /// <summary>One thing that came out of a bag.</summary>
-/// <param name="Item">The item, or null for zen and for a set item (which this server cannot make yet).</param>
+/// <param name="Item">The item, or null for zen and for a random set item (the caller makes that one).</param>
 /// <param name="Money">The zen of a zen drop.</param>
-/// <param name="SetItem">True for a drop that the original makes a random set item for; skipped here.</param>
+/// <param name="SetItem">True for a drop that is a random set item (CSetItemType::MakeRandomSetItem).</param>
 /// <param name="Scatter">True when the original looks for a free spot around the monster instead of dropping on it.</param>
 public sealed record BagLoot(Item? Item, long Money, bool SetItem, bool Scatter);
 
@@ -44,12 +44,15 @@ public sealed class ItemBagItemMaker
     private readonly ItemBalanceTable _items;
     private readonly ItemOptionRateTable _optionRates;
     private readonly ExcellentOptionRateTable _excellent;
+    private readonly SetItemRules _sets;
 
-    public ItemBagItemMaker(ItemBalanceTable items, ItemOptionRateTable optionRates, ExcellentOptionRateTable excellent)
+    public ItemBagItemMaker(
+        ItemBalanceTable items, ItemOptionRateTable optionRates, ExcellentOptionRateTable excellent, SetItemRules? sets = null)
     {
         _items = items;
         _optionRates = optionRates;
         _excellent = excellent;
+        _sets = sets ?? SetItemRules.Current;
     }
 
     /// <summary>The body of CItemBagEx::DropItem / GetItem that turns a bag row into an item.</summary>
@@ -63,7 +66,7 @@ public sealed class ItemBagItemMaker
         int additional = _optionRates.Pick(ItemOptionRateTable.AdditionalOption, entry.Options[3], rng) ?? 0;
         int excellentCount = _optionRates.Pick(ItemOptionRateTable.ExcellentCount, entry.Options[4], rng) ?? 0;
 
-        // Options[5] (the set option) only matters for set items, which do not exist here yet.
+        int setValue = _optionRates.Pick(ItemOptionRateTable.SetOption, entry.Options[5], rng) ?? 0;
         int excellent = _excellent.MakeNewOption(entry.ItemIndex, 1, excellentCount, rng);
 
         var item = new Item
@@ -74,6 +77,7 @@ public sealed class ItemBagItemMaker
             Option2 = (byte)luck,
             Option3 = (byte)additional,
             NewOption = (byte)(excellent == 0 ? entry.Grade : excellent),
+            SetOption = _sets.Types.MakeSetOption(entry.ItemIndex, setValue, rng),
         };
 
         ItemCombatMath.Options.Normalize(item);

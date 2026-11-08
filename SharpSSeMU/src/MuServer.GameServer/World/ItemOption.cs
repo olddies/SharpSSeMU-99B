@@ -174,7 +174,17 @@ public sealed class ItemOptionTable
     /// rules loaded at all nothing is cleared -- the flags just have no effect, as before the file was read.</summary>
     public void Normalize(Item item)
     {
-        if (Count == 0 || !item.IsItem())
+        if (!item.IsItem())
+        {
+            return;
+        }
+
+        // The set option stays only when both its variant and its tier are 1 or 2 (Item.cpp:164-170).
+        int variant = item.SetOption & 3;
+        int tier = (item.SetOption >> 2) & 3;
+        item.SetOption = variant is 1 or 2 && tier is 1 or 2 ? (byte)(item.SetOption & 15) : (byte)0;
+
+        if (Count == 0)
         {
             return;
         }

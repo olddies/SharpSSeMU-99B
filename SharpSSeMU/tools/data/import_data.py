@@ -35,6 +35,8 @@ WANTED = [
     ("Item/ItemOptionRate.txt", "Data/Item/ItemOptionRate.txt"),
     ("Item/ExcellentOptionRate.txt", "Data/Item/ExcellentOptionRate.txt"),
     ("Item/ItemDrop.txt", "Data/Item/ItemDrop.txt"),
+    ("Item/SetItemType.txt", "Data/Item/SetItemType.txt"),
+    ("Item/SetItemOption.txt", "Data/Item/SetItemOption.txt"),
     ("Item/ItemMoneyDrop.txt", "Data/Item/ItemMoneyDrop.txt"),
     ("MapManager.txt", "Data/MapManager.txt"),
     ("MapRateInfo.txt", "Data/MapRateInfo.txt"),

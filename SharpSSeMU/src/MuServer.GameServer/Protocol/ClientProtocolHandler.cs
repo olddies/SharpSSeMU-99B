@@ -1840,6 +1840,16 @@ public sealed class ClientProtocolHandler
             return;
         }
 
+        // What is worth keeping cannot be thrown away: anything above +4 (the level does not count from the wings
+        // on), excellent items and set items (ItemManager.cpp:2784).
+        bool excellent = item.Index != Item.GetItem(13, 3) && item.NewOption != 0;
+
+        if ((item.Index < Item.GetItem(12, 0) && item.Level > 4) || excellent || SetItemRules.IsSetItem(item))
+        {
+            await session.SendAsync(ItemPacketBuilder.ItemDropSend(0, recv.Slot), ct);
+            return;
+        }
+
         // Some items do not stay on the ground: thrown down they open a bag (Box of Luck, the Kundun boxes, the
         // medals, the Starter Rings) and what the bag gives lands there instead (ItemManager.cpp:2770-2830).
         BagRoll? bagRoll = null;
@@ -2135,7 +2145,7 @@ public sealed class ClientProtocolHandler
             {
                 if (!skillInfo.CanUse(player.Class, player.ChangeUp) ||
                     player.Level < skillInfo.RequireLevel ||
-                    player.Energy < skillInfo.RequireEnergy ||
+                    player.Energy + player.AddEnergy < skillInfo.RequireEnergy ||
                     player.Leadership < skillInfo.RequireLeadership)
                 {
                     await session.SendAsync(ChatPacketBuilder.NoticeSend(Loc.T("You do not meet the requirements to learn this skill.")), ct);
@@ -3915,7 +3925,8 @@ public sealed class ClientProtocolHandler
     /// <summary>Port of the placement part of CItemBagEx::DropItem: puts what a bag gave on the ground around
     /// (<paramref name="x"/>, <paramref name="y"/>) and shows it. Everything belongs to <paramref name="owner"/>. The
     /// first drop of the bag lands on the spot itself; the others go to a random free tile within two of it (or at
-    /// the owner's feet when there is none). Set items are skipped: they do not exist here yet.</summary>
+    /// the owner's feet when there is none). A set drop makes a random set item
+    /// (<see cref="LootRoller.MakeRandomSetItem"/>).</summary>
     /// <param name="monsterViewers">The players who see the monster that dropped the bag, or null when the owner
     /// dropped it (an opened box), in which case the owner and whoever sees them are told.</param>
     private async Task DropBagAsync(PlayerObject owner, BagRoll roll, int map, int x, int y, IReadOnlyList<int>? monsterViewers, CancellationToken ct)
@@ -3931,9 +3942,16 @@ public sealed class ClientProtocolHandler
 
         foreach (var loot in roll.Loot)
         {
+            var lootItem = loot.Item;
+
             if (loot.SetItem)
             {
-                continue;
+                lootItem = _loot.MakeRandomSetItem(map, Rng);
+
+                if (lootItem == null)
+                {
+                    continue;
+                }
             }
 
             int px = x, py = y;
@@ -3949,9 +3967,9 @@ public sealed class ClientProtocolHandler
 
             GroundItem? ground = null;
 
-            if (loot.Item != null)
+            if (lootItem != null)
             {
-                ground = _groundItems.Drop(map, loot.Item, px, py, owner.Index, ownerParty, GroundItemLifetime, GroundItemLootLock);
+                ground = _groundItems.Drop(map, lootItem, px, py, owner.Index, ownerParty, GroundItemLifetime, GroundItemLootLock);
             }
             else if (loot.Money > 0)
             {

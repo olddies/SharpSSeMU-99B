@@ -45,7 +45,7 @@ working. Fixes found by real play-testing are recorded in the
 | Monster AI | 🔶 | idle/patrol/chase/attack; spell selection is heuristic (`GetMonsterAttackSkill`) |
 | Skills & mana | 🔶 | single-target, duration and multi-target attacks, learning via orbs, mana/BP regen. No `EffectList.txt` buffs/debuffs, no combo/ally-teleport |
 | Death, experience, level-up, respawn | ✅ | corpse stays visible until respawn (as in the original) |
-| Loot | 🔶 | as in the original: quest items, `ItemDrop.txt` / `ItemMoneyDrop.txt` rules, then the generic roll (monster `ItemRate` vs `ItemDropRate`, per-map rates from `MapManager.txt`, excellent drops from level 25), with level/skill/luck/additional/excellent options rolled from `ItemOptionRate.txt` / `ExcellentOptionRate.txt`; zen = the experience the monster gave. Boss bags (Red Dragon, golden monsters, Skeleton King, White Wizard, Kundun) and the boxes, medals and Starter Rings that open when thrown on the ground come from `EventItemBag`. No drop events or set items (a bag's set drops are skipped) |
+| Loot | 🔶 | as in the original: quest items, `ItemDrop.txt` / `ItemMoneyDrop.txt` rules, then the generic roll (monster `ItemRate` vs `ItemDropRate`, per-map rates from `MapManager.txt`, excellent drops from level 25), with level/skill/luck/additional/excellent options rolled from `ItemOptionRate.txt` / `ExcellentOptionRate.txt`; zen = the experience the monster gave. Boss bags (Red Dragon, golden monsters, Skeleton King, White Wizard, Kundun) and the boxes, medals and Starter Rings that open when thrown on the ground come from `EventItemBag`. No drop events |
 | Chat, whisper (cross-GameServer), party (+XP sharing), friends | ✅ | friend mail ❌ |
 | Quests | 🔶 | quest info/state opcodes wired to the real quest tables |
 | Guild | 🔶 | list / master window / create; needs guild schema work to finish |
@@ -53,7 +53,7 @@ working. Fixes found by real play-testing are recorded in the
 | Blood Castle, Chaos Castle, Kalima | ❌ | same event engine as Devil Square, different data/rules |
 | Duel, Personal Shop, Golden Archer, Pets (Dark Spirit/Raven), Teleport Ally, PartyMatching | ❌ | most need a second account to test properly |
 | Item options: skill, luck, additional, excellent | ✅ | `ItemOption.txt`; excellent base bonuses, durability and requirements; damage reflect/reduction, life & mana after hunting, zen, HP recovery, full-armour set bonus |
-| Set (ancient) items | ❌ | `SetItemOption.txt` not loaded |
+| Set (ancient) items | ✅ | `SetItemType.txt` / `SetItemOption.txt`: the stats of a set piece, the bonuses of two or more pieces and of the full set, the aura, random set drops (per-map rate, `ItemDrop.txt` rows, bags such as Kundun's). Set pieces cannot be thrown on the ground |
 | Per-map damage tables (`DamageTable`) | ❌ | treated as 100 % (`GeneralDamageRatePvM` / per-class PvM rates are applied) |
 | Socket / pentagram / Muun / Harmony systems | ⛔ | later seasons |
 | Illusion Temple, Castle Siege, Crywolf | ⛔ | not part of 0.99B (dead code in the original build) |
@@ -92,7 +92,7 @@ against. The open-source client in this repository is a **fork of MuMain (Season
 Suggested order, easiest wins first:
 
 1. **Client UI → 0.99B look** (see `docs/ui-099b.md`).
-2. **Loot**: drop events, set items (Kundun's bag drops five of them), Blood Castle / Chaos Castle bag rewards.
+2. **Loot**: drop events, Blood Castle / Chaos Castle bag rewards.
 3. **Blood Castle → Chaos Castle → Kalima** on the existing Devil Square engine.
 4. **Duel**, then Guild completion (schema + ranks + marks), Personal Shop, Golden Archer.
 5. Skill effects (`EffectList.txt` buffs/debuffs), combo and ally-teleport.
@@ -107,6 +107,7 @@ Bugs found by real play-testing in the latest session (all verified by rebuild +
 - **Kill damage number:** the killing blow showed two numbers. Like the original server, it now sends no damage packet; its number travels in the kill reward packet, only to whoever landed it (or the party).
 - **Original client:** it could not connect with `127.0.0.1` — Webzen's `main.exe` refuses that exact address. See [Getting started](GETTING_STARTED.md#6-connect-a-client).
 - **Character delete** and **saved skill hot-keys** were not handled by the GameServer.
+- **Set items:** they did not exist (the files were never read). Set pieces now have their own stats, bonuses and aura, drop like in the original and Kundun's bag really gives its five. Like the original, items above +4, excellent items and set items can no longer be thrown on the ground.
 - **Item bags:** bosses, Box of Luck, the Kundun boxes, the medals, the Starter Rings, the Chaos Machine results and the Devil Square prize were missing or hard-coded. They now come from `EventItemBagManager.txt` and `EventItemBag/` like the original.
 - **Drops:** the *Item drop probability* setting (`ItemDropRate`) was ignored, the options of dropped items were a rough guess and the zen did not follow the original. Drops now come from the original files (`MapManager.txt`, `ItemDrop.txt`, `ItemOptionRate.txt`, `ExcellentOptionRate.txt`...) and a kill's zen is the experience it gave; the shipped default is now the original package's (`ItemDropRate` 100, about half the kills of a level-47 monster drop an item).
 - **Item options:** skill and luck were swapped in drops, NPC shops and the AdminPanel; shops sold items at durability 0 (broken); weapons listed their skill without the skill option.

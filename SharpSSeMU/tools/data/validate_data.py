@@ -95,6 +95,7 @@ REQUIRED_DIRS = ["Data/Monster/Spawn", "Data/Shop", "Data/Terrain"]
 OPTIONAL_FILES = [
     "Data/Item/ItemValue.txt", "Data/Item/ItemOption.txt", "Data/Skill/SkillDamage.txt",
     "Data/Item/ItemOptionRate.txt", "Data/Item/ExcellentOptionRate.txt", "Data/Item/ItemDrop.txt",
+    "Data/Item/SetItemType.txt", "Data/Item/SetItemOption.txt",
     "Data/Item/ItemMoneyDrop.txt", "Data/MapManager.txt", "Data/MapRateInfo.txt", "Data/EventItemBagManager.txt",
 ]
 # What the server does without each optional file, for the warning.
@@ -102,6 +103,8 @@ OPTIONAL_HINTS = {
     "ItemOption.txt": "items keep their skill/luck/excellent flags but grant no bonus from them.",
     "ItemOptionRate.txt": "dropped items come without level, skill, luck or excellent options.",
     "ExcellentOptionRate.txt": "dropped excellent items come without excellent options.",
+    "SetItemType.txt": "no set (ancient) item exists: none drops, and a set item's bonuses are lost.",
+    "SetItemOption.txt": "set items still show their own bonus but a set grants nothing for several pieces worn.",
     "ItemDrop.txt": "no specific item (jewels, feathers, scrolls...) drops from monsters.",
     "ItemMoneyDrop.txt": "no extra zen drop rules apply.",
     "MapManager.txt": "every map uses the default drop rates and no item rules or excellent drops apply.",

@@ -38,6 +38,7 @@ public static class PlayerAttackMath
     public const byte EffectExcellent = 2;
     public const byte EffectCritical = 3;
     public const byte EffectReflect = 4;
+    public const byte EffectDoubleDamage = 0x40;
 
     // SkillManager.h
     private const int SkillFallingSlash = 19, SkillLunge = 20, SkillUppercut = 21, SkillCyclone = 22, SkillSlash = 23;
@@ -81,8 +82,8 @@ public static class PlayerAttackMath
         if (UsesMagicDamage(player, skill))
         {
             // GetAttackDamageWizard: the spell's damage, then the staff or magic sword "rise" on top of both.
-            damageMin = player.MagicDamageMin + skillDamageMin;
-            damageMax = player.MagicDamageMax + skillDamageMax;
+            damageMin = player.MagicDamageMin + skillDamageMin + player.SkillDamageBonus;
+            damageMax = player.MagicDamageMax + skillDamageMax + player.SkillDamageBonus;
 
             var right = player.Items[Item.SlotWeapon1];
             var info = right.IsItem() ? items.Get(right.Index) : null;
@@ -98,8 +99,9 @@ public static class PlayerAttackMath
         {
             // GetAttackDamage: the hands a plain attack uses, plus the skill's damage.
             (int handMin, int handMax) = player.SelectAttackHands();
-            damageMin = handMin + skillDamageMin;
-            damageMax = handMax + skillDamageMax;
+            int skillBonus = skill != 0 ? player.SkillDamageBonus : 0;
+            damageMin = handMin + skillDamageMin + skillBonus;
+            damageMax = handMax + skillDamageMax + skillBonus;
         }
 
         int range = Math.Max(damageMax - damageMin, 1);
@@ -108,13 +110,13 @@ public static class PlayerAttackMath
         if (rng.Next(100) < player.CriticalDamageRate)
         {
             effect = EffectCritical;
-            damage = damageMax;
+            damage = damageMax + player.CriticalDamage;
         }
 
         if (rng.Next(100) < player.ExcellentDamageRate)
         {
             effect = EffectExcellent;
-            damage = (damageMax * 120) / 100;
+            damage = ((damageMax * 120) / 100) + player.ExcellentDamage;
         }
 
         damage = Math.Max(damage - defense, 0);
@@ -154,6 +156,13 @@ public static class PlayerAttackMath
         else if (skill is SkillForce or SkillFireBurst or SkillEarthquake or SkillElectricSpark)
         {
             damage = damage * player.DlDamageMultiplierRate / 100;
+        }
+
+        // The double damage of the set items (Attack.cpp:345-349).
+        if (player.DoubleDamageRate > 0 && rng.Next(100) < player.DoubleDamageRate)
+        {
+            effect |= EffectDoubleDamage;
+            damage += damage;
         }
 
         damage = damage * rules.GeneralDamageRatePvM / 100;

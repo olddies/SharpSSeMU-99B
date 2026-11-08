@@ -125,48 +125,69 @@ public sealed class DataServerConnection
 
             foreach (var packet in packets)
             {
-                byte head = packet[0] == 0xC1 ? packet[2] : packet[3];
-
-                switch (head)
+                try
                 {
-                    case 0x01:
-                        await _onCharacterList(CharacterListFromDataServer.Parse(packet), ct);
-                        break;
-
-                    case 0x02:
-                        await _onCharacterCreate(CharacterCreateResultFromDataServer.Parse(packet), ct);
-                        break;
-
-                    case 0x04:
-                        await _onCharacterInfo(CharacterInfoFromDataServer.Parse(packet), ct);
-                        break;
-
-                    case 0x05:
-                        if (_onWarehouse != null) await _onWarehouse(packet, ct);
-                        break;
-
-                    case 0x03: // SDHP_CHARACTER_DELETE_RECV
-                    case 0x08: // SDHP_OPTION_DATA_RECV
-                        if (_onCharacterMisc != null) await _onCharacterMisc(head, packet, ct);
-                        break;
-
-                    case 0x72:
-                        await _onGlobalWhisperResult(GlobalWhisperResultFromDataServer.Parse(packet), ct);
-                        break;
-
-                    case 0x73:
-                        await _onGlobalWhisperEcho(GlobalWhisperEchoFromDataServer.Parse(packet), ct);
-                        break;
-
-                    case 0xB0:
-                        await _onFriend(packet, ct);
-                        break;
-
-                    default:
-                        Log.Add(LogColor.Black, "[DataServer] Head 0x{0:X2} received (full dispatch pending for later phases)", head);
-                        break;
+                    await DispatchAsync(packet, ct);
+                }
+                catch (SocketException ex)
+                {
+                    // The reply was for a client that has just gone away (the DataServer answers a request after the
+                    // player left): sending to it fails, which says nothing about the DataServer link. It used to
+                    // escape from here and make the GameServer drop and re-open that link, losing every pending
+                    // request.
+                    Log.Add(LogColor.Black, "[DataServer] A reply could not be delivered, the client has gone: {0}", ex.Message);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    // Any other handler failure must not drop the link either.
+                    Log.Add(LogColor.Red, "[DataServer] Error handling a packet: {0}", ex.Message);
                 }
             }
+        }
+    }
+
+    private async Task DispatchAsync(byte[] packet, CancellationToken ct)
+    {
+        byte head = packet[0] == 0xC1 ? packet[2] : packet[3];
+
+        switch (head)
+        {
+            case 0x01:
+                await _onCharacterList(CharacterListFromDataServer.Parse(packet), ct);
+                break;
+
+            case 0x02:
+                await _onCharacterCreate(CharacterCreateResultFromDataServer.Parse(packet), ct);
+                break;
+
+            case 0x04:
+                await _onCharacterInfo(CharacterInfoFromDataServer.Parse(packet), ct);
+                break;
+
+            case 0x05:
+                if (_onWarehouse != null) await _onWarehouse(packet, ct);
+                break;
+
+            case 0x03: // SDHP_CHARACTER_DELETE_RECV
+            case 0x08: // SDHP_OPTION_DATA_RECV
+                if (_onCharacterMisc != null) await _onCharacterMisc(head, packet, ct);
+                break;
+
+            case 0x72:
+                await _onGlobalWhisperResult(GlobalWhisperResultFromDataServer.Parse(packet), ct);
+                break;
+
+            case 0x73:
+                await _onGlobalWhisperEcho(GlobalWhisperEchoFromDataServer.Parse(packet), ct);
+                break;
+
+            case 0xB0:
+                await _onFriend(packet, ct);
+                break;
+
+            default:
+                Log.Add(LogColor.Black, "[DataServer] Head 0x{0:X2} received (full dispatch pending for later phases)", head);
+                break;
         }
     }
 
