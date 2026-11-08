@@ -39,17 +39,17 @@ funcionales. Los arreglos encontrados jugando están registrados en el
 | Uso de items: pociones, town portal, **joyas** (Bless / Soul / Life), orbes y pergaminos de skill | ✅ | |
 | Tiendas de NPC (comprar / vender) | ✅ | 14 tiendas reales; el precio mostrado = el precio cobrado |
 | Baúl, Trade | ✅ | |
-| Chaos Machine | ✅ | fórmulas y tasas de éxito reales |
+| Chaos Machine | ✅ | fórmulas y tasas de éxito reales; el item que da una mezcla sale de su bolsa de `EventItemBag` |
 | Combate: golpes y skills contra monstruos | ✅ | tirada de acierto/esquiva, defensa, golpes crítico / excelente / ignorar defensa (con su color en el cliente), alas y mascotas, multiplicadores de skills de DK/DL, piso de daño, ratios de daño PvM — portado de `Attack.cpp` |
 | Combate: monstruos atacan jugadores | ✅ | mismo pipeline que los jugadores; los hechizos usan el rango de daño propio del skill |
 | IA de monstruos | 🔶 | inactivo/patrulla/persecución/ataque; la elección de hechizo es heurística (`GetMonsterAttackSkill`) |
 | Skills y maná | 🔶 | ataques a un objetivo, de duración y multi-objetivo, aprendizaje por orbes, regeneración de maná/BP. Sin buffs/debuffs de `EffectList.txt`, sin combo/teleport de aliado |
 | Muerte, experiencia, subir de nivel, respawn | ✅ | el cadáver permanece visible hasta el respawn (como en el original) |
-| Loot | 🔶 | tirada genérica de item/zen por `ItemRate`/`MoneyRate` y drops de quests. Sin `ItemBag`, tablas de drop de jefes/eventos, opciones excelentes/set aleatorias |
+| Loot | 🔶 | como en el original: items de quest, reglas de `ItemDrop.txt` / `ItemMoneyDrop.txt` y después la tirada genérica (`ItemRate` del monstruo contra `ItemDropRate`, tasas por mapa de `MapManager.txt`, drops excelentes desde el nivel 25), con las opciones de nivel/skill/suerte/adicional/excelente sorteadas de `ItemOptionRate.txt` / `ExcellentOptionRate.txt`; el zen es la experiencia que dio el monstruo. Las bolsas de jefes (Red Dragon, monstruos dorados, Skeleton King, White Wizard, Kundun) y las cajas, medallas y Starter Rings que se abren al tirarlos al suelo salen de `EventItemBag`. Sin drop events ni items de set (los drops de set de una bolsa se omiten) |
 | Chat, susurro (entre GameServers), party (+reparto de XP), amigos | ✅ | correo entre amigos ❌ |
 | Quests | 🔶 | opcodes de info/estado de quest conectados a las tablas reales |
 | Guild | 🔶 | lista / ventana del maestro / crear; falta trabajo de esquema para terminarla |
-| Devil Square | ✅ | máquina de estados completa, tickets, spawns por etapa, ranking |
+| Devil Square | ✅ | máquina de estados completa, tickets, spawns por etapa, ranking, item del primer puesto desde su bolsa |
 | Blood Castle, Chaos Castle, Kalima | ❌ | mismo motor de eventos que Devil Square, distintos datos/reglas |
 | Duelo, Personal Shop, Golden Archer, Mascotas (Dark Spirit/Raven), Teleport Ally, PartyMatching | ❌ | la mayoría necesita una segunda cuenta para probarse bien |
 | Opciones de items: skill, suerte, adicional, excelentes | ✅ | `ItemOption.txt`; bonus base de los excelentes, durabilidad y requisitos; reflejo y reducción de daño, vida y maná al cazar, zen, recuperación de vida, bonus de set de armadura completo |
@@ -91,14 +91,13 @@ El cliente open source de este repositorio es un **fork de MuMain (Season 5.2 �
 Orden sugerido, lo más fácil primero:
 
 1. **UI del cliente → aspecto 0.99B** (ver `docs/ui-099b.md`).
-2. **Loot**: opciones excelentes y niveles sorteados como en el original (`ItemOptionRate.txt`, `ExcellentOptionRate.txt`), `ItemBag`, tablas de jefes/eventos.
+2. **Loot**: drop events, items de set (la bolsa de Kundun suelta cinco), premios en bolsa de Blood Castle / Chaos Castle.
 3. **Blood Castle → Chaos Castle → Kalima** sobre el motor de Devil Square existente.
 4. **Duelo**, luego completar Guild (esquema + rangos + marcas), Personal Shop, Golden Archer.
-5. Loot de monstruos: `ItemBag`, tablas de drop de jefes y eventos.
-6. Efectos de skills (buffs/debuffs de `EffectList.txt`), combo y teleport de aliado.
-7. Recarga de config en caliente + endurecer el AdminPanel (autenticación por usuario).
-8. Seguir la auditoría del cliente: llamadas restantes a la capa de red heredada, quitar código exclusivo de Season 6.
-9. Build Linux del cliente.
+5. Efectos de skills (buffs/debuffs de `EffectList.txt`), combo y teleport de aliado.
+6. Recarga de config en caliente + endurecer el AdminPanel (autenticación por usuario).
+7. Seguir la auditoría del cliente: llamadas restantes a la capa de red heredada, quitar código exclusivo de Season 6.
+8. Build Linux del cliente.
 
 ## Arreglado recientemente
 
@@ -107,6 +106,8 @@ Bugs encontrados jugando con un cliente real en la última sesión (todos verifi
 - **Número de daño al matar:** el golpe final mostraba dos números. Como el servidor original, ahora no manda paquete de daño; su número viaja en el paquete de recompensa, solo para quien lo dio (o su party).
 - **Cliente original:** no conectaba con `127.0.0.1` — el `main.exe` de Webzen rechaza esa dirección exacta. Ver [Primeros pasos](GETTING_STARTED.md#6-conectar-un-cliente).
 - El GameServer no atendía el **borrado de personaje** ni el **guardado de teclas rápidas**.
+- **Bolsas de items:** los jefes, la Box of Luck, las cajas de Kundun, las medallas, los Starter Ring, los resultados del Chaos Machine y el premio de Devil Square faltaban o estaban fijados en el código. Ahora salen de `EventItemBagManager.txt` y `EventItemBag/` como en el original.
+- **Drops:** el ajuste *Probabilidad de drop de item* (`ItemDropRate`) se ignoraba, las opciones de los items soltados eran una estimación y el zen no seguía al original. Ahora los drops salen de los archivos originales (`MapManager.txt`, `ItemDrop.txt`, `ItemOptionRate.txt`, `ExcellentOptionRate.txt`...) y el zen de una muerte es la experiencia que dio; el valor por defecto del repo es ahora el del paquete original (`ItemDropRate` 100: cerca de la mitad de las muertes de un monstruo de nivel 47 sueltan un item).
 - **Opciones de items:** skill y suerte estaban invertidos en drops, tiendas NPC y el AdminPanel; las tiendas vendían los items con durabilidad 0 (rotos); las armas mostraban su skill sin tener la opción de skill.
 - Los **tests end-to-end** se colgaban a mitad: el harness nunca leía el pipe de consola de los servidores y uno quedaba bloqueado escribiendo su log.
 

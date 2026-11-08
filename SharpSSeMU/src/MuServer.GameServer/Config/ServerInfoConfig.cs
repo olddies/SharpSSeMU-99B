@@ -77,6 +77,11 @@ public sealed class ServerInfoConfig
     public int[] AddExperienceRate { get; private set; } = { 1, 1, 1, 1 };
     public int[] MoneyAmountDropRate { get; private set; } = { 100, 100, 100, 100 };
 
+    /// <summary>ItemDropRate_AL0..3: a monster drops an item when <c>random(monster ItemRate) &lt; ItemDropRate</c>
+    /// (times the map's rate), so the larger it is the more kills drop one -- at or above the monster's ItemRate, all
+    /// of them.</summary>
+    public int[] ItemDropRate { get; private set; } = { 100, 100, 100, 100 };
+
     /// <summary>Port of m_ItemDropTime/m_MoneyDropTime (Common.dat) -- lifetime (seconds) of an item/money
     /// dropped on the ground before it disappears on its own; the owner's loot-lock lasts HALF this time
     /// (<c>m_ItemDropTime*500</c> in ms, MapItem.cpp:29-99) -- see <see cref="World.GroundItem"/>. FIXED:
@@ -124,6 +129,14 @@ public sealed class ServerInfoConfig
                 common.GetInt("GameServerInfo", "MoneyAmountDropRate_AL1", 100),
                 common.GetInt("GameServerInfo", "MoneyAmountDropRate_AL2", 100),
                 common.GetInt("GameServerInfo", "MoneyAmountDropRate_AL3", 100),
+            },
+
+            ItemDropRate = new[]
+            {
+                common.GetInt("GameServerInfo", "ItemDropRate_AL0", 100),
+                common.GetInt("GameServerInfo", "ItemDropRate_AL1", 100),
+                common.GetInt("GameServerInfo", "ItemDropRate_AL2", 100),
+                common.GetInt("GameServerInfo", "ItemDropRate_AL3", 100),
             },
 
             ItemDropTimeSeconds = common.GetInt("GameServerInfo", "ItemDropTime", 30),

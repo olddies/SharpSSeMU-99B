@@ -548,6 +548,27 @@ try
         Check("[A] Recoger el dinero del piso da result=0xFE (marcador de dinero)", moneyGetPkt.Full[3] == 0xFE, $"(result={moneyGetPkt.Full[3]})");
         uint moneyAfterPickup = ((uint)moneyGetPkt.Full[4] << 24) | ((uint)moneyGetPkt.Full[5] << 16) | ((uint)moneyGetPkt.Full[6] << 8) | moneyGetPkt.Full[7];
         Check("[A] El dinero total tras recoger es mayor a 0", moneyAfterPickup > 0, $"(dinero={moneyAfterPickup})");
+
+        // Item bags: the environment lists only the Box of Luck (14,11), with its real bag file. Thrown on the
+        // ground the box is used up and what the bag gives appears there instead of the box.
+        Console.WriteLine("\n=== Bolsas de items: A tira una Box of Luck y la bolsa se abre en el piso ===");
+        clientA.DiscardPending();
+        await clientA.SendChatAsync(char1, "/item 14 11");
+        var boxGiven = await clientA.WaitForAsync(0x24, TimeSpan.FromSeconds(5));
+        byte boxSlot = boxGiven.Full[4];
+        const int boxItemIndex = 14 * 32 + 11; // GET_ITEM(14,11)
+        Check("[A] /item 14 11 le dio la Box of Luck", boxGiven.Full[3] == 0 && boxGiven.Full[5] == (boxItemIndex & 0xFF),
+            $"(result={boxGiven.Full[3]}, slot={boxSlot}, ItemInfo[0]={boxGiven.Full[5]})");
+
+        clientA.DiscardPending();
+        await clientA.SendItemDropAsync(ax, ay, boxSlot);
+        var boxDrop = await clientA.WaitForAsync(0x23, TimeSpan.FromSeconds(5));
+        Check("[A] ITEM_DROP_SEND result=1 (la caja se gastó)", boxDrop.Full[3] == 1, $"(result={boxDrop.Full[3]})");
+
+        var boxContents = await clientA.WaitForAsync(0x20, TimeSpan.FromSeconds(5));
+        Check("[A] La bolsa dejó 1 item en el piso (0x20) y no es la caja",
+            boxContents.Full[4] == 1 && boxContents.Full[9] != (boxItemIndex & 0xFF),
+            $"(count={boxContents.Full[4]}, ItemInfo[0]={boxContents.Full[9]})");
     }
 
     Console.WriteLine("\n=== Fase 5: chat público y whisper ===");

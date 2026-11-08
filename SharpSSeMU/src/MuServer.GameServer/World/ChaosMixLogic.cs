@@ -70,8 +70,11 @@ public static class ChaosMixLogic
     /// computes for the shop) -- passed in by the caller so as not to duplicate that formula here.</param>
     /// <param name="execute">true to really combine (0x86). false to only compute the rate (0x88): same
     /// formula, it does not charge, nor empty the box, nor roll the dice.</param>
+    /// <param name="bags">The item bags (EventItemBagManager.txt): when it has a bag for a mix, the item that comes
+    /// out is taken from it like the original does; without one the built-in list below is used.</param>
     public static ChaosMixResult CalculateAndExecuteMix(PlayerObject player, ChaosMixType mixType,
-        GameServerInfoChaosMix rates, int[] addLuckSuccessRate2, Func<Item, int> getBuyMoney, bool execute = true)
+        GameServerInfoChaosMix rates, int[] addLuckSuccessRate2, Func<Item, int> getBuyMoney, bool execute = true,
+        ItemBagManager? bags = null)
     {
         var box = player.ChaosBoxItems;
         var items = box.Where(i => i.IsItem()).ToList();
@@ -84,7 +87,7 @@ public static class ChaosMixLogic
         return mixType switch
         {
             // CHAOS_MIX_CHAOS_ITEM -> CChaosBox::ChaosItemMix
-            ChaosMixType.ChaosItem => MixChaosItem(player, items, rates, getBuyMoney, execute),
+            ChaosMixType.ChaosItem => MixChaosItem(player, items, rates, getBuyMoney, execute, bags),
 
             // CHAOS_MIX_PLUS_ITEM_LEVEL1 (3) -> PlusItemLevelMix(tipo=0): tira +9 a +10
             ChaosMixType.PlusItem10 => MixPlusItemLevel(player, items, rates, addLuckSuccessRate2, getBuyMoney, 0, execute),
@@ -97,15 +100,15 @@ public static class ChaosMixLogic
 
             // CHAOS_MIX_WING1 (7) -> WATCH OUT! in the original this runs Wing2Mix(type=0): Chaos + Loch's
             // Feather (level 0) + a 1st-generation wing -> 2nd-gen wing (Spirits/Soul/ Dragon/Darkness).
-            ChaosMixType.Wing1 => MixWing2Family(player, items, rates, getBuyMoney, wingTier: 0, execute),
+            ChaosMixType.Wing1 => MixWing2Family(player, items, rates, getBuyMoney, wingTier: 0, execute, bags),
 
             // CHAOS_MIX_WING2 (11) -> WATCH OUT! this runs Wing1Mix(): Chaos + an excellent chaos weapon ->
             // 1st-generation wing (Elf/Heaven/Satan).
-            ChaosMixType.Wing2 => MixWing1(player, items, rates, getBuyMoney, execute),
+            ChaosMixType.Wing2 => MixWing1(player, items, rates, getBuyMoney, execute, bags),
 
             // "Cape" in the original -- Wing2Mix(type=1): Chaos + Crest of Monarch (level 1 of the same item as
             // Loch's Feather) + a 2nd-gen wing -> Cape of Lord.
-            ChaosMixType.Wing3 => MixWing2Family(player, items, rates, getBuyMoney, wingTier: 1, execute),
+            ChaosMixType.Wing3 => MixWing2Family(player, items, rates, getBuyMoney, wingTier: 1, execute, bags),
 
             _ => new ChaosMixResult(false, 0, null, false, 0, 0), // DevilSquare/Dinorant/BloodCastle: no portado
         };
@@ -144,8 +147,24 @@ public static class ChaosMixLogic
     /// closing the window.</summary>
     private static void ClearBox(PlayerObject player) => player.ClearChaosBox();
 
+    /// <summary>The item of a mix from its item bag (GetItemBySpecialValue(CHAOS_BOX, level)). False when there is
+    /// no such bag, so the caller uses its built-in list; true with a null item when the bag gave nothing, which
+    /// the original treats as a failed mix that charges the zen and keeps the ingredients.</summary>
+    private static bool TryBagItem(ItemBagManager? bags, int specialLevel, PlayerObject player, out Item? item)
+    {
+        item = null;
+
+        if (bags == null || !bags.HasSpecial(ItemBagManager.SpecialChaosBox, specialLevel))
+        {
+            return false;
+        }
+
+        item = bags.GetItemBySpecialValue(ItemBagManager.SpecialChaosBox, specialLevel, -1, player.Class, player.ChangeUp, Random.Shared);
+        return true;
+    }
+
     private static ChaosMixResult MixChaosItem(PlayerObject player, List<Item> items, GameServerInfoChaosMix rates,
-        Func<Item, int> getBuyMoney, bool execute)
+        Func<Item, int> getBuyMoney, bool execute, ItemBagManager? bags)
     {
         int chaosCount = 0, itemCount = 0, itemMoney = 0;
 
@@ -190,6 +209,17 @@ public static class ChaosMixLogic
 
         if (Random.Shared.Next(100) < rate)
         {
+            if (TryBagItem(bags, ItemBagManager.ChaosItemMix, player, out var fromBag))
+            {
+                if (fromBag == null)
+                {
+                    return new ChaosMixResult(false, 0, null, false, rate, zen);
+                }
+
+                ClearBox(player);
+                return new ChaosMixResult(true, 1, fromBag, true, rate, zen);
+            }
+
             int index = ChaosWeapons[Random.Shared.Next(ChaosWeapons.Length)];
             bool luck = Random.Shared.Next(100) < 50;
             byte level = (byte)Random.Shared.Next(0, 3);
@@ -310,7 +340,7 @@ public static class ChaosMixLogic
     /// Option3>=1) -> 1st-generation wing (Elf/Heaven/Satan). On the wire this is triggered with <see
     /// cref="ChaosMixType.Wing2"/> (11), not Wing1 -- see the comment of <see cref="ChaosMixType"/>.</summary>
     private static ChaosMixResult MixWing1(PlayerObject player, List<Item> items, GameServerInfoChaosMix rates,
-        Func<Item, int> getBuyMoney, bool execute)
+        Func<Item, int> getBuyMoney, bool execute, ItemBagManager? bags)
     {
         int chaosCount = 0, chaosWeaponCount = 0, itemMoney = 0;
 
@@ -359,6 +389,17 @@ public static class ChaosMixLogic
 
         if (Random.Shared.Next(100) < rate)
         {
+            if (TryBagItem(bags, ItemBagManager.ChaosWing1Mix, player, out var fromBag))
+            {
+                if (fromBag == null)
+                {
+                    return new ChaosMixResult(false, 0, null, false, rate, zen);
+                }
+
+                ClearBox(player);
+                return new ChaosMixResult(true, 1, fromBag, true, rate, zen);
+            }
+
             int index = Wing1Candidates[Random.Shared.Next(Wing1Candidates.Length)];
             var newItem = new Item { Index = (short)index, Level = 0, Durability = 255 };
             ClearBox(player);
@@ -374,7 +415,7 @@ public static class ChaosMixLogic
     /// the wire); =1 -> Chaos + Crest of Monarch (same item index, level 1) + 2nd-gen wing -> Cape of Lord
     /// (triggered with <see cref="ChaosMixType.Wing3"/> =24).</summary>
     private static ChaosMixResult MixWing2Family(PlayerObject player, List<Item> items, GameServerInfoChaosMix rates,
-        Func<Item, int> getBuyMoney, int wingTier, bool execute)
+        Func<Item, int> getBuyMoney, int wingTier, bool execute, ItemBagManager? bags)
     {
         int chaosCount = 0, featherCount = 0, wingItemCount = 0, wingItemMoney = 0, itemMoney = 0;
 
@@ -438,6 +479,17 @@ public static class ChaosMixLogic
 
         if (Random.Shared.Next(100) < rate)
         {
+            if (TryBagItem(bags, wingTier == 0 ? ItemBagManager.ChaosWing2Mix : ItemBagManager.ChaosCapeMix, player, out var fromBag))
+            {
+                if (fromBag == null)
+                {
+                    return new ChaosMixResult(false, 0, null, false, rate, zen);
+                }
+
+                ClearBox(player);
+                return new ChaosMixResult(true, 1, fromBag, true, rate, zen);
+            }
+
             var candidates = wingTier == 0 ? Wing2Candidates : CapeCandidates;
             int index = candidates[Random.Shared.Next(candidates.Length)];
             var newItem = new Item { Index = (short)index, Level = 0, Durability = 255 };

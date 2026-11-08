@@ -57,7 +57,8 @@ Dos reglas en las que se apoyan los pasos de combate:
 
 Los fixtures siembran lo que cada escenario necesita: Hero3 (Devil Square) recibe Vitality alta **y**
 vida actual, porque `Life` se lee de la fila del personaje y Vitality solo sube `MaxLife`; el test de
-items de piso agrega dos monstruos deterministas que dropean (`Deployment.seed_drop_monsters`).
+items de piso agrega dos monstruos deterministas que dropean (`Deployment.seed_drop_monsters`) y la bolsa
+real de la Box of Luck (`Deployment.seed_item_bag`), para tirar una caja al piso y ver cómo se abre.
 
 ## Notas de fixture que importan
 

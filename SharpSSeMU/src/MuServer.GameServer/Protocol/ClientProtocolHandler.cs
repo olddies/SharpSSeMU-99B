@@ -61,6 +61,8 @@ public sealed class ClientProtocolHandler
     private readonly QuestObjectiveTable _questObjectives;
     private readonly QuestRewardTable _questRewards;
     private readonly GameServerInfoCommon? _gsiCommon;
+    private readonly LootRoller _loot;
+    private readonly ItemBagManager? _bags;
 
     public ClientProtocolHandler(
         GameServerConfig config, JoinServerConnection joinServer, DataServerConnection dataServer,
@@ -71,8 +73,11 @@ public sealed class ClientProtocolHandler
         GateTable? gates = null, MoveTable? moves = null, BloodCastleManager? bloodCastle = null, MessageTable? messages = null,
         QuestTable? quests = null, QuestObjectiveTable? questObjectives = null, QuestRewardTable? questRewards = null,
         GameServerInfoCommon? gsiCommon = null, ItemValueTable? itemValues = null,
-        GameServerInfoChaosMix? chaosMixRates = null)
+        GameServerInfoChaosMix? chaosMixRates = null, LootRoller? loot = null, ItemBagManager? bags = null)
     {
+        _bags = bags;
+        _loot = loot ?? new LootRoller(itemBalance, new ItemOptionRateTable(), new ExcellentOptionRateTable(), new MapDropTable(),
+            new MapRateInfoTable(), new List<ItemDropRule>(), new List<MoneyDropRule>());
         _config = config;
         _joinServer = joinServer;
         _dataServer = dataServer;
@@ -102,6 +107,16 @@ public sealed class ClientProtocolHandler
         if (_devilSquare != null)
         {
             _devilSquare.GrantExperience = (member, experience, ct) => ApplyExperienceGainAsync(member, -1, experience, 0, ct);
+
+            _devilSquare.GiveItemBag = async (member, specialValue, level, state, ct) =>
+            {
+                var roll = _bags?.DropBySpecialValue(specialValue, level, state, member.Class, member.ChangeUp, member.Map, Rng);
+
+                if (roll != null)
+                {
+                    await DropBagAsync(member, roll, member.Map, member.X, member.Y, null, ct);
+                }
+            };
         }
     }
 
@@ -1825,18 +1840,45 @@ public sealed class ClientProtocolHandler
             return;
         }
 
-        var ground = _groundItems.Drop(
-            player.Map, item, recv.X, recv.Y, player.Index, player.PartyNumber == -1 ? null : player.PartyNumber,
-            GroundItemLifetime, GroundItemLootLock);
+        // Some items do not stay on the ground: thrown down they open a bag (Box of Luck, the Kundun boxes, the
+        // medals, the Starter Rings) and what the bag gives lands there instead (ItemManager.cpp:2770-2830).
+        BagRoll? bagRoll = null;
 
-        if (ground == null)
+        if (_bags != null && _bags.HasItemBag(item.Index, item.Level))
         {
-            await session.SendAsync(ItemPacketBuilder.ItemDropSend(0, recv.Slot), ct); // mapa lleno de items en el piso
-            return;
+            // A Starter Ring is worth nothing to someone below the level it is for.
+            if (item.Index == Item.GetItem(13, 20) && item.Level != 0
+                && ((player.Level < 40 && item.Level == 1) || (player.Level < 80 && item.Level == 2)))
+            {
+                int messageIndex = item.Level == 1 ? 257 : 258;
+                await session.SendAsync(ChatPacketBuilder.NoticeSend(_messages?.GetMessage(messageIndex) ?? Loc.T("Your level is too low for this ring.")), ct);
+                await session.SendAsync(ItemPacketBuilder.ItemDropSend(0, recv.Slot), ct);
+                return;
+            }
+
+            bagRoll = _bags.DropByItemIndex(item.Index, item.Level, player.Class, player.ChangeUp, player.Map, Rng);
+        }
+
+        if (bagRoll == null)
+        {
+            var ground = _groundItems.Drop(
+                player.Map, item, recv.X, recv.Y, player.Index, player.PartyNumber == -1 ? null : player.PartyNumber,
+                GroundItemLifetime, GroundItemLootLock);
+
+            if (ground == null)
+            {
+                await session.SendAsync(ItemPacketBuilder.ItemDropSend(0, recv.Slot), ct); // mapa lleno de items en el piso
+                return;
+            }
         }
 
         player.SetItem(recv.Slot, Item.Empty());
         await session.SendAsync(ItemPacketBuilder.ItemDropSend(1, recv.Slot), ct);
+
+        if (bagRoll != null)
+        {
+            await DropBagAsync(player, bagRoll, player.Map, recv.X, recv.Y, null, ct);
+        }
 
         if (recv.Slot >= Item.InventoryWearSize)
         {
@@ -3648,8 +3690,6 @@ public sealed class ClientProtocolHandler
 
         Log.Add(LogColor.Blue, "[Combat][{0}] '{1}' killed {2}(#{3}) -- respawn in {4}ms", killer.Index, killer.Name, monster.Name, monster.Index, monster.MaxRegenMillis + 1000);
 
-        await TryDropLootAsync(killer, monster, viewers, ct);
-
         // gObjAddMsgSendDelay(killer,3,monster,2000): two seconds later the killer recovers life (the monster's
         // level plus the "life after hunting" option), mana (its option) and 1% of AG.
         _ = RecoverAfterHuntAsync(killer, monster.Level, ct);
@@ -3666,6 +3706,7 @@ public sealed class ClientProtocolHandler
         // the WHOLE party is computed only once per party (not per attacker) -- hence processedParties, so as
         // not to process the same party twice if more than one member hit the monster.
         var processedParties = new HashSet<int>();
+        monster.Money = 0; // CharacterCalcExperienceSplit/Party (ObjectManager.cpp:795): rebuilt from the experience handed out
 
         foreach (var (attackerIndex, damageDealt) in monster.DamageByAttacker)
         {
@@ -3688,32 +3729,15 @@ public sealed class ClientProtocolHandler
             // killing blow; everyone else who hit the monster gets 0 in that field.
             await GrantExperienceAsync(attacker, monster, damageDealt, attacker.Index == killer.Index ? lethalDamage : 0, ct);
         }
+
+        // The loot comes after the experience: the monster's zen is the experience it gave.
+        await TryDropLootAsync(killer, monster, viewers, ct);
     }
 
-    /// <summary> VERY simplified port of gObjMonsterDieGiveItem (Monster.cpp:54-284) -- of the real cascade of
-    /// ~13 drop subsystems (per-monster-class ItemBag, boss/event drop tables, scheduled drop-events, random
-    /// set item, etc., see the research), this pass ONLY ports the "generic" path that covers the vast majority
-    /// of common field monsters: an item roll (according to <see cref="Monster.ItemRate"/>, reusing <see
-    /// cref="ItemBalanceTable.PickRandomDropItem"/> -- the same Item.txt/DropItem data Phase 4 of balance
-    /// already loads) OR, if no item came out, a money roll (according to <see cref="Monster.MoneyRate"/>).
-    /// Both rates are interpreted as "1 in N" (<c>Rng.Next(rate)==0</c>), the standard interpretation of these
-    /// two columns in MonsterList.txt. Outside this pass (documented in detail in the README): ItemBagManager
-    /// (special drops per monster class/event), random sets, random level/excellent/socket options on the
-    /// dropped item (it comes out "from the factory", +0 with no options), unique persistent serial via
-    /// DataServer (left at 0, the same as items bought in the Phase 8 shop -- the same level of simplification
-    /// already accepted there). </summary> <summary>Port of CQuestObjective::MonsterItemDrop
-    /// (QuestObjective.cpp:213-269) -- hooked into TryDropLootAsync BEFORE the generic item/money roll (the
-    /// same as Monster.cpp:59-67). It is evaluated against whoever did the most damage to the monster
-    /// (gObjMonsterGetTopHitDamageUser), not necessarily who dealt the final blow. The party-share variant
-    /// (MonsterItemDropParty, gServerInfo.m_QuestMonsterItemDropParty) is not ported -- it is evaluated only
-    /// against the top-damager, a documented simplification.</summary>
-    private GroundItem? TryQuestItemDrop(PlayerObject killer, Monster monster)
+    /// <summary>The player who did the most damage to the monster (gObjMonsterGetTopHitDamageUser): the one the drop
+    /// belongs to and whose account level and zen option count -- not necessarily who dealt the final blow.</summary>
+    private PlayerObject TopDamager(PlayerObject killer, Monster monster)
     {
-        if (_groundItems == null || _questObjectives.Entries.Count == 0)
-        {
-            return null;
-        }
-
         PlayerObject topDamager = killer;
         int topDamage = -1;
 
@@ -3724,6 +3748,19 @@ public sealed class ClientProtocolHandler
                 topDamage = damageDealt;
                 topDamager = attacker;
             }
+        }
+
+        return topDamager;
+    }
+
+    /// <summary>Port of CQuestObjective::MonsterItemDrop (QuestObjective.cpp:213-269) -- the first thing a kill can
+    /// drop, before the item and zen rules (Monster.cpp:59-67). It is evaluated against the top damager. The
+    /// party-share variant (MonsterItemDropParty, m_QuestMonsterItemDropParty) is not ported.</summary>
+    private GroundItem? TryQuestItemDrop(PlayerObject topDamager, Monster monster)
+    {
+        if (_groundItems == null || _questObjectives.Entries.Count == 0)
+        {
+            return null;
         }
 
         foreach (var info in _questObjectives.Entries)
@@ -3781,13 +3818,17 @@ public sealed class ClientProtocolHandler
                 NewOption = (byte)info.NewOption,
             };
 
-            int? ownerParty = killer.PartyNumber == -1 ? null : killer.PartyNumber;
-            return _groundItems.Drop(monster.Map, item, monster.X, monster.Y, killer.Index, ownerParty, GroundItemLifetime, GroundItemLootLock);
+            int? ownerParty = topDamager.PartyNumber == -1 ? null : topDamager.PartyNumber;
+            return _groundItems.Drop(monster.Map, item, monster.X, monster.Y, topDamager.Index, ownerParty, GroundItemLifetime, GroundItemLootLock);
         }
 
         return null;
     }
 
+    /// <summary>What a kill drops: port of gObjMonsterDieGiveItem (Monster.cpp:35-175) -- the quest item, then the
+    /// item and zen rules and the generic roll of <see cref="LootRoller"/>. Everything belongs to the player who did
+    /// the most damage, and that player's account level and zen option are the ones that count. Not ported: the
+    /// monster item bags (EventItemBag), the drop events and set items.</summary>
     private async Task TryDropLootAsync(PlayerObject killer, Monster monster, IReadOnlyList<int> viewerIndexes, CancellationToken ct)
     {
         if (_groundItems == null)
@@ -3795,84 +3836,54 @@ public sealed class ClientProtocolHandler
             return;
         }
 
-        int? ownerParty = killer.PartyNumber == -1 ? null : killer.PartyNumber;
+        var owner = TopDamager(killer, monster);
+        int? ownerParty = owner.PartyNumber == -1 ? null : owner.PartyNumber;
 
-        // Port of Monster.cpp:59-67: gQuestObjective.MonsterItemDrop is checked BEFORE the generic item/money
-        // drop (which follows below) -- if a quest item drops, THAT is this kill's drop, and neither of the
-        // other two rolls runs (see the "dropped == null" guard that follows).
-        GroundItem? dropped = TryQuestItemDrop(killer, monster);
-
-        int itemRate = monster.ItemRate <= 0 ? 10 : monster.ItemRate;
-        int moneyRate = monster.MoneyRate <= 0 ? 10 : monster.MoneyRate;
-
-        // In C++ (Monster.cpp:121,157): ItemRate/MoneyRate of MonsterList.txt define the roll. If
-        // Rng.Next(ItemRate) < 10 (base ItemDropRate 10), there is an item drop.
-        if (dropped == null && Rng.Next(itemRate) < 10)
+        // Statue of Saint and the guards drop nothing at all, bags included (Monster.cpp:46-57).
+        if (monster.MonsterClass is 132 or 133 or 134 or 247 or 249)
         {
-            var pick = _itemBalance.PickRandomDropItem(monster.Level, Rng);
-
-            if (pick != null)
-            {
-                byte itemLevel = 0;
-                if (pick.Section < 12)
-                {
-                    int maxLvl = Math.Min(4, monster.Level / 20);
-                    if (maxLvl > 0) itemLevel = (byte)Rng.Next(0, maxLvl + 1);
-                }
-
-                bool luck = pick.Section < 12 && Rng.Next(100) < 15;
-                bool skill = pick.Section < 6 && Rng.Next(100) < 30;
-                byte option3 = 0;
-                if (pick.Section < 12)
-                {
-                    int optRoll = Rng.Next(100);
-                    if (optRoll < 5) option3 = 2; // +8
-                    else if (optRoll < 20) option3 = 1; // +4
-                }
-
-                byte newOption = 0;
-                if (monster.Level >= 25 && Rng.Next(1500) == 0) // Excellent item roll
-                {
-                    byte[] excOpts = { 1, 2, 4, 8, 16, 32 };
-                    newOption = excOpts[Rng.Next(excOpts.Length)];
-                    itemLevel = 0;
-                }
-
-                var item = new Item
-                {
-                    Index = (short)pick.Index,
-                    Level = itemLevel,
-                    Option1 = (byte)(skill ? 1 : 0),
-                    Option2 = (byte)(luck ? 1 : 0),
-                    Option3 = option3,
-                    NewOption = newOption
-                };
-
-                // A dropped item comes at its full durability for its level and options (the original creates it
-                // with GetItemDurability, ItemManager.cpp:393).
-                item.Durability = (byte)Math.Max(ItemCombatMath.GetItemDurability(item, pick), 1);
-
-                dropped = _groundItems.Drop(monster.Map, item, monster.X, monster.Y, killer.Index, ownerParty, GroundItemLifetime, GroundItemLootLock);
-            }
+            return;
         }
-        
-        if (dropped == null && Rng.Next(moneyRate) < 10)
+
+        // The bag of a boss (Red Dragon, the golden monsters, Skeleton King, White Wizard, Kundun) comes before
+        // everything else, and when the monster has one nothing else drops (Monster.cpp:59).
+        var bossBag = _bags?.DropByMonsterClass(monster.MonsterClass, owner.Class, owner.ChangeUp, monster.Map, Rng);
+
+        if (bossBag != null)
         {
-            long baseMoney = ((long)(monster.Level + 25) * monster.Level) / 3;
-            baseMoney += baseMoney / 4;
+            await DropBagAsync(owner, bossBag, monster.Map, monster.X, monster.Y, viewerIndexes, ct);
+            return;
+        }
 
-            int dropRateConfig = WorldPacketBuilder.ServerInfo.MoneyAmountDropRate.Length > killer.AccountLevel
-                ? WorldPacketBuilder.ServerInfo.MoneyAmountDropRate[killer.AccountLevel]
-                : 100;
+        GroundItem? dropped = TryQuestItemDrop(owner, monster);
 
-            if (dropRateConfig <= 0) dropRateConfig = 100;
+        if (dropped == null)
+        {
+            var server = WorldPacketBuilder.ServerInfo;
+            int al = Math.Clamp(owner.AccountLevel, 0, 3);
 
-            long calcMoney = (baseMoney * dropRateConfig) / 100;
-            calcMoney = (calcMoney * killer.MoneyAmountDropRate) / 100; // the excellent "+zen" option (Monster.cpp:161)
-            calcMoney = (calcMoney * Rng.Next(80, 121)) / 100;
+            var roll = _loot.Roll(new LootContext
+            {
+                MonsterClass = monster.MonsterClass,
+                MonsterLevel = monster.Level,
+                Map = monster.Map,
+                ItemRate = monster.ItemRate,
+                MoneyRate = monster.MoneyRate,
+                Money = monster.Money,
+                AccountLevel = al,
+                PlayerMoneyAmountDropRate = owner.MoneyAmountDropRate,
+                ServerItemDropRate = server.ItemDropRate[al],
+                ServerMoneyAmountDropRate = server.MoneyAmountDropRate[al],
+            }, Rng);
 
-            uint money = (uint)Math.Max(1, calcMoney);
-            dropped = _groundItems.DropMoney(monster.Map, monster.X, monster.Y, money, GroundItemLifetime);
+            if (roll?.Item != null)
+            {
+                dropped = _groundItems.Drop(monster.Map, roll.Item, monster.X, monster.Y, owner.Index, ownerParty, GroundItemLifetime, GroundItemLootLock);
+            }
+            else if (roll is { Money: > 0 })
+            {
+                dropped = _groundItems.DropMoney(monster.Map, monster.X, monster.Y, (uint)Math.Min(roll.Money, uint.MaxValue), GroundItemLifetime);
+            }
         }
 
         if (dropped == null)
@@ -3901,6 +3912,132 @@ public sealed class ClientProtocolHandler
         dropped.JustDropped = false; // the "just fallen" appearance was already sent once
     }
 
+    /// <summary>Port of the placement part of CItemBagEx::DropItem: puts what a bag gave on the ground around
+    /// (<paramref name="x"/>, <paramref name="y"/>) and shows it. Everything belongs to <paramref name="owner"/>. The
+    /// first drop of the bag lands on the spot itself; the others go to a random free tile within two of it (or at
+    /// the owner's feet when there is none). Set items are skipped: they do not exist here yet.</summary>
+    /// <param name="monsterViewers">The players who see the monster that dropped the bag, or null when the owner
+    /// dropped it (an opened box), in which case the owner and whoever sees them are told.</param>
+    private async Task DropBagAsync(PlayerObject owner, BagRoll roll, int map, int x, int y, IReadOnlyList<int>? monsterViewers, CancellationToken ct)
+    {
+        if (_groundItems == null)
+        {
+            return;
+        }
+
+        var gameMap = _maps.GetMap(map);
+        int? ownerParty = owner.PartyNumber == -1 ? null : owner.PartyNumber;
+        var dropped = new List<GroundItem>();
+
+        foreach (var loot in roll.Loot)
+        {
+            if (loot.SetItem)
+            {
+                continue;
+            }
+
+            int px = x, py = y;
+
+            if (loot.Scatter || (gameMap != null && gameMap.IsBlocked(px, py)))
+            {
+                if (!TryRandomFreeLocation(gameMap, ref px, ref py, 2, 2, 10))
+                {
+                    px = owner.X;
+                    py = owner.Y;
+                }
+            }
+
+            GroundItem? ground = null;
+
+            if (loot.Item != null)
+            {
+                ground = _groundItems.Drop(map, loot.Item, px, py, owner.Index, ownerParty, GroundItemLifetime, GroundItemLootLock);
+            }
+            else if (loot.Money > 0)
+            {
+                ground = _groundItems.DropMoney(map, px, py, (uint)Math.Min(loot.Money, uint.MaxValue), GroundItemLifetime);
+            }
+
+            if (ground != null)
+            {
+                dropped.Add(ground);
+            }
+        }
+
+        var recipients = new List<PlayerObject> { owner };
+
+        if (monsterViewers != null)
+        {
+            foreach (var viewerIndex in monsterViewers)
+            {
+                if (viewerIndex != owner.Index && _players.TryGet(viewerIndex, out var viewer))
+                {
+                    recipients.Add(viewer);
+                }
+            }
+        }
+        else
+        {
+            recipients.AddRange(_players.All.Where(other => other.Index != owner.Index && other.VisibleTo.Contains(owner.Index)));
+        }
+
+        foreach (var ground in dropped)
+        {
+            var appear = WorldPacketBuilder.ViewportItemAppear(new[] { ground });
+
+            foreach (var recipient in recipients)
+            {
+                await recipient.Session.SendAsync(appear, ct);
+            }
+
+            ground.JustDropped = false;
+        }
+
+        // The effect of the bag (CItemBagEx::DropItem, last switch): a server command shown at the owner.
+        (byte Type, byte X, byte Y)? effect = roll.UseEffect switch
+        {
+            1 => (0, owner.X, owner.Y),
+            2 => (2, owner.X, owner.Y),
+            3 => (58, (byte)(owner.Index >> 8), (byte)(owner.Index & 0xFF)),
+            _ => null,
+        };
+
+        if (effect is { } command)
+        {
+            var packet = PacketBuilder.BuildC1Sub(0xF3, 0x40, new[] { command.Type, command.X, command.Y });
+            await owner.Session.SendAsync(packet, ct);
+
+            foreach (var watcher in _players.All.Where(other => other.Index != owner.Index && other.VisibleTo.Contains(owner.Index)))
+            {
+                await watcher.Session.SendAsync(packet, ct);
+            }
+        }
+    }
+
+    /// <summary>Port of gObjGetRandomFreeLocation (User.cpp:878-898): up to <paramref name="count"/> tries at a spot
+    /// within (<paramref name="tx"/>, <paramref name="ty"/>) of the given one that is neither blocked nor a wall.</summary>
+    private static bool TryRandomFreeLocation(GameMap? map, ref int x, ref int y, int tx, int ty, int count)
+    {
+        int originX = x, originY = y;
+        tx = Math.Max(tx, 1);
+        ty = Math.Max(ty, 1);
+
+        for (int n = 0; n < count; n++)
+        {
+            x = (Rng.Next(tx + 1) * (Rng.Next(2) == 0 ? -1 : 1)) + originX;
+            y = (Rng.Next(ty + 1) * (Rng.Next(2) == 0 ? -1 : 1)) + originY;
+
+            if (map != null && !map.IsBlocked(x, y))
+            {
+                return true;
+            }
+        }
+
+        x = originX;
+        y = originY;
+        return false;
+    }
+
     private async Task GrantExperienceAsync(PlayerObject attacker, Monster monster, int damageDealt, int shownDamage, CancellationToken ct)
     {
         // Puerto de CharacterCalcExperienceAlone (ObjectManager.cpp:823-865).
@@ -3923,6 +4060,7 @@ public sealed class ClientProtocolHandler
         // multiplier (not a percentage) indexed by AccountLevel. The other global multipliers that do apply
         // /100 (map, bonus, reset) read from unported systems and still equal 100% (no change).
         experience *= WorldPacketBuilder.ServerInfo.AddExperienceRate[attacker.AccountLevel];
+        monster.Money += experience; // lpMonster->Money += experience (ObjectManager.cpp:853)
 
         await ApplyExperienceGainAsync(attacker, monster.Index, experience, shownDamage, ct);
     }
@@ -3996,6 +4134,7 @@ public sealed class ClientProtocolHandler
         foreach (var member in inRange)
         {
             long share = (totalExperience * member.Level) / totalLevel;
+            monster.Money += share / inRange.Count; // lpMonster->Money += experience/PartyCount (ObjectManager.cpp:968)
             // CharacterCalcExperienceParty (ObjectManager.cpp:972-979): every member in range sees the killing blow.
             await ApplyExperienceGainAsync(member, monster.Index, share, lethalDamage, ct);
         }
