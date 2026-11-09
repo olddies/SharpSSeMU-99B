@@ -49,8 +49,9 @@ public sealed record ChaosMixResult(bool Success, byte ResultCode, Item? Item, b
 /// production server (nobody ships a chaos machine that never delivers anything), and the full <c>ItemBagEx</c>
 /// engine (per-section weights, class filter, drop rate) is a separate system, shared with Devil Square/Blood
 /// Castle/monster drops, that deserves its own port instead of a rushed one as a dependency of this.</para>
-/// <para>Dinorant and the two pet mixes remain unported. The Devil Square and Blood Castle ticket mixes are ported
-/// (<see cref="MixEventTicket"/>).</para> </summary>
+/// <para>The two pet mixes (Dark Horse and Dark Raven) are not ported: both pets are for the Dark Lord only, a
+/// class a 0.99B game does not have. The Dinorant and the Devil Square and Blood Castle ticket mixes are ported
+/// (<see cref="MixDinorant"/>, <see cref="MixEventTicket"/>).</para> </summary>
 public static class ChaosMixLogic
 {
     private static readonly int ItemChaos = Item.GetItem(12, 15);   // Jewel of Chaos
@@ -116,7 +117,10 @@ public static class ChaosMixLogic
             // CHAOS_MIX_BLOOD_CASTLE -> BloodCastleMix: Chaos + Scroll of Archangel + Blood Bone of the same level -> Invisibility Cloak.
             ChaosMixType.BloodCastle => MixEventTicket(player, items, rates, execute, TicketMix.BloodCastle),
 
-            _ => new ChaosMixResult(false, 0, null, false, 0, 0), // Dinorant and the pet mixes: no portado
+            // CHAOS_MIX_DINORANT -> DinorantMix: Chaos + ten Horns of Uniria (full durability) -> Horn of Dinorant.
+            ChaosMixType.Dinorant => MixDinorant(player, items, rates, execute, bags),
+
+            _ => new ChaosMixResult(false, 0, null, false, 0, 0), // the pet mixes (Dark Lord only): not ported
         };
     }
 
@@ -167,6 +171,58 @@ public static class ChaosMixLogic
 
         item = bags.GetItemBySpecialValue(ItemBagManager.SpecialChaosBox, specialLevel, -1, player.Class, player.ChangeUp, Random.Shared);
         return true;
+    }
+
+    /// <summary>Port of DinorantMix (ChaosBox.cpp:378-447): a Jewel of Chaos and ten Horns of Uniria with their full
+    /// durability give a Horn of Dinorant for 500,000 zen. The new horn comes with a random number of excellent
+    /// options (row 3 of the excellent-count rates, at most three for this item), and full durability.</summary>
+    private static ChaosMixResult MixDinorant(PlayerObject player, List<Item> items, GameServerInfoChaosMix rates, bool execute, ItemBagManager? bags)
+    {
+        int chaosCount = 0, uniriaCount = 0;
+
+        foreach (var it in items)
+        {
+            if (it.Index == ItemChaos)
+            {
+                chaosCount++;
+            }
+            else if (it.Index == Item.GetItem(13, 2) && it.Durability == 255)
+            {
+                uniriaCount++;
+            }
+        }
+
+        if (chaosCount != 1 || uniriaCount != 10)
+        {
+            return new ChaosMixResult(false, 7, null, false, 0, 0);
+        }
+
+        const int zen = 500_000;
+        int rate = Math.Min(rates.DinorantMixRate[Math.Clamp(player.AccountLevel, 0, 3)], 100);
+
+        if (!execute)
+        {
+            return new ChaosMixResult(false, 0, null, false, rate, zen);
+        }
+
+        if (player.Money < zen)
+        {
+            return new ChaosMixResult(false, 2, null, false, rate, zen);
+        }
+
+        player.Money -= zen;
+
+        if (Random.Shared.Next(100) < rate)
+        {
+            // GetItemOption4(3) rolls how many options, MakeNewOption(.., 1, ..) picks them.
+            byte excellent = bags?.Maker.MakeExcellentFromRow(Item.GetItem(13, 3), 3, Random.Shared) ?? 0;
+            var horn = new Item { Index = (short)Item.GetItem(13, 3), Durability = 255, NewOption = excellent };
+            ClearBox(player);
+            return new ChaosMixResult(true, 1, horn, true, rate, zen);
+        }
+
+        ClearBox(player);
+        return new ChaosMixResult(false, 0, null, false, rate, zen);
     }
 
     private enum TicketMix

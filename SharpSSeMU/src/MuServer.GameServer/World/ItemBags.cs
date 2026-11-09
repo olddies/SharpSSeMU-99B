@@ -55,6 +55,15 @@ public sealed class ItemBagItemMaker
         _sets = sets ?? SetItemRules.Current;
     }
 
+    /// <summary>The excellent options a mix gives its item: <c>GetItemOption4(row, &amp;n)</c> picks how many from
+    /// that row of the excellent-count rates, then <c>MakeNewOption(item, 1, n)</c> picks which. 0 when the row
+    /// is missing.</summary>
+    public byte MakeExcellentFromRow(int itemIndex, int row, Random rng)
+    {
+        int count = _optionRates.Pick(ItemOptionRateTable.ExcellentCount, row, rng) ?? 0;
+        return _excellent.MakeNewOption(itemIndex, 1, count, rng);
+    }
+
     /// <summary>The body of CItemBagEx::DropItem / GetItem that turns a bag row into an item.</summary>
     public Item Make(ItemBagItem entry, Random rng)
     {
@@ -322,6 +331,9 @@ public sealed class ItemBagManager
 
     private readonly List<ItemBagManagerRow> _rows = new();
     private readonly ItemBagItemMaker _maker;
+
+    /// <summary>The item maker the bags use; the mixes that roll excellent options borrow it.</summary>
+    public ItemBagItemMaker Maker => _maker;
 
     public ItemBagManager(ItemBagItemMaker maker)
     {

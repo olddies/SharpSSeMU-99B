@@ -5139,8 +5139,10 @@ public sealed class ClientProtocolHandler
         byte mixTypeByte = p[3];
         var mixType = (ChaosMixType)mixTypeByte;
 
+        // The bags (EventItemBagManager.txt) give the item of the mixes that have one; without them the mix falls
+        // back to its built-in list. The rate query below needs none: it never rolls an item.
         var result = ChaosMixLogic.CalculateAndExecuteMix(player, mixType, _chaosMixRates,
-            _addLuckSuccessRate2, GetChaosBoxItemBuyMoney);
+            _addLuckSuccessRate2, GetChaosBoxItemBuyMoney, bags: _bags);
 
         if (result.Success && result.DeliverViaInventory && result.Item != null)
         {
