@@ -39,9 +39,10 @@ funcionales. Los arreglos encontrados jugando están registrados en el
 | Uso de items: pociones, town portal, **joyas** (Bless / Soul / Life), orbes y pergaminos de skill | ✅ | |
 | Tiendas de NPC (comprar / vender) | ✅ | 14 tiendas reales; el precio mostrado = el precio cobrado |
 | Baúl, Trade | ✅ | |
-| Chaos Machine | ✅ | fórmulas y tasas de éxito reales; el item que da una mezcla sale de su bolsa de `EventItemBag`; las mezclas de la Devil's Invitation y la Invisibility Cloak. Sin las de Dinorant ni mascotas. El Lost Map tampoco tiene mezcla en el original: sale de drops |
+| Chaos Machine | ✅ | fórmulas y tasas de éxito reales; el item que da una mezcla sale de su bolsa de `EventItemBag`; las mezclas de la Devil's Invitation, la Invisibility Cloak y el Horn of Dinorant. Sin las de mascotas: las mascotas mismas (Dark Horse, Dark Raven, su nivel y comandos, la ventana del Trainer) no están portadas. El Lost Map tampoco tiene mezcla en el original: sale de drops |
 | Combate: golpes y skills contra monstruos | ✅ | tirada de acierto/esquiva, defensa, golpes crítico / excelente / ignorar defensa (con su color en el cliente), alas y mascotas, multiplicadores de skills de DK/DL, piso de daño, ratios de daño PvM — portado de `Attack.cpp` |
 | Combate: monstruos atacan jugadores | ✅ | mismo pipeline que los jugadores; los hechizos usan el rango de daño propio del skill |
+| Combate: jugador contra jugador | 🔶 | el pipeline de PvP del original (tirada de acierto con las tasas PvP, defensa a la mitad, lo que lleva puesto el objetivo, ratios de daño PvP y de Chaos Castle), pero **solo dentro de un Chaos Castle en marcha**: en el resto del juego los jugadores no pueden dañarse, porque el sistema de PK (niveles de PK, outlaws, defensa propia, los items que suelta un jugador asesinado) no está portado. Ataques y skills de un solo objetivo; sin skills de área ni reflejo contra jugadores |
 | IA de monstruos | 🔶 | inactivo/patrulla/persecución/ataque; la elección de hechizo es heurística (`GetMonsterAttackSkill`) |
 | Skills y maná | 🔶 | ataques a un objetivo, de duración y multi-objetivo, aprendizaje por orbes, regeneración de maná/BP. Sin buffs/debuffs de `EffectList.txt`, sin combo/teleport de aliado |
 | Muerte, experiencia, subir de nivel, respawn | ✅ | el cadáver permanece visible hasta el respawn (como en el original) |
@@ -49,10 +50,10 @@ funcionales. Los arreglos encontrados jugando están registrados en el
 | Chat, susurro (entre GameServers), party (+reparto de XP), amigos | ✅ | correo entre amigos ❌ |
 | Quests | 🔶 | opcodes de info/estado de quest conectados a las tablas reales |
 | Guild | 🔶 | lista / ventana del maestro / crear; falta trabajo de esquema para terminarla |
-| Devil Square | ✅ | máquina de estados completa, tickets, spawns por etapa, ranking, item del primer puesto desde su bolsa |
-| Blood Castle | 🔶 | el evento completo: entrada, etapas (monstruos, puente, puerta, estatua), el arma del Arcángel y el Arcángel, recompensas y premio en bolsa. El paquete solo trae el mapa del castillo 1. Sin límite diario de entradas ni restricción de PK todavía |
+| Devil Square | ✅ | máquina de estados completa, tickets, spawns por etapa, ranking, item del primer puesto desde su bolsa, límite diario de entradas y límite de PK |
+| Blood Castle | 🔶 | el evento completo: entrada, etapas (monstruos, puente, puerta, estatua), el arma del Arcángel y el Arcángel, recompensas y premio en bolsa. El paquete solo trae el mapa del castillo 1. Límite diario de entradas y límite de PK como en el original |
 | Kalima | 🔶 | la puerta del Lost Map (se abre donde se tira, para su dueño y su grupo, cinco entradas o tres minutos) y la puerta al siguiente Kalima cuando muere un jefe. El paquete solo trae el mapa de Kalima 1 |
-| Chaos Castle | ❌ | necesita primero combate jugador contra jugador |
+| Chaos Castle | 🔶 | el evento completo: entrada (Armor of Guardsman + cuota), la espera en la zona segura, la pelea con monstruos y con los otros jugadores mientras caen los anillos exteriores de la arena, el golpe que lanza a los jugadores, puntajes, experiencia, la bolsa del ganador y el ranking, el sorteo de las cuotas entre los participantes. El paquete solo trae el mapa del castillo 1. Probado de punta a punta con dos clientes simulados, todavía no en el cliente real |
 | Duelo, Personal Shop, Golden Archer, Mascotas (Dark Spirit/Raven), Teleport Ally, PartyMatching | ❌ | la mayoría necesita una segunda cuenta para probarse bien |
 | Opciones de items: skill, suerte, adicional, excelentes | ✅ | `ItemOption.txt`; bonus base de los excelentes, durabilidad y requisitos; reflejo y reducción de daño, vida y maná al cazar, zen, recuperación de vida, bonus de set de armadura completo |
 | Items de set (ancient) | ✅ | `SetItemType.txt` / `SetItemOption.txt`: los stats de una pieza, los bonos de dos o más piezas y del set completo, el aura, drops de set aleatorios (tasa por mapa, filas de `ItemDrop.txt`, bolsas como la de Kundun). Una pieza de set no se puede tirar al suelo |
@@ -93,13 +94,12 @@ El cliente open source de este repositorio es un **fork de MuMain (Season 5.2 �
 Orden sugerido, lo más fácil primero:
 
 1. **UI del cliente → aspecto 0.99B** (ver `docs/ui-099b.md`).
-2. **Loot**: los premios en bolsa de Chaos Castle (junto con Chaos Castle).
-3. **PvP**, y luego **Chaos Castle**; las mezclas de Dinorant y mascotas.
-4. **Duelo**, luego completar Guild (esquema + rangos + marcas), Personal Shop, Golden Archer.
-5. Efectos de skills (buffs/debuffs de `EffectList.txt`), combo y teleport de aliado.
-6. Recarga de config en caliente + endurecer el AdminPanel (autenticación por usuario).
-7. Seguir la auditoría del cliente: llamadas restantes a la capa de red heredada, quitar código exclusivo de Season 6.
-8. Build Linux del cliente.
+2. **Sistema de PK** (PvP fuera de los eventos: niveles de PK, outlaws, defensa propia, caída de items) y las **mascotas** (Dark Horse, Dark Raven, el Trainer y las mezclas de mascotas).
+3. **Duelo**, luego completar Guild (esquema + rangos + marcas), Personal Shop, Golden Archer.
+4. Efectos de skills (buffs/debuffs de `EffectList.txt`), combo y teleport de aliado.
+5. Recarga de config en caliente + endurecer el AdminPanel (autenticación por usuario).
+6. Seguir la auditoría del cliente: llamadas restantes a la capa de red heredada, quitar código exclusivo de Season 6.
+7. Build Linux del cliente.
 
 ## Arreglado recientemente
 
@@ -108,6 +108,10 @@ Bugs encontrados jugando con un cliente real en la última sesión (todos verifi
 - **Número de daño al matar:** el golpe final mostraba dos números. Como el servidor original, ahora no manda paquete de daño; su número viaja en el paquete de recompensa, solo para quien lo dio (o su party).
 - **Cliente original:** no conectaba con `127.0.0.1` — el `main.exe` de Webzen rechaza esa dirección exacta. Ver [Primeros pasos](GETTING_STARTED.md#6-conectar-un-cliente).
 - El GameServer no atendía el **borrado de personaje** ni el **guardado de teclas rápidas**.
+- **Chaos Castle y PvP:** el evento no existía y los jugadores no podían atacarse. Ya están los dos (ver la tabla). De paso: la Cape of Lord se ignoraba al calcular el daño, un castillo sin más horarios en su calendario se quedaba con los puntajes pendientes, y la respuesta a un comando de chat desconocido era solo el nombre del comando (una sobrecarga de `Loc.F` tomaba el formato por un idioma).
+- **Límites de entrada:** Blood Castle, Chaos Castle y Devil Square ahora cuentan cada entrada del día (`BCCount` / `CCCount` / `DSCount`, que el DataServer reinicia a diario) y respetan `*MaxEntryCount_ALx` y el límite de PK.
+- **Chaos Machine:** la mezcla del Horn of Dinorant está, y las mezclas nunca llegaban a las bolsas de items en un servidor en marcha (el manejador no se las pasaba), así que los resultados de alas, frutas y armas del caos salían siempre de la lista de respaldo.
+- **Comandos de desarrollo:** `/item` y `/zen` le daban a cualquier jugador cualquier item y diez millones de zen. Ahora hace falta `CommandDeveloperSwitch = 1` en `GameServerInfo - Command.dat` (apagado en el archivo que se distribuye).
 - **Kalima y drop events:** el Lost Map no hacía nada y `DropEvent.dat` no se leía. Ahora un Lost Map tirado al suelo abre su puerta y los drop events funcionan.
 - **Blood Castle:** era solo un temporizador. Ahora es el evento completo, y el Mensajero del Arcángel de Devias (clase 233) se confundía con el Arcángel (232), así que nadie podía abrir su ventana de entrada. La respuesta de tiempo restante de Devil Square también llevaba el nivel en vez del tipo de evento.
 - **Items de set:** no existían (nunca se leían los archivos). Ahora las piezas de set tienen sus propios stats, bonos y aura, caen como en el original y la bolsa de Kundun entrega de verdad sus cinco. Igual que en el original, ya no se pueden tirar al suelo los items de más de +4, los excelentes ni los de set.

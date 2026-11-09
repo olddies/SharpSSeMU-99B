@@ -39,9 +39,10 @@ working. Fixes found by real play-testing are recorded in the
 | Item use: potions, town portal, **jewels** (Bless / Soul / Life), skill orbs & scrolls | ✅ | |
 | NPC shops (buy / sell) | ✅ | 14 real shops; price shown = price charged |
 | Warehouse, Trade | ✅ | |
-| Chaos Machine | ✅ | real mix formulas and success rates; the item a mix gives comes from its `EventItemBag` bag; the Devil's Invitation and Invisibility Cloak mixes. Not the Dinorant and pet mixes. The Lost Map has no mix in the original either: it comes from drops |
+| Chaos Machine | ✅ | real mix formulas and success rates; the item a mix gives comes from its `EventItemBag` bag; the Devil's Invitation, Invisibility Cloak and Horn of Dinorant mixes. Not the pet mixes: the pets themselves (Dark Horse, Dark Raven, their level and commands, the Trainer window) are not ported. The Lost Map has no mix in the original either: it comes from drops |
 | Combat: melee and skills vs. monsters | ✅ | hit/dodge roll, defense, critical / excellent / ignore-defense hits (coloured by the client), wings and pets, DK/DL skill multipliers, min-damage floor, PvM damage rates — ported from `Attack.cpp` |
 | Combat: monsters attack players | ✅ | same pipeline as players; spells use the skill's own damage range |
+| Combat: player vs. player | 🔶 | the original's PvP pipeline (hit roll from the PvP success rates, halved defense, what the target wears, PvP and Chaos Castle damage rates), but **only inside a running Chaos Castle**: elsewhere players cannot hurt each other, because the PK system (PK levels, outlaws, self-defense, the items a murdered player drops) is not ported. Single-target attacks and skills; no area skills or reflect against players |
 | Monster AI | 🔶 | idle/patrol/chase/attack; spell selection is heuristic (`GetMonsterAttackSkill`) |
 | Skills & mana | 🔶 | single-target, duration and multi-target attacks, learning via orbs, mana/BP regen. No `EffectList.txt` buffs/debuffs, no combo/ally-teleport |
 | Death, experience, level-up, respawn | ✅ | corpse stays visible until respawn (as in the original) |
@@ -49,10 +50,10 @@ working. Fixes found by real play-testing are recorded in the
 | Chat, whisper (cross-GameServer), party (+XP sharing), friends | ✅ | friend mail ❌ |
 | Quests | 🔶 | quest info/state opcodes wired to the real quest tables |
 | Guild | 🔶 | list / master window / create; needs guild schema work to finish |
-| Devil Square | ✅ | full state machine, tickets, staged spawns, ranking, first-place item from its bag |
-| Blood Castle | 🔶 | the whole event: entrance, stages (monsters, bridge, gate, statue), the Archangel's weapon and the Archangel, rewards and bag prize. The package only has the map of castle 1. No daily entry cap and no PK restriction yet |
+| Devil Square | ✅ | full state machine, tickets, staged spawns, ranking, first-place item from its bag, daily entry cap and PK limit |
+| Blood Castle | 🔶 | the whole event: entrance, stages (monsters, bridge, gate, statue), the Archangel's weapon and the Archangel, rewards and bag prize. The package only has the map of castle 1. Daily entry cap and PK limit as in the original |
 | Kalima | 🔶 | the Lost Map gate (opens where it is thrown, for its owner and party, five entries or three minutes) and the gate to the next Kalima when a boss dies. The package only has the map of Kalima 1 |
-| Chaos Castle | ❌ | needs player-versus-player combat first |
+| Chaos Castle | 🔶 | the whole event: entrance (Armor of Guardsman + fee), the wait in the safe zone, the fight with monsters and the other players while the outer rings of the arena fall away, the blow that throws players back, scores, experience, the winner's bag and ranking, the random winner of the entry fees. The package only has the map of castle 1. Tested end to end with two simulated clients, not yet in the real client |
 | Duel, Personal Shop, Golden Archer, Pets (Dark Spirit/Raven), Teleport Ally, PartyMatching | ❌ | most need a second account to test properly |
 | Item options: skill, luck, additional, excellent | ✅ | `ItemOption.txt`; excellent base bonuses, durability and requirements; damage reflect/reduction, life & mana after hunting, zen, HP recovery, full-armour set bonus |
 | Set (ancient) items | ✅ | `SetItemType.txt` / `SetItemOption.txt`: the stats of a set piece, the bonuses of two or more pieces and of the full set, the aura, random set drops (per-map rate, `ItemDrop.txt` rows, bags such as Kundun's). Set pieces cannot be thrown on the ground |
@@ -94,13 +95,12 @@ against. The open-source client in this repository is a **fork of MuMain (Season
 Suggested order, easiest wins first:
 
 1. **Client UI → 0.99B look** (see `docs/ui-099b.md`).
-2. **Loot**: the Chaos Castle bag rewards (with Chaos Castle).
-3. **PvP**, then **Chaos Castle**; the Dinorant and pet mixes.
-4. **Duel**, then Guild completion (schema + ranks + marks), Personal Shop, Golden Archer.
-5. Skill effects (`EffectList.txt` buffs/debuffs), combo and ally-teleport.
-6. Config hot-reload + AdminPanel hardening (per-user auth).
-7. Continue the client audit: remaining calls into the legacy network layer, removal of Season-6-only code.
-8. Linux client build.
+2. **PK system** (PvP outside events: PK levels, outlaws, self-defense, item drops) and the **pets** (Dark Horse, Dark Raven, the Trainer and the pet mixes).
+3. **Duel**, then Guild completion (schema + ranks + marks), Personal Shop, Golden Archer.
+4. Skill effects (`EffectList.txt` buffs/debuffs), combo and ally-teleport.
+5. Config hot-reload + AdminPanel hardening (per-user auth).
+6. Continue the client audit: remaining calls into the legacy network layer, removal of Season-6-only code.
+7. Linux client build.
 
 ## Recently fixed
 
@@ -109,6 +109,10 @@ Bugs found by real play-testing in the latest session (all verified by rebuild +
 - **Kill damage number:** the killing blow showed two numbers. Like the original server, it now sends no damage packet; its number travels in the kill reward packet, only to whoever landed it (or the party).
 - **Original client:** it could not connect with `127.0.0.1` — Webzen's `main.exe` refuses that exact address. See [Getting started](GETTING_STARTED.md#6-connect-a-client).
 - **Character delete** and **saved skill hot-keys** were not handled by the GameServer.
+- **Chaos Castle and PvP:** the event did not exist and players could not attack each other. Both are in now (see the table). Along the way: the Cape of Lord was ignored when working out damage, a castle whose schedule had run out kept the scores still waiting, and the answer to an unknown chat command was just the command's own name (a `Loc.F` overload took the format for a language).
+- **Entry limits:** Blood Castle, Chaos Castle and Devil Square now count each entry for the day (`BCCount` / `CCCount` / `DSCount`, reset daily by the DataServer) and honour `*MaxEntryCount_ALx` and the PK limit.
+- **Chaos Machine:** the Horn of Dinorant mix is in, and the mixes never reached the item bags on a running server (the handler did not pass them), so the wing, fruit and chaos-weapon results always came from the built-in fallback list.
+- **Developer commands:** `/item` and `/zen` gave any player any item and ten million zen. They now need `CommandDeveloperSwitch = 1` in `GameServerInfo - Command.dat` (off in the shipped file).
 - **Kalima and drop events:** the Lost Map did nothing and `DropEvent.dat` was not read. Now a Lost Map thrown on the ground opens its gate, and the drop events run.
 - **Blood Castle:** it was only a timer. It is now the whole event, and the Messenger of the Archangel in Devias (class 233) was mistaken for the Archangel (232), so nobody could open its entry window. Devil Square's remaining-time reply also carried the level instead of the event type.
 - **Set items:** they did not exist (the files were never read). Set pieces now have their own stats, bonuses and aura, drop like in the original and Kundun's bag really gives its five. Like the original, items above +4, excellent items and set items can no longer be thrown on the ground.
