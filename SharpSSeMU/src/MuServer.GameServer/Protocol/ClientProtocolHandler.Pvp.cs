@@ -309,6 +309,7 @@ public sealed partial class ClientProtocolHandler
         target.LastCombatTime = now;
 
         Duel?.Touch(attacker, target); // a blow keeps a duel alive
+        Spirits.SetTarget(attacker, target.Index);
 
         var hit = PlayerAttackMath.HitPlayer(attacker, target, skillIndex, skill?.DamageMin ?? 0, skill?.DamageMax ?? 0, graze: false,
             _itemBalance, Rng, skill == null ? null : _skillDamage.Apply, chaosCastle: attacker.Map is >= 18 and <= 23, duel: InDuelWith(attacker, target));

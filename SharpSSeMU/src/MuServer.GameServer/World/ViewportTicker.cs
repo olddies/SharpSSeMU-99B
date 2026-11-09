@@ -120,6 +120,18 @@ public sealed class ViewportTicker
         }
 
         await TickAutoSaveAsync(ct);
+
+        // The Dark Ravens: each master's raven decides what to do, and the blows queued 600 ms ago land.
+        if (_protocolHandler != null)
+        {
+            foreach (var master in _players.All.Where(p => p.WorldEntered && p.Class == 4).ToList())
+            {
+                await _protocolHandler.OnPlayerTickAsync(master, ct);
+            }
+
+            await _protocolHandler.LandSpiritBlowsAsync(ct);
+        }
+
         await TickMonsterAIAsync(ct);
         await RespawnDyingPlayersAsync(ct);
 

@@ -457,6 +457,11 @@ public sealed class FakeMuClient
     public Task SendChaosCastleEnterAsync(byte level, byte slot) =>
         SendRawAsync(PacketBuilder.BuildC1Sub(0xAF, 0x01, new[] { level, slot }));
 
+    /// <summary>PMSG_PET_ITEM_COMMAND_RECV, C1:A7 -- orders the Dark Raven (0 stay, 1 attack at random, 2 attack with the
+    /// master, 3 attack <paramref name="target"/>).</summary>
+    public Task SendPetCommandAsync(byte command, int target = 0xFFFF) =>
+        SendRawAsync(PacketBuilder.BuildC1(0xA7, new[] { (byte)0, command, (byte)((target >> 8) & 0xFF), (byte)(target & 0xFF) }));
+
     /// <summary>PMSG_PET_ITEM_INFO_RECV, C1:A9 -- asks the level and experience of the pet in a slot of a container
     /// (<paramref name="flag"/> 0 the inventory, 1 the warehouse; <paramref name="type"/> 1 the Dark Horse, 0 the
     /// Dark Raven).</summary>

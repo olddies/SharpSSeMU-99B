@@ -79,6 +79,11 @@ bool duelEnabled = args.Length > 12 && args[12] == "duel";
 // experience is printed (PETEXP=) for the test to find in the database after A leaves.
 bool petEnabled = args.Length > 12 && args[12] == "pet";
 
+// Optional: the Dark Raven run (gameserver_darkraven_e2e_test.py) -- A, a Dark Lord wearing a Dark Raven (level args[13],
+// experience args[14]), orders it to attack at random; it kills a monster of the test spawn for A, who gets the experience
+// and the raven its share; then it is told to stand down. The raven's new experience is printed (RAVENEXP=).
+bool ravenEnabled = args.Length > 12 && args[12] == "raven";
+
 int failures = 0;
 
 void Check(string name, bool ok, string extra = "")
@@ -216,7 +221,7 @@ async Task<(FakeMuClient Client, byte X, byte Y)> LoginAndEnterAsync(string labe
 // Phase 4 (~12s respawn) + Phase 5 (party/exp) + Phase 6 (Devil Square: up to ~3 min waiting for the window
 // forced by console + real STAND (1 min) + START (1 min) of the test bracket, see the test's DevilSquare.dat)
 // add steps.
-using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(dsEnabled || chaosCastleEnabled || pkEnabled || duelEnabled || petEnabled ? 300 : 90));
+using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(dsEnabled || chaosCastleEnabled || pkEnabled || duelEnabled || petEnabled || ravenEnabled ? 300 : 90));
 
 try
 {
@@ -272,6 +277,89 @@ try
 
         var dieInB = await clientB.WaitForAsync(0x17, TimeSpan.FromSeconds(5));
         Check("[B] Recibe su propia muerte con A como asesino", ((dieInB.Full[3] << 8) | dieInB.Full[4]) == bIndex && ((dieInB.Full[6] << 8) | dieInB.Full[7]) == aIndex);
+
+        clientA.Close();
+        clientB.Close();
+        Console.WriteLine($"\n=== {(failures == 0 ? "TODO OK" : $"{failures} FALLO(S)")} ===");
+        return failures == 0 ? 0 : 1;
+    }
+
+    if (ravenEnabled)
+    {
+        Console.WriteLine("\n=== Dark Raven: A le ordena atacar al azar, el cuervo mata a un monstruo y A recibe la experiencia ===");
+
+        int seedLevel = int.Parse(args[13]);
+        uint seedExperience = uint.Parse(args[14]);
+        int aIndex = clientA.Index;
+
+        await WaitUntilTheyMeetAsync(clientA, clientB);
+
+        // The raven only works once the DataServer has told it its level: ask until it has.
+        int level = 0;
+
+        for (int attempt = 0; attempt < 20 && level != seedLevel; attempt++)
+        {
+            await clientA.SendPetInfoQueryAsync(0, 0, 1);
+            var answer = await clientA.WaitForAsync(0xA9, TimeSpan.FromSeconds(5));
+            level = answer.Full[6];
+
+            if (level != seedLevel)
+            {
+                await Task.Delay(250);
+            }
+        }
+
+        Check("[A] El servidor le da al Dark Raven su nivel guardado (A9)", level == seedLevel, $"(level={level})");
+
+        clientA.DiscardPending();
+
+        await clientA.SendPetCommandAsync(1);
+        var mode = await clientA.WaitForAsync(0xA7, TimeSpan.FromSeconds(5));
+        Check("[A] El servidor confirma el modo de ataque al azar (A7, modo 1)", mode.Full[4] == 1, $"(mode={mode.Full[4]})");
+
+        int attackMaster = -1, attackTarget = -1;
+        bool ravenKilled = false, gotExperience = false;
+        byte[]? ravenPush = null;
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(30);
+
+        while (DateTime.UtcNow < deadline && !(gotExperience && ravenKilled && ravenPush != null))
+        {
+            var pkt = await clientA.WaitForAnyAsync(TimeSpan.FromSeconds(15), 0xA8, 0x17, 0x9C, 0xA9);
+
+            switch (pkt.Head)
+            {
+                case 0xA8 when attackMaster < 0:
+                    attackMaster = (pkt.Full[5] << 8) | pkt.Full[6];
+                    attackTarget = (pkt.Full[7] << 8) | pkt.Full[8];
+                    break;
+
+                case 0x17 when ((pkt.Full[3] << 8) | pkt.Full[4]) < 100 && ((pkt.Full[6] << 8) | pkt.Full[7]) == aIndex:
+                    ravenKilled = true;
+                    break;
+
+                case 0x9C:
+                    gotExperience = true;
+                    break;
+
+                case 0xA9 when pkt.Full[3] == 0:
+                    ravenPush = pkt.Full;
+                    break;
+            }
+        }
+
+        Check("[A] Todos ven al cuervo de A atacar a un monstruo (A8)", attackMaster == aIndex && attackTarget is >= 0 and < 100, $"(master={attackMaster}, target={attackTarget})");
+        Check("[A] El cuervo mata al monstruo y la muerte se acredita a A (17)", ravenKilled);
+        Check("[A] A recibe la experiencia de la muerte (9C)", gotExperience);
+
+        uint ravenExperience = ravenPush == null ? 0 : BitConverter.ToUInt32(ravenPush, 8);
+        Check("[A] El Dark Raven recibe su parte de esa experiencia (A9, tipo 0, slot 1)",
+            ravenPush != null && ravenPush[5] == 1 && ravenExperience > seedExperience, $"(experience={ravenExperience}, before={seedExperience})");
+
+        await clientA.SendPetCommandAsync(0);
+        var stand = await clientA.WaitForAsync(0xA7, TimeSpan.FromSeconds(5));
+        Check("[A] Le ordena quedarse quieto (A7, modo 0)", stand.Full[4] == 0, $"(mode={stand.Full[4]})");
+
+        Console.WriteLine($"RAVENEXP={ravenExperience}");
 
         clientA.Close();
         clientB.Close();

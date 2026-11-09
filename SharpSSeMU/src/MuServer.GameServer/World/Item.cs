@@ -72,6 +72,9 @@ public sealed class Item
 
     public int PetLevel { get; set; } = 1;
 
+    /// <summary>The wear a Dark Raven has taken that is not yet a whole point of durability (m_DurabilitySmall).</summary>
+    public int DurabilitySmall { get; set; }
+
     public uint PetExp { get; set; }
 
     /// <summary>Port of CItem::SetPetItemInfo (Item.cpp:985): the level is capped at the server's maximum, and the

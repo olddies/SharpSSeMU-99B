@@ -94,6 +94,7 @@ public sealed partial class ClientProtocolHandler
         _parties = parties;
         _itemBalance = itemBalance;
         _pets = new PetManager(itemBalance);
+        CreateSpirits();
         _itemValues = itemValues ?? new ItemValueTable();
         _chaosMixRates = chaosMixRates ?? new GameServerInfoChaosMix();
         _addLuckSuccessRate2 = gsiCommon?.AddLuckSuccessRate2 ?? new int[4];
@@ -203,6 +204,7 @@ public sealed partial class ClientProtocolHandler
             }
 
             _players.Remove(session.Index);
+            await Spirits.ResetTargetAsync(session.Index, ct);
 
             // Exact port of the real order (ObjectManager.cpp:623-627, DelCharacterInfo):
             // GDCharacterInfoSaveSend is ALWAYS sent right BEFORE GDDisconnectCharacterSend, with no exception
@@ -433,6 +435,10 @@ public sealed partial class ClientProtocolHandler
 
                 case 0xA2:
                     await OnQuestStateAsync(session, p, ct);
+                    break;
+
+                case 0xA7:
+                    await OnPetCommandAsync(session, p, ct);
                     break;
 
                 case 0xA9:
@@ -753,7 +759,7 @@ public sealed partial class ClientProtocolHandler
 
             player.LevelUpPoint--;
             player.RecalcCombatStats(_itemBalance, _characterBalance);
-            await session.SendAsync(WorldPacketBuilder.NewCharacterCalcSend(player), ct);
+            await session.SendAsync(WorldPacketBuilder.NewCharacterCalcSend(player, SpiritPreview(player)), ct);
 
             await SaveCharacterAsync(player, ct);
         }
@@ -1084,7 +1090,7 @@ public sealed partial class ClientProtocolHandler
 
         await session.SendEncryptedAsync(WorldPacketBuilder.CharacterInfoSend(player), ct);
         await session.SendAsync(WorldPacketBuilder.NewCharacterInfoSend(player), ct);
-        await session.SendAsync(WorldPacketBuilder.NewCharacterCalcSend(player), ct);
+        await session.SendAsync(WorldPacketBuilder.NewCharacterCalcSend(player, SpiritPreview(player)), ct);
 
         // Port of DGCharacterInfoRecv (DSProtocol.cpp:414-499): the full inventory list (C4:F3:10) is sent as a
         // separate packet, after CHARACTER_INFO/NEW_CHARACTER_INFO.
@@ -1371,6 +1377,7 @@ public sealed partial class ClientProtocolHandler
         player.TX = targetX;
         player.TY = targetY;
         player.Dir = targetDir;
+        await Spirits.StandDownAsync(player, ct);
 
         await session.SendEncryptedAsync(
             WorldPacketBuilder.TeleportSend(1, targetMap, targetX, targetY, targetDir), ct);
@@ -1436,6 +1443,7 @@ public sealed partial class ClientProtocolHandler
         player.TY = targetY;
         player.Dir = (byte)targetGate.TargetDir;
         player.VisibleMonsters.Clear();
+        await Spirits.StandDownAsync(player, ct);
 
         await session.SendEncryptedAsync(
             WorldPacketBuilder.TeleportSend(1, player.Map, player.X, player.Y, player.Dir), ct);
@@ -1754,7 +1762,7 @@ public sealed partial class ClientProtocolHandler
         // (ObjectManager.cpp, inside CGItemMoveRecv) -- the player's damage/defense have to reflect the change
         // immediately, not only on re-entering the world.
         player.RecalcCombatStats(_itemBalance, _characterBalance);
-        await session.SendAsync(WorldPacketBuilder.NewCharacterCalcSend(player), ct);
+        await session.SendAsync(WorldPacketBuilder.NewCharacterCalcSend(player, SpiritPreview(player)), ct);
 
         await session.SendAsync(ItemPacketBuilder.ItemEquipmentSend(player), ct);
         await SendSkillListAsync(player, ct);
@@ -3517,6 +3525,7 @@ public sealed partial class ClientProtocolHandler
         // ---- Step 2: the damage (CAttack::Attack, see World/PlayerAttackMath.cs): defense, critical/excellent,
         // wings and pets, damage floor and the PvM damage rates ----
         player.LastCombatTime = DateTime.UtcNow;
+        Spirits.SetTarget(player, monster.Index);
         var hit = PlayerAttackMath.HitMonster(player, monster.Defense, 0, 0, 0, graze, _itemBalance, Rng);
         int damage = monster.Immune ? 0 : hit.Damage; // the Blood Castle gate and statues take none until their stage
         await ApplyAttackerLifeCostAsync(player, hit.AttackerLifeLost, ct);
@@ -3634,6 +3643,7 @@ public sealed partial class ClientProtocolHandler
         // Dark Wizard/Magic Gladiator spells, the hands plus the skill otherwise; SkillDamage.txt, the DK/DL
         // multipliers, critical/excellent, wings and pets ----
         player.LastCombatTime = DateTime.UtcNow;
+        Spirits.SetTarget(player, monster.Index);
         var hit = PlayerAttackMath.HitMonster(player, monster.Defense, skill.Index, skill.DamageMin, skill.DamageMax, graze,
             _itemBalance, Rng, _skillDamage.Apply);
         int damage = monster.Immune ? 0 : hit.Damage; // the Blood Castle gate and statues take none until their stage
@@ -3843,6 +3853,7 @@ public sealed partial class ClientProtocolHandler
         }
 
         player.LastCombatTime = DateTime.UtcNow;
+        Spirits.SetTarget(player, monster.Index);
         var hit = PlayerAttackMath.HitMonster(player, monster.Defense, skill.Index, skill.DamageMin, skill.DamageMax, graze,
             _itemBalance, Rng, _skillDamage.Apply);
         int damage = monster.Immune ? 0 : hit.Damage; // the Blood Castle gate and statues take none until their stage
@@ -3982,6 +3993,7 @@ public sealed partial class ClientProtocolHandler
     {
         monster.Live = false;
         monster.DiedAt = DateTime.UtcNow;
+        await Spirits.ResetTargetAsync(monster.Index, ct);
 
         // Port of CObjectManager::CharacterLifeCheck (ObjectManager.cpp:2893-2903): on dying, the original ONLY
         // sets Live=0/State=OBJECT_DYING and sends the death packet (GCUserDieSend) -- it does NOT remove the
@@ -4265,6 +4277,8 @@ public sealed partial class ClientProtocolHandler
     {
         _players.TryGet(killerIndex, out var killerPlayer);
         await OnMurdererDiedAsync(player, killerPlayer, ct);
+        await Spirits.StandDownAsync(player, ct);
+        await Spirits.ResetTargetAsync(player.Index, ct);
 
         if (_bloodCastle != null)
         {
@@ -4885,6 +4899,7 @@ public sealed partial class ClientProtocolHandler
                     player.TY = targetY;
                     player.Dir = (byte)targetGate.TargetDir;
                     player.VisibleMonsters.Clear();
+                    await Spirits.StandDownAsync(player, ct);
 
                     await session.SendEncryptedAsync(
                         WorldPacketBuilder.TeleportSend(1, player.Map, player.X, player.Y, player.Dir), ct);
@@ -5880,7 +5895,7 @@ public sealed partial class ClientProtocolHandler
                 classByte += (byte)(player.Class * 32);
 
                 await session.SendAsync(QuestPacketBuilder.QuestRewardSend(player.Index, (byte)info.Index, classByte, player.LevelUpPoint), ct);
-                await session.SendAsync(WorldPacketBuilder.NewCharacterCalcSend(player), ct);
+                await session.SendAsync(WorldPacketBuilder.NewCharacterCalcSend(player, SpiritPreview(player)), ct);
                 await session.SendAsync(ItemPacketBuilder.ItemEquipmentSend(player), ct);
                 await session.SendAsync(ChatPacketBuilder.NoticeSend(Loc.T("Congratulations! You have evolved to the 2nd Class.")), ct);
                 continue;

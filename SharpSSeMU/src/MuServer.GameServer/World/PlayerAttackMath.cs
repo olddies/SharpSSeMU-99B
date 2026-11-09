@@ -431,7 +431,7 @@ public static class PlayerAttackMath
 
     /// <summary>CItem::m_CurrentDurabilityState (Item.cpp:198-219): a worn weapon's magic rise drops to 80%..50%
     /// as its durability goes under 50%..20% of the maximum.</summary>
-    private static double DurabilityState(Item item, ItemBalance info)
+    internal static double DurabilityState(Item item, ItemBalance info)
     {
         int max = ItemCombatMath.GetItemDurability(item, info);
 
