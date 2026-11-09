@@ -460,6 +460,13 @@ class Deployment:
         shutil.copy(server_data("Terrain", "Terrain1.att"),
                     self.game_dir / "Data" / "Terrain" / "Terrain1.att")
 
+        # The deployment copies the build output, whose Command.dat may have been edited for local play (the
+        # developer commands switched on): a test must not depend on that, so it starts from the shipped value.
+        command_dat = self.game_dir / "Data" / "GameServerInfo - Command.dat"
+        if command_dat.exists():
+            text = command_dat.read_text(encoding="utf-8")
+            command_dat.write_text(text.replace("CommandDeveloperSwitch = 1", "CommandDeveloperSwitch = 0"), encoding="utf-8")
+
     def copy_server_data(self, *relative: str) -> Path:
         """Copia un archivo de MuServer99B/Data al Data/ del GameServer."""
         dest = self.game_dir / "Data" / Path(*relative)
