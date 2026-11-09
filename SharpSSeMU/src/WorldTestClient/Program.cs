@@ -78,6 +78,17 @@ void Check(string name, bool ok, string extra = "")
     if (!ok) failures++;
 }
 
+// The server learns who sees whom on its viewport tick, and the death of a player goes only to the players who see them:
+// before a fight, wait until each of the two has been shown the other, or the killing blow may go unannounced to the
+// attacker (the kill happens, the test just never hears of it). Whatever arrived before is dropped.
+async Task WaitUntilTheyMeetAsync(FakeMuClient a, FakeMuClient b)
+{
+    await a.WaitForAsync(0x12, TimeSpan.FromSeconds(10));
+    await b.WaitForAsync(0x12, TimeSpan.FromSeconds(10));
+    a.DiscardPending();
+    b.DiscardPending();
+}
+
 // Casts an attack skill repeating the attempt until it HITS (or the attempts run out). A cast's hit reuses the
 // same AttackSuccessRate/DefenseSuccessRate as melee (see the doc- comment of OnSkillAttackAsync in
 // ClientProtocolHandler.cs, point 6), so a single attempt without retry makes the test intermittent by design
@@ -208,8 +219,7 @@ try
         Console.WriteLine("\n=== PK: A mata a B en Lorencia y se vuelve asesino ===");
         int aIndex = clientA.Index, bIndex = clientB.Index;
 
-        clientA.DiscardPending();
-        clientB.DiscardPending();
+        await WaitUntilTheyMeetAsync(clientA, clientB);
 
         string? selfDefenseNotice = null;
         int pkLevelSeen = -1;
