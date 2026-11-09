@@ -42,7 +42,7 @@ public sealed class DuelManager
 
     private bool DuelAllowedOn(int map) => _maps.DuelEnabled(map, ServerInfo.DuelSwitch);
 
-    private static bool Busy(PlayerObject p) => p.InChaosBox || p.InWarehouse || p.TargetShopNumber != null;
+    private static bool Busy(PlayerObject p) => p.InChaosBox || p.InTrainer || p.InWarehouse || p.TargetShopNumber != null;
 
     private static bool InAnyDuelState(PlayerObject p) => p.DuelUserReserved >= 0 || p.DuelUserRequested >= 0 || p.DuelUser >= 0;
 

@@ -247,6 +247,35 @@ public static class ItemCombatMath
         return Math.Clamp(dur, 0, 255);
     }
 
+    /// <summary>The rules of CItemManager::RepairItem (ItemManager.cpp:1848) for what may be repaired at all: only what can be
+    /// worn, the helper slot only for the Dark Horse, never the arrows and bolts, the pets only at the Trainer
+    /// (<paramref name="atTrainer"/>), not the rings that cannot wear.</summary>
+    public static bool CanRepair(Item item, ItemBalance info, bool atTrainer)
+    {
+        if (info.Slot is < 0 or > 11)
+        {
+            return false;
+        }
+
+        if (info.Slot == Item.SlotHelper && item.Index != Item.DarkHorse)
+        {
+            return false;
+        }
+
+        if (item.Index == Item.GetItem(4, 7) || item.Index == Item.GetItem(4, 15)) // Bolt, Arrow
+        {
+            return false;
+        }
+
+        if (item.IsPetItem && !atTrainer)
+        {
+            return false;
+        }
+
+        // The Wizard's Ring and the Starter Ring (levels 0 to 2), and the Transformation Ring.
+        return !(item.Index == Item.GetItem(13, 20) && item.Level <= 2) && item.Index != Item.GetItem(13, 10);
+    }
+
     /// <summary>Puerto de CItemManager::GetItemRepairMoney (ItemManager.cpp:465-530).</summary>
     public static int GetItemRepairMoney(Item item, byte type, ItemBalance info)
     {
@@ -254,8 +283,8 @@ public static class ItemCombatMath
         int maxDur = GetItemDurability(item, info);
         if (maxDur <= 0 || item.Durability >= maxDur) return 0;
 
-        int buyMoney = info.BuyMoney > 0 ? info.BuyMoney : (info.Level * info.Level * 100);
-        int repairMoney = (item.Index == 3332 || item.Index == 3333) ? buyMoney : buyMoney / 3;
+        int buyMoney = item.IsPetItem ? (int)PetManager.BuyValue(item) : info.BuyMoney > 0 ? info.BuyMoney : (info.Level * info.Level * 100);
+        int repairMoney = item.IsPetItem ? buyMoney : buyMoney / 3; // a pet's repair costs all its price (ItemManager.cpp:491)
 
         repairMoney = Math.Min(repairMoney, 2_000_000_000);
         if (repairMoney >= 100) repairMoney = (repairMoney / 10) * 10;
@@ -268,7 +297,7 @@ public static class ItemCombatMath
 
         if (item.Durability == 0)
         {
-            value *= (item.Index == 3332 || item.Index == 3333) ? 2.0 : 1.4;
+            value *= item.IsPetItem ? 2.0 : 1.4;
         }
 
         int money = (int)(type == 1 ? value * 2.5 : value);

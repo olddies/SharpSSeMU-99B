@@ -1635,10 +1635,12 @@ public sealed partial class ClientProtocolHandler
             return;
         }
 
-        // Item moves in the Chaos Box (Flag 3 = Chaos Box)
-        if (recv.SourceFlag == 0 && recv.TargetFlag == 3) // Inventario -> Chaos Box
+        // Item moves in the Chaos Box (flag 3 = the Chaos Machine's window, flag 5 = the Trainer's: the same box)
+        bool BoxFlag(byte flag) => (flag == 3 && player.InChaosBox) || (flag == 5 && player.InTrainer);
+
+        if (recv.SourceFlag == 0 && recv.TargetFlag is 3 or 5) // Inventario -> Chaos Box
         {
-            if (!player.InChaosBox || recv.SourceSlot >= Item.InventorySize || recv.TargetSlot >= 32)
+            if (!BoxFlag(recv.TargetFlag) || recv.SourceSlot >= Item.InventorySize || recv.TargetSlot >= 32)
             {
                 await session.SendEncryptedAsync(ItemPacketBuilder.ItemMoveSend(0xFF, recv.TargetSlot, Item.Empty()), ct);
                 return;
@@ -1653,13 +1655,13 @@ public sealed partial class ClientProtocolHandler
 
             player.ChaosBoxItems[recv.TargetSlot] = item;
             player.SetItem(recv.SourceSlot, Item.Empty());
-            await session.SendEncryptedAsync(ItemPacketBuilder.ItemMoveSend(3, recv.TargetSlot, item), ct);
+            await session.SendEncryptedAsync(ItemPacketBuilder.ItemMoveSend(recv.TargetFlag, recv.TargetSlot, item), ct);
             return;
         }
 
-        if (recv.SourceFlag == 3 && recv.TargetFlag == 0) // Chaos Box -> Inventario
+        if (recv.SourceFlag is 3 or 5 && recv.TargetFlag == 0) // Chaos Box -> Inventario
         {
-            if (!player.InChaosBox || recv.SourceSlot >= 32 || recv.TargetSlot >= Item.InventorySize)
+            if (!BoxFlag(recv.SourceFlag) || recv.SourceSlot >= 32 || recv.TargetSlot >= Item.InventorySize)
             {
                 await session.SendEncryptedAsync(ItemPacketBuilder.ItemMoveSend(0xFF, recv.TargetSlot, Item.Empty()), ct);
                 return;
@@ -1678,9 +1680,9 @@ public sealed partial class ClientProtocolHandler
             return;
         }
 
-        if (recv.SourceFlag == 3 && recv.TargetFlag == 3) // Chaos Box -> Chaos Box
+        if (recv.SourceFlag is 3 or 5 && recv.TargetFlag is 3 or 5) // Chaos Box -> Chaos Box
         {
-            if (!player.InChaosBox || recv.SourceSlot >= 32 || recv.TargetSlot >= 32)
+            if (!BoxFlag(recv.SourceFlag) || !BoxFlag(recv.TargetFlag) || recv.SourceSlot >= 32 || recv.TargetSlot >= 32)
             {
                 await session.SendEncryptedAsync(ItemPacketBuilder.ItemMoveSend(0xFF, recv.TargetSlot, Item.Empty()), ct);
                 return;
@@ -1695,7 +1697,7 @@ public sealed partial class ClientProtocolHandler
 
             player.ChaosBoxItems[recv.TargetSlot] = item;
             player.ChaosBoxItems[recv.SourceSlot] = Item.Empty();
-            await session.SendEncryptedAsync(ItemPacketBuilder.ItemMoveSend(3, recv.TargetSlot, item), ct);
+            await session.SendEncryptedAsync(ItemPacketBuilder.ItemMoveSend(recv.TargetFlag, recv.TargetSlot, item), ct);
             return;
         }
 
@@ -1778,6 +1780,17 @@ public sealed partial class ClientProtocolHandler
         }
     }
 
+    /// <summary>After a repair the client is told the durability and, for a pet, the pet info (GCPetItemInfoSend).</summary>
+    private async Task SendRepairedAsync(ClientSession session, PlayerObject player, int slot, Item item, int maxDur, CancellationToken ct)
+    {
+        await session.SendAsync(ItemPacketBuilder.ItemDurSend((byte)slot, (byte)maxDur, 0), ct);
+
+        if (item.IsPetItem)
+        {
+            await session.SendAsync(QuestPacketBuilder.PetItemInfoSend(item.Index == Item.DarkHorse ? (byte)1 : (byte)0, 0, (byte)slot, (byte)item.PetLevel, item.PetExp), ct);
+        }
+    }
+
     /// <summary> Port of CGItemRepairRecv (ItemManager.cpp:3373-3428) -- repair one item or repair all
     /// (slot=0xFF). </summary>
     private async Task OnItemRepairAsync(ClientSession session, byte[] p, CancellationToken ct)
@@ -1807,7 +1820,7 @@ public sealed partial class ClientProtocolHandler
                 if (!item.IsItem()) continue;
 
                 var info = _itemBalance.Get(item.Index);
-                if (info == null) continue;
+                if (info == null || !ItemCombatMath.CanRepair(item, info, player.InTrainer)) continue;
 
                 int cost = ItemCombatMath.GetItemRepairMoney(item, recv.Type, info);
                 if (cost > 0 && player.Money >= (uint)cost)
@@ -1815,8 +1828,9 @@ public sealed partial class ClientProtocolHandler
                     player.Money -= (uint)cost;
                     int maxDur = ItemCombatMath.GetItemDurability(item, info);
                     item.Durability = (byte)maxDur;
+                    item.DurabilityFraction = 0;
                     player.SetItem(n, item);
-                    await session.SendAsync(ItemPacketBuilder.ItemDurSend((byte)n, (byte)maxDur, 0), ct);
+                    await SendRepairedAsync(session, player, n, item, maxDur, ct);
                     anyRepaired = true;
                 }
             }
@@ -1827,7 +1841,7 @@ public sealed partial class ClientProtocolHandler
             if (item.IsItem())
             {
                 var info = _itemBalance.Get(item.Index);
-                if (info != null)
+                if (info != null && ItemCombatMath.CanRepair(item, info, player.InTrainer))
                 {
                     int cost = ItemCombatMath.GetItemRepairMoney(item, recv.Type, info);
                     if (cost > 0 && player.Money >= (uint)cost)
@@ -1835,8 +1849,9 @@ public sealed partial class ClientProtocolHandler
                         player.Money -= (uint)cost;
                         int maxDur = ItemCombatMath.GetItemDurability(item, info);
                         item.Durability = (byte)maxDur;
+                        item.DurabilityFraction = 0;
                         player.SetItem(recv.Slot, item);
-                        await session.SendAsync(ItemPacketBuilder.ItemDurSend(recv.Slot, (byte)maxDur, 0), ct);
+                        await SendRepairedAsync(session, player, recv.Slot, item, maxDur, ct);
                         anyRepaired = true;
                     }
                 }
@@ -2897,6 +2912,11 @@ public sealed partial class ClientProtocolHandler
 
         if (npc.MonsterClass == 226 || npc.MonsterClass == 234 || npc.MonsterClass == 257) // Trainer / Pet Trainer (Lorencia)
         {
+            // CNpcTalk::NpcTrainer (NpcTalk.cpp:96): the window of the pet mixes and the pet repair. What was left in the
+            // box goes back to the inventory, as with the Chaos Goblin.
+            await ReturnChaosBoxItemsToInventoryAsync(session, player, ct);
+            player.InChaosBox = false;
+            player.InTrainer = true;
             await session.SendEncryptedAsync(ShopPacketBuilder.NpcTalkSend(7), ct);
             return;
         }
@@ -2945,10 +2965,11 @@ public sealed partial class ClientProtocolHandler
 
         player.TargetShopNumber = null;
 
-        if (player.InChaosBox)
+        if (player.InChaosBox || player.InTrainer)
         {
             await ReturnChaosBoxItemsToInventoryAsync(session, player, ct);
             player.InChaosBox = false;
+            player.InTrainer = false;
         }
 
         if (player.InWarehouse)
@@ -5467,15 +5488,38 @@ public sealed partial class ClientProtocolHandler
     private async Task OnChaosMixRecvAsync(ClientSession session, byte[] p, CancellationToken ct)
     {
         var player = session.Player;
-        if (player == null || !player.WorldEntered || !player.InChaosBox) return;
+        if (player == null || !player.WorldEntered || !(player.InChaosBox || player.InTrainer)) return;
 
         byte mixTypeByte = p[3];
         var mixType = (ChaosMixType)mixTypeByte;
+
+        // A pet needs a serial of its own to be kept, and the logic of the mix is synchronous: it is asked for first. A mix
+        // that fails wastes one, which costs nothing.
+        uint? petSerial = null;
+
+        if (mixType is ChaosMixType.Pet1 or ChaosMixType.Pet2)
+        {
+            petSerial = await RequestItemSerialAsync(player, Item.GetItem(13, 4) + (mixType == ChaosMixType.Pet2 ? 1 : 0), ct);
+
+            if (petSerial == null)
+            {
+                await session.SendAsync(ChaosBoxPacketBuilder.ChaosMixSend(0, null), ct);
+                return;
+            }
+        }
 
         // The bags (EventItemBagManager.txt) give the item of the mixes that have one; without them the mix falls
         // back to its built-in list. The rate query below needs none: it never rolls an item.
         var result = ChaosMixLogic.CalculateAndExecuteMix(player, mixType, _chaosMixRates,
             _addLuckSuccessRate2, GetChaosBoxItemBuyMoney, bags: _bags);
+
+        // The new pet goes into the box -- the result 100 of the Trainer shows it there -- at level 1 with its own serial.
+        if (result.Success && result.Item is { IsPetItem: true } pet && petSerial != null)
+        {
+            pet.Serial = petSerial.Value;
+            pet.SetPetItemInfo(1, 0, PetRules.Current);
+            player.ChaosBoxItems[0] = pet;
+        }
 
         if (result.Success && result.DeliverViaInventory && result.Item != null)
         {
@@ -5496,6 +5540,12 @@ public sealed partial class ClientProtocolHandler
         }
 
         var embeddedItem = result.DeliverViaInventory ? null : result.Item;
+        // A pet mix that fails empties the Trainer's window (GCChaosBoxSend with its type 5).
+        if (player.InTrainer && !result.Success && result.ResultCode == 0)
+        {
+            await session.SendAsync(ChaosBoxPacketBuilder.ChaosBoxItemListSend(player.ChaosBoxItems, 5), ct);
+        }
+
         await session.SendAsync(ChaosBoxPacketBuilder.ChaosMixSend(result.ResultCode, embeddedItem), ct);
         await session.SendAsync(ItemPacketBuilder.MoneySend(player.Money), ct);
         await session.SendEncryptedC4Async(ItemPacketBuilder.ItemListSend(player), ct);
@@ -5563,7 +5613,7 @@ public sealed partial class ClientProtocolHandler
     private async Task OnChaosMixRateAsync(ClientSession session, byte[] p, CancellationToken ct)
     {
         var player = session.Player;
-        if (player == null || !player.InChaosBox) return;
+        if (player == null || !(player.InChaosBox || player.InTrainer)) return;
 
         var reader = new PacketReader(p, 3);
         uint mixTypeInt = reader.ReadUInt32();
