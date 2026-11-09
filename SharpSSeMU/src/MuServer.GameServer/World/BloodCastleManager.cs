@@ -114,6 +114,9 @@ public sealed class BloodCastleManager
     /// <summary>Drops the item bag of an event around a player: (player, special value, level, state).</summary>
     public Func<PlayerObject, int, int, int, CancellationToken, Task>? GiveItemBag { get; set; }
 
+    /// <summary>Saves the character (set by the protocol handler); an entry is counted for the day and kept.</summary>
+    public Func<PlayerObject, CancellationToken, Task>? SaveCharacter { get; set; }
+
     public BloodCastleManager(
         BloodCastleConfig config, EventEntryLevelTable entryLevels, EventStageSpawnTable stageSpawns,
         IReadOnlyList<MonsterSpawnEntry> spawnPool, MonsterInfoTable monsterInfo, MapRegistry maps, MonsterRegistry monsters,
@@ -1110,6 +1113,14 @@ public sealed class BloodCastleManager
             return;
         }
 
+        // The daily cap comes before the ticket checks, as in the original; it answers with a notice, not a result.
+        if (ServerInfoConfig.EntryCapReached(ServerInfo.BloodCastleMaxEntryCount, player.AccountLevel, player.BCCount))
+        {
+            int cap = ServerInfo.BloodCastleMaxEntryCount[Math.Clamp(player.AccountLevel, 0, 3)];
+            await session.SendAsync(ChatPacketBuilder.NoticeSend(Fmt(_messages.GetMessage(713), cap)), ct);
+            return;
+        }
+
         var castle = _levels[level];
 
         if (rawSlot < 0 || rawSlot >= Item.InventorySize)
@@ -1151,13 +1162,34 @@ public sealed class BloodCastleManager
                 return;
             }
 
-            if (castle.Users.Count >= ServerInfo.BloodCastleMaxUser || GetUser(castle, player.Index) != null)
+            if (castle.Users.Count >= ServerInfo.BloodCastleMaxUser)
+            {
+                await session.SendAsync(BloodCastlePacketBuilder.EnterSend(5), ct);
+                return;
+            }
+
+            // A murderer may not enter (PKLimitFree / PKLimitEventEntry).
+            if (ServerInfo.PkBlocksEventEntry(player.PKLevel))
+            {
+                await session.SendAsync(BloodCastlePacketBuilder.EnterSend(7), ct);
+                return;
+            }
+
+            if (GetUser(castle, player.Index) != null)
             {
                 await session.SendAsync(BloodCastlePacketBuilder.EnterSend(5), ct);
                 return;
             }
 
             castle.Users.Add(new BloodCastleUser { PlayerIndex = player.Index });
+
+            // gObjEventEntrySaveSend: the entry counts for the day and the character is saved with it.
+            player.BCCount++;
+
+            if (SaveCharacter != null)
+            {
+                await SaveCharacter(player, ct);
+            }
 
             // The cloak or scroll is used up (one point of durability, like the Devil Square's ticket).
             byte durability = (byte)Math.Max(ticket.Durability - 1, 0);

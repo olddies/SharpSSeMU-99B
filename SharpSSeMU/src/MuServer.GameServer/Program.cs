@@ -323,6 +323,7 @@ moves.Load(movePath);
 var messages = new MessageTable();
 string messagePath = Path.Combine(Path.GetDirectoryName(config.ItemPath) ?? "Data/Item", "..", "Message.txt");
 messages.Load(messagePath);
+devilSquare.Messages = messages;
 
 var bloodCastleConfig = BloodCastleConfig.Load(Path.Combine(config.EventPath, "BloodCastle.dat"));
 var bloodCastle = new BloodCastleManager(

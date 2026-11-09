@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using MuServer.GameServer.Net;
+using MuServer.GameServer.Protocol;
 using MuServer.GameServer.World;
 using NUnit.Framework;
 using static MuServer.GameServer.Tests.TestWorld;
@@ -32,6 +33,10 @@ internal sealed class FakeSession : ClientSession
 
     /// <summary>The C1 packets with this head, e.g. 0x9A (entry answer), 0x9B (state), 0x93 (score).</summary>
     public List<byte[]> Of(byte head) => Sent.Where(p => p.Length > 2 && p[0] == 0xC1 && p[2] == head).ToList();
+
+    /// <summary>The text of the notices (C1:0D) sent.</summary>
+    public List<string> Notices() =>
+        Of(0x0D).Select(p => System.Text.Encoding.Latin1.GetString(p, 13, p.Length - 14)).ToList();
 
     /// <summary>The server commands (C1:F3:40) sent, as (type, x).</summary>
     public List<(byte Type, byte X)> Commands() =>
@@ -92,6 +97,7 @@ public class BloodCastleTests
         10  "%s has demolished the castle gates!"
         11  "%s has demolished the crystal statue!"
         12  "Blood Castle has been successfully completed by %s!"
+        713 "You can only enter Blood Castle %d times in a day"
         end
         """;
 
@@ -386,6 +392,133 @@ public class BloodCastleTests
         Assert.That(h.Player.Map, Is.EqualTo(11));
         Assert.That(h.Player.X, Is.InRange(12, 14));
         Assert.That(h.Player.Y, Is.InRange(5, 10));
+    }
+
+    [Test]
+    public async Task Every_entry_counts_for_the_day_and_the_character_is_saved_with_it()
+    {
+        using var h = new Harness();
+        await h.Manager.InitializeAsync(CancellationToken.None);
+        await h.TickAfterAsync(TimeSpan.FromMinutes(6));
+
+        var saved = new List<int>();
+        h.Manager.SaveCharacter = (player, _) => { saved.Add(player.BCCount); return Task.CompletedTask; };
+
+        await h.Manager.HandleEnterAsync(h.Session, h.Player, 1, 13, CancellationToken.None);
+
+        Assert.That(h.Player.BCCount, Is.EqualTo(1));
+        Assert.That(saved, Is.EqualTo(new[] { 1 }));
+
+        // A refused entry (here: the castle is full of this very player) does not count.
+        h.Player.SetItem(14, new Item { Index = (short)Cloak, Level = 1, Durability = 1 });
+        await h.Manager.HandleEnterAsync(h.Session, h.Player, 1, 14, CancellationToken.None);
+        Assert.That(h.Player.BCCount, Is.EqualTo(1));
+        Assert.That(saved, Has.Count.EqualTo(1));
+    }
+
+    [Test]
+    public async Task The_daily_cap_stops_the_entry_with_a_notice_and_keeps_the_cloak()
+    {
+        var caps = WorldPacketBuilder.ServerInfo.BloodCastleMaxEntryCount;
+        int[] before = caps.ToArray();
+
+        try
+        {
+            caps[0] = 2;
+            caps[1] = 5;
+            using var h = new Harness();
+            await h.Manager.InitializeAsync(CancellationToken.None);
+            await h.TickAfterAsync(TimeSpan.FromMinutes(6));
+
+            // Two entries used, two allowed: the third is refused, with the number in the notice, and no reply to the window.
+            h.Player.BCCount = 2;
+            await h.Manager.HandleEnterAsync(h.Session, h.Player, 1, 13, CancellationToken.None);
+
+            Assert.That(h.Session.Notices().Last(), Is.EqualTo("You can only enter Blood Castle 2 times in a day"));
+            Assert.That(h.Session.Of(0x9A), Is.Empty);
+            Assert.That(h.Castle.Users, Is.Empty);
+            Assert.That(h.Player.Items[13].IsItem(), Is.True, "the cloak is not used up");
+
+            // The cap is per account level: level 1 has five.
+            h.Player.AccountLevel = 1;
+            await h.Manager.HandleEnterAsync(h.Session, h.Player, 1, 13, CancellationToken.None);
+            Assert.That(h.Session.Of(0x9A).Last()[3], Is.EqualTo(0));
+            Assert.That(h.Player.BCCount, Is.EqualTo(3));
+        }
+        finally
+        {
+            before.CopyTo(caps, 0);
+        }
+    }
+
+    [Test]
+    public async Task A_cap_of_zero_means_no_limit()
+    {
+        using var h = new Harness();
+        await h.Manager.InitializeAsync(CancellationToken.None);
+        await h.TickAfterAsync(TimeSpan.FromMinutes(6));
+
+        h.Player.BCCount = 5000;
+        await h.Manager.HandleEnterAsync(h.Session, h.Player, 1, 13, CancellationToken.None);
+
+        Assert.That(h.Session.Of(0x9A).Last()[3], Is.EqualTo(0));
+    }
+
+    [Test]
+    public async Task A_murderer_may_not_enter_unless_the_server_lets_everybody_do_everything()
+    {
+        var info = WorldPacketBuilder.ServerInfo;
+        (int free, int limit) = (info.PKLimitFree, info.PKLimitEventEntry);
+
+        try
+        {
+            using var h = new Harness();
+            await h.Manager.InitializeAsync(CancellationToken.None);
+            await h.TickAfterAsync(TimeSpan.FromMinutes(6));
+
+            info.PKLimitFree = 0;
+            info.PKLimitEventEntry = 1;
+
+            h.Player.PKLevel = 5;
+            await h.Manager.HandleEnterAsync(h.Session, h.Player, 1, 13, CancellationToken.None);
+            Assert.That(h.Session.Of(0x9A).Last()[3], Is.EqualTo(7));
+            Assert.That(h.Player.Items[13].IsItem(), Is.True, "the cloak is not used up");
+            Assert.That(h.Player.BCCount, Is.EqualTo(0));
+
+            // The switch that lets everybody in.
+            info.PKLimitFree = 1;
+            await h.Manager.HandleEnterAsync(h.Session, h.Player, 1, 13, CancellationToken.None);
+            Assert.That(h.Session.Of(0x9A).Last()[3], Is.EqualTo(0));
+        }
+        finally
+        {
+            (info.PKLimitFree, info.PKLimitEventEntry) = (free, limit);
+        }
+    }
+
+    [Test]
+    public async Task A_player_with_a_warning_level_still_enters()
+    {
+        var info = WorldPacketBuilder.ServerInfo;
+        (int free, int limit) = (info.PKLimitFree, info.PKLimitEventEntry);
+
+        try
+        {
+            using var h = new Harness();
+            await h.Manager.InitializeAsync(CancellationToken.None);
+            await h.TickAfterAsync(TimeSpan.FromMinutes(6));
+
+            info.PKLimitFree = 0;
+            info.PKLimitEventEntry = 1;
+            h.Player.PKLevel = 4;
+            await h.Manager.HandleEnterAsync(h.Session, h.Player, 1, 13, CancellationToken.None);
+
+            Assert.That(h.Session.Of(0x9A).Last()[3], Is.EqualTo(0), "only levels above 4 are kept out");
+        }
+        finally
+        {
+            (info.PKLimitFree, info.PKLimitEventEntry) = (free, limit);
+        }
     }
 
     [Test]

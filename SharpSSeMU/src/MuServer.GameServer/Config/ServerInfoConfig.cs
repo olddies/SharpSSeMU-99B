@@ -104,6 +104,26 @@ public sealed class ServerInfoConfig
     public int[] BloodCastleMaxEntryCount { get; private set; } = new int[4];
     public bool BloodCastleNpcWithoutEntrance { get; private set; }
 
+    /// <summary>The daily entry caps of the other two entry events by account level (0 = no limit).</summary>
+    public int[] DevilSquareMaxEntryCount { get; private set; } = new int[4];
+    public int[] ChaosCastleMaxEntryCount { get; private set; } = new int[4];
+
+    /// <summary>PKLimitFree (everybody may do everything) and PKLimitEventEntry (a murderer may not enter an event)
+    /// from Common.dat.</summary>
+    public int PKLimitFree { get; internal set; }
+    public int PKLimitEventEntry { get; internal set; }
+
+    /// <summary>True when a player's PK level keeps them out of the events: the check every event's entry makes,
+    /// <c>PKLimitFree == 0 &amp;&amp; PKLevel &gt; 4 &amp;&amp; PKLimitEventEntry != 0</c>.</summary>
+    public bool PkBlocksEventEntry(int pkLevel) => PKLimitFree == 0 && pkLevel > 4 && PKLimitEventEntry != 0;
+
+    /// <summary>True when the player has used up the entries the cap allows for the day.</summary>
+    public static bool EntryCapReached(int[] caps, int accountLevel, int entries)
+    {
+        int cap = caps[Math.Clamp(accountLevel, 0, caps.Length - 1)];
+        return cap != 0 && entries >= cap;
+    }
+
     /// <summary>DropEventSwitch: the drop events of DropEvent.dat run.</summary>
     public bool DropEventSwitch { get; private set; } = true;
 
@@ -159,6 +179,10 @@ public sealed class ServerInfoConfig
             BloodCastleMaxUser = evt.GetInt("GameServerInfo", "BloodCastleMaxUser", 10),
             BloodCastleMaxEntryCount = Enumerable.Range(0, 4).Select(n => evt.GetInt("GameServerInfo", $"BloodCastleMaxEntryCount_AL{n}", 0)).ToArray(),
             BloodCastleNpcWithoutEntrance = evt.GetInt("GameServerInfo", "BloodCastleNPCWithoutEntrance", 0) != 0,
+            DevilSquareMaxEntryCount = Enumerable.Range(0, 4).Select(n => evt.GetInt("GameServerInfo", $"DevilSquareMaxEntryCount_AL{n}", 0)).ToArray(),
+            ChaosCastleMaxEntryCount = Enumerable.Range(0, 4).Select(n => evt.GetInt("GameServerInfo", $"ChaosCastleMaxEntryCount_AL{n}", 0)).ToArray(),
+            PKLimitFree = common.GetInt("GameServerInfo", "PKLimitFree", 0),
+            PKLimitEventEntry = common.GetInt("GameServerInfo", "PKLimitEventEntry", 0),
             DropEventSwitch = evt.GetInt("GameServerInfo", "DropEventSwitch", 1) != 0,
         };
 

@@ -113,12 +113,14 @@ public sealed class ClientProtocolHandler
             _devilSquare.GrantExperience = (member, experience, ct) => ApplyExperienceGainAsync(member, -1, experience, 0, ct);
 
             _devilSquare.GiveItemBag = GiveEventBagAsync;
+            _devilSquare.SaveCharacter = SaveCharacterAsync;
         }
 
         if (_bloodCastle != null)
         {
             _bloodCastle.GrantExperience = (member, experience, ct) => ApplyExperienceGainAsync(member, -1, experience, 0, ct);
             _bloodCastle.GiveItemBag = GiveEventBagAsync;
+            _bloodCastle.SaveCharacter = SaveCharacterAsync;
         }
     }
 
