@@ -39,7 +39,7 @@ funcionales. Los arreglos encontrados jugando están registrados en el
 | Uso de items: pociones, town portal, **joyas** (Bless / Soul / Life), orbes y pergaminos de skill | ✅ | |
 | Tiendas de NPC (comprar / vender) | ✅ | 14 tiendas reales; el precio mostrado = el precio cobrado |
 | Baúl, Trade | ✅ | |
-| Chaos Machine | ✅ | fórmulas y tasas de éxito reales; el item que da una mezcla sale de su bolsa de `EventItemBag` |
+| Chaos Machine | ✅ | fórmulas y tasas de éxito reales; el item que da una mezcla sale de su bolsa de `EventItemBag`; las mezclas de la Devil's Invitation y la Invisibility Cloak. Sin las de Dinorant ni mascotas. El Lost Map tampoco tiene mezcla en el original: sale de drops |
 | Combate: golpes y skills contra monstruos | ✅ | tirada de acierto/esquiva, defensa, golpes crítico / excelente / ignorar defensa (con su color en el cliente), alas y mascotas, multiplicadores de skills de DK/DL, piso de daño, ratios de daño PvM — portado de `Attack.cpp` |
 | Combate: monstruos atacan jugadores | ✅ | mismo pipeline que los jugadores; los hechizos usan el rango de daño propio del skill |
 | IA de monstruos | 🔶 | inactivo/patrulla/persecución/ataque; la elección de hechizo es heurística (`GetMonsterAttackSkill`) |
@@ -53,7 +53,6 @@ funcionales. Los arreglos encontrados jugando están registrados en el
 | Blood Castle | 🔶 | el evento completo: entrada, etapas (monstruos, puente, puerta, estatua), el arma del Arcángel y el Arcángel, recompensas y premio en bolsa. El paquete solo trae el mapa del castillo 1. Sin límite diario de entradas ni restricción de PK todavía |
 | Kalima | 🔶 | la puerta del Lost Map (se abre donde se tira, para su dueño y su grupo, cinco entradas o tres minutos) y la puerta al siguiente Kalima cuando muere un jefe. El paquete solo trae el mapa de Kalima 1 |
 | Chaos Castle | ❌ | necesita primero combate jugador contra jugador |
-| Tickets de eventos por Chaos Machine (Devil's Invitation, Invisibility Cloak, Lost Map) | ❌ | las tres mezclas no están portadas: esos items salen de drops o del comando `/item` |
 | Duelo, Personal Shop, Golden Archer, Mascotas (Dark Spirit/Raven), Teleport Ally, PartyMatching | ❌ | la mayoría necesita una segunda cuenta para probarse bien |
 | Opciones de items: skill, suerte, adicional, excelentes | ✅ | `ItemOption.txt`; bonus base de los excelentes, durabilidad y requisitos; reflejo y reducción de daño, vida y maná al cazar, zen, recuperación de vida, bonus de set de armadura completo |
 | Items de set (ancient) | ✅ | `SetItemType.txt` / `SetItemOption.txt`: los stats de una pieza, los bonos de dos o más piezas y del set completo, el aura, drops de set aleatorios (tasa por mapa, filas de `ItemDrop.txt`, bolsas como la de Kundun). Una pieza de set no se puede tirar al suelo |
@@ -95,7 +94,7 @@ Orden sugerido, lo más fácil primero:
 
 1. **UI del cliente → aspecto 0.99B** (ver `docs/ui-099b.md`).
 2. **Loot**: los premios en bolsa de Chaos Castle (junto con Chaos Castle).
-3. **PvP**, y luego **Chaos Castle**; las mezclas del Chaos Machine para los tickets de eventos (Devil's Invitation, Invisibility Cloak, Lost Map).
+3. **PvP**, y luego **Chaos Castle**; las mezclas de Dinorant y mascotas.
 4. **Duelo**, luego completar Guild (esquema + rangos + marcas), Personal Shop, Golden Archer.
 5. Efectos de skills (buffs/debuffs de `EffectList.txt`), combo y teleport de aliado.
 6. Recarga de config en caliente + endurecer el AdminPanel (autenticación por usuario).

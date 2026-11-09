@@ -39,7 +39,7 @@ working. Fixes found by real play-testing are recorded in the
 | Item use: potions, town portal, **jewels** (Bless / Soul / Life), skill orbs & scrolls | ✅ | |
 | NPC shops (buy / sell) | ✅ | 14 real shops; price shown = price charged |
 | Warehouse, Trade | ✅ | |
-| Chaos Machine | ✅ | real mix formulas and success rates; the item a mix gives comes from its `EventItemBag` bag |
+| Chaos Machine | ✅ | real mix formulas and success rates; the item a mix gives comes from its `EventItemBag` bag; the Devil's Invitation and Invisibility Cloak mixes. Not the Dinorant and pet mixes. The Lost Map has no mix in the original either: it comes from drops |
 | Combat: melee and skills vs. monsters | ✅ | hit/dodge roll, defense, critical / excellent / ignore-defense hits (coloured by the client), wings and pets, DK/DL skill multipliers, min-damage floor, PvM damage rates — ported from `Attack.cpp` |
 | Combat: monsters attack players | ✅ | same pipeline as players; spells use the skill's own damage range |
 | Monster AI | 🔶 | idle/patrol/chase/attack; spell selection is heuristic (`GetMonsterAttackSkill`) |
@@ -53,7 +53,6 @@ working. Fixes found by real play-testing are recorded in the
 | Blood Castle | 🔶 | the whole event: entrance, stages (monsters, bridge, gate, statue), the Archangel's weapon and the Archangel, rewards and bag prize. The package only has the map of castle 1. No daily entry cap and no PK restriction yet |
 | Kalima | 🔶 | the Lost Map gate (opens where it is thrown, for its owner and party, five entries or three minutes) and the gate to the next Kalima when a boss dies. The package only has the map of Kalima 1 |
 | Chaos Castle | ❌ | needs player-versus-player combat first |
-| Event tickets by Chaos Machine (Devil's Invitation, Invisibility Cloak, Lost Map) | ❌ | the three mixes are not ported: those items come from drops or the `/item` command |
 | Duel, Personal Shop, Golden Archer, Pets (Dark Spirit/Raven), Teleport Ally, PartyMatching | ❌ | most need a second account to test properly |
 | Item options: skill, luck, additional, excellent | ✅ | `ItemOption.txt`; excellent base bonuses, durability and requirements; damage reflect/reduction, life & mana after hunting, zen, HP recovery, full-armour set bonus |
 | Set (ancient) items | ✅ | `SetItemType.txt` / `SetItemOption.txt`: the stats of a set piece, the bonuses of two or more pieces and of the full set, the aura, random set drops (per-map rate, `ItemDrop.txt` rows, bags such as Kundun's). Set pieces cannot be thrown on the ground |
@@ -96,7 +95,7 @@ Suggested order, easiest wins first:
 
 1. **Client UI → 0.99B look** (see `docs/ui-099b.md`).
 2. **Loot**: the Chaos Castle bag rewards (with Chaos Castle).
-3. **PvP**, then **Chaos Castle**; the Chaos Machine mixes for the event tickets (Devil's Invitation, Invisibility Cloak, Lost Map).
+3. **PvP**, then **Chaos Castle**; the Dinorant and pet mixes.
 4. **Duel**, then Guild completion (schema + ranks + marks), Personal Shop, Golden Archer.
 5. Skill effects (`EffectList.txt` buffs/debuffs), combo and ally-teleport.
 6. Config hot-reload + AdminPanel hardening (per-user auth).

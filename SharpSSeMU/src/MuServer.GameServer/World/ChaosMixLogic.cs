@@ -49,8 +49,8 @@ public sealed record ChaosMixResult(bool Success, byte ResultCode, Item? Item, b
 /// production server (nobody ships a chaos machine that never delivers anything), and the full <c>ItemBagEx</c>
 /// engine (per-section weights, class filter, drop rate) is a separate system, shared with Devil Square/Blood
 /// Castle/monster drops, that deserves its own port instead of a rushed one as a dependency of this.</para>
-/// <para>Devil Square, Dinorant, Blood Castle and the two pet mixes remain unported (as before): they require
-/// live event state that this server does not track yet.</para> </summary>
+/// <para>Dinorant and the two pet mixes remain unported. The Devil Square and Blood Castle ticket mixes are ported
+/// (<see cref="MixEventTicket"/>).</para> </summary>
 public static class ChaosMixLogic
 {
     private static readonly int ItemChaos = Item.GetItem(12, 15);   // Jewel of Chaos
@@ -110,7 +110,13 @@ public static class ChaosMixLogic
             // Loch's Feather) + a 2nd-gen wing -> Cape of Lord.
             ChaosMixType.Wing3 => MixWing2Family(player, items, rates, getBuyMoney, wingTier: 1, execute, bags),
 
-            _ => new ChaosMixResult(false, 0, null, false, 0, 0), // DevilSquare/Dinorant/BloodCastle: no portado
+            // CHAOS_MIX_DEVIL_SQUARE -> DevilSquareMix: Chaos + Devil's Eye + Devil's Key of the same level -> Devil's Invitation.
+            ChaosMixType.DevilSquare => MixEventTicket(player, items, rates, execute, TicketMix.DevilSquare),
+
+            // CHAOS_MIX_BLOOD_CASTLE -> BloodCastleMix: Chaos + Scroll of Archangel + Blood Bone of the same level -> Invisibility Cloak.
+            ChaosMixType.BloodCastle => MixEventTicket(player, items, rates, execute, TicketMix.BloodCastle),
+
+            _ => new ChaosMixResult(false, 0, null, false, 0, 0), // Dinorant and the pet mixes: no portado
         };
     }
 
@@ -161,6 +167,100 @@ public static class ChaosMixLogic
 
         item = bags.GetItemBySpecialValue(ItemBagManager.SpecialChaosBox, specialLevel, -1, player.Class, player.ChangeUp, Random.Shared);
         return true;
+    }
+
+    private enum TicketMix
+    {
+        DevilSquare,
+        BloodCastle,
+    }
+
+    /// <summary>Ports of DevilSquareMix and BloodCastleMix (ChaosBox.cpp:181-275, 637-743): a Jewel of Chaos and the
+    /// two pieces of the event (Devil's Eye and Key; Scroll of Archangel and Blood Bone) of the same level give the
+    /// ticket of that level. The zen and the chance depend on the level. Devil Square's roll is "below the rate" and
+    /// Blood Castle's "up to the rate", as in the original.</summary>
+    private static ChaosMixResult MixEventTicket(PlayerObject player, List<Item> items, GameServerInfoChaosMix rates, bool execute, TicketMix kind)
+    {
+        bool devil = kind == TicketMix.DevilSquare;
+        int first = devil ? Item.GetItem(14, 17) : Item.GetItem(13, 16);   // Devil's Eye / Scroll of Archangel
+        int second = devil ? Item.GetItem(14, 18) : Item.GetItem(13, 17);  // Devil's Key / Blood Bone
+        int chaosCount = 0, firstCount = 0, secondCount = 0, firstLevel = 0, secondLevel = 0;
+
+        foreach (var it in items)
+        {
+            if (it.Index == ItemChaos)
+            {
+                chaosCount++;
+            }
+            else if (it.Index == first)
+            {
+                firstCount++;
+                firstLevel = it.Level;
+            }
+            else if (it.Index == second)
+            {
+                secondCount++;
+                secondLevel = it.Level;
+            }
+        }
+
+        if (chaosCount != 1 || firstCount != 1 || secondCount != 1 || firstLevel != secondLevel)
+        {
+            return new ChaosMixResult(false, 7, null, false, 0, 0);
+        }
+
+        int maxLevel = devil ? 4 : 7;
+
+        if (firstLevel > maxLevel || secondLevel > maxLevel)
+        {
+            return new ChaosMixResult(false, 8, null, false, 0, 0);
+        }
+
+        // Level 0 is neither: the original's switch has no case for it and the mix would cost nothing and never win.
+        if (firstLevel < 1)
+        {
+            return new ChaosMixResult(false, 7, null, false, 0, 0);
+        }
+
+        int al = Math.Clamp(player.AccountLevel, 0, 3);
+        int[] devilZen = { 0, 100_000, 200_000, 400_000, 700_000 };
+        int[] bloodZen = { 0, 50_000, 80_000, 150_000, 250_000, 400_000, 600_000, 850_000 };
+
+        int rate = devil
+            ? firstLevel switch { 1 => rates.DevilSquareMixRate1[al], 2 => rates.DevilSquareMixRate2[al], 3 => rates.DevilSquareMixRate3[al], _ => rates.DevilSquareMixRate4[al] }
+            : firstLevel switch
+            {
+                1 => rates.BloodCastleMixRate1[al], 2 => rates.BloodCastleMixRate2[al], 3 => rates.BloodCastleMixRate3[al],
+                4 => rates.BloodCastleMixRate4[al], 5 => rates.BloodCastleMixRate5[al], 6 => rates.BloodCastleMixRate6[al],
+                _ => rates.BloodCastleMixRate7[al],
+            };
+
+        rate = Math.Min(rate, 100);
+        int zen = devil ? devilZen[firstLevel] : bloodZen[firstLevel];
+
+        if (!execute)
+        {
+            return new ChaosMixResult(false, 0, null, false, rate, zen);
+        }
+
+        if (player.Money < zen)
+        {
+            return new ChaosMixResult(false, 2, null, false, rate, zen);
+        }
+
+        player.Money -= (uint)zen;
+
+        int roll = Random.Shared.Next(100);
+
+        if (devil ? roll < rate : roll <= rate)
+        {
+            var ticket = new Item { Index = (short)(devil ? Item.GetItem(14, 19) : Item.GetItem(13, 18)), Level = (byte)firstLevel, Durability = 1 };
+            ClearBox(player);
+            return new ChaosMixResult(true, 1, ticket, true, rate, zen);
+        }
+
+        ClearBox(player);
+        return new ChaosMixResult(false, 0, null, false, rate, zen);
     }
 
     private static ChaosMixResult MixChaosItem(PlayerObject player, List<Item> items, GameServerInfoChaosMix rates,
