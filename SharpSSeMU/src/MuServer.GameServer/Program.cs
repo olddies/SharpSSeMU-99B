@@ -92,7 +92,12 @@ CombatRules.Current = new CombatRules
     AngelDecDamageConstA = gsiItem.AngelDecDamageConstA,
     DinorantDecDamageConstA = gsiItem.DinorantDecDamageConstA,
     DinorantDecDamageConstB = gsiItem.DinorantDecDamageConstB,
+    DarkHorseDecDamageConstA = gsiItem.DarkHorseDecDamageConstA,
+    DarkHorseDecDamageConstB = gsiItem.DarkHorseDecDamageConstB,
 };
+
+// The Dark Horse and Dark Raven: experience per level, maximum level and what a kill gives them -- see World/PetRules.cs.
+PetRules.Current = new PetRules(gsiCommon.PetExperienceMultiplierConstA, gsiCommon.PetMaxLevel, gsiCommon.PetExperienceRateDivisor);
 
 // The PK system's constants -- see World/PkSystem.cs.
 PkRules.Current = new PkRules

@@ -11,6 +11,7 @@
  "[Server] You have granted yourself 10,000,000 Zen.": "[Server] Te has otorgado 10,000,000 Zen.",
  "[Server] Item #{0} added to your inventory.": "[Server] Ítem #{0} agregado a tu inventario.",
  "[Server] Inventory full.": "[Server] Inventario lleno.",
+ "[Server] The DataServer did not answer.": "[Server] El DataServer no respondió.",
  "[Server] Command '/{0}' not recognised.": "[Server] Comando '/{0}' no reconocido.",
  "You need level 100 to create a Guild.": "Requieres Nivel 100 para crear un Guild.",
  "Guild [{0}] created successfully!": "¡Guild [{0}] creado exitosamente!",

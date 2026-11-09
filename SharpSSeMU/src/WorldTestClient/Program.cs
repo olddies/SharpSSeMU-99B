@@ -74,6 +74,11 @@ bool pkEnabled = args.Length > 12 && args[12] == "pk";
 // server asks for and the duel ends; B comes back where it fell. No PK, no self-defense.
 bool duelEnabled = args.Length > 12 && args[12] == "duel";
 
+// Optional: the pet run (gameserver_pet_e2e_test.py) -- A wears a Dark Horse the test put in the database with a level and
+// experience (args[13] and args[14]); the server gives them back, a kill gives the horse its share, and the new
+// experience is printed (PETEXP=) for the test to find in the database after A leaves.
+bool petEnabled = args.Length > 12 && args[12] == "pet";
+
 int failures = 0;
 
 void Check(string name, bool ok, string extra = "")
@@ -211,7 +216,7 @@ async Task<(FakeMuClient Client, byte X, byte Y)> LoginAndEnterAsync(string labe
 // Phase 4 (~12s respawn) + Phase 5 (party/exp) + Phase 6 (Devil Square: up to ~3 min waiting for the window
 // forced by console + real STAND (1 min) + START (1 min) of the test bracket, see the test's DevilSquare.dat)
 // add steps.
-using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(dsEnabled || chaosCastleEnabled || pkEnabled || duelEnabled ? 300 : 90));
+using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(dsEnabled || chaosCastleEnabled || pkEnabled || duelEnabled || petEnabled ? 300 : 90));
 
 try
 {
@@ -267,6 +272,88 @@ try
 
         var dieInB = await clientB.WaitForAsync(0x17, TimeSpan.FromSeconds(5));
         Check("[B] Recibe su propia muerte con A como asesino", ((dieInB.Full[3] << 8) | dieInB.Full[4]) == bIndex && ((dieInB.Full[6] << 8) | dieInB.Full[7]) == aIndex);
+
+        clientA.Close();
+        clientB.Close();
+        Console.WriteLine($"\n=== {(failures == 0 ? "TODO OK" : $"{failures} FALLO(S)")} ===");
+        return failures == 0 ? 0 : 1;
+    }
+
+    if (petEnabled)
+    {
+        Console.WriteLine("\n=== Mascota: el Dark Horse de A guarda su nivel, gana experiencia con una muerte y la conserva ===");
+
+        // "Test Item Dropper" (class 276, level 20): the second monster of the test spawn file, within reach of A.
+        const int petMonsterIndex = 1;
+        int seedLevel = int.Parse(args[13]);
+        uint seedExperience = uint.Parse(args[14]);
+
+        await WaitUntilTheyMeetAsync(clientA, clientB);
+
+        // The level and experience reach the server from the DataServer a moment after A enters: ask until they do.
+        int level = 0;
+        uint experience = 0;
+
+        for (int attempt = 0; attempt < 20 && level != seedLevel; attempt++)
+        {
+            await clientA.SendPetInfoQueryAsync(1, 0, 8);
+            var answer = await clientA.WaitForAsync(0xA9, TimeSpan.FromSeconds(5));
+            level = answer.Full[6];
+            experience = BitConverter.ToUInt32(answer.Full, 8);
+
+            if (level != seedLevel)
+            {
+                await Task.Delay(250);
+            }
+        }
+
+        Check("[A] El servidor le da al Dark Horse el nivel y la experiencia que guarda la base de datos (A9)",
+            level == seedLevel && experience == seedExperience, $"(level={level}, experience={experience})");
+
+        // A kills the monster; the horse gets its share just before the experience popup (C1:9C).
+        clientA.DiscardPending();
+        bool killed = false;
+        uint shownExperience = 0;
+        byte[]? push = null;
+
+        for (int swings = 0; swings < 60 && !killed; swings++)
+        {
+            await clientA.SendAttackAsync(petMonsterIndex, 120, 3);
+
+            while (true)
+            {
+                var pkt = await clientA.WaitForAnyAsync(TimeSpan.FromSeconds(5), 0xD9, 0xA9, 0x9C, 0x17);
+
+                if (pkt.Head == 0xA9)
+                {
+                    push = pkt.Full;
+                    continue;
+                }
+
+                if (pkt.Head == 0x9C)
+                {
+                    // Two WORDs, high then low, each little-endian (PMSG_REWARD_EXPERIENCE_SEND).
+                    shownExperience = ((uint)(pkt.Full[5] | (pkt.Full[6] << 8)) << 16) | (uint)(pkt.Full[7] | (pkt.Full[8] << 8));
+                    killed = true;
+                    break;
+                }
+
+                if (pkt.Head == 0xD9)
+                {
+                    break; // it survived: hit again
+                }
+            }
+        }
+
+        Check("[A] Mata al monstruo y recibe la experiencia (9C)", killed && shownExperience > 0, $"(experience={shownExperience})");
+
+        uint expectedShare = shownExperience / 10;
+        uint pushedExperience = push == null ? 0 : BitConverter.ToUInt32(push, 8);
+        Check("[A] El Dark Horse recibe un décimo de esa experiencia, sin subir de nivel (A9: tipo 1, slot 8, indicador 0)",
+            push != null && push[3] == 1 && push[4] == 0 && push[5] == 8 && push[6] == seedLevel && expectedShare > 0 && pushedExperience == seedExperience + expectedShare,
+            $"(experience={pushedExperience}, expected={seedExperience + expectedShare})");
+
+        Console.WriteLine($"PETEXP={pushedExperience}");
 
         clientA.Close();
         clientB.Close();

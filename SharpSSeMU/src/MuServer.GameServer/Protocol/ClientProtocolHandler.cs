@@ -24,6 +24,7 @@ public sealed partial class ClientProtocolHandler
     private readonly PartyRegistry _parties;
     private readonly DevilSquareManager? _devilSquare;
     private readonly ItemBalanceTable _itemBalance;
+    private readonly PetManager _pets;
     private readonly ItemValueTable _itemValues;
     private readonly GameServerInfoChaosMix _chaosMixRates;
     private readonly int[] _addLuckSuccessRate2;
@@ -92,6 +93,7 @@ public sealed partial class ClientProtocolHandler
         _monsters = monsters;
         _parties = parties;
         _itemBalance = itemBalance;
+        _pets = new PetManager(itemBalance);
         _itemValues = itemValues ?? new ItemValueTable();
         _chaosMixRates = chaosMixRates ?? new GameServerInfoChaosMix();
         _addLuckSuccessRate2 = gsiCommon?.AddLuckSuccessRate2 ?? new int[4];
@@ -229,16 +231,18 @@ public sealed partial class ClientProtocolHandler
     /// reuse it instead of building the packet by hand. No throttle in here on purpose -- each caller decides
     /// its own condition (unconditional on disconnect, 60s in <see cref="ApplyExperienceGainAsync"/>, 10min in
     /// the periodic autosave of <see cref="World.ViewportTicker"/>), just as the original spreads that logic
-    /// across the call sites instead of centralising it. </summary>
+    /// across the call sites instead of centralising it. The level and experience of the pets go right after
+    /// it, as in the original (GDPetItemInfoSaveSend, DSProtocol.cpp:1049). </summary>
+    public async Task SaveCharacterAsync(PlayerObject player, CancellationToken ct)
+    {
+        await _dataServer.SendAsync(DataServerCharacterPacketBuilder.CharacterInfoSaveSend(player), ct);
+        await SavePetInfoAsync(player, 0, ct);
+    }
+
     /// <summary>The developer commands <c>/item</c> and <c>/zen</c> work only when this is on
     /// (<c>CommandDeveloperSwitch</c> in the Command.dat). Off, the server answers "not recognised" like for any
     /// unknown command, so a player cannot tell them from a typo.</summary>
     public bool DeveloperCommands { get; set; }
-
-    public async Task SaveCharacterAsync(PlayerObject player, CancellationToken ct)
-    {
-        await _dataServer.SendAsync(DataServerCharacterPacketBuilder.CharacterInfoSaveSend(player), ct);
-    }
 
     public async Task HandlePacketAsync(ClientSession session, GameClientFramer.DecodedPacket packet, CancellationToken ct)
     {
@@ -652,6 +656,18 @@ public sealed partial class ClientProtocolHandler
     /// index, account[11], name[11], then the 15 option bytes).</summary>
     public async Task OnCharacterMiscFromDataServerAsync(byte head, byte[] packet, CancellationToken ct)
     {
+        if (head == 0x09)
+        {
+            await OnPetItemInfoFromDataServerAsync(packet, ct); // a C2 packet: not laid out like the C1 ones below
+            return;
+        }
+
+        if (head == 0x07)
+        {
+            OnItemSerialFromDataServer(packet);
+            return;
+        }
+
         if (packet.Length < 5)
         {
             return;
@@ -1094,6 +1110,9 @@ public sealed partial class ClientProtocolHandler
         // as C1:F3:30 when DataServer answers (OnCharacterMiscFromDataServerAsync).
         await _dataServer.SendAsync(
             DataServerCharacterPacketBuilder.OptionDataRequest((ushort)session.Index, session.Account, player.Name), ct);
+
+        // DSProtocol.cpp:497: the level and experience of the Dark Horse or Dark Raven in the inventory.
+        await RequestPetInfoAsync(player, 0, ct);
 
         Log.Add(LogColor.Blue, "[Protocol][{0}] '{1}' entered the world (Map={2} X={3} Y={4})",
             session.Index, player.Name, player.Map, player.X, player.Y);
@@ -2584,10 +2603,10 @@ public sealed partial class ClientProtocolHandler
         player.SendQuestInfo = true;
     }
 
-    /// <summary>Port of CGPetItemInfoRecv (Protocol.cpp:797-819) -- only the flag==0 branch (Inventory);
-    /// Warehouse/Trade/ChaosBox (flag 1+) are not ported yet and, like the original on any failed validation,
-    /// simply do not answer (confirmed in the earlier research that the real client tolerates the absence of an
-    /// answer here, unlike QuestInfo).</summary>
+    /// <summary>Port of CGPetItemInfoRecv (Protocol.cpp:797-819): the client asks the level and experience of the
+    /// pet in a slot -- of the inventory (flag 0) or the open warehouse (flag 1). The trade, chaos box and personal
+    /// shop containers (flags 2 to 5) are not ported and, like the original on any failed validation, simply do not
+    /// answer (the real client tolerates the absence of an answer here, unlike QuestInfo).</summary>
     private async Task OnPetItemInfoAsync(ClientSession session, byte[] p, CancellationToken ct)
     {
         var player = session.Player;
@@ -2599,12 +2618,132 @@ public sealed partial class ClientProtocolHandler
 
         var recv = PetItemInfoRecv.Parse(p);
 
-        if (recv.Type > 1 || recv.Flag != 0 || recv.Slot >= Item.InventorySize)
+        if (recv.Type > 1)
         {
             return;
         }
 
-        await session.SendAsync(QuestPacketBuilder.PetItemInfoSend(recv.Type, recv.Flag, recv.Slot), ct);
+        Item item;
+
+        if (recv.Flag == 0)
+        {
+            if (recv.Slot >= Item.InventorySize)
+            {
+                return;
+            }
+
+            item = player.Items[recv.Slot];
+        }
+        else if (recv.Flag == 1)
+        {
+            if (recv.Slot >= player.WarehouseItems.Length || !player.InWarehouse)
+            {
+                return;
+            }
+
+            item = player.WarehouseItems[recv.Slot];
+        }
+        else
+        {
+            return;
+        }
+
+        await session.SendAsync(QuestPacketBuilder.PetItemInfoSend(recv.Type, recv.Flag, recv.Slot, (byte)item.PetLevel, item.PetExp), ct);
+    }
+
+    // ---------------------------------------------------------------- Pets: Dark Horse and Dark Raven
+
+    private readonly ConcurrentDictionary<ushort, TaskCompletionSource<uint>> _pendingSerials = new();
+    private int _serialRequestId;
+
+    /// <summary>Asks the DataServer for the serial of a new item (GDCreateItemSend, DSProtocol.cpp:857) and waits for
+    /// it. The DataServer keeps a pet's level and experience under its serial, so a new Dark Horse or Dark Raven needs
+    /// a serial of its own before it can be saved; the rest of the items of this port still carry none. Null when the
+    /// DataServer does not answer in time.</summary>
+    public async Task<uint?> RequestItemSerialAsync(PlayerObject player, int itemIndex, CancellationToken ct)
+    {
+        ushort id = (ushort)(Interlocked.Increment(ref _serialRequestId) & 0xFFFF);
+        var pending = new TaskCompletionSource<uint>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _pendingSerials[id] = pending;
+
+        try
+        {
+            await _dataServer.SendAsync(
+                DataServerCharacterPacketBuilder.CreateItemRequest((ushort)player.Index, player.Account, 0xEC, (ushort)itemIndex, 0, id), ct);
+
+            return await pending.Task.WaitAsync(TimeSpan.FromSeconds(5), ct);
+        }
+        catch (TimeoutException)
+        {
+            return null;
+        }
+        finally
+        {
+            _pendingSerials.TryRemove(id, out _);
+        }
+    }
+
+    /// <summary>DGCreateItemRecv, for the serial requests of <see cref="RequestItemSerialAsync"/>: C1:07 with the
+    /// serial after the map (index 3, account 5, x/y/map 16-18, serial 19) and the request id in the LootIndex (31).</summary>
+    private void OnItemSerialFromDataServer(byte[] packet)
+    {
+        if (packet.Length < 33)
+        {
+            return;
+        }
+
+        uint serial = PacketBuilder.ReadUInt32LE(packet.AsSpan(19, 4));
+        ushort id = PacketBuilder.ReadUInt16LE(packet.AsSpan(31, 2));
+
+        if (_pendingSerials.TryRemove(id, out var pending))
+        {
+            pending.TrySetResult(serial);
+        }
+    }
+
+    /// <summary>Port of GDPetItemInfoSend (DSProtocol.cpp:908): asks the DataServer for the level and experience of
+    /// the pets in the inventory (<paramref name="type"/> 0) or the warehouse (1). A pet has no data of its own
+    /// until the answer arrives (<see cref="OnPetItemInfoFromDataServerAsync"/>).</summary>
+    private async Task RequestPetInfoAsync(PlayerObject player, byte type, CancellationToken ct)
+    {
+        var pets = PetManager.PetsToRequest(type == 0 ? player.Items : player.WarehouseItems);
+
+        if (pets.Count > 0)
+        {
+            await _dataServer.SendAsync(DataServerCharacterPacketBuilder.PetItemInfoRequest((ushort)player.Index, player.Account, type, pets), ct);
+        }
+    }
+
+    /// <summary>Port of GDPetItemInfoSaveSend (DSProtocol.cpp:1104): the level and experience of the pets whose data
+    /// the DataServer has given.</summary>
+    private async Task SavePetInfoAsync(PlayerObject player, byte type, CancellationToken ct)
+    {
+        var pets = PetManager.PetsToSave(type == 0 ? player.Items : player.WarehouseItems);
+
+        if (pets.Count > 0)
+        {
+            await _dataServer.SendAsync(DataServerCharacterPacketBuilder.PetItemInfoSave((ushort)player.Index, player.Account, pets), ct);
+        }
+    }
+
+    /// <summary>Port of DGPetItemInfoRecv (DSProtocol.cpp:611): the DataServer's answer. A worn pet that changed
+    /// changes the player's stats (the Dark Horse's defense).</summary>
+    public async Task OnPetItemInfoFromDataServerAsync(byte[] packet, CancellationToken ct)
+    {
+        var info = PetItemInfoFromDataServer.Parse(packet);
+
+        if (info == null || !_players.TryGet(info.Index, out var player) || !player.WorldEntered
+            || !string.Equals(player.Account, info.Account, StringComparison.Ordinal))
+        {
+            return; // gObjIsAccountValid: the slot was reused by someone else meanwhile
+        }
+
+        if (_pets.ApplyInfo(player, info.Type, info.Pets))
+        {
+            player.RecalcCombatStats(_itemBalance, _characterBalance);
+        }
+
+        await Task.CompletedTask;
     }
 
     /// <summary>Port of CNpcTalk::CGNpcTalkRecv (NpcTalk.cpp:1416-1524) -- ONLY the "shop" branch (the
@@ -2807,6 +2946,7 @@ public sealed partial class ClientProtocolHandler
         if (player.InWarehouse)
         {
             await _dataServer.SendAsync(DataServerCharacterPacketBuilder.WarehouseSaveRequest((ushort)player.Index, player.Account, player), ct);
+            await SavePetInfoAsync(player, 1, ct);
             player.InWarehouse = false;
         }
     }
@@ -2839,6 +2979,9 @@ public sealed partial class ClientProtocolHandler
             var info = items.AsSpan(slot * 16, 16);
             player.WarehouseItems[slot] = Item.FromDbBytes(info);
         }
+
+        // The pets stored in the warehouse take their level and experience from the DataServer too.
+        await RequestPetInfoAsync(player, 1, ct);
 
         if (password != 0)
         {
@@ -2921,6 +3064,7 @@ public sealed partial class ClientProtocolHandler
         if (player == null || !player.WorldEntered || !player.InWarehouse) return;
 
         await _dataServer.SendAsync(DataServerCharacterPacketBuilder.WarehouseSaveRequest((ushort)player.Index, player.Account, player), ct);
+        await SavePetInfoAsync(player, 1, ct);
         player.InWarehouse = false;
     }
 
@@ -3120,6 +3264,13 @@ public sealed partial class ClientProtocolHandler
         if (info == null)
         {
             return 0;
+        }
+
+        // CItem::PetValue (Item.cpp:958): the Dark Horse is worth two million for every level it has and the Dark
+        // Raven one million; the shop pays a third.
+        if (item.IsPetItem)
+        {
+            return RoundPriceTwoStage(PetManager.SellValue(item));
         }
 
         if (info.BuyMoney != 0)
@@ -4375,6 +4526,12 @@ public sealed partial class ClientProtocolHandler
 
         bool leveledUp = false;
 
+        // What the monsters give the player the pets get a share of (the events' experience is not for them).
+        if (monsterIndex >= 0)
+        {
+            await _pets.GrantExperienceAsync(member, addExperience, ct);
+        }
+
         if (member.Level >= maxLevel)
         {
             // Port of CharacterLevelUp (ObjectManager.cpp:985-989): at the cap, the experience gained is not
@@ -4634,6 +4791,23 @@ public sealed partial class ClientProtocolHandler
             // Blood Castle is level 1 for castle 1, the Devil's Invitation likewise).
             byte itemLevel = cmd == "item" && parts.Length >= 4 && byte.TryParse(parts[3], out byte parsedLevel) ? Math.Min(parsedLevel, (byte)15) : (byte)0;
             var newItem = new Item { Index = (short)targetItemIndex, Level = itemLevel, Durability = 255 };
+
+            // A Dark Horse or Dark Raven is kept under its serial: it gets one from the DataServer and starts at level 1
+            // (DGCreateItemRecv, DSProtocol.cpp:564).
+            if (newItem.IsPetItem)
+            {
+                var petSerial = await RequestItemSerialAsync(player, targetItemIndex, ct);
+
+                if (petSerial == null)
+                {
+                    await session.SendAsync(ChatPacketBuilder.NoticeSend(Loc.T("[Server] The DataServer did not answer.")), ct);
+                    return;
+                }
+
+                newItem.Serial = petSerial.Value;
+                newItem.SetPetItemInfo(1, 0, PetRules.Current);
+            }
+
             var info = _itemBalance.Get(targetItemIndex);
             int width = info?.Width ?? 1;
             int height = info?.Height ?? 1;

@@ -169,7 +169,9 @@ public sealed class DataServerConnection
                 break;
 
             case 0x03: // SDHP_CHARACTER_DELETE_RECV
+            case 0x07: // SDHP_CREATE_ITEM_RECV
             case 0x08: // SDHP_OPTION_DATA_RECV
+            case 0x09: // SDHP_PET_ITEM_INFO_RECV (C2)
                 if (_onCharacterMisc != null) await _onCharacterMisc(head, packet, ct);
                 break;
 
