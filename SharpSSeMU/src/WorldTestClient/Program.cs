@@ -67,6 +67,9 @@ bool groundItemEnabled = args.Length > 12 && args[12] == "grounditem";
 // test forced by console, and A kills B. It replaces the shared flow: the two clients log in and go straight to it.
 bool chaosCastleEnabled = args.Length > 12 && args[12] == "chaoscastle";
 
+// Optional: the PK run (gameserver_pk_e2e_test.py) -- A kills B in the open and becomes a murderer.
+bool pkEnabled = args.Length > 12 && args[12] == "pk";
+
 int failures = 0;
 
 void Check(string name, bool ok, string extra = "")
@@ -193,12 +196,69 @@ async Task<(FakeMuClient Client, byte X, byte Y)> LoginAndEnterAsync(string labe
 // Phase 4 (~12s respawn) + Phase 5 (party/exp) + Phase 6 (Devil Square: up to ~3 min waiting for the window
 // forced by console + real STAND (1 min) + START (1 min) of the test bracket, see the test's DevilSquare.dat)
 // add steps.
-using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(dsEnabled || chaosCastleEnabled ? 300 : 90));
+using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(dsEnabled || chaosCastleEnabled || pkEnabled ? 300 : 90));
 
 try
 {
     var (clientA, ax, ay) = await LoginAndEnterAsync("A", account1, password1, char1, cts.Token, secondCharName1);
     var (clientB, _, _) = await LoginAndEnterAsync("B", account2, password2, char2, cts.Token);
+
+    if (pkEnabled)
+    {
+        Console.WriteLine("\n=== PK: A mata a B en Lorencia y se vuelve asesino ===");
+        int aIndex = clientA.Index, bIndex = clientB.Index;
+
+        clientA.DiscardPending();
+        clientB.DiscardPending();
+
+        string? selfDefenseNotice = null;
+        int pkLevelSeen = -1;
+        bool bDied = false;
+        int swings = 0;
+
+        // The blow that lands starts the self-defense (a notice), the kill makes the murderer (the PK level packet
+        // F3:08) and tells everybody about the death; both come before the death packet.
+        for (; swings < 60 && !bDied; swings++)
+        {
+            await clientA.SendAttackAsync(bIndex, 120, 3);
+
+            while (true)
+            {
+                var pkt = await clientA.WaitForAnyAsync(TimeSpan.FromSeconds(5), 0xD9, 0x0D, 0x17, 0xF3);
+
+                if (pkt.Head == 0x0D)
+                {
+                    selfDefenseNotice ??= System.Text.Encoding.Latin1.GetString(pkt.Full, 13, pkt.Full.Length - 14);
+                    continue;
+                }
+
+                if (pkt.Head == 0xF3)
+                {
+                    if (pkt.SubHead == 0x08 && ((pkt.Full[4] << 8) | pkt.Full[5]) == aIndex)
+                    {
+                        pkLevelSeen = pkt.Full[6];
+                    }
+
+                    continue;
+                }
+
+                bDied = pkt.Head == 0x17 && ((pkt.Full[3] << 8) | pkt.Full[4]) == bIndex;
+                break;
+            }
+        }
+
+        Check("[A] Mata a B fuera de una zona segura", bDied, $"(en {swings} golpe(s))");
+        Check("[A] Le avisan que empezo una defensa propia", selfDefenseNotice != null && selfDefenseNotice.Contains("Self defense against " + char1 + " started"), $"(aviso='{selfDefenseNotice}')");
+        Check("[A] Su nivel de PK pasa a 4 (asesino) al matar a un inocente", pkLevelSeen == 4, $"(PKLevel={pkLevelSeen})");
+
+        var dieInB = await clientB.WaitForAsync(0x17, TimeSpan.FromSeconds(5));
+        Check("[B] Recibe su propia muerte con A como asesino", ((dieInB.Full[3] << 8) | dieInB.Full[4]) == bIndex && ((dieInB.Full[6] << 8) | dieInB.Full[7]) == aIndex);
+
+        clientA.Close();
+        clientB.Close();
+        Console.WriteLine($"\n=== {(failures == 0 ? "TODO OK" : $"{failures} FALLO(S)")} ===");
+        return failures == 0 ? 0 : 1;
+    }
 
     if (chaosCastleEnabled)
     {

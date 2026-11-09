@@ -605,6 +605,10 @@ public static class WorldPacketBuilder
         return PacketBuilder.BuildC1(0xD0, w.ToArray());
     }
 
+    /// <summary>PMSG_PK_LEVEL_SEND, C1:F3:08: the PK level of a player, which the client shows in the colour of their name.</summary>
+    public static byte[] PKLevelSend(int index, byte pkLevel) =>
+        PacketBuilder.BuildC1Sub(0xF3, 0x08, new[] { (byte)((index >> 8) & 0xFF), (byte)(index & 0xFF), pkLevel });
+
     /// <summary>PMSG_TELEPORT_SEND, C3:1C -- EXACT port of CMove::GCTeleportSend (Move.cpp:279-292) and its
     /// real struct (Move.h:36-44 of the correct source tree, "Emulator 0.99 (2.1.7)/GameServer" -- see the
     /// doc-comment of <see cref="World.Item"/> for the explanation of why this repo has two C++ trees and which

@@ -44,6 +44,12 @@ public sealed class PlayerObject
     public uint BP { get; set; }
     public uint MaxBP { get; set; }
     public byte PKLevel { get; set; }
+
+    /// <summary>The players this one has attacked and defends against for a minute (SelfDefense / SelfDefenseTime of the
+    /// original), -1 where free; and when the player last started one (MySelfDefenseTime).</summary>
+    public int[] SelfDefense { get; } = new[] { -1, -1, -1, -1, -1 };
+    public DateTime[] SelfDefenseUntil { get; } = new DateTime[5];
+    public DateTime MySelfDefenseTime { get; set; } = DateTime.MinValue;
     public uint PKCount { get; set; }
     public uint PKTime { get; set; }
     public byte CtlCode { get; set; }

@@ -42,7 +42,7 @@ working. Fixes found by real play-testing are recorded in the
 | Chaos Machine | ✅ | real mix formulas and success rates; the item a mix gives comes from its `EventItemBag` bag; the Devil's Invitation, Invisibility Cloak and Horn of Dinorant mixes. Not the pet mixes: the pets themselves (Dark Horse, Dark Raven, their level and commands, the Trainer window) are not ported. The Lost Map has no mix in the original either: it comes from drops |
 | Combat: melee and skills vs. monsters | ✅ | hit/dodge roll, defense, critical / excellent / ignore-defense hits (coloured by the client), wings and pets, DK/DL skill multipliers, min-damage floor, PvM damage rates — ported from `Attack.cpp` |
 | Combat: monsters attack players | ✅ | same pipeline as players; spells use the skill's own damage range |
-| Combat: player vs. player | 🔶 | the original's PvP pipeline (hit roll from the PvP success rates, halved defense, what the target wears, PvP and Chaos Castle damage rates), but **only inside a running Chaos Castle**: elsewhere players cannot hurt each other, because the PK system (PK levels, outlaws, self-defense, the items a murdered player drops) is not ported. Single-target attacks and skills; no area skills or reflect against players |
+| Combat: player vs. player, PK system | 🔶 | the original's PvP pipeline (hit roll from the PvP success rates, halved defense, what the target wears, PvP and Chaos Castle damage rates) and PK system: anywhere outside safe zones, between players above level 5, on maps that allow it (`NonPK` in `MapManager.txt` / `Common.dat`); killing an innocent makes a murderer (PK levels 4-6, shown in the name colour), killing a murderer a hero (levels 2-0); the PK time runs down with time and with every monster killed; the one-minute self-defense against whoever you attacked; a dying murderer may drop a worn item (`PKItemDrop*`); murderers are kept out of the NPC shops, the warp list and the events (`PKLimit*`); `/pkclear`. Single-target attacks and skills. Not ported: duels and guild wars, area skills and damage reflect against players, the kill-count window, the 30 s logout block after a self-defense, the generic command requirements of `/pkclear` |
 | Monster AI | 🔶 | idle/patrol/chase/attack; spell selection is heuristic (`GetMonsterAttackSkill`) |
 | Skills & mana | 🔶 | single-target, duration and multi-target attacks, learning via orbs, mana/BP regen. No `EffectList.txt` buffs/debuffs, no combo/ally-teleport |
 | Death, experience, level-up, respawn | ✅ | corpse stays visible until respawn (as in the original) |
@@ -95,8 +95,8 @@ against. The open-source client in this repository is a **fork of MuMain (Season
 Suggested order, easiest wins first:
 
 1. **Client UI → 0.99B look** (see `docs/ui-099b.md`).
-2. **PK system** (PvP outside events: PK levels, outlaws, self-defense, item drops) and the **pets** (Dark Horse, Dark Raven, the Trainer and the pet mixes).
-3. **Duel**, then Guild completion (schema + ranks + marks), Personal Shop, Golden Archer.
+2. The **pets** (Dark Horse, Dark Raven, the Trainer and the pet mixes).
+3. **Duel** (it needs the PvP rules to know about duelling pairs), then Guild completion (schema + ranks + marks), Personal Shop, Golden Archer.
 4. Skill effects (`EffectList.txt` buffs/debuffs), combo and ally-teleport.
 5. Config hot-reload + AdminPanel hardening (per-user auth).
 6. Continue the client audit: remaining calls into the legacy network layer, removal of Season-6-only code.
@@ -110,6 +110,7 @@ Bugs found by real play-testing in the latest session (all verified by rebuild +
 - **Original client:** it could not connect with `127.0.0.1` — Webzen's `main.exe` refuses that exact address. See [Getting started](GETTING_STARTED.md#6-connect-a-client).
 - **Character delete** and **saved skill hot-keys** were not handled by the GameServer.
 - **Chaos Castle and PvP:** the event did not exist and players could not attack each other. Both are in now (see the table). Along the way: the Cape of Lord was ignored when working out damage, a castle whose schedule had run out kept the scores still waiting, and the answer to an unknown chat command was just the command's own name (a `Loc.F` overload took the format for a language).
+- **PK system:** players could not hurt each other outside the Chaos Castle. Now they can, with the original's PK levels, self-defense, PK time, item drops and limits (see the table). Set `NonPK = 1` in `GameServerInfo - Common.dat` to turn PvP off outside the events again.
 - **Entry limits:** Blood Castle, Chaos Castle and Devil Square now count each entry for the day (`BCCount` / `CCCount` / `DSCount`, reset daily by the DataServer) and honour `*MaxEntryCount_ALx` and the PK limit.
 - **Chaos Machine:** the Horn of Dinorant mix is in, and the mixes never reached the item bags on a running server (the handler did not pass them), so the wing, fruit and chaos-weapon results always came from the built-in fallback list.
 - **Developer commands:** `/item` and `/zen` gave any player any item and ten million zen. They now need `CommandDeveloperSwitch = 1` in `GameServerInfo - Command.dat` (off in the shipped file).

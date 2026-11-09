@@ -42,6 +42,9 @@ public sealed class ViewportTicker
     /// <summary>Life is recovered every 5 seconds (CharacterAutoRecuperation: every 5th call of a 1-second proc).</summary>
     private const int LifeRegenTickInterval = 25;
 
+    /// <summary>The once-a-second work of the PK system (gObjSecondProc): the base tick is 200 ms.</summary>
+    private const int SecondTickInterval = 5;
+
     public ViewportTicker(
         PlayerRegistry players, MapRegistry maps, MonsterRegistry? monsters = null,
         PartyRegistry? parties = null, ClientProtocolHandler? protocolHandler = null,
@@ -101,6 +104,14 @@ public sealed class ViewportTicker
         if (_tickCount % LifeRegenTickInterval == 0)
         {
             await TickLifeRegenAsync(ct);
+        }
+
+        if (_tickCount % SecondTickInterval == 0 && _protocolHandler != null)
+        {
+            foreach (var player in _players.All.Where(p => p.WorldEntered).ToList())
+            {
+                await _protocolHandler.OnPlayerSecondAsync(player, ct);
+            }
         }
 
         if (_tickCount % ManaRegenTickInterval == 0)

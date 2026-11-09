@@ -63,6 +63,7 @@
  "[Combat][{0}] '{1}' reached level {2} (Points: {3})": "[Combat][{0}] '{1}' subió a nivel {2} (Puntos: {3})",
  "[Combat][{0}] '{1}' was killed by {2}(#{3}) (Map={4} X={5} Y={6})": "[Combat][{0}] '{1}' murió a manos de {2}(#{3}) (Mapa={4} X={5} Y={6})",
  "[Combat][{0}] Hunt recovery failed: {1}": "[Combat][{0}] Falló la recuperación tras cazar: {1}",
+ "[CommandPKClear][{0}][{1}] - cleared (cost {2})": "[CommandPKClear][{0}][{1}] - PK limpiado (costo {2})",
  "[DataRecv] Packets exceeded. (IpAddress: {0})": "[DataRecv] Paquetes excedidos. (IpAddress: {0})",
  "[DataServer] A reply could not be delivered, the client has gone: {0}": "[DataServer] No se pudo entregar una respuesta, el cliente ya se fue: {0}",
  "[DataServer] Connected to {0}:{1}": "[DataServer] Conectado a {0}:{1}",

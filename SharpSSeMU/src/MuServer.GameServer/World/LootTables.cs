@@ -241,7 +241,10 @@ public sealed class ExcellentOptionRateTable
 }
 
 /// <summary>The drop-related columns of one map in Data/MapManager.txt.</summary>
-public sealed record MapDropInfo(int ItemDropRate, int MoneyDropRate, int ExcItemDropRate, int SetItemDropRate, int ItemDrop);
+/// <param name="NonPk">The NonPK column: -1 (the star) follows the server setting, 0 allows PK, 1 forbids it, 2 allows it
+/// without outlaws (a kill makes no murderer).</param>
+/// <param name="PkItemDrop">Whether a dying murderer may drop a worn item on this map.</param>
+public sealed record MapDropInfo(int ItemDropRate, int MoneyDropRate, int ExcItemDropRate, int SetItemDropRate, int ItemDrop, int NonPk = -1, int PkItemDrop = 0);
 
 /// <summary> Port of the drop part of CMapManager (MapManager.cpp): per map, the item drop rate (percent), the zen
 /// drop rate, the chance per million that a drop is excellent or a set item, and whether items drop at all.
@@ -272,7 +275,7 @@ public sealed class MapDropTable
             }
 
             int map = script.GetNumber();
-            script.GetAsNumber(); // NonPK
+            int nonPk = script.GetAsNumber();
             script.GetAsNumber(); // ViewRange
             script.GetAsNumber(); // ExperienceRate
             int itemDropRate = script.GetAsNumber();
@@ -281,16 +284,18 @@ public sealed class MapDropTable
             int setItemDropRate = script.GetAsNumber();
             int itemDrop = script.GetAsNumber();
 
-            // The rest of the row: PK drop, HP bar, trade / personal shop / chat / party / duel / guild war switches,
-            // spawn gate and respawn gate (10 columns), then the name.
-            for (int n = 0; n < 10; n++)
+            int pkItemDrop = script.GetAsNumber();
+
+            // The rest of the row: HP bar, trade / personal shop / chat / party / duel / guild war switches,
+            // spawn gate and respawn gate (9 columns), then the name.
+            for (int n = 0; n < 9; n++)
             {
                 script.GetAsNumber();
             }
 
             script.GetAsString(); // Name
 
-            Add(map, new MapDropInfo(itemDropRate, moneyDropRate, excItemDropRate, setItemDropRate, itemDrop));
+            Add(map, new MapDropInfo(itemDropRate, moneyDropRate, excItemDropRate, setItemDropRate, itemDrop, nonPk, pkItemDrop));
         }
 
         Log.Add(LogColor.Blue, "[MapDropTable] {0} map(s) loaded from {1}", Count, path);
@@ -302,6 +307,16 @@ public sealed class MapDropTable
     public int ExcItemDropRate(int map) => _maps.TryGetValue(map, out var m) ? m.ExcItemDropRate : 0;
     public int SetItemDropRate(int map) => _maps.TryGetValue(map, out var m) ? m.SetItemDropRate : 0;
     public bool ItemDropEnabled(int map) => _maps.TryGetValue(map, out var m) && m.ItemDrop != 0;
+
+    /// <summary>GetMapNonPK: players cannot hurt each other here. The star in the table follows <paramref name="serverNonPk"/>.</summary>
+    public bool NonPk(int map, int serverNonPk) =>
+        _maps.TryGetValue(map, out var m) ? (m.NonPk == -1 ? serverNonPk != 0 : m.NonPk == 1) : serverNonPk != 0;
+
+    /// <summary>GetMapNonOutlaw: players may fight here but killing makes no murderer.</summary>
+    public bool NonOutlaw(int map) => _maps.TryGetValue(map, out var m) && m.NonPk == 2;
+
+    /// <summary>GetMapPKItemDrop: a dying murderer may drop a worn item here.</summary>
+    public bool PkItemDrop(int map) => _maps.TryGetValue(map, out var m) && m.PkItemDrop != 0;
 }
 
 /// <summary> Port of CMapRateInfo (MapRateInfo.cpp): per map and kind of drop (0 = common, 1 = excellent, 2 = set),
@@ -609,6 +624,9 @@ public sealed class LootRoller
 
     /// <summary>Whether items drop on this map at all (MapManager.txt ItemDrop).</summary>
     public bool ItemDropEnabled(int map) => _mapDrops.ItemDropEnabled(map);
+
+    /// <summary>The per-map table, for the rules that read its PK columns.</summary>
+    public MapDropTable MapDrops => _mapDrops;
 
     /// <summary>Whether the server knows this item (Item.txt).</summary>
     public bool KnowsItem(int itemIndex) => _items.Get(itemIndex) != null;

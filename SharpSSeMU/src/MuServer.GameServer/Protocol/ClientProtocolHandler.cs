@@ -1349,6 +1349,12 @@ public sealed partial class ClientProtocolHandler
         var player = session.Player;
         if (player == null || !player.WorldEntered) return;
 
+        if (WorldPacketBuilder.ServerInfo.PkBlocksMove(player.PKLevel))
+        {
+            await session.SendAsync(ChatPacketBuilder.NoticeSend(MessageText(227, "Assassins can not move"), 1), ct);
+            return;
+        }
+
         var recv = TeleportMoveRecv.Parse(p);
 
         var move = _moves.Get(recv.MoveIndex);
@@ -2736,6 +2742,12 @@ public sealed partial class ClientProtocolHandler
             return;
         }
 
+        if (WorldPacketBuilder.ServerInfo.PkBlocksShop(player.PKLevel))
+        {
+            await session.SendAsync(ChatPacketBuilder.NoticeSend(MessageText(184, "I do not trade with murderers!"), 1), ct);
+            return;
+        }
+
         player.TargetShopNumber = npc.ShopNumber;
 
         await session.SendEncryptedAsync(ShopPacketBuilder.NpcTalkSend(0), ct);
@@ -3818,6 +3830,7 @@ public sealed partial class ClientProtocolHandler
         // gObjAddMsgSendDelay(killer,3,monster,2000): two seconds later the killer recovers life (the monster's
         // level plus the "life after hunting" option), mana (its option) and 1% of AG.
         _ = RecoverAfterHuntAsync(killer, monster.Level, ct);
+        await PkDownByKillAsync(killer, monster.Level, ct);
 
         // Port of CDevilSquare::MonsterDieProc (Phase 6) -- independent of the experience share below, it only
         // applies if the monster belongs to an active Devil Square run.
@@ -4075,6 +4088,9 @@ public sealed partial class ClientProtocolHandler
     /// it: a monster's or a player's index, -1 when unknown.</summary>
     public async Task OnPlayerKilledAsync(PlayerObject player, CancellationToken ct, int killerIndex = -1)
     {
+        _players.TryGet(killerIndex, out var killerPlayer);
+        await OnMurdererDiedAsync(player, killerPlayer, ct);
+
         if (_bloodCastle != null)
         {
             await _bloodCastle.OnPlayerDiedAsync(player, ct);
@@ -4620,6 +4636,18 @@ public sealed partial class ClientProtocolHandler
             {
                 await other.Session.SendAsync(postPacket, ct);
             }
+            return;
+        }
+
+        if ((cmd == "move" || cmd == "warp") && parts.Length > 1 && WorldPacketBuilder.ServerInfo.PkBlocksMove(player.PKLevel))
+        {
+            await session.SendAsync(ChatPacketBuilder.NoticeSend(MessageText(227, "Assassins can not move"), 1), ct);
+            return;
+        }
+
+        if (cmd == "pkclear")
+        {
+            await PkClearCommandAsync(session, player, ct);
             return;
         }
 
