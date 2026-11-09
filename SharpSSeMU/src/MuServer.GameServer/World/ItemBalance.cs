@@ -317,12 +317,14 @@ public sealed class ItemBalanceTable
                         int setAttr = script.GetAsNumber();
                         var reqClass = ReadClassRow(script);
 
+                        // The original asks for the item's Level as the character level it needs
+                        // (ItemManager.cpp:214: info.RequireLevel = info.Level) -- 218 for the Dark Horse.
                         _byIndex[common.Index] = new ItemBalance
                         {
                             Index = common.Index, Section = common.Section, Sub = common.Sub, Slot = common.Slot,
                             Skill = common.Skill, Width = common.Width, Height = common.Height,
                             HaveSerial = common.HaveSerial, HaveOption = common.HaveOption, DropItem = common.DropItem,
-                            Name = common.Name, Level = level, Durability = durability, Resistance = resistance,
+                            Name = common.Name, Level = level, RequireLevel = level, Durability = durability, Resistance = resistance,
                             SetAttr = setAttr, RequireClass = reqClass,
                         };
                         break;

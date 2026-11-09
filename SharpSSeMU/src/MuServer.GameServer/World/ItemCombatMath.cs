@@ -338,6 +338,9 @@ public static class ItemCombatMath
 
     public static int GetRequireLeadership(Item item, ItemBalance info)
     {
+        // The Dark Raven asks for 185 command plus 15 for every level it has (Item.cpp:282), whatever the table says.
+        if (item.Index == Item.DarkRaven) return 185 + (item.PetLevel * 15);
+
         if (info.RequireLeadership == 0) return 0;
         int itemLevel = RequirementItemLevel(item, info);
         return (((info.RequireLeadership * ((item.Level * 3) + itemLevel)) * 3) / 100) + 20;
@@ -374,7 +377,26 @@ public static class ItemCombatMath
             return info.RequireLevel;
         }
 
+        if (item.Index == Item.DarkHorse) // 218 plus two levels for every level of the horse (Item.cpp:303)
+        {
+            return 218 + (item.PetLevel * 2);
+        }
+
         return info.RequireLevel + (item.Level * 4);
+    }
+
+    /// <summary>Port of CItemManager::IsValidItem (ItemManager.cpp:1708): the item has durability left and the player
+    /// meets every requirement of it as it is now.</summary>
+    public static bool IsValidItem(PlayerObject player, Item item, ItemBalance info)
+    {
+        if (!item.IsItem() || item.Durability == 0) return false;
+        if (player.Level < GetRequireLevel(item, info)) return false;
+        if (player.Strength + player.AddStrength < GetRequireStrength(item, info)) return false;
+        if (player.Dexterity + player.AddDexterity < GetRequireDexterity(item, info)) return false;
+        if (player.Vitality < GetRequireVitality(item, info)) return false;
+        if (player.Energy + player.AddEnergy < GetRequireEnergy(item, info)) return false;
+
+        return player.Leadership + player.AddLeadership >= GetRequireLeadership(item, info);
     }
 
     /// <summary>Puerto de CItemManager::CheckItemRequireClass (ItemManager.cpp:682-709).</summary>

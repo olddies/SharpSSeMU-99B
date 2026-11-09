@@ -59,6 +59,106 @@ public sealed class Item
 
     public static Item Empty() => new();
 
+    // ---- Dark Horse and Dark Raven: a pet has a level and experience of its own (CItem::m_PetItemLevel and
+    // m_PetItemExp), kept by the DataServer under the item's serial. ----
+    public static readonly int DarkHorse = GetItem(13, 4);
+    public static readonly int DarkRaven = GetItem(13, 5);
+
+    public bool IsPetItem => Index == DarkHorse || Index == DarkRaven;
+
+    /// <summary>Whether the DataServer has told this pet its level and experience (m_LoadPetItemInfo). Until then
+    /// a pet gains nothing and is not saved, so a failed load cannot overwrite what the database has.</summary>
+    public bool PetInfoLoaded { get; set; }
+
+    public int PetLevel { get; set; } = 1;
+
+    public uint PetExp { get; set; }
+
+    /// <summary>Port of CItem::SetPetItemInfo (Item.cpp:985): the level is capped at the server's maximum, and the
+    /// experience kept inside the level.</summary>
+    public void SetPetItemInfo(int level, uint experience, PetRules rules)
+    {
+        if (!IsPetItem)
+        {
+            return;
+        }
+
+        PetInfoLoaded = true;
+        PetLevel = Math.Min(level, rules.MaxLevel);
+        PetExp = Math.Max(experience, rules.Experience(PetLevel));
+
+        if (PetExp >= rules.Experience(PetLevel + 1))
+        {
+            PetExp = rules.Experience(PetLevel);
+        }
+    }
+
+    /// <summary>Port of CItem::AddPetItemExp (Item.cpp:1320): a share of the player's experience goes to the pet. True
+    /// when the pet went up a level. A pet with no durability, or whose data has not arrived, gains nothing.</summary>
+    public bool AddPetExp(int amount, PetRules rules)
+    {
+        if (Durability == 0 || !PetInfoLoaded)
+        {
+            return false;
+        }
+
+        if (PetLevel < 1)
+        {
+            PetLevel = 1;
+            PetExp = 0;
+            return true;
+        }
+
+        amount /= rules.RateDivisor;
+
+        if (IsPetItem)
+        {
+            if (PetLevel >= rules.MaxLevel)
+            {
+                return false;
+            }
+
+            if ((long)PetExp + amount >= rules.Experience(PetLevel + 1))
+            {
+                PetLevel++;
+                PetExp = rules.Experience(PetLevel);
+                return true;
+            }
+        }
+
+        PetExp += (uint)amount;
+        return false;
+    }
+
+    /// <summary>Port of CItem::DecPetItemExp (Item.cpp:1359): takes back what <see cref="AddPetExp"/> gave, going down
+    /// a level when it has to. True when the pet went down a level.</summary>
+    public bool DecPetExp(int amount, PetRules rules)
+    {
+        if (Durability == 0 || !PetInfoLoaded)
+        {
+            return false;
+        }
+
+        if (PetLevel < 1)
+        {
+            PetLevel = 1;
+            PetExp = 0;
+            return true;
+        }
+
+        amount /= rules.RateDivisor;
+
+        if (IsPetItem && (long)PetExp - amount < rules.Experience(PetLevel))
+        {
+            PetLevel--;
+            PetExp = rules.Experience(PetLevel + 1) - 1;
+            return true;
+        }
+
+        PetExp -= (uint)amount;
+        return false;
+    }
+
     /// <summary> Port of CItemManager::ItemByteConvert (ItemManager.cpp:1593-1612) -- 5-byte format
     /// (MAX_ITEM_INFO=5) that travels in every client-server packet (inventory, item on the ground,
     /// get/move/buy, shop, etc.). The real C++ also writes a phantom byte lpMsg[5]=0 one byte beyond the

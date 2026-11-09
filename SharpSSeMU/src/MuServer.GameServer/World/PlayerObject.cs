@@ -584,9 +584,10 @@ public sealed class PlayerObject
     /// and defense (with the +10% defense rate and +5..+30% defense of a full armour set), the item options
     /// (luck, additional, excellent -- CItemOption::CalcItemCommonOption), the arrow/bolt bonus, the dual-wield
     /// penalty, and finally max life/mana/AG with the options' extra life. Current life, mana and AG keep the
-    /// same percentage of the maximum, as in the original, with the worn set items' bonuses. Not ported: the Dark
-    /// Horse defense and the item requirement check that disables an item whose stats the player no longer
-    /// meets (m_IsValidItem) -- this port never lets such an item be equipped in the first place. </summary>
+    /// same percentage of the maximum, as in the original, with the worn set items' bonuses and the Dark Horse's
+    /// defense. Not ported: the item requirement check that disables an item whose stats the player no longer
+    /// meets (m_IsValidItem) -- this port never lets such an item be equipped in the first place (a pet that
+    /// would outgrow its owner does not level up, see the experience flow). </summary>
     public void RecalcCombatStats(ItemBalanceTable items, CharacterBalanceConfig cfg)
     {
         int cls = Class switch
@@ -785,6 +786,15 @@ public sealed class PlayerObject
                 dsr += ItemCombatMath.GetDefenseSuccessRate(piece, info);
                 def += ItemCombatMath.GetDefense(piece, info);
             }
+        }
+
+        // The Dark Horse adds to the defense: a twentieth of the dexterity, two for every level it has and five
+        // (ObjectManager.cpp:2388), before the armour set's percentage.
+        var horse = Items[Item.SlotHelper];
+
+        if (horse.IsItem() && horse.Index == Item.DarkHorse && horse.Durability != 0)
+        {
+            def += (int)(dexterity / 20) + (horse.PetLevel * 2) + 5;
         }
 
         // Full armour set: the five pieces from helm to boots of the same model (the same sub-index in every

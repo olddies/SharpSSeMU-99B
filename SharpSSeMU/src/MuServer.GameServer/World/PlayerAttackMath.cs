@@ -40,6 +40,8 @@ public sealed class CombatRules
     public int AngelDecDamageConstA { get; init; } = 10;
     public int DinorantDecDamageConstA { get; init; } = 10;
     public int DinorantDecDamageConstB { get; init; } = 10;
+    public int DarkHorseDecDamageConstA { get; init; } = 10;
+    public int DarkHorseDecDamageConstB { get; init; } = 3;
 }
 
 /// <summary>What a hit produced: the damage and the effect the client colours it with (PMSG_DAMAGE_SEND type).
@@ -357,6 +359,13 @@ public static class PlayerAttackMath
         if (helper.Index == Dinorant)
         {
             int dec = rules.DinorantDecDamageConstA + ((helper.NewOption & 1) == 0 ? 0 : rules.DinorantDecDamageConstB);
+            return damage * (100 - dec) / 100;
+        }
+
+        if (helper.Index == Item.DarkHorse)
+        {
+            // The higher its level, the more of the blow the horse takes: (A + level) / B percent.
+            int dec = rules.DarkHorseDecDamageConstB == 0 ? 0 : (rules.DarkHorseDecDamageConstA + helper.PetLevel) / rules.DarkHorseDecDamageConstB;
             return damage * (100 - dec) / 100;
         }
 
