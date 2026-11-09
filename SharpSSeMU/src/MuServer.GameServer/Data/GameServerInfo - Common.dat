@@ -199,19 +199,19 @@ AddLuckSuccessRate2_AL3 = 20
 ; Item settings
 ;==================================================
 ItemDropTime = 30
-ItemDropRate_AL0 = 300
-ItemDropRate_AL1 = 300
-ItemDropRate_AL2 = 300
-ItemDropRate_AL3 = 300
+ItemDropRate_AL0 = 100
+ItemDropRate_AL1 = 100
+ItemDropRate_AL2 = 100
+ItemDropRate_AL3 = 100
 
 ;==================================================
 ; Money settings
 ;==================================================
 MoneyDropTime = 30
-MoneyAmountDropRate_AL0 = 100
-MoneyAmountDropRate_AL1 = 100
-MoneyAmountDropRate_AL2 = 100
-MoneyAmountDropRate_AL3 = 100
+MoneyAmountDropRate_AL0 = 50
+MoneyAmountDropRate_AL1 = 50
+MoneyAmountDropRate_AL2 = 50
+MoneyAmountDropRate_AL3 = 50
 
 ;==================================================
 ; DW settings

@@ -126,6 +126,11 @@ public sealed class GameServerLinkServer
                 }
             }
         }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // Without this the exception ends up in a discarded task and the link just goes away without a trace.
+            Log.Add(LogColor.Red, "[DataServer] Error handling a packet from {0}: {1}", remoteIp, ex);
+        }
         finally
         {
             _registry.Remove(link);

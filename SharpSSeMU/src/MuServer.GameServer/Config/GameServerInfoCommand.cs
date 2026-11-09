@@ -26,6 +26,10 @@ public sealed class GameServerInfoCommand
     private const string Section = "GameServerInfo";
 
     public int CommandPostType { get; private set; }
+
+    /// <summary>This port's own switch (the original has no such commands): 1 turns on the developer commands
+    /// <c>/item</c> and <c>/zen</c>, which hand any player any item and ten million zen. Off by default.</summary>
+    public int CommandDeveloperSwitch { get; private set; }
     public int CommandPKClearType { get; private set; }
     public int[] CommandPKClearMoney { get; } = new int[4];
     public int[] CommandAddPointAutoEnable { get; } = new int[4];
@@ -83,6 +87,8 @@ public sealed class GameServerInfoCommand
         var cfg = new GameServerInfoCommand();
 
         cfg.CommandPostType = ini.GetInt(Section, "CommandPostType", 0);
+
+        cfg.CommandDeveloperSwitch = ini.GetInt(Section, "CommandDeveloperSwitch", 0);
 
         cfg.CommandPKClearType = ini.GetInt(Section, "CommandPKClearType", 0);
 

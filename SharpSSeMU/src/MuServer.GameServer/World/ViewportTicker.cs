@@ -304,6 +304,13 @@ public sealed class ViewportTicker
 
                 monster.VisibleTo.Clear();
 
+                if (monster.NoRespawn)
+                {
+                    // Event monsters that are not meant to return (the Blood Castle gate and statues): gone for good.
+                    _monsters.Remove(monster.Index);
+                    continue;
+                }
+
                 _monsters.Respawn(monster, _maps);
             }
         }
@@ -413,7 +420,7 @@ public sealed class ViewportTicker
             if (player.BP < player.MaxBP)
             {
                 int rate = _characterBalance.BpRecoveryRate[cls] + (idle ? 3 : 0);
-                uint gain = (uint)Math.Max(((int)player.MaxBP * rate) / 100, 0);
+                uint gain = (uint)Math.Max((((int)player.MaxBP * rate) / 100) + player.BpRecovery, 0);
                 player.BP = Math.Min(player.BP + gain, player.MaxBP);
                 changed = true;
             }
@@ -788,6 +795,11 @@ public sealed class ViewportTicker
                         target.Index, target.Name, monster.Name, monster.Index, target.Map, target.X, target.Y);
 
                     // 1. Enviar aviso de muerte y actualizar barra de HP a 0 en la UI del cliente (0x26)
+                    if (_protocolHandler != null)
+                    {
+                        await _protocolHandler.OnPlayerKilledAsync(target, ct);
+                    }
+
                     await target.Session.SendAsync(ChatPacketBuilder.NoticeSend(Loc.T("You died.")), ct);
                     await target.Session.SendAsync(LifePacketBuilder.LifeSend(0xFF, 0), ct);
 

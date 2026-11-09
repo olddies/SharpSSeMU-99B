@@ -1648,48 +1648,6 @@ public static class ChaosBoxPacketBuilder
     }
 }
 
-public static class BloodCastlePacketBuilder
-{
-    /// <summary>PMSG_BLOOD_CASTLE_ENTER_SEND (C1:9A) -- Respuesta a solicitud de entrada a Blood Castle.</summary>
-    public static byte[] BloodCastleEnterSend(byte result)
-    {
-        var w = new PacketWriter();
-        w.WriteByte(result);
-        return PacketBuilder.BuildC1(0x9A, w.ToArray());
-    }
-
-    /// <summary>PMSG_BLOOD_CASTLE_STATE_SEND (C1:9B) -- Estado y reloj de Blood Castle.</summary>
-    public static byte[] BloodCastleStateSend(byte state, ushort time, ushort maxMonster, ushort curMonster, ushort eventItemOwner, byte eventItemLevel)
-    {
-        var w = new PacketWriter();
-        w.WriteByte(state);
-        w.WriteUInt16(time);
-        w.WriteUInt16(maxMonster);
-        w.WriteUInt16(curMonster);
-        w.WriteUInt16(eventItemOwner);
-        w.WriteByte(eventItemLevel);
-        // Tail padding: the struct aligns to 2 (because of the WORDs) and its last field ends at offset 12, so
-        // sizeof = 14, not 13. The fields fall in the right place without this, but the declared size does not
-        // match the original's and a client that validates sizeof rejects it.
-        w.WriteByte(0);
-        return PacketBuilder.BuildC1(0x9B, w.ToArray());
-    }
-
-    /// <summary>PMSG_BLOOD_CASTLE_SCORE_SEND (C1:93) -- Final score and reward delivery.</summary>
-    public static byte[] BloodCastleScoreSend(byte type, byte flag, string name, uint score, uint exp, uint zen)
-    {
-        var w = new PacketWriter();
-        w.WriteByte(type);
-        w.WriteByte(flag);
-        w.WriteFixedString(name, 10);
-        w.WriteUInt16(0);
-        w.WriteUInt32(score);
-        w.WriteUInt32(exp);
-        w.WriteUInt32(zen);
-        return PacketBuilder.BuildC1(0x93, w.ToArray());
-    }
-}
-
 // ---------------------------------------------------------------- GameServer <-> DataServer (whisper cruzado)
 
 public static class SocialDataServerPacketBuilder
@@ -2154,13 +2112,13 @@ public static class DevilSquarePacketBuilder
     /// closed) OR EnteredUser = current participants (if already open) -- mutually exclusive, like the original
     /// (see this phase's research). RemainTimeL is always 0 in the Devil Square branch (the original does not
     /// write it there either).</summary>
-    public static byte[] RemainTimeSend(byte eventType, byte remainTimeH, byte enteredUser)
+    public static byte[] RemainTimeSend(byte eventType, byte remainTimeH, byte enteredUser, byte remainTimeL = 0)
     {
         var w = new PacketWriter();
         w.WriteByte(eventType);
         w.WriteByte(remainTimeH);
         w.WriteByte(enteredUser);
-        w.WriteByte(0);
+        w.WriteByte(remainTimeL);
         return PacketBuilder.BuildC1(0x91, w.ToArray());
     }
 
@@ -2203,6 +2161,8 @@ public static class DevilSquarePacketBuilder
 /// no reply.</summary>
 public static class EventDataServerPacketBuilder
 {
+    public const byte HeadBloodCastle = 0x3D;
+    public const byte HeadChaosCastle = 0x3E;
     public const byte HeadDevilSquare = 0x3F;
 
     public static byte[] RankingScoreSave(byte head, ushort index, string account, string name, uint score)

@@ -79,6 +79,12 @@ CombatRules.Current = new CombatRules
     GeneralDamageRatePvM = gsiCharacter.GeneralDamageRatePvM,
     DamageRatePvM = gsiCharacter.DamageRatePvM.ToArray(),
     ReflectDamageRatePvM = gsiCharacter.ReflectDamageRatePvM,
+    GeneralDamageRatePvP = gsiCharacter.GeneralDamageRatePvP,
+    DamageRatePvP = gsiCharacter.DamageRatePvP.ToArray(),
+    DamageRateTo = Enumerable.Range(0, 5).Select(a => Enumerable.Range(0, 5).Select(b => gsiCharacter.DamageRateTo[a, b]).ToArray()).ToArray(),
+    ChaosCastleDamageRate = gsiCharacter.ChaosCastleDamageRate,
+    AttackSuccessRatePvPConst = Enumerable.Range(0, 5).Select(gsiCharacter.AttackSuccessRatePvPConst).ToArray(),
+    DefenseSuccessRatePvPConst = Enumerable.Range(0, 5).Select(gsiCharacter.DefenseSuccessRatePvPConst).ToArray(),
     HpRecoveryRate = gsiCharacter.HPRecoveryRate.ToArray(),
     SatanIncDamageConstA = gsiItem.SatanIncDamageConstA,
     DinorantIncDamageConstA = gsiItem.DinorantIncDamageConstA,
@@ -133,6 +139,47 @@ itemValues.Load(config.ItemValuePath);
 var itemOptions = new ItemOptionTable();
 itemOptions.Load(config.ItemOptionPath);
 ItemCombatMath.Options = itemOptions;
+
+// How drops are decided: the option rate rows, the excellent options, the per-map rates and the item/zen rules. Each
+// file is optional -- without it the drops still happen, just with plain items and the default rates.
+var optionRates = new ItemOptionRateTable();
+var excellentRates = new ExcellentOptionRateTable();
+var mapDrops = new MapDropTable();
+var mapRates = new MapRateInfoTable();
+var itemDropRules = new List<ItemDropRule>();
+var moneyDropRules = new List<MoneyDropRule>();
+
+void LoadLootFile(string path, Action load)
+{
+    if (File.Exists(path))
+    {
+        load();
+    }
+    else
+    {
+        Log.Add(LogColor.Red, "[LootTables] {0} not found: drops that depend on it use their defaults.", Path.GetFileName(path));
+    }
+}
+
+LoadLootFile(config.ItemOptionRatePath, () => optionRates.Load(config.ItemOptionRatePath));
+LoadLootFile(config.ExcellentOptionRatePath, () => excellentRates.Load(config.ExcellentOptionRatePath));
+LoadLootFile(config.MapManagerPath, () => mapDrops.Load(config.MapManagerPath));
+LoadLootFile(config.MapRateInfoPath, () => mapRates.Load(config.MapRateInfoPath));
+LoadLootFile(config.ItemDropPath, () => itemDropRules = LootRoller.LoadItemRules(config.ItemDropPath));
+LoadLootFile(config.ItemMoneyDropPath, () => moneyDropRules = LootRoller.LoadMoneyRules(config.ItemMoneyDropPath));
+
+// The set (ancient) items: which pieces belong to a set and what each set grants (see World/SetItems.cs).
+var setItems = new SetItemRules();
+LoadLootFile(config.SetItemTypePath, () => setItems.Types.Load(config.SetItemTypePath));
+LoadLootFile(config.SetItemOptionPath, () => setItems.LoadSets(config.SetItemOptionPath));
+SetItemRules.Current = setItems;
+
+var lootRoller = new LootRoller(itemBalance, optionRates, excellentRates, mapDrops, mapRates, itemDropRules, moneyDropRules, setItems);
+
+// The item bags: what bosses drop, what boxes and medals open into and what the Chaos Machine and the events
+// hand out (see World/ItemBags.cs).
+var itemBags = new ItemBagManager(new ItemBagItemMaker(itemBalance, optionRates, excellentRates, setItems));
+LoadLootFile(config.ItemBagManagerPath, () => itemBags.Load(config.ItemBagManagerPath, config.ItemBagPath));
 var characterBalance = CharacterBalanceConfig.Load(config.CharacterInfoPath, config.ServerInfoCommonPath);
 
 // "Skills" phase: magic and mana -- see World/SkillInfo.cs, Config/CharacterBalanceConfig.cs (magic
@@ -282,18 +329,44 @@ moves.Load(movePath);
 var messages = new MessageTable();
 string messagePath = Path.Combine(Path.GetDirectoryName(config.ItemPath) ?? "Data/Item", "..", "Message.txt");
 messages.Load(messagePath);
+devilSquare.Messages = messages;
 
-var bloodCastle = new BloodCastleManager(players);
+var bloodCastleConfig = BloodCastleConfig.Load(Path.Combine(config.EventPath, "BloodCastle.dat"));
+var bloodCastle = new BloodCastleManager(
+    bloodCastleConfig, eventEntryLevels, eventStageSpawns, eventSpawnPool, monsterInfoTable, maps, monsters, players,
+    gates, groundItems, dataServer.SendAsync, messages);
+
+var chaosCastleConfig = ChaosCastleConfig.Load(Path.Combine(config.EventPath, "ChaosCastle.dat"));
+var chaosCastle = new ChaosCastleManager(
+    chaosCastleConfig, eventEntryLevels, eventStageSpawns, eventSpawnPool, monsterInfoTable, maps, monsters, players,
+    gates, groundItems, dataServer.SendAsync, messages);
+
+var dropEvents = new DropEventManager(
+    DropEventManager.Load(Path.Combine(config.EventPath, "DropEvent.dat")), lootRoller, players, messages,
+    WorldPacketBuilder.ServerInfo.DropEventSwitch);
+
+var kalima = new KalimaManager(
+    KalimaManager.LoadNextPortals(Path.Combine(config.EventPath, "Kalima.dat")), monsters, monsterInfoTable, maps, players, gates);
 
 protocolHandler = new ClientProtocolHandler(
     config, joinServer, dataServer, players, maps, monsters, parties, itemBalance, characterBalance,
     skills, skillDamage, devilSquare, shops, groundItems, gates, moves, bloodCastle, messages,
-    questTable, questObjectiveTable, questRewardTable, gsiCommon, itemValues, gsiChaosMix);
+    questTable, questObjectiveTable, questRewardTable, gsiCommon, itemValues, gsiChaosMix, lootRoller, itemBags, kalima, dropEvents, chaosCastle);
+
+protocolHandler.DeveloperCommands = gsiCommand.CommandDeveloperSwitch != 0;
+
+if (protocolHandler.DeveloperCommands)
+{
+    Log.Add(LogColor.Red, "[GameServer] Developer commands are ON: any player can use /item and /zen (CommandDeveloperSwitch in the Command.dat)");
+}
 
 joinServer.Start(cts.Token);
 dataServer.Start(cts.Token);
 devilSquare.Start(cts.Token);
 bloodCastle.Start(cts.Token);
+chaosCastle.Start(cts.Token);
+kalima.Start(cts.Token);
+dropEvents.Start(cts.Token);
 
 var clientListener = new GameClientListener(config.ServerPort, packetCipher, streamCipher, protocolHandler);
 clientListener.Start(cts.Token);
@@ -386,6 +459,24 @@ while (!cts.Token.IsCancellationRequested)
                 {
                     devilSquare.ForceStart(level);
                 }
+            }
+
+            if (trimmed.StartsWith("bc forcestart", StringComparison.OrdinalIgnoreCase))
+            {
+                // 'bc forcestart' | 'bc forcestart N' (castle, 1-based) | 'bc forcestart N S' (+ delay in seconds)
+                var parts = trimmed["bc forcestart".Length..].Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                int? level = parts.Length > 0 && int.TryParse(parts[0], out var n) ? n - 1 : null;
+                int delay = parts.Length > 1 && int.TryParse(parts[1], out var s) ? s : 40;
+                _ = bloodCastle.ForceStartAsync(level, delay);
+            }
+
+            if (trimmed.StartsWith("cc forcestart", StringComparison.OrdinalIgnoreCase))
+            {
+                // 'cc forcestart' | 'cc forcestart N' (castle, 1-based) | 'cc forcestart N S' (+ delay in seconds)
+                var parts = trimmed["cc forcestart".Length..].Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                int? level = parts.Length > 0 && int.TryParse(parts[0], out var n) ? n - 1 : null;
+                int delay = parts.Length > 1 && int.TryParse(parts[1], out var s) ? s : 40;
+                _ = chaosCastle.ForceStartAsync(level, delay);
             }
 
             break;

@@ -63,6 +63,10 @@ string? secondCharName1 = shopEnabled && args.Length > 13 ? args[13] : null;
 // "always drops money" (MoneyRate=1), NOT at 0/1 (index 0 is already taken by the shared combat block above).
 bool groundItemEnabled = args.Length > 12 && args[12] == "grounditem";
 
+// Optional: the Chaos Castle run (gameserver_chaoscastle_e2e_test.py) -- A and B pay to go in, wait for the start the
+// test forced by console, and A kills B. It replaces the shared flow: the two clients log in and go straight to it.
+bool chaosCastleEnabled = args.Length > 12 && args[12] == "chaoscastle";
+
 int failures = 0;
 
 void Check(string name, bool ok, string extra = "")
@@ -117,6 +121,7 @@ async Task<(FakeMuClient Client, byte X, byte Y)> LoginAndEnterAsync(string labe
     await c.ConnectAsync(host, port, ct);
 
     var connectPkt = await c.WaitForAsync(0xF1, TimeSpan.FromSeconds(5), 0x00);
+    c.Index = (connectPkt.Full[5] << 8) | connectPkt.Full[6]; // [4]=result, [5..6]=the index the server gave this client
     Console.WriteLine($"[{label}] ConnectClientSend recibido ({connectPkt.Full.Length} bytes)");
 
     await c.SendLoginAsync(account, password);
@@ -188,12 +193,77 @@ async Task<(FakeMuClient Client, byte X, byte Y)> LoginAndEnterAsync(string labe
 // Phase 4 (~12s respawn) + Phase 5 (party/exp) + Phase 6 (Devil Square: up to ~3 min waiting for the window
 // forced by console + real STAND (1 min) + START (1 min) of the test bracket, see the test's DevilSquare.dat)
 // add steps.
-using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(dsEnabled ? 300 : 90));
+using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(dsEnabled || chaosCastleEnabled ? 300 : 90));
 
 try
 {
     var (clientA, ax, ay) = await LoginAndEnterAsync("A", account1, password1, char1, cts.Token, secondCharName1);
     var (clientB, _, _) = await LoginAndEnterAsync("B", account2, password2, char2, cts.Token);
+
+    if (chaosCastleEnabled)
+    {
+        Console.WriteLine("\n=== Chaos Castle: A y B pagan la entrada, esperan el comienzo y A mata a B ===");
+        int aIndex = clientA.Index, bIndex = clientB.Index;
+        Check("[A/B] Los indices de jugador salen del paquete de conexion", aIndex >= 9000 && bIndex >= 9000 && aIndex != bIndex, $"(A={aIndex}, B={bIndex})");
+
+        clientA.DiscardPending();
+        clientB.DiscardPending();
+
+        // The Armor of Guardsman is in slot 13 of both; the castle is the one their level allows.
+        await clientA.SendChaosCastleEnterAsync(0, 13);
+        var enteredA = await clientA.WaitForAsync(0xAF, TimeSpan.FromSeconds(5), 0x01);
+        Check("[A] Entra al Chaos Castle (AF:01, result 0)", enteredA.Full[4] == 0, $"(result={enteredA.Full[4]})");
+
+        await clientB.SendChaosCastleEnterAsync(0, 13);
+        var enteredB = await clientB.WaitForAsync(0xAF, TimeSpan.FromSeconds(5), 0x01);
+        Check("[B] Entra al Chaos Castle (AF:01, result 0)", enteredB.Full[4] == 0, $"(result={enteredB.Full[4]})");
+
+        // The wait ends at the forced start time and the fight begins on the next second: state 5 reaches them.
+        bool fightOn = false;
+
+        while (!fightOn)
+        {
+            var state = await clientA.WaitForAsync(0x9B, TimeSpan.FromSeconds(150));
+            fightOn = state.Full[3] == 5;
+        }
+
+        Check("[A] Recibe el comienzo de la pelea (9B, estado 5)", fightOn);
+
+        bool bDied = false;
+        int swings = 0;
+
+        for (; swings < 60 && !bDied; swings++)
+        {
+            await clientA.SendAttackAsync(bIndex, 120, 3);
+            bDied = await clientA.WaitForAttackOutcomeAsync(bIndex, TimeSpan.FromSeconds(5));
+        }
+
+        Check("[A] Mata a B en la pelea", bDied, $"(en {swings} golpe(s))");
+
+        var dieInB = await clientB.WaitForAsync(0x17, TimeSpan.FromSeconds(5));
+        int dieKiller = (dieInB.Full[6] << 8) | dieInB.Full[7];
+        Check("[B] Recibe su propia muerte con A como asesino", ((dieInB.Full[3] << 8) | dieInB.Full[4]) == bIndex && dieKiller == aIndex, $"(killer={dieKiller})");
+
+        // Alone and with no monsters left, A wins on the next second and gets the result window.
+        var scoreA = await clientA.WaitForAsync(0x93, TimeSpan.FromSeconds(15));
+        string scoreName = System.Text.Encoding.ASCII.GetString(scoreA.Full, 5, 10).TrimEnd('\0');
+        uint monsterKills = BitConverter.ToUInt32(scoreA.Full, 17);
+        uint rewardExperience = BitConverter.ToUInt32(scoreA.Full, 21);
+        uint userKills = BitConverter.ToUInt32(scoreA.Full, 25);
+        Check("[A] Recibe la ventana de resultado como ganador (93, tipo 1)", scoreA.Full[3] == 1 && scoreA.Full[4] == 0xFE && scoreName == char1,
+            $"(type={scoreA.Full[3]}, flag=0x{scoreA.Full[4]:X2}, name='{scoreName}')");
+        Check("[A] Su resultado cuenta una muerte de jugador y la experiencia del castillo",
+            userKills == 1 && monsterKills == 0 && rewardExperience == 1000, $"(players={userKills}, monsters={monsterKills}, experience={rewardExperience})");
+
+        // B's own window comes eight seconds after it died.
+        var scoreB = await clientB.WaitForAsync(0x93, TimeSpan.FromSeconds(20));
+        Check("[B] Recibe su ventana ocho segundos despues (93, tipo 0)", scoreB.Full[3] == 0 && scoreB.Full[4] == 0xFE, $"(type={scoreB.Full[3]})");
+
+        clientA.Close();
+        clientB.Close();
+        Console.WriteLine($"\n=== {(failures == 0 ? "TODO OK" : $"{failures} FALLO(S)")} ===");
+        return failures == 0 ? 0 : 1;
+    }
 
     Console.WriteLine("\n=== Esperando que el ViewportTicker los haga verse mutuamente (0x12) ===");
 
@@ -548,6 +618,44 @@ try
         Check("[A] Recoger el dinero del piso da result=0xFE (marcador de dinero)", moneyGetPkt.Full[3] == 0xFE, $"(result={moneyGetPkt.Full[3]})");
         uint moneyAfterPickup = ((uint)moneyGetPkt.Full[4] << 24) | ((uint)moneyGetPkt.Full[5] << 16) | ((uint)moneyGetPkt.Full[6] << 8) | moneyGetPkt.Full[7];
         Check("[A] El dinero total tras recoger es mayor a 0", moneyAfterPickup > 0, $"(dinero={moneyAfterPickup})");
+
+        // Item bags: the environment lists only the Box of Luck (14,11), with its real bag file. Thrown on the
+        // ground the box is used up and what the bag gives appears there instead of the box.
+        Console.WriteLine("\n=== Bolsas de items: A tira una Box of Luck y la bolsa se abre en el piso ===");
+        clientA.DiscardPending();
+        await clientA.SendChatAsync(char1, "/item 14 11");
+        var boxGiven = await clientA.WaitForAsync(0x24, TimeSpan.FromSeconds(5));
+        byte boxSlot = boxGiven.Full[4];
+        const int boxItemIndex = 14 * 32 + 11; // GET_ITEM(14,11)
+        Check("[A] /item 14 11 le dio la Box of Luck", boxGiven.Full[3] == 0 && boxGiven.Full[5] == (boxItemIndex & 0xFF),
+            $"(result={boxGiven.Full[3]}, slot={boxSlot}, ItemInfo[0]={boxGiven.Full[5]})");
+
+        clientA.DiscardPending();
+        await clientA.SendItemDropAsync(ax, ay, boxSlot);
+        var boxDrop = await clientA.WaitForAsync(0x23, TimeSpan.FromSeconds(5));
+        Check("[A] ITEM_DROP_SEND result=1 (la caja se gastó)", boxDrop.Full[3] == 1, $"(result={boxDrop.Full[3]})");
+
+        var boxContents = await clientA.WaitForAsync(0x20, TimeSpan.FromSeconds(5));
+        Check("[A] La bolsa dejó 1 item en el piso (0x20) y no es la caja",
+            boxContents.Full[4] == 1 && boxContents.Full[9] != (boxItemIndex & 0xFF),
+            $"(count={boxContents.Full[4]}, ItemInfo[0]={boxContents.Full[9]})");
+    }
+
+    // The developer commands are off in a stock deployment (CommandDeveloperSwitch = 0): the server answers as to
+    // any unknown command. The ground-item run turns them on to get its Box of Luck, so it skips this check.
+    if (!groundItemEnabled)
+    {
+        Console.WriteLine("\n=== Developer commands: off by default ===");
+
+        foreach (string devCommand in new[] { "/zen", "/item 14 11" })
+        {
+            clientA.DiscardPending();
+            await clientA.SendChatAsync(char1, devCommand);
+            var denied = await clientA.WaitForAsync(0x0D, TimeSpan.FromSeconds(5));
+            string deniedText = System.Text.Encoding.Latin1.GetString(denied.Full, 13, denied.Full.Length - 14);
+            string wanted = "'" + devCommand.Split(' ')[0] + "'"; // the quoted command, in English and in Spanish alike
+            Check($"[A] {devCommand} is not recognised with the switch off", deniedText.Contains(wanted), $"(notice='{deniedText}')");
+        }
     }
 
     Console.WriteLine("\n=== Fase 5: chat público y whisper ===");

@@ -49,8 +49,10 @@ public sealed record ChaosMixResult(bool Success, byte ResultCode, Item? Item, b
 /// production server (nobody ships a chaos machine that never delivers anything), and the full <c>ItemBagEx</c>
 /// engine (per-section weights, class filter, drop rate) is a separate system, shared with Devil Square/Blood
 /// Castle/monster drops, that deserves its own port instead of a rushed one as a dependency of this.</para>
-/// <para>Devil Square, Dinorant, Blood Castle and the two pet mixes remain unported (as before): they require
-/// live event state that this server does not track yet.</para> </summary>
+/// <para>The two pet mixes (Dark Horse and Dark Raven) are not ported: they hand out a pet, and the pets themselves
+/// (their level and experience, their commands, the Trainer window the mix runs in) do not exist in this server
+/// yet, so the item could not do anything. The Dinorant and the Devil Square and Blood Castle ticket mixes are
+/// ported (<see cref="MixDinorant"/>, <see cref="MixEventTicket"/>).</para> </summary>
 public static class ChaosMixLogic
 {
     private static readonly int ItemChaos = Item.GetItem(12, 15);   // Jewel of Chaos
@@ -70,8 +72,11 @@ public static class ChaosMixLogic
     /// computes for the shop) -- passed in by the caller so as not to duplicate that formula here.</param>
     /// <param name="execute">true to really combine (0x86). false to only compute the rate (0x88): same
     /// formula, it does not charge, nor empty the box, nor roll the dice.</param>
+    /// <param name="bags">The item bags (EventItemBagManager.txt): when it has a bag for a mix, the item that comes
+    /// out is taken from it like the original does; without one the built-in list below is used.</param>
     public static ChaosMixResult CalculateAndExecuteMix(PlayerObject player, ChaosMixType mixType,
-        GameServerInfoChaosMix rates, int[] addLuckSuccessRate2, Func<Item, int> getBuyMoney, bool execute = true)
+        GameServerInfoChaosMix rates, int[] addLuckSuccessRate2, Func<Item, int> getBuyMoney, bool execute = true,
+        ItemBagManager? bags = null)
     {
         var box = player.ChaosBoxItems;
         var items = box.Where(i => i.IsItem()).ToList();
@@ -84,7 +89,7 @@ public static class ChaosMixLogic
         return mixType switch
         {
             // CHAOS_MIX_CHAOS_ITEM -> CChaosBox::ChaosItemMix
-            ChaosMixType.ChaosItem => MixChaosItem(player, items, rates, getBuyMoney, execute),
+            ChaosMixType.ChaosItem => MixChaosItem(player, items, rates, getBuyMoney, execute, bags),
 
             // CHAOS_MIX_PLUS_ITEM_LEVEL1 (3) -> PlusItemLevelMix(tipo=0): tira +9 a +10
             ChaosMixType.PlusItem10 => MixPlusItemLevel(player, items, rates, addLuckSuccessRate2, getBuyMoney, 0, execute),
@@ -97,17 +102,26 @@ public static class ChaosMixLogic
 
             // CHAOS_MIX_WING1 (7) -> WATCH OUT! in the original this runs Wing2Mix(type=0): Chaos + Loch's
             // Feather (level 0) + a 1st-generation wing -> 2nd-gen wing (Spirits/Soul/ Dragon/Darkness).
-            ChaosMixType.Wing1 => MixWing2Family(player, items, rates, getBuyMoney, wingTier: 0, execute),
+            ChaosMixType.Wing1 => MixWing2Family(player, items, rates, getBuyMoney, wingTier: 0, execute, bags),
 
             // CHAOS_MIX_WING2 (11) -> WATCH OUT! this runs Wing1Mix(): Chaos + an excellent chaos weapon ->
             // 1st-generation wing (Elf/Heaven/Satan).
-            ChaosMixType.Wing2 => MixWing1(player, items, rates, getBuyMoney, execute),
+            ChaosMixType.Wing2 => MixWing1(player, items, rates, getBuyMoney, execute, bags),
 
             // "Cape" in the original -- Wing2Mix(type=1): Chaos + Crest of Monarch (level 1 of the same item as
             // Loch's Feather) + a 2nd-gen wing -> Cape of Lord.
-            ChaosMixType.Wing3 => MixWing2Family(player, items, rates, getBuyMoney, wingTier: 1, execute),
+            ChaosMixType.Wing3 => MixWing2Family(player, items, rates, getBuyMoney, wingTier: 1, execute, bags),
 
-            _ => new ChaosMixResult(false, 0, null, false, 0, 0), // DevilSquare/Dinorant/BloodCastle: no portado
+            // CHAOS_MIX_DEVIL_SQUARE -> DevilSquareMix: Chaos + Devil's Eye + Devil's Key of the same level -> Devil's Invitation.
+            ChaosMixType.DevilSquare => MixEventTicket(player, items, rates, execute, TicketMix.DevilSquare),
+
+            // CHAOS_MIX_BLOOD_CASTLE -> BloodCastleMix: Chaos + Scroll of Archangel + Blood Bone of the same level -> Invisibility Cloak.
+            ChaosMixType.BloodCastle => MixEventTicket(player, items, rates, execute, TicketMix.BloodCastle),
+
+            // CHAOS_MIX_DINORANT -> DinorantMix: Chaos + ten Horns of Uniria (full durability) -> Horn of Dinorant.
+            ChaosMixType.Dinorant => MixDinorant(player, items, rates, execute, bags),
+
+            _ => new ChaosMixResult(false, 0, null, false, 0, 0), // the pet mixes: the pets are not ported
         };
     }
 
@@ -144,8 +158,170 @@ public static class ChaosMixLogic
     /// closing the window.</summary>
     private static void ClearBox(PlayerObject player) => player.ClearChaosBox();
 
+    /// <summary>The item of a mix from its item bag (GetItemBySpecialValue(CHAOS_BOX, level)). False when there is
+    /// no such bag, so the caller uses its built-in list; true with a null item when the bag gave nothing, which
+    /// the original treats as a failed mix that charges the zen and keeps the ingredients.</summary>
+    private static bool TryBagItem(ItemBagManager? bags, int specialLevel, PlayerObject player, out Item? item)
+    {
+        item = null;
+
+        if (bags == null || !bags.HasSpecial(ItemBagManager.SpecialChaosBox, specialLevel))
+        {
+            return false;
+        }
+
+        item = bags.GetItemBySpecialValue(ItemBagManager.SpecialChaosBox, specialLevel, -1, player.Class, player.ChangeUp, Random.Shared);
+        return true;
+    }
+
+    /// <summary>Port of DinorantMix (ChaosBox.cpp:378-447): a Jewel of Chaos and ten Horns of Uniria with their full
+    /// durability give a Horn of Dinorant for 500,000 zen. The new horn comes with a random number of excellent
+    /// options (row 3 of the excellent-count rates, at most three for this item), and full durability.</summary>
+    private static ChaosMixResult MixDinorant(PlayerObject player, List<Item> items, GameServerInfoChaosMix rates, bool execute, ItemBagManager? bags)
+    {
+        int chaosCount = 0, uniriaCount = 0;
+
+        foreach (var it in items)
+        {
+            if (it.Index == ItemChaos)
+            {
+                chaosCount++;
+            }
+            else if (it.Index == Item.GetItem(13, 2) && it.Durability == 255)
+            {
+                uniriaCount++;
+            }
+        }
+
+        if (chaosCount != 1 || uniriaCount != 10)
+        {
+            return new ChaosMixResult(false, 7, null, false, 0, 0);
+        }
+
+        const int zen = 500_000;
+        int rate = Math.Min(rates.DinorantMixRate[Math.Clamp(player.AccountLevel, 0, 3)], 100);
+
+        if (!execute)
+        {
+            return new ChaosMixResult(false, 0, null, false, rate, zen);
+        }
+
+        if (player.Money < zen)
+        {
+            return new ChaosMixResult(false, 2, null, false, rate, zen);
+        }
+
+        player.Money -= zen;
+
+        if (Random.Shared.Next(100) < rate)
+        {
+            // GetItemOption4(3) rolls how many options, MakeNewOption(.., 1, ..) picks them.
+            byte excellent = bags?.Maker.MakeExcellentFromRow(Item.GetItem(13, 3), 3, Random.Shared) ?? 0;
+            var horn = new Item { Index = (short)Item.GetItem(13, 3), Durability = 255, NewOption = excellent };
+            ClearBox(player);
+            return new ChaosMixResult(true, 1, horn, true, rate, zen);
+        }
+
+        ClearBox(player);
+        return new ChaosMixResult(false, 0, null, false, rate, zen);
+    }
+
+    private enum TicketMix
+    {
+        DevilSquare,
+        BloodCastle,
+    }
+
+    /// <summary>Ports of DevilSquareMix and BloodCastleMix (ChaosBox.cpp:181-275, 637-743): a Jewel of Chaos and the
+    /// two pieces of the event (Devil's Eye and Key; Scroll of Archangel and Blood Bone) of the same level give the
+    /// ticket of that level. The zen and the chance depend on the level. Devil Square's roll is "below the rate" and
+    /// Blood Castle's "up to the rate", as in the original.</summary>
+    private static ChaosMixResult MixEventTicket(PlayerObject player, List<Item> items, GameServerInfoChaosMix rates, bool execute, TicketMix kind)
+    {
+        bool devil = kind == TicketMix.DevilSquare;
+        int first = devil ? Item.GetItem(14, 17) : Item.GetItem(13, 16);   // Devil's Eye / Scroll of Archangel
+        int second = devil ? Item.GetItem(14, 18) : Item.GetItem(13, 17);  // Devil's Key / Blood Bone
+        int chaosCount = 0, firstCount = 0, secondCount = 0, firstLevel = 0, secondLevel = 0;
+
+        foreach (var it in items)
+        {
+            if (it.Index == ItemChaos)
+            {
+                chaosCount++;
+            }
+            else if (it.Index == first)
+            {
+                firstCount++;
+                firstLevel = it.Level;
+            }
+            else if (it.Index == second)
+            {
+                secondCount++;
+                secondLevel = it.Level;
+            }
+        }
+
+        if (chaosCount != 1 || firstCount != 1 || secondCount != 1 || firstLevel != secondLevel)
+        {
+            return new ChaosMixResult(false, 7, null, false, 0, 0);
+        }
+
+        int maxLevel = devil ? 4 : 7;
+
+        if (firstLevel > maxLevel || secondLevel > maxLevel)
+        {
+            return new ChaosMixResult(false, 8, null, false, 0, 0);
+        }
+
+        // Level 0 is neither: the original's switch has no case for it and the mix would cost nothing and never win.
+        if (firstLevel < 1)
+        {
+            return new ChaosMixResult(false, 7, null, false, 0, 0);
+        }
+
+        int al = Math.Clamp(player.AccountLevel, 0, 3);
+        int[] devilZen = { 0, 100_000, 200_000, 400_000, 700_000 };
+        int[] bloodZen = { 0, 50_000, 80_000, 150_000, 250_000, 400_000, 600_000, 850_000 };
+
+        int rate = devil
+            ? firstLevel switch { 1 => rates.DevilSquareMixRate1[al], 2 => rates.DevilSquareMixRate2[al], 3 => rates.DevilSquareMixRate3[al], _ => rates.DevilSquareMixRate4[al] }
+            : firstLevel switch
+            {
+                1 => rates.BloodCastleMixRate1[al], 2 => rates.BloodCastleMixRate2[al], 3 => rates.BloodCastleMixRate3[al],
+                4 => rates.BloodCastleMixRate4[al], 5 => rates.BloodCastleMixRate5[al], 6 => rates.BloodCastleMixRate6[al],
+                _ => rates.BloodCastleMixRate7[al],
+            };
+
+        rate = Math.Min(rate, 100);
+        int zen = devil ? devilZen[firstLevel] : bloodZen[firstLevel];
+
+        if (!execute)
+        {
+            return new ChaosMixResult(false, 0, null, false, rate, zen);
+        }
+
+        if (player.Money < zen)
+        {
+            return new ChaosMixResult(false, 2, null, false, rate, zen);
+        }
+
+        player.Money -= (uint)zen;
+
+        int roll = Random.Shared.Next(100);
+
+        if (devil ? roll < rate : roll <= rate)
+        {
+            var ticket = new Item { Index = (short)(devil ? Item.GetItem(14, 19) : Item.GetItem(13, 18)), Level = (byte)firstLevel, Durability = 1 };
+            ClearBox(player);
+            return new ChaosMixResult(true, 1, ticket, true, rate, zen);
+        }
+
+        ClearBox(player);
+        return new ChaosMixResult(false, 0, null, false, rate, zen);
+    }
+
     private static ChaosMixResult MixChaosItem(PlayerObject player, List<Item> items, GameServerInfoChaosMix rates,
-        Func<Item, int> getBuyMoney, bool execute)
+        Func<Item, int> getBuyMoney, bool execute, ItemBagManager? bags)
     {
         int chaosCount = 0, itemCount = 0, itemMoney = 0;
 
@@ -190,6 +366,17 @@ public static class ChaosMixLogic
 
         if (Random.Shared.Next(100) < rate)
         {
+            if (TryBagItem(bags, ItemBagManager.ChaosItemMix, player, out var fromBag))
+            {
+                if (fromBag == null)
+                {
+                    return new ChaosMixResult(false, 0, null, false, rate, zen);
+                }
+
+                ClearBox(player);
+                return new ChaosMixResult(true, 1, fromBag, true, rate, zen);
+            }
+
             int index = ChaosWeapons[Random.Shared.Next(ChaosWeapons.Length)];
             bool luck = Random.Shared.Next(100) < 50;
             byte level = (byte)Random.Shared.Next(0, 3);
@@ -310,7 +497,7 @@ public static class ChaosMixLogic
     /// Option3>=1) -> 1st-generation wing (Elf/Heaven/Satan). On the wire this is triggered with <see
     /// cref="ChaosMixType.Wing2"/> (11), not Wing1 -- see the comment of <see cref="ChaosMixType"/>.</summary>
     private static ChaosMixResult MixWing1(PlayerObject player, List<Item> items, GameServerInfoChaosMix rates,
-        Func<Item, int> getBuyMoney, bool execute)
+        Func<Item, int> getBuyMoney, bool execute, ItemBagManager? bags)
     {
         int chaosCount = 0, chaosWeaponCount = 0, itemMoney = 0;
 
@@ -359,6 +546,17 @@ public static class ChaosMixLogic
 
         if (Random.Shared.Next(100) < rate)
         {
+            if (TryBagItem(bags, ItemBagManager.ChaosWing1Mix, player, out var fromBag))
+            {
+                if (fromBag == null)
+                {
+                    return new ChaosMixResult(false, 0, null, false, rate, zen);
+                }
+
+                ClearBox(player);
+                return new ChaosMixResult(true, 1, fromBag, true, rate, zen);
+            }
+
             int index = Wing1Candidates[Random.Shared.Next(Wing1Candidates.Length)];
             var newItem = new Item { Index = (short)index, Level = 0, Durability = 255 };
             ClearBox(player);
@@ -374,7 +572,7 @@ public static class ChaosMixLogic
     /// the wire); =1 -> Chaos + Crest of Monarch (same item index, level 1) + 2nd-gen wing -> Cape of Lord
     /// (triggered with <see cref="ChaosMixType.Wing3"/> =24).</summary>
     private static ChaosMixResult MixWing2Family(PlayerObject player, List<Item> items, GameServerInfoChaosMix rates,
-        Func<Item, int> getBuyMoney, int wingTier, bool execute)
+        Func<Item, int> getBuyMoney, int wingTier, bool execute, ItemBagManager? bags)
     {
         int chaosCount = 0, featherCount = 0, wingItemCount = 0, wingItemMoney = 0, itemMoney = 0;
 
@@ -438,6 +636,17 @@ public static class ChaosMixLogic
 
         if (Random.Shared.Next(100) < rate)
         {
+            if (TryBagItem(bags, wingTier == 0 ? ItemBagManager.ChaosWing2Mix : ItemBagManager.ChaosCapeMix, player, out var fromBag))
+            {
+                if (fromBag == null)
+                {
+                    return new ChaosMixResult(false, 0, null, false, rate, zen);
+                }
+
+                ClearBox(player);
+                return new ChaosMixResult(true, 1, fromBag, true, rate, zen);
+            }
+
             var candidates = wingTier == 0 ? Wing2Candidates : CapeCandidates;
             int index = candidates[Random.Shared.Next(candidates.Length)];
             var newItem = new Item { Index = (short)index, Level = 0, Durability = 255 };

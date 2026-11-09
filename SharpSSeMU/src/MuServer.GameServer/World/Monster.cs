@@ -18,7 +18,7 @@ public sealed class Monster
     public int Level { get; init; }
 
     public float Life { get; set; }
-    public float MaxLife { get; init; }
+    public float MaxLife { get; set; }
 
     public byte Map { get; init; }
     public byte X { get; set; }
@@ -49,8 +49,12 @@ public sealed class Monster
     public int ItemRate { get; init; }
     public int MoneyRate { get; init; }
 
+    /// <summary>The monster's zen (OBJECTSTRUCT::Money): not a fixed reward but the experience it gave, summed over
+    /// everyone who hit it -- set when it dies, before its loot is decided.</summary>
+    public long Money { get; set; }
+
     /// <summary>MONSTER_INFO.RegenTime*1000 (Monster.cpp:264) -- puerto de MaxRegenTime.</summary>
-    public int MaxRegenMillis { get; init; }
+    public int MaxRegenMillis { get; set; }
 
     public bool Live { get; set; } = true;
 
@@ -89,6 +93,22 @@ public sealed class Monster
     /// normal experience share, which still applies just as to any other monster (the two systems are
     /// independent in the original, they are not mutually exclusive).</summary>
     public int? DevilSquareBracket { get; set; }
+
+    /// <summary>Non-null if this monster belongs to the (0-based) level of a running Blood Castle -- spawned for
+    /// one stage of it, or the castle gate or a statue (<c>BLOOD_CASTLE_LEVEL::MonsterIndex</c>).</summary>
+    public int? BloodCastleLevel { get; set; }
+
+    /// <summary>Non-null if this monster belongs to the (0-based) level of a running Chaos Castle
+    /// (<c>CHAOS_CASTLE_LEVEL::MonsterIndex</c>).</summary>
+    public int? ChaosCastleLevel { get; set; }
+
+    /// <summary>Takes no damage (the original's EFFECT_MONSTER_PHYSI/MAGIC_DAMAGE_IMMUNITY): the Blood Castle gate
+    /// and statues until their stage is reached.</summary>
+    public bool Immune { get; set; }
+
+    /// <summary>Once dead it is taken out of the world instead of coming back (<c>PosNum = -1</c> in the
+    /// original): the Blood Castle gate and statues.</summary>
+    public bool NoRespawn { get; set; }
 
     // ---------------------------------------------------------------- NPCs y tiendas (primera pasada)
 

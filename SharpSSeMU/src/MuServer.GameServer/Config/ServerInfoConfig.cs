@@ -77,6 +77,11 @@ public sealed class ServerInfoConfig
     public int[] AddExperienceRate { get; private set; } = { 1, 1, 1, 1 };
     public int[] MoneyAmountDropRate { get; private set; } = { 100, 100, 100, 100 };
 
+    /// <summary>ItemDropRate_AL0..3: a monster drops an item when <c>random(monster ItemRate) &lt; ItemDropRate</c>
+    /// (times the map's rate), so the larger it is the more kills drop one -- at or above the monster's ItemRate, all
+    /// of them.</summary>
+    public int[] ItemDropRate { get; private set; } = { 100, 100, 100, 100 };
+
     /// <summary>Port of m_ItemDropTime/m_MoneyDropTime (Common.dat) -- lifetime (seconds) of an item/money
     /// dropped on the ground before it disappears on its own; the owner's loot-lock lasts HALF this time
     /// (<c>m_ItemDropTime*500</c> in ms, MapItem.cpp:29-99) -- see <see cref="World.GroundItem"/>. FIXED:
@@ -90,6 +95,45 @@ public sealed class ServerInfoConfig
     /// bracket (<see cref="World.DevilSquareManager"/>). FIXED: before porting this file the port had a
     /// hardcoded cap of 50 (arbitrary); the real one is 15.</summary>
     public int DevilSquareMaxUser { get; private set; } = 15;
+
+    /// <summary>BloodCastleEvent: the whole event on or off. BloodCastleMaxUser: players per castle.
+    /// BloodCastleMaxEntryCount_ALx: entries per day by account level (0 = no limit). BloodCastleNPCWithoutEntrance:
+    /// the Archangel's messenger talks to a player who has no cloak.</summary>
+    public bool BloodCastleEvent { get; private set; } = true;
+    public int BloodCastleMaxUser { get; private set; } = 10;
+    public int[] BloodCastleMaxEntryCount { get; private set; } = new int[4];
+    public bool BloodCastleNpcWithoutEntrance { get; private set; }
+
+    /// <summary>The daily entry caps of the other two entry events by account level (0 = no limit).</summary>
+    public int[] DevilSquareMaxEntryCount { get; private set; } = new int[4];
+    public int[] ChaosCastleMaxEntryCount { get; private set; } = new int[4];
+
+    /// <summary>PKLimitFree (everybody may do everything) and PKLimitEventEntry (a murderer may not enter an event)
+    /// from Common.dat.</summary>
+    public int PKLimitFree { get; internal set; }
+    public int PKLimitEventEntry { get; internal set; }
+
+    /// <summary>True when a player's PK level keeps them out of the events: the check every event's entry makes,
+    /// <c>PKLimitFree == 0 &amp;&amp; PKLevel &gt; 4 &amp;&amp; PKLimitEventEntry != 0</c>.</summary>
+    public bool PkBlocksEventEntry(int pkLevel) => PKLimitFree == 0 && pkLevel > 4 && PKLimitEventEntry != 0;
+
+    /// <summary>True when the player has used up the entries the cap allows for the day.</summary>
+    public static bool EntryCapReached(int[] caps, int accountLevel, int entries)
+    {
+        int cap = caps[Math.Clamp(accountLevel, 0, caps.Length - 1)];
+        return cap != 0 && entries >= cap;
+    }
+
+    /// <summary>ChaosCastleEvent: the whole event on or off. ChaosCastleMinUser: players needed to start.
+    /// ChaosCastleBlowUserRate: % chance that a dying monster blows the players near it away. ChaosCastleMoneyRate:
+    /// % of the entry fees of everybody that a random participant wins when the wait ends.</summary>
+    public bool ChaosCastleEvent { get; internal set; } = true;
+    public int ChaosCastleMinUser { get; internal set; } = 1;
+    public int ChaosCastleBlowUserRate { get; internal set; } = 50;
+    public int ChaosCastleMoneyRate { get; internal set; } = 80;
+
+    /// <summary>DropEventSwitch: the drop events of DropEvent.dat run.</summary>
+    public bool DropEventSwitch { get; private set; } = true;
 
     public static ServerInfoConfig Load(string commonPath, string eventPath)
     {
@@ -126,10 +170,32 @@ public sealed class ServerInfoConfig
                 common.GetInt("GameServerInfo", "MoneyAmountDropRate_AL3", 100),
             },
 
+            ItemDropRate = new[]
+            {
+                common.GetInt("GameServerInfo", "ItemDropRate_AL0", 100),
+                common.GetInt("GameServerInfo", "ItemDropRate_AL1", 100),
+                common.GetInt("GameServerInfo", "ItemDropRate_AL2", 100),
+                common.GetInt("GameServerInfo", "ItemDropRate_AL3", 100),
+            },
+
             ItemDropTimeSeconds = common.GetInt("GameServerInfo", "ItemDropTime", 30),
             MoneyDropTimeSeconds = common.GetInt("GameServerInfo", "MoneyDropTime", 30),
 
             DevilSquareMaxUser = evt.GetInt("GameServerInfo", "DevilSquareMaxUser", 15),
+
+            BloodCastleEvent = evt.GetInt("GameServerInfo", "BloodCastleEvent", 1) != 0,
+            BloodCastleMaxUser = evt.GetInt("GameServerInfo", "BloodCastleMaxUser", 10),
+            BloodCastleMaxEntryCount = Enumerable.Range(0, 4).Select(n => evt.GetInt("GameServerInfo", $"BloodCastleMaxEntryCount_AL{n}", 0)).ToArray(),
+            BloodCastleNpcWithoutEntrance = evt.GetInt("GameServerInfo", "BloodCastleNPCWithoutEntrance", 0) != 0,
+            DevilSquareMaxEntryCount = Enumerable.Range(0, 4).Select(n => evt.GetInt("GameServerInfo", $"DevilSquareMaxEntryCount_AL{n}", 0)).ToArray(),
+            ChaosCastleMaxEntryCount = Enumerable.Range(0, 4).Select(n => evt.GetInt("GameServerInfo", $"ChaosCastleMaxEntryCount_AL{n}", 0)).ToArray(),
+            PKLimitFree = common.GetInt("GameServerInfo", "PKLimitFree", 0),
+            PKLimitEventEntry = common.GetInt("GameServerInfo", "PKLimitEventEntry", 0),
+            ChaosCastleEvent = evt.GetInt("GameServerInfo", "ChaosCastleEvent", 1) != 0,
+            ChaosCastleMinUser = evt.GetInt("GameServerInfo", "ChaosCastleMinUser", 1),
+            ChaosCastleBlowUserRate = evt.GetInt("GameServerInfo", "ChaosCastleBlowUserRate", 50),
+            ChaosCastleMoneyRate = evt.GetInt("GameServerInfo", "ChaosCastleMoneyRate", 80),
+            DropEventSwitch = evt.GetInt("GameServerInfo", "DropEventSwitch", 1) != 0,
         };
 
         return cfg;

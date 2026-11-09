@@ -181,6 +181,26 @@ public sealed class GameServerInfoCharacter
     public int MGDefenseConstA { get; private set; }
     public int DLDefenseConstA { get; private set; }
 
+    /// <summary>The four constants (A-D) of the PvP attack success rate of a class (0 DW .. 4 DL).</summary>
+    public int[] AttackSuccessRatePvPConst(int cls) => cls switch
+    {
+        0 => new[] { DWAttackSuccessRatePvPConstA, DWAttackSuccessRatePvPConstB, DWAttackSuccessRatePvPConstC, DWAttackSuccessRatePvPConstD },
+        1 => new[] { DKAttackSuccessRatePvPConstA, DKAttackSuccessRatePvPConstB, DKAttackSuccessRatePvPConstC, DKAttackSuccessRatePvPConstD },
+        2 => new[] { FEAttackSuccessRatePvPConstA, FEAttackSuccessRatePvPConstB, FEAttackSuccessRatePvPConstC, FEAttackSuccessRatePvPConstD },
+        3 => new[] { MGAttackSuccessRatePvPConstA, MGAttackSuccessRatePvPConstB, MGAttackSuccessRatePvPConstC, MGAttackSuccessRatePvPConstD },
+        _ => new[] { DLAttackSuccessRatePvPConstA, DLAttackSuccessRatePvPConstB, DLAttackSuccessRatePvPConstC, DLAttackSuccessRatePvPConstD },
+    };
+
+    /// <summary>The three constants (A-C) of the PvP defense success rate of a class.</summary>
+    public int[] DefenseSuccessRatePvPConst(int cls) => cls switch
+    {
+        0 => new[] { DWDefenseSuccessRatePvPConstA, DWDefenseSuccessRatePvPConstB, DWDefenseSuccessRatePvPConstC },
+        1 => new[] { DKDefenseSuccessRatePvPConstA, DKDefenseSuccessRatePvPConstB, DKDefenseSuccessRatePvPConstC },
+        2 => new[] { FEDefenseSuccessRatePvPConstA, FEDefenseSuccessRatePvPConstB, FEDefenseSuccessRatePvPConstC },
+        3 => new[] { MGDefenseSuccessRatePvPConstA, MGDefenseSuccessRatePvPConstB, MGDefenseSuccessRatePvPConstC },
+        _ => new[] { DLDefenseSuccessRatePvPConstA, DLDefenseSuccessRatePvPConstB, DLDefenseSuccessRatePvPConstC },
+    };
+
     public static GameServerInfoCharacter Load(string path)
     {
         var ini = IniFile.Load(path);

@@ -15,7 +15,7 @@ public sealed class Localizer
 
     public string this[string english] => Loc.T(Language, english);
 
-    public string F(string english, params object?[] args) => Loc.F(Language, english, args);
+    public string F(string english, params object?[] args) => Loc.FormatIn(Language, english, args);
 
     /// <summary>Resolves the visitor's language from the request (cookie first, then Accept-Language).</summary>
     public static string FromRequest(HttpContext? http)

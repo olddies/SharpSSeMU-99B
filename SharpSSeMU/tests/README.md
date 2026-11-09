@@ -36,7 +36,7 @@ process hanging.
 
 ## Known state
 
-All ten tests pass (`full_chain`, `fase1`-`fase6`, `grounditem`, `shop`, `skills`).
+All eleven tests pass (`full_chain`, `fase1`-`fase6`, `chaoscastle`, `grounditem`, `shop`, `skills`).
 
 The long-standing "one failure in the combat sequence" was not server balance: the harness started
 each server with its console piped to the test and never read the pipe while the test ran. Once the
@@ -55,7 +55,8 @@ Two rules the combat steps rely on:
 
 The fixtures seed what each scenario needs: Hero3 (Devil Square) gets high Vitality **and** current
 Life, because `Life` is read from the character row and Vitality only raises `MaxLife`; the
-ground-item test adds two deterministic drop monsters (`Deployment.seed_drop_monsters`).
+ground-item test adds two deterministic drop monsters (`Deployment.seed_drop_monsters`) and the real Box of
+Luck bag (`Deployment.seed_item_bag`), so it can throw a box on the ground and watch it open.
 
 ## Fixture notes that matter
 

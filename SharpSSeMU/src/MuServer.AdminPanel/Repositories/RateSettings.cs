@@ -40,7 +40,7 @@ public static class RateSettings
         new("Item drops", "drop",
         [
             new("ItemDropRate", "Item drop probability",
-                "Chance that a monster drops an item on dying (out of 1000: 100 = 10%).", true),
+                "Chance that a kill drops an item: this value out of the monster's own ItemRate (100 to 300 in MonsterList.txt). With 100, a monster of ItemRate 200 drops one in two; at its ItemRate or above, every kill drops.", true),
             new("ItemDropTime", "Seconds an item stays on the floor",
                 "After that time the item disappears from the ground."),
             new("MaxItemOption", "Maximum item options",
@@ -50,7 +50,7 @@ public static class RateSettings
         new("Zen drops", "zen",
         [
             new("MoneyAmountDropRate", "Zen multiplier",
-                "How much zen each monster drops, as a percentage: 100 = normal, 200 = double.", true),
+                "How much zen a monster drops, as a percentage of the experience it gave (a kill's zen is its experience): 100 = the same amount, 50 = half.", true),
             new("MoneyDropTime", "Seconds zen stays on the floor",
                 "Same as for items, but for zen piles."),
         ]),

@@ -19,8 +19,8 @@ public static class RatePresets
                 ["AddEventExperienceRate"] = 1,
                 ["MaxLevelUp"] = 1,
                 ["MaxLevelUpEvent"] = 1,
-                ["ItemDropRate"] = 300,
-                ["MoneyAmountDropRate"] = 100,
+                ["ItemDropRate"] = 100,
+                ["MoneyAmountDropRate"] = 50,
             }),
 
         new("soft", "Soft (x10)",
@@ -31,8 +31,8 @@ public static class RatePresets
                 ["AddEventExperienceRate"] = 10,
                 ["MaxLevelUp"] = 2,
                 ["MaxLevelUpEvent"] = 2,
-                ["ItemDropRate"] = 400,
-                ["MoneyAmountDropRate"] = 200,
+                ["ItemDropRate"] = 150,
+                ["MoneyAmountDropRate"] = 100,
             }),
 
         new("fast", "Fast (x100)",
@@ -43,8 +43,8 @@ public static class RatePresets
                 ["AddEventExperienceRate"] = 100,
                 ["MaxLevelUp"] = 5,
                 ["MaxLevelUpEvent"] = 5,
-                ["ItemDropRate"] = 500,
-                ["MoneyAmountDropRate"] = 300,
+                ["ItemDropRate"] = 200,
+                ["MoneyAmountDropRate"] = 150,
             }),
 
         new("testing", "Testing (very fast)",

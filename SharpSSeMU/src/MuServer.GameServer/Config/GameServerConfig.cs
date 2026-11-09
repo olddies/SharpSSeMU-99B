@@ -34,6 +34,16 @@ public sealed class GameServerConfig
     public required string MonsterSpawnPath { get; init; } // Data/Monster/Spawn/*.txt
     public required string EventPath { get; init; } // Data/Event (DevilSquare.dat, EventEntryLevel.dat, EventStageSpawn.dat)
     public required string ItemPath { get; init; } // Data/Item/Item.txt (balance real de items -- Fase 4, segunda pasada)
+    public required string MapManagerPath { get; init; } // Data/MapManager.txt (per-map drop rates -- see World/LootTables.cs)
+    public required string MapRateInfoPath { get; init; } // Data/MapRateInfo.txt (which option rows a map's drops use)
+    public required string ItemOptionRatePath { get; init; } // Data/Item/ItemOptionRate.txt
+    public required string ExcellentOptionRatePath { get; init; } // Data/Item/ExcellentOptionRate.txt
+    public required string ItemDropPath { get; init; } // Data/Item/ItemDrop.txt (specific item drop rules)
+    public required string ItemMoneyDropPath { get; init; } // Data/Item/ItemMoneyDrop.txt (zen drop rules)
+    public required string SetItemTypePath { get; init; } // Data/Item/SetItemType.txt (which items belong to a set -- see World/SetItems.cs)
+    public required string SetItemOptionPath { get; init; } // Data/Item/SetItemOption.txt (the bonuses of each set)
+    public required string ItemBagManagerPath { get; init; } // Data/EventItemBagManager.txt (which bag a boss, item or event uses)
+    public required string ItemBagPath { get; init; } // Data/EventItemBag (the bag files themselves)
     public required string ItemOptionPath { get; init; } // Data/Item/ItemOption.txt (skill/luck/additional/excellent options -- see World/ItemOption.cs)
     public required string ItemValuePath { get; init; } // Data/Item/ItemValue.txt (precios explicitos -- ver World/ItemValue.cs)
     public required string CharacterInfoPath { get; init; } // Data/GameServerInfo - Character.dat (constantes de CharacterCalcAttribute)
@@ -115,6 +125,16 @@ public sealed class GameServerConfig
             MonsterSpawnPath = ini.GetString("GameServerInfo", "MonsterSpawnPath", Path.Combine(baseDir, "Data", "Monster", "Spawn")),
             EventPath = ini.GetString("GameServerInfo", "EventPath", Path.Combine(baseDir, "Data", "Event")),
             ItemPath = ini.GetString("GameServerInfo", "ItemPath", Path.Combine(baseDir, "Data", "Item", "Item.txt")),
+            MapManagerPath = ini.GetString("GameServerInfo", "MapManagerPath", Path.Combine(baseDir, "Data", "MapManager.txt")),
+            MapRateInfoPath = ini.GetString("GameServerInfo", "MapRateInfoPath", Path.Combine(baseDir, "Data", "MapRateInfo.txt")),
+            ItemOptionRatePath = ini.GetString("GameServerInfo", "ItemOptionRatePath", Path.Combine(baseDir, "Data", "Item", "ItemOptionRate.txt")),
+            ExcellentOptionRatePath = ini.GetString("GameServerInfo", "ExcellentOptionRatePath", Path.Combine(baseDir, "Data", "Item", "ExcellentOptionRate.txt")),
+            ItemDropPath = ini.GetString("GameServerInfo", "ItemDropPath", Path.Combine(baseDir, "Data", "Item", "ItemDrop.txt")),
+            ItemMoneyDropPath = ini.GetString("GameServerInfo", "ItemMoneyDropPath", Path.Combine(baseDir, "Data", "Item", "ItemMoneyDrop.txt")),
+            SetItemTypePath = ini.GetString("GameServerInfo", "SetItemTypePath", Path.Combine(baseDir, "Data", "Item", "SetItemType.txt")),
+            SetItemOptionPath = ini.GetString("GameServerInfo", "SetItemOptionPath", Path.Combine(baseDir, "Data", "Item", "SetItemOption.txt")),
+            ItemBagManagerPath = ini.GetString("GameServerInfo", "ItemBagManagerPath", Path.Combine(baseDir, "Data", "EventItemBagManager.txt")),
+            ItemBagPath = ini.GetString("GameServerInfo", "ItemBagPath", Path.Combine(baseDir, "Data", "EventItemBag")),
             ItemOptionPath = ini.GetString("GameServerInfo", "ItemOptionPath", Path.Combine(baseDir, "Data", "Item", "ItemOption.txt")),
             ItemValuePath = ini.GetString("GameServerInfo", "ItemValuePath", Path.Combine(baseDir, "Data", "Item", "ItemValue.txt")),
             CharacterInfoPath = ini.GetString("GameServerInfo", "CharacterInfoPath", Path.Combine(baseDir, "Data", "GameServerInfo - Character.dat")),

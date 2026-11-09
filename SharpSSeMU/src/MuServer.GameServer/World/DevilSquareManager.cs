@@ -1,3 +1,4 @@
+using MuServer.GameServer.Config;
 using MuServer.GameServer.Net;
 using MuServer.GameServer.Protocol;
 using MuServer.Shared.Logging;
@@ -56,11 +57,10 @@ public sealed class DevilSquareBracket
 /// rest of the flow (validation, teleport, score, reward, ranking) is faithful. - No text message catalogue
 /// (Message.txt/gMessage) -- the notices "Devil Square opens in N minutes", "you do not have enough level",
 /// etc. are not sent (there is no ported text notification system yet). The C1:92 packet (30-second klaxon,
-/// without text) IS sent. - ITEM reward (only 1st place, see EventItemBagManager.txt) is not ported -- it
-/// requires the recursive "bag" system of ItemBagManager which does not exist yet in this port. XP and Zen are
-/// granted in full and byte-exact against the DevilSquare.dat tables. - Daily entry limit per account
-/// (DSCount/m_DevilSquareMaxEntryCount) not ported -- one can enter as many times as wanted while the window is
-/// open. - Spawn position selection: the original picks ONE free position at random per instance of
+/// without text) IS sent. - The ITEM reward (only 1st place, see EventItemBagManager.txt) comes from the item
+/// bags (<see cref="GiveItemBag"/>); XP and Zen are granted in full and byte-exact against the DevilSquare.dat
+/// tables. - The daily entry cap
+/// (DSCount/DevilSquareMaxEntryCount) and the PK limit are ported (they used not to be). - Spawn position selection: the original picks ONE free position at random per instance of
 /// CDevilSquare::SetMonster; here a monster is instantiated at EACH candidate position of the Type==4 pool for
 /// the class/map (the exact number of instances per call was not found in the research) -- it is the simplest
 /// interpretation and the most faithful to the position pool as defined in the real data file. </summary>
@@ -100,6 +100,16 @@ public sealed class DevilSquareManager
     /// (DevilSquareManager is built before ClientProtocolHandler, like ViewportTicker/protocolHandler in
     /// Program.cs).</summary>
     public Func<PlayerObject, long, CancellationToken, Task>? GrantExperience { get; set; }
+
+    /// <summary>Drops the item bag of an event around a player: (player, special value, level, state). Set by the
+    /// protocol handler, which owns the bags and the ground items.</summary>
+    public Func<PlayerObject, int, int, int, CancellationToken, Task>? GiveItemBag { get; set; }
+
+    /// <summary>Saves the character (set by the protocol handler); an entry is counted for the day and kept.</summary>
+    public Func<PlayerObject, CancellationToken, Task>? SaveCharacter { get; set; }
+
+    /// <summary>The message catalogue, for the notice of the daily cap (message 715).</summary>
+    public MessageTable? Messages { get; set; }
 
     public DevilSquareManager(
         DevilSquareConfig config, EventEntryLevelTable entryLevels, EventStageSpawnTable stageSpawns,
@@ -468,8 +478,12 @@ public sealed class DevilSquareManager
             await player.Session.SendEncryptedAsync(ItemPacketBuilder.MoneySend(player.Money), ct);
         }
 
-        // ITEM reward (only rank 0) NOT ported -- see the technical debt documented in this class's header (it
-        // requires a recursive ItemBagManager, outside this first pass).
+        // The item reward: EventItemBagManager.txt has a Devil Square bag per level for a state of 1 only, so
+        // just the first place gets one (CDevilSquare::GiveUserRewardItem passes rank + 1 as the state).
+        if (GiveItemBag != null)
+        {
+            await GiveItemBag(player, ItemBagManager.SpecialDevilSquare, bracket.Level, rank + 1, ct);
+        }
     }
 
     private async Task SendScoreListAsync(DevilSquareBracket bracket, List<DevilSquareParticipant> ranked, PlayerObject recipient, DevilSquareParticipant self, CancellationToken ct)
@@ -555,6 +569,18 @@ public sealed class DevilSquareManager
             return;
         }
 
+        // The daily cap comes right after the level range, as in the original; it answers with a notice.
+        if (ServerInfoConfig.EntryCapReached(WorldPacketBuilder.ServerInfo.DevilSquareMaxEntryCount, player.AccountLevel, player.DSCount))
+        {
+            if (Messages != null)
+            {
+                int cap = WorldPacketBuilder.ServerInfo.DevilSquareMaxEntryCount[Math.Clamp(player.AccountLevel, 0, 3)];
+                await session.SendAsync(ChatPacketBuilder.NoticeSend(BloodCastleManager.Fmt(Messages.GetMessage(715), cap)), ct);
+            }
+
+            return;
+        }
+
         // Port of "lpMsg->slot -= INVENTORY_WEAR_SIZE" + the later INVENTORY_FULL_RANGE check
         // (DevilSquare.cpp:1149-1290) -- the original subtracts 12 and uses the result as an index, which only
         // makes sense if it is an index ALREADY relative to the backpack that is later added back elsewhere not
@@ -613,6 +639,13 @@ public sealed class DevilSquareManager
             return;
         }
 
+        // A murderer may not enter (PKLimitFree / PKLimitEventEntry).
+        if (WorldPacketBuilder.ServerInfo.PkBlocksEventEntry(player.PKLevel))
+        {
+            await SendEnterResultAsync(session, 6, ct);
+            return;
+        }
+
         // Success -- consume the ticket (1 unit of "durability", like the rest of this port's stackable
         // consumables), notify the client of the change, register participant and teleport.
         byte newDurability = (byte)Math.Max(item.Durability - 1, 0);
@@ -636,6 +669,14 @@ public sealed class DevilSquareManager
         await session.SendEncryptedAsync(ItemPacketBuilder.ItemMoveSend(0, (byte)realSlot, finalItem), ct);
 
         bracket.Participants.Add(new DevilSquareParticipant { PlayerIndex = player.Index });
+
+        // gObjEventEntrySaveSend: the entry counts for the day and the character is saved with it.
+        player.DSCount++;
+
+        if (SaveCharacter != null)
+        {
+            await SaveCharacter(player, ct);
+        }
 
         await SendEnterResultAsync(session, 0, ct);
         await TeleportInAsync(player, bracket, ct);
@@ -731,7 +772,7 @@ public sealed class DevilSquareManager
             enteredUser = 0;
         }
 
-        await session.SendAsync(DevilSquarePacketBuilder.RemainTimeSend((byte)level, remainH, enteredUser), ct);
+        await session.SendAsync(DevilSquarePacketBuilder.RemainTimeSend(eventType, remainH, enteredUser), ct);
     }
 
     // ---------------------------------------------------------------- Puntaje (CDevilSquare::MonsterDieProc)
