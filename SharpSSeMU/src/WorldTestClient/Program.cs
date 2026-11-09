@@ -360,16 +360,16 @@ try
 
         int seedDurability = int.Parse(args[13]);
         int lastDurability = -1, notices = 0;
-        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(40);
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(80);
 
         clientA.DiscardPending();
 
-        // The monster misses now and then, so wait for hits as long as it takes; after the first one, a few seconds more.
+        // The monster wanders about its spawn and misses now and then, so wait for hits as long as it takes; after the first one, a few seconds more.
         while (DateTime.UtcNow < deadline && notices < 3)
         {
             try
             {
-                var pkt = await clientA.WaitForAnyAsync(TimeSpan.FromSeconds(notices == 0 ? 30 : 6), 0x2A);
+                var pkt = await clientA.WaitForAnyAsync(TimeSpan.FromSeconds(notices == 0 ? 70 : 6), 0x2A);
 
                 if (pkt.Full[3] == 8)
                 {

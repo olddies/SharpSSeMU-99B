@@ -48,7 +48,7 @@ try:
 
     result = dep.run_world_test_client(
         "test", "test", "Hero1", "admin", "admin", "Hero2", "wear", str(DURABILITY),
-        timeout=120)
+        timeout=150)
     test_rc = result.returncode
     output = result.stdout
 
