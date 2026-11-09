@@ -359,6 +359,12 @@ public class ChaosCastleTests
         Assert.That(h.Session.Of(0xAF).Last()[4], Is.EqualTo(1));
         hero.PartyNumber = -1;
 
+        // In the middle of a duel.
+        hero.DuelUser = 9005;
+        await h.EnterAsync(hero);
+        Assert.That(h.Session.Of(0xAF).Last()[4], Is.EqualTo(1));
+        hero.DuelUser = -1;
+
         // Not enough zen.
         hero.Money = 24_999;
         await h.EnterAsync(hero);

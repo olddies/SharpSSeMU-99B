@@ -899,7 +899,19 @@ public sealed class ViewportTicker
                 int gateIndex = GetRespawnGateForMap(player.Map);
                 var gate = _gates?.Get(gateIndex);
 
-                if (gate != null)
+                if (player.RespawnInPlace)
+                {
+                    // The loser of a duel round (KillerType 3): near where they fell, on the same map.
+                    player.RespawnInPlace = false;
+                    var (px, py) = _maps.GetMap(player.Map)?.GetRandomPos(player.X, player.Y, 18, Random.Shared) ?? (player.X, player.Y);
+                    player.X = (byte)px;
+                    player.Y = (byte)py;
+                    player.TX = (byte)px;
+                    player.TY = (byte)py;
+                    player.OldX = (byte)px;
+                    player.OldY = (byte)py;
+                }
+                else if (gate != null)
                 {
                     player.Map = (byte)gate.Map;
                     int rx = (gate.EndX > gate.StartX) ? Random.Shared.Next(gate.StartX, gate.EndX + 1) : gate.StartX;

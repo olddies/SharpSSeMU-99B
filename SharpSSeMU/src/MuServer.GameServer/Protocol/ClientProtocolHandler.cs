@@ -176,6 +176,18 @@ public sealed partial class ClientProtocolHandler
                 }
             }
 
+            if (Duel != null)
+            {
+                try
+                {
+                    await Duel.OnPlayerLeftAsync(session.Player, ct);
+                }
+                catch (Exception ex)
+                {
+                    Log.Add(LogColor.Red, "[Duel] Error when {0} left: {1}", session.Player.Name, ex.Message);
+                }
+            }
+
             if (_chaosCastle != null)
             {
                 try
@@ -453,6 +465,18 @@ public sealed partial class ClientProtocolHandler
 
                 case 0x9A:
                     await OnBloodCastleEnterAsync(session, p, ct);
+                    break;
+
+                case 0xAA:
+                    await OnDuelStartAsync(session, p, ct);
+                    break;
+
+                case 0xAB:
+                    await OnDuelEndAsync(session, ct);
+                    break;
+
+                case 0xAC:
+                    await OnDuelAnswerAsync(session, p, ct);
                     break;
 
                 case 0xAF:

@@ -1032,6 +1032,13 @@ public sealed class ChaosCastleManager
             return;
         }
 
+        // Nobody enters the castle in the middle of a duel (the guild war and personal shop refusals are not ported).
+        if (player.DuelUser >= 0)
+        {
+            await session.SendAsync(ChaosCastlePacketBuilder.EnterSend(1), ct);
+            return;
+        }
+
         await _lock.WaitAsync(ct);
 
         try
