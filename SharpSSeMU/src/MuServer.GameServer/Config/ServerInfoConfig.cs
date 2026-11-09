@@ -113,6 +113,14 @@ public sealed class ServerInfoConfig
     public int PKLimitFree { get; internal set; }
     public int PKLimitEventEntry { get; internal set; }
 
+    /// <summary>PKLimitShop and PKLimitMove: a murderer is not served by the NPC shops / may not use the warp list.</summary>
+    public int PKLimitShop { get; internal set; }
+    public int PKLimitMove { get; internal set; }
+
+    /// <summary>True when a murderer (PK level above 4) is kept out of the shops / the warp list.</summary>
+    public bool PkBlocksShop(int pkLevel) => PKLimitFree == 0 && pkLevel > 4 && PKLimitShop != 0;
+    public bool PkBlocksMove(int pkLevel) => PKLimitFree == 0 && pkLevel > 4 && PKLimitMove != 0;
+
     /// <summary>True when a player's PK level keeps them out of the events: the check every event's entry makes,
     /// <c>PKLimitFree == 0 &amp;&amp; PKLevel &gt; 4 &amp;&amp; PKLimitEventEntry != 0</c>.</summary>
     public bool PkBlocksEventEntry(int pkLevel) => PKLimitFree == 0 && pkLevel > 4 && PKLimitEventEntry != 0;
@@ -191,6 +199,8 @@ public sealed class ServerInfoConfig
             ChaosCastleMaxEntryCount = Enumerable.Range(0, 4).Select(n => evt.GetInt("GameServerInfo", $"ChaosCastleMaxEntryCount_AL{n}", 0)).ToArray(),
             PKLimitFree = common.GetInt("GameServerInfo", "PKLimitFree", 0),
             PKLimitEventEntry = common.GetInt("GameServerInfo", "PKLimitEventEntry", 0),
+            PKLimitShop = common.GetInt("GameServerInfo", "PKLimitShop", 0),
+            PKLimitMove = common.GetInt("GameServerInfo", "PKLimitMove", 0),
             ChaosCastleEvent = evt.GetInt("GameServerInfo", "ChaosCastleEvent", 1) != 0,
             ChaosCastleMinUser = evt.GetInt("GameServerInfo", "ChaosCastleMinUser", 1),
             ChaosCastleBlowUserRate = evt.GetInt("GameServerInfo", "ChaosCastleBlowUserRate", 50),

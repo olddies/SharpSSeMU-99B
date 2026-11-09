@@ -93,6 +93,26 @@ CombatRules.Current = new CombatRules
     DinorantDecDamageConstB = gsiItem.DinorantDecDamageConstB,
 };
 
+// The PK system's constants -- see World/PkSystem.cs.
+PkRules.Current = new PkRules
+{
+    NonPk = gsiCommon.NonPK,
+    DeathAnnounce = gsiCommon.PKDeathAnnounce,
+    DownPlusTimePoint = gsiCommon.PKDownPlusTimePoint,
+    DownPlusKillPoint = Math.Max(gsiCommon.PKDownPlusKillPoint, 1),
+    DownRequirePoint1 = gsiCommon.PKDownRequirePoint1,
+    DownRequirePoint2 = gsiCommon.PKDownRequirePoint2,
+    DownRequirePoint3 = gsiCommon.PKDownRequirePoint3,
+    DownRequirePoint4 = gsiCommon.PKDownRequirePoint4,
+    ItemDropRatePvP = new[] { gsiCommon.PKItemDropRatePvP1, gsiCommon.PKItemDropRatePvP2, gsiCommon.PKItemDropRatePvP3 },
+    ItemDropRatePvM = new[] { gsiCommon.PKItemDropRatePvM1, gsiCommon.PKItemDropRatePvM2, gsiCommon.PKItemDropRatePvM3 },
+    ItemDropMaxLevel = gsiCommon.PKItemDropMaxLevel,
+    ItemDropPet = gsiCommon.PKItemDropPet != 0,
+    ItemDropWing = gsiCommon.PKItemDropWing != 0,
+    ItemDropExc = gsiCommon.PKItemDropExc,
+    ItemDropSet = gsiCommon.PKItemDropSet != 0,
+};
+
 PacketCipher packetCipher;
 
 try
@@ -354,6 +374,7 @@ protocolHandler = new ClientProtocolHandler(
     questTable, questObjectiveTable, questRewardTable, gsiCommon, itemValues, gsiChaosMix, lootRoller, itemBags, kalima, dropEvents, chaosCastle);
 
 protocolHandler.DeveloperCommands = gsiCommand.CommandDeveloperSwitch != 0;
+protocolHandler.CommandInfo = gsiCommand;
 
 if (protocolHandler.DeveloperCommands)
 {
