@@ -571,6 +571,23 @@ try
             $"(count={boxContents.Full[4]}, ItemInfo[0]={boxContents.Full[9]})");
     }
 
+    // The developer commands are off in a stock deployment (CommandDeveloperSwitch = 0): the server answers as to
+    // any unknown command. The ground-item run turns them on to get its Box of Luck, so it skips this check.
+    if (!groundItemEnabled)
+    {
+        Console.WriteLine("\n=== Developer commands: off by default ===");
+
+        foreach (string devCommand in new[] { "/zen", "/item 14 11" })
+        {
+            clientA.DiscardPending();
+            await clientA.SendChatAsync(char1, devCommand);
+            var denied = await clientA.WaitForAsync(0x0D, TimeSpan.FromSeconds(5));
+            string deniedText = System.Text.Encoding.Latin1.GetString(denied.Full, 13, denied.Full.Length - 14);
+            string wanted = "'" + devCommand.Split(' ')[0] + "'"; // the quoted command, in English and in Spanish alike
+            Check($"[A] {devCommand} is not recognised with the switch off", deniedText.Contains(wanted), $"(notice='{deniedText}')");
+        }
+    }
+
     Console.WriteLine("\n=== Fase 5: chat público y whisper ===");
 
     const string chatMsg = "hola mundo";

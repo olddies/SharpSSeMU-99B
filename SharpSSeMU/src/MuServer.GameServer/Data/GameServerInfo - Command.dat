@@ -196,4 +196,7 @@ CommandMasterResetPointRateDL = 100
 ;==================================================
 ; General settings
 ;==================================================
+; Developer commands (this port's own): 1 lets EVERY player type /item <section> <index> [level]
+; and /zen to hand themselves any item and 10,000,000 zen. Only for a private test server.
+CommandDeveloperSwitch = 0
 CommandPostType = 0

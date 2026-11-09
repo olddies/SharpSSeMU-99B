@@ -342,6 +342,13 @@ protocolHandler = new ClientProtocolHandler(
     skills, skillDamage, devilSquare, shops, groundItems, gates, moves, bloodCastle, messages,
     questTable, questObjectiveTable, questRewardTable, gsiCommon, itemValues, gsiChaosMix, lootRoller, itemBags, kalima, dropEvents);
 
+protocolHandler.DeveloperCommands = gsiCommand.CommandDeveloperSwitch != 0;
+
+if (protocolHandler.DeveloperCommands)
+{
+    Log.Add(LogColor.Red, "[GameServer] Developer commands are ON: any player can use /item and /zen (CommandDeveloperSwitch in the Command.dat)");
+}
+
 joinServer.Start(cts.Token);
 dataServer.Start(cts.Token);
 devilSquare.Start(cts.Token);

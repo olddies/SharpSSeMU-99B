@@ -602,6 +602,13 @@ class Deployment:
             f"0\n3    0    {x}    {y}    3\n276    0    {x}    {y - 1}    3\n277    0    {x}    {y + 1}    3\nend\n",
             encoding="utf-8")
 
+    def enable_developer_commands(self) -> None:
+        """Turns on the developer commands (/item, /zen), which a stock Command.dat leaves off."""
+        dat = self.game_dir / "Data" / "GameServerInfo - Command.dat"
+        text = dat.read_text(encoding="utf-8")
+        assert "CommandDeveloperSwitch = 0" in text, "the Command.dat has no developer switch to turn on"
+        dat.write_text(text.replace("CommandDeveloperSwitch = 0", "CommandDeveloperSwitch = 1"), encoding="utf-8")
+
     def seed_item_bag(self) -> None:
         """Gives the Box of Luck (14,11) its real bag file and lists only that bag, so throwing the box on the
         ground opens it."""

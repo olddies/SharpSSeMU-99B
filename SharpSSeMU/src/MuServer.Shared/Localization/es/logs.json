@@ -74,6 +74,7 @@
  "[EventStageSpawn] {0} Devil Square and {1} Blood Castle row(s) loaded from {2}": "[EventStageSpawn] {0} fila(s) de Devil Square y {1} de Blood Castle cargadas desde {2}",
  "[ExcellentOptionRateTable] {0} excellent option row(s) loaded from {1}": "[ExcellentOptionRateTable] {0} fila(s) de opciones excelentes cargadas desde {1}",
  "[GameServerInfo] Full coverage loaded: Common/Character/ChaosMix/Command/Event/Item/Skill/Custom (845 real fields, nothing hard-coded)": "[GameServerInfo] Cobertura completa cargada: Common/Character/ChaosMix/Command/Event/Item/Skill/Custom (845 campos reales, sin hardcodear)",
+ "[GameServer] Developer commands are ON: any player can use /item and /zen (CommandDeveloperSwitch in the Command.dat)": "[GameServer] Comandos de desarrollo ACTIVADOS: cualquier jugador puede usar /item y /zen (CommandDeveloperSwitch en Command.dat)",
  "[GateTable] Could not load {0}": "[GateTable] No se pudo cargar {0}",
  "[GateTable] Loaded {0} gate definitions from {1}": "[GateTable] {0} definiciones de gate cargadas desde {1}",
  "[ItemBagManager] bag file {0} not found": "[ItemBagManager] No se encontró el archivo de bolsa {0}",

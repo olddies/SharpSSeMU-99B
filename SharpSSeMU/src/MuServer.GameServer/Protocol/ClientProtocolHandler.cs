@@ -197,6 +197,11 @@ public sealed class ClientProtocolHandler
     /// its own condition (unconditional on disconnect, 60s in <see cref="ApplyExperienceGainAsync"/>, 10min in
     /// the periodic autosave of <see cref="World.ViewportTicker"/>), just as the original spreads that logic
     /// across the call sites instead of centralising it. </summary>
+    /// <summary>The developer commands <c>/item</c> and <c>/zen</c> work only when this is on
+    /// (<c>CommandDeveloperSwitch</c> in the Command.dat). Off, the server answers "not recognised" like for any
+    /// unknown command, so a player cannot tell them from a typo.</summary>
+    public bool DeveloperCommands { get; set; }
+
     public async Task SaveCharacterAsync(PlayerObject player, CancellationToken ct)
     {
         await _dataServer.SendAsync(DataServerCharacterPacketBuilder.CharacterInfoSaveSend(player), ct);
@@ -4491,7 +4496,7 @@ public sealed class ClientProtocolHandler
             return;
         }
 
-        if (cmd == "zen")
+        if (cmd == "zen" && DeveloperCommands)
         {
             player.Money = 10_000_000u;
             await session.SendEncryptedAsync(ItemPacketBuilder.MoneySend(player.Money), ct);
@@ -4499,7 +4504,7 @@ public sealed class ClientProtocolHandler
             return;
         }
 
-        if (cmd is "scroll" or "questitem" or "item")
+        if (DeveloperCommands && cmd is "scroll" or "questitem" or "item")
         {
             int targetItemIndex = Item.GetItem(14, 23); // Scroll of Emperor por defecto
             if (cmd == "item" && parts.Length >= 3 && int.TryParse(parts[1], out int sec) && int.TryParse(parts[2], out int subIdx))

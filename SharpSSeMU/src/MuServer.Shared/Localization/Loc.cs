@@ -51,9 +51,12 @@ public static class Loc
         return english;
     }
 
-    public static string F(string english, params object?[] args) => F(Language, english, args);
+    public static string F(string english, params object?[] args) => FormatIn(Language, english, args);
 
-    public static string F(string language, string english, params object?[] args) =>
+    /// <summary>Like <see cref="F(string, object?[])"/> in a language of the caller's choosing. It has a name of
+    /// its own on purpose: as a second overload of <c>F</c> it hijacked every call whose first argument was a
+    /// string -- <c>F("... {0}", name)</c> read "... {0}" as the language and the name as the text.</summary>
+    public static string FormatIn(string language, string english, params object?[] args) =>
         string.Format(T(language, english), args);
 
     /// <summary>All Spanish keys currently loaded (used by the consistency check).</summary>
