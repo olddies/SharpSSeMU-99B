@@ -105,6 +105,21 @@ public class PvpTests
     }
 
     [Test]
+    public void In_a_duel_its_own_rate_applies_instead_of_the_chaos_castles()
+    {
+        CombatRules.Current = new CombatRules { ChaosCastleDamageRate = 50, DuelDamageRate = 60 };
+        var attacker = Attacker();
+        var target = Target();
+
+        var plain = PlayerAttackMath.HitPlayer(attacker, target, 0, 0, 0, false, _items, Plain(), null);
+        var duel = PlayerAttackMath.HitPlayer(attacker, target, 0, 0, 0, false, _items, Plain(), null, duel: true);
+        var both = PlayerAttackMath.HitPlayer(attacker, target, 0, 0, 0, false, _items, Plain(), null, chaosCastle: true, duel: true);
+
+        Assert.That(duel.Damage, Is.EqualTo(plain.Damage * 60 / 100));
+        Assert.That(both.Damage, Is.EqualTo(duel.Damage), "a duel is not scaled by both rates");
+    }
+
+    [Test]
     public void The_targets_damage_reduction_option_comes_off_first()
     {
         var attacker = Attacker();

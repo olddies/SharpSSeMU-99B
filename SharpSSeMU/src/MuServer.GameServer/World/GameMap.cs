@@ -109,6 +109,24 @@ public sealed class GameMap
     /// <summary>Un tile es "pisable" si no tiene bloqueo (4/8) -- usado para validar movimiento.</summary>
     public bool IsBlocked(int x, int y) => CheckAttr(x, y, 4) || CheckAttr(x, y, 8);
 
+    /// <summary>Port of CMap::GetMapRandomPos: a free tile within <paramref name="size"/> of the point (fifty tries; the
+    /// point itself when none is found).</summary>
+    public (int X, int Y) GetRandomPos(int x, int y, int size, Random rng)
+    {
+        for (int n = 0; n < 50; n++)
+        {
+            int nx = Math.Max(x - size, 0) + rng.Next(size * 2);
+            int ny = Math.Max(y - size, 0) + rng.Next(size * 2);
+
+            if (!IsBlocked(nx, ny))
+            {
+                return (nx, ny);
+            }
+        }
+
+        return (x, y);
+    }
+
     /// <summary>Un tile es zona segura/ciudad si tiene activo el bit 1.</summary>
     public bool IsSafeZone(int x, int y) => CheckAttr(x, y, 1);
 }

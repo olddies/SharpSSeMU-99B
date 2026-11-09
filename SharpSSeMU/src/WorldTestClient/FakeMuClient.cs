@@ -457,6 +457,29 @@ public sealed class FakeMuClient
     public Task SendChaosCastleEnterAsync(byte level, byte slot) =>
         SendRawAsync(PacketBuilder.BuildC1Sub(0xAF, 0x01, new[] { level, slot }));
 
+    /// <summary>PMSG_DUEL_START_RECV, C1:AA -- asks the player <paramref name="targetIndex"/> (named
+    /// <paramref name="targetName"/>) to duel.</summary>
+    public Task SendDuelRequestAsync(int targetIndex, string targetName)
+    {
+        var w = new PacketWriter();
+        w.WriteByte((byte)((targetIndex >> 8) & 0xFF));
+        w.WriteByte((byte)(targetIndex & 0xFF));
+        w.WriteFixedString(targetName, 10);
+        return SendRawAsync(PacketBuilder.BuildC1(0xAA, w.ToArray()));
+    }
+
+    /// <summary>PMSG_DUEL_OK_RECV, C1:AC -- answers the request of <paramref name="askerIndex"/> (named
+    /// <paramref name="askerName"/>): <paramref name="accept"/> true for yes.</summary>
+    public Task SendDuelAnswerAsync(bool accept, int askerIndex, string askerName)
+    {
+        var w = new PacketWriter();
+        w.WriteByte((byte)(accept ? 1 : 0));
+        w.WriteByte((byte)((askerIndex >> 8) & 0xFF));
+        w.WriteByte((byte)(askerIndex & 0xFF));
+        w.WriteFixedString(askerName, 10);
+        return SendRawAsync(PacketBuilder.BuildC1(0xAC, w.ToArray()));
+    }
+
     /// <summary>PMSG_EVENT_REMAIN_TIME_RECV, C1:91 -- eventType=1 es Devil Square.</summary>
     public Task SendEventRemainTimeAsync(byte eventType, byte itemLevel)
     {

@@ -83,6 +83,7 @@ CombatRules.Current = new CombatRules
     DamageRatePvP = gsiCharacter.DamageRatePvP.ToArray(),
     DamageRateTo = Enumerable.Range(0, 5).Select(a => Enumerable.Range(0, 5).Select(b => gsiCharacter.DamageRateTo[a, b]).ToArray()).ToArray(),
     ChaosCastleDamageRate = gsiCharacter.ChaosCastleDamageRate,
+    DuelDamageRate = gsiCharacter.DuelDamageRate,
     AttackSuccessRatePvPConst = Enumerable.Range(0, 5).Select(gsiCharacter.AttackSuccessRatePvPConst).ToArray(),
     DefenseSuccessRatePvPConst = Enumerable.Range(0, 5).Select(gsiCharacter.DefenseSuccessRatePvPConst).ToArray(),
     HpRecoveryRate = gsiCharacter.HPRecoveryRate.ToArray(),
@@ -375,6 +376,7 @@ protocolHandler = new ClientProtocolHandler(
 
 protocolHandler.DeveloperCommands = gsiCommand.CommandDeveloperSwitch != 0;
 protocolHandler.CommandInfo = gsiCommand;
+protocolHandler.Duel = new DuelManager(players, lootRoller.MapDrops, messages, dataServer.SendAsync);
 
 if (protocolHandler.DeveloperCommands)
 {

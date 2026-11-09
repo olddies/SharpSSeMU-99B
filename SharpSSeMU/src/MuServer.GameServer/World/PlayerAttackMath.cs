@@ -17,6 +17,7 @@ public sealed class CombatRules
     public int[] DamageRatePvP { get; init; } = { 100, 100, 100, 100, 100 };
     public int[][] DamageRateTo { get; init; } = Enumerable.Range(0, 5).Select(_ => new[] { 100, 100, 100, 100, 100 }).ToArray();
     public int ChaosCastleDamageRate { get; init; } = 50;
+    public int DuelDamageRate { get; init; } = 60;
 
     /// <summary>[class][A..D] and [class][A..C]: the constants of the PvP attack and defense success rates
     /// (ObjectManager.cpp:2119-2135, 2267-2283), the shipped values by default.</summary>
@@ -90,8 +91,8 @@ public static class PlayerAttackMath
     /// the Chaos Castle's own rate.</summary>
     public static PlayerHit HitPlayer(
         PlayerObject attacker, PlayerObject target, int skill, int skillDamageMin, int skillDamageMax, bool graze,
-        ItemBalanceTable items, Random rng, Func<int, int, int>? applySkillDamage = null, bool chaosCastle = false) =>
-        Hit(attacker, target, (int)target.Defense * 50 / 100, skill, skillDamageMin, skillDamageMax, graze, items, rng, applySkillDamage, chaosCastle);
+        ItemBalanceTable items, Random rng, Func<int, int, int>? applySkillDamage = null, bool chaosCastle = false, bool duel = false) =>
+        Hit(attacker, target, (int)target.Defense * 50 / 100, skill, skillDamageMin, skillDamageMax, graze, items, rng, applySkillDamage, chaosCastle, duel);
 
     /// <summary>Port of CAttack::MissCheckPvP (Attack.cpp:1033-1062): the attacker's PvP success rate against the
     /// target's, scaled by their levels. True when the blow lands.</summary>
@@ -139,7 +140,7 @@ public static class PlayerAttackMath
 
     private static PlayerHit Hit(
         PlayerObject player, PlayerObject? target, int monsterDefense, int skill, int skillDamageMin, int skillDamageMax, bool graze,
-        ItemBalanceTable items, Random rng, Func<int, int, int>? applySkillDamage, bool chaosCastle)
+        ItemBalanceTable items, Random rng, Func<int, int, int>? applySkillDamage, bool chaosCastle, bool duel = false)
     {
         var rules = CombatRules.Current;
         byte effect = EffectNone;
@@ -269,7 +270,12 @@ public static class PlayerAttackMath
             damage = damage * rules.DamageRatePvP[own] / 100;
             damage = damage * rules.DamageRateTo[own][Math.Clamp((int)target.Class, 0, 4)] / 100;
 
-            if (chaosCastle)
+            // The duel's rate or, failing that, the Chaos Castle's (Attack.cpp:391-402).
+            if (duel)
+            {
+                damage = damage * rules.DuelDamageRate / 100;
+            }
+            else if (chaosCastle)
             {
                 damage = damage * rules.ChaosCastleDamageRate / 100;
             }

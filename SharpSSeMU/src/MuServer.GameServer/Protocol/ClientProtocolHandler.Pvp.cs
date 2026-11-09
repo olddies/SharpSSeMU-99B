@@ -11,6 +11,11 @@ public sealed partial class ClientProtocolHandler
 {
     private readonly ChaosCastleManager? _chaosCastle;
 
+    /// <summary>The duels (set by Program).</summary>
+    public DuelManager? Duel { get; set; }
+
+    private bool InDuelWith(PlayerObject a, PlayerObject b) => Duel != null && Duel.CheckDuel(a, b);
+
     /// <summary>Port of CAttack::CheckPlayerTarget: who may hurt whom. Never in Devil Square or Blood Castle; in the
     /// Chaos Castle while its fight is on; anywhere else when both are above level 5 and the map allows PK (the NonPK
     /// column of MapManager.txt, or the server's NonPK). A party's members may or may not hit each other as
@@ -23,6 +28,12 @@ public sealed partial class ClientProtocolHandler
         }
 
         if ((_gsiCommon?.PartyDisableKillBetweenMembers ?? 0) != 0 && attacker.PartyNumber != -1 && attacker.PartyNumber == target.PartyNumber)
+        {
+            return false;
+        }
+
+        // Someone in a duel can be hurt only by the one they duel (Attack.cpp:939).
+        if (!InDuelWith(attacker, target) && target.DuelUser >= 0)
         {
             return false;
         }
@@ -43,7 +54,7 @@ public sealed partial class ClientProtocolHandler
     /// <summary>Whether a kill of <paramref name="victim"/> by <paramref name="killer"/> counts for the PK system: not in
     /// the Chaos Castle and not on a map without outlaws (the checks of gObjPlayerKiller and of the self-defense).</summary>
     private bool PlayerKillCounts(PlayerObject killer, PlayerObject victim) =>
-        !(killer.Map is >= 18 and <= 23 && victim.Map is >= 18 and <= 23) && !_loot.MapDrops.NonOutlaw(killer.Map);
+        !(killer.Map is >= 18 and <= 23 && victim.Map is >= 18 and <= 23) && !_loot.MapDrops.NonOutlaw(killer.Map) && !InDuelWith(killer, victim);
 
     /// <summary>Tells the player, and whoever sees them, their PK level (GCPKLevelSend).</summary>
     private async Task SendPkLevelAsync(PlayerObject player, CancellationToken ct)
@@ -108,6 +119,11 @@ public sealed partial class ClientProtocolHandler
             await SendPkLevelAsync(player, ct);
         }
 
+        if (Duel != null)
+        {
+            await Duel.OnSecondAsync(player, ct);
+        }
+
         foreach (int against in PkSystem.ExpireSelfDefense(player, DateTime.UtcNow))
         {
             var notice = ChatPacketBuilder.NoticeSend(BloodCastleManager.Fmt(MessageText(285, "Self defense against %s finished"), player.Name), 1);
@@ -137,6 +153,11 @@ public sealed partial class ClientProtocolHandler
     private async Task OnMurdererDiedAsync(PlayerObject victim, PlayerObject? killer, CancellationToken ct)
     {
         var rules = PkRules.Current;
+
+        if (killer != null && InDuelWith(victim, killer))
+        {
+            return; // no announcement and no item for a death in a duel
+        }
 
         if (victim.PKLevel > 4 && killer != null && rules.DeathAnnounce > 0)
         {
@@ -287,8 +308,10 @@ public sealed partial class ClientProtocolHandler
         attacker.LastCombatTime = now;
         target.LastCombatTime = now;
 
+        Duel?.Touch(attacker, target); // a blow keeps a duel alive
+
         var hit = PlayerAttackMath.HitPlayer(attacker, target, skillIndex, skill?.DamageMin ?? 0, skill?.DamageMax ?? 0, graze: false,
-            _itemBalance, Rng, skill == null ? null : _skillDamage.Apply, chaosCastle: attacker.Map is >= 18 and <= 23);
+            _itemBalance, Rng, skill == null ? null : _skillDamage.Apply, chaosCastle: attacker.Map is >= 18 and <= 23, duel: InDuelWith(attacker, target));
 
         await ApplyAttackerLifeCostAsync(attacker, hit.AttackerLifeLost, ct);
 
@@ -339,6 +362,12 @@ public sealed partial class ClientProtocolHandler
         }
 
         PkSystem.ClearSelfDefense(target);
+
+        // A kill in a duel is a point for the killer; the loser comes back where they fell.
+        if (killer != null && Duel != null)
+        {
+            await Duel.OnKilledAsync(target, killer, ct);
+        }
 
         await target.Session.SendAsync(ChatPacketBuilder.NoticeSend(Loc.T("You died.")), ct);
         await target.Session.SendAsync(LifePacketBuilder.LifeSend(0xFF, 0), ct);
@@ -397,6 +426,49 @@ public sealed partial class ClientProtocolHandler
 
         Log.Add(LogColor.Blue, "[CommandPKClear][{0}][{1}] - cleared (cost {2})", player.Account, player.Name, money);
         await SaveCharacterAsync(player, ct);
+    }
+
+    // ---------------------------------------------------------------- Duel
+
+    /// <summary>C1:AA -- the player asks another to duel.</summary>
+    private async Task OnDuelStartAsync(ClientSession session, byte[] p, CancellationToken ct)
+    {
+        var player = session.Player;
+
+        if (player == null || !player.WorldEntered || Duel == null)
+        {
+            return;
+        }
+
+        var recv = DuelStartRecv.Parse(p);
+        await Duel.HandleStartAsync(player, recv.Index, recv.Name, ct);
+    }
+
+    /// <summary>C1:AC -- the answer to a request.</summary>
+    private async Task OnDuelAnswerAsync(ClientSession session, byte[] p, CancellationToken ct)
+    {
+        var player = session.Player;
+
+        if (player == null || !player.WorldEntered || Duel == null)
+        {
+            return;
+        }
+
+        var recv = DuelOkRecv.Parse(p);
+        await Duel.HandleAnswerAsync(player, recv.Flag != 0, recv.Index, recv.Name, ct);
+    }
+
+    /// <summary>C1:AB -- the player gives a request up or ends their duel.</summary>
+    private async Task OnDuelEndAsync(ClientSession session, CancellationToken ct)
+    {
+        var player = session.Player;
+
+        if (player == null || !player.WorldEntered || Duel == null)
+        {
+            return;
+        }
+
+        await Duel.HandleEndAsync(player, ct);
     }
 
     // ---------------------------------------------------------------- Chaos Castle

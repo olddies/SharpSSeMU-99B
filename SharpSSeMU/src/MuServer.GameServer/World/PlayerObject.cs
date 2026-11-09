@@ -47,6 +47,16 @@ public sealed class PlayerObject
 
     /// <summary>The players this one has attacked and defends against for a minute (SelfDefense / SelfDefenseTime of the
     /// original), -1 where free; and when the player last started one (MySelfDefenseTime).</summary>
+    /// <summary>The duel (Duel.cpp): the opponent of the duel in course, the one this player asked and is waiting for, the one
+    /// who asked this player, the score, when it last moved, and whether the next respawn is where the player fell
+    /// (the loser of a duel round).</summary>
+    public int DuelUser { get; set; } = -1;
+    public int DuelUserReserved { get; set; } = -1;
+    public int DuelUserRequested { get; set; } = -1;
+    public int DuelScore { get; set; }
+    public DateTime DuelTick { get; set; } = DateTime.MinValue;
+    public bool RespawnInPlace { get; set; }
+
     public int[] SelfDefense { get; } = new[] { -1, -1, -1, -1, -1 };
     public DateTime[] SelfDefenseUntil { get; } = new DateTime[5];
     public DateTime MySelfDefenseTime { get; set; } = DateTime.MinValue;

@@ -70,6 +70,10 @@ bool chaosCastleEnabled = args.Length > 12 && args[12] == "chaoscastle";
 // Optional: the PK run (gameserver_pk_e2e_test.py) -- A kills B in the open and becomes a murderer.
 bool pkEnabled = args.Length > 12 && args[12] == "pk";
 
+// Optional: the duel run (gameserver_duel_e2e_test.py) -- A asks B to duel, B accepts, A wins the only point the test
+// server asks for and the duel ends; B comes back where it fell. No PK, no self-defense.
+bool duelEnabled = args.Length > 12 && args[12] == "duel";
+
 int failures = 0;
 
 void Check(string name, bool ok, string extra = "")
@@ -207,7 +211,7 @@ async Task<(FakeMuClient Client, byte X, byte Y)> LoginAndEnterAsync(string labe
 // Phase 4 (~12s respawn) + Phase 5 (party/exp) + Phase 6 (Devil Square: up to ~3 min waiting for the window
 // forced by console + real STAND (1 min) + START (1 min) of the test bracket, see the test's DevilSquare.dat)
 // add steps.
-using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(dsEnabled || chaosCastleEnabled || pkEnabled ? 300 : 90));
+using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(dsEnabled || chaosCastleEnabled || pkEnabled || duelEnabled ? 300 : 90));
 
 try
 {
@@ -263,6 +267,149 @@ try
 
         var dieInB = await clientB.WaitForAsync(0x17, TimeSpan.FromSeconds(5));
         Check("[B] Recibe su propia muerte con A como asesino", ((dieInB.Full[3] << 8) | dieInB.Full[4]) == bIndex && ((dieInB.Full[6] << 8) | dieInB.Full[7]) == aIndex);
+
+        clientA.Close();
+        clientB.Close();
+        Console.WriteLine($"\n=== {(failures == 0 ? "TODO OK" : $"{failures} FALLO(S)")} ===");
+        return failures == 0 ? 0 : 1;
+    }
+
+    if (duelEnabled)
+    {
+        Console.WriteLine("\n=== Duelo: A le pide un duelo a B, B acepta y A gana el unico punto ===");
+        int aIndex = clientA.Index, bIndex = clientB.Index;
+
+        await WaitUntilTheyMeetAsync(clientA, clientB);
+
+        static string AsciiName(byte[] p, int offset) => System.Text.Encoding.ASCII.GetString(p, offset, 10).TrimEnd('\0');
+        static int Word(byte[] p, int offset) => (p[offset] << 8) | p[offset + 1];
+
+        // The request: A names B; B is told who asks.
+        await clientA.SendDuelRequestAsync(bIndex, char2);
+        var asked = await clientB.WaitForAsync(0xAC, TimeSpan.FromSeconds(5));
+        Check("[B] Recibe la peticion de duelo con el indice y el nombre de A (AC)", Word(asked.Full, 3) == aIndex && AsciiName(asked.Full, 5) == char1,
+            $"(index={Word(asked.Full, 3)}, name='{AsciiName(asked.Full, 5)}')");
+
+        // The answer: both are told the duel starts against the other, and the score comes with it.
+        await clientB.SendDuelAnswerAsync(true, aIndex, char1);
+        var startB = await clientB.WaitForAsync(0xAA, TimeSpan.FromSeconds(5));
+        var startA = await clientA.WaitForAsync(0xAA, TimeSpan.FromSeconds(5));
+        Check("[A] El duelo empieza contra B (AA, resultado 1)", startA.Full[3] == 1 && Word(startA.Full, 4) == bIndex && AsciiName(startA.Full, 6) == char2);
+        Check("[B] El duelo empieza contra A (AA, resultado 1)", startB.Full[3] == 1 && Word(startB.Full, 4) == aIndex && AsciiName(startB.Full, 6) == char1);
+
+        var openingScore = await clientA.WaitForAsync(0xAD, TimeSpan.FromSeconds(5));
+        Check("[A] Recibe el marcador 0-0 con el que respondio primero (B) delante (AD)",
+            Word(openingScore.Full, 3) == bIndex && Word(openingScore.Full, 5) == aIndex && openingScore.Full[7] == 0 && openingScore.Full[8] == 0);
+
+        // A hits B until it dies. Nothing of a PK happens: no self-defense notice and no PK level for A.
+        string? selfDefenseNotice = null;
+        int pkLevelSeen = -1;
+        bool bDied = false;
+        int swings = 0;
+        byte[]? scoreAfterKill = null;
+        bool endedForA = false;
+
+        for (; swings < 60 && !bDied; swings++)
+        {
+            await clientA.SendAttackAsync(bIndex, 120, 3);
+
+            while (true)
+            {
+                var pkt = await clientA.WaitForAnyAsync(TimeSpan.FromSeconds(5), 0xD9, 0x0D, 0x17, 0xF3, 0xAD, 0xAB);
+
+                if (pkt.Head == 0x0D)
+                {
+                    selfDefenseNotice ??= System.Text.Encoding.Latin1.GetString(pkt.Full, 13, pkt.Full.Length - 14);
+                    continue;
+                }
+
+                if (pkt.Head == 0xF3)
+                {
+                    if (pkt.SubHead == 0x08)
+                    {
+                        pkLevelSeen = pkt.Full[6];
+                    }
+
+                    continue;
+                }
+
+                if (pkt.Head == 0xAD)
+                {
+                    scoreAfterKill = pkt.Full;
+                    continue;
+                }
+
+                if (pkt.Head == 0xAB)
+                {
+                    endedForA = true;
+                    continue;
+                }
+
+                bDied = pkt.Head == 0x17 && Word(pkt.Full, 3) == bIndex;
+                break;
+            }
+        }
+
+        Check("[A] Mata a B en el duelo", bDied, $"(en {swings} golpe(s))");
+
+        // The score and the end may come just before or just after the death packet.
+        while (scoreAfterKill == null || !endedForA)
+        {
+            var pkt = await clientA.WaitForAnyAsync(TimeSpan.FromSeconds(5), 0xAD, 0xAB);
+
+            if (pkt.Head == 0xAD)
+            {
+                scoreAfterKill = pkt.Full;
+            }
+            else
+            {
+                endedForA = true;
+            }
+        }
+
+        Check("[A] El marcador cuenta el punto de A y nombra primero a quien murio (AD)",
+            Word(scoreAfterKill, 3) == bIndex && Word(scoreAfterKill, 5) == aIndex && scoreAfterKill[7] == 0 && scoreAfterKill[8] == 1,
+            $"(first={Word(scoreAfterKill, 3)}, second={Word(scoreAfterKill, 5)}, scores={scoreAfterKill[7]}-{scoreAfterKill[8]})");
+        Check("[A] Matar a B no inicia una defensa propia", selfDefenseNotice == null, $"(aviso='{selfDefenseNotice}')");
+        Check("[A] Matar a B no lo vuelve asesino (ningun paquete de nivel de PK)", pkLevelSeen == -1, $"(PKLevel={pkLevelSeen})");
+        Check("[A] El duelo termina al llegar al maximo (AB)", endedForA);
+
+        // B: its death with A as the killer, the score, the end -- and it comes back near where it fell, not in town.
+        bool bGotDeath = false, bGotScore = false, bGotEnd = false;
+        int killerSeen = -1, regenX = -1, regenY = -1, regenMap = -1;
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(20);
+
+        while (DateTime.UtcNow < deadline && !(bGotDeath && bGotScore && bGotEnd && regenX >= 0))
+        {
+            var pkt = await clientB.WaitForAnyAsync(TimeSpan.FromSeconds(10), 0x17, 0xAD, 0xAB, 0xF3);
+
+            switch (pkt.Head)
+            {
+                case 0x17 when Word(pkt.Full, 3) == bIndex:
+                    bGotDeath = true;
+                    killerSeen = Word(pkt.Full, 6);
+                    break;
+
+                case 0xAD:
+                    bGotScore = true;
+                    break;
+
+                case 0xAB:
+                    bGotEnd = true;
+                    break;
+
+                case 0xF3 when pkt.SubHead == 0x04:
+                    (regenX, regenY, regenMap) = (pkt.Full[4], pkt.Full[5], pkt.Full[6]);
+                    break;
+            }
+        }
+
+        Check("[B] Recibe su propia muerte con A como asesino", bGotDeath && killerSeen == aIndex, $"(killer={killerSeen})");
+        Check("[B] Recibe el marcador y el final del duelo", bGotScore && bGotEnd);
+
+        // The shared test spot is (200,152) in Lorencia, a long way from the town's respawn gate.
+        Check("[B] Vuelve a la vida cerca de donde cayo, en el mismo mapa, y no en la puerta de la ciudad",
+            regenMap == 0 && Math.Abs(regenX - 200) <= 18 && Math.Abs(regenY - 152) <= 18, $"(map={regenMap}, x={regenX}, y={regenY})");
 
         clientA.Close();
         clientB.Close();

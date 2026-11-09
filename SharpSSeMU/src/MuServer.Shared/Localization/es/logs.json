@@ -84,6 +84,8 @@
  "[DevilSquare] DevilSquare.dat loaded: {0} start time(s), {1} bracket(s) with rewards": "[DevilSquare] DevilSquare.dat cargado: {0} horario(s) de inicio, {1} bracket(s) con recompensa",
  "[Drop Event] ({0}) Sync Start Time. [{1}] min remain": "[Drop Event] ({0}) Hora de inicio sincronizada. Faltan [{1}] min",
  "[DropEvent] DropEvent.dat loaded: {0} event(s) with a schedule, {1} item row(s)": "[DropEvent] DropEvent.dat cargado: {0} evento(s) con horario, {1} fila(s) de items",
+ "[Duel] '{0}' won the duel against '{1}'": "[Duel] '{0}' ganó el duelo contra '{1}'",
+ "[Duel] Error when {0} left: {1}": "[Duel] Error al salir {0}: {1}",
  "[EventEntryLevel] {0} section(s) loaded from {1}": "[EventEntryLevel] {0} sección(es) cargadas desde {1}",
  "[EventStageSpawn] {0} Devil Square, {1} Blood Castle and {2} Chaos Castle row(s) loaded from {3}": "[EventStageSpawn] {0} fila(s) de Devil Square, {1} de Blood Castle y {2} de Chaos Castle cargadas desde {3}",
  "[ExcellentOptionRateTable] {0} excellent option row(s) loaded from {1}": "[ExcellentOptionRateTable] {0} fila(s) de opciones excelentes cargadas desde {1}",

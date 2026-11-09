@@ -113,6 +113,12 @@ public sealed class ServerInfoConfig
     public int PKLimitFree { get; internal set; }
     public int PKLimitEventEntry { get; internal set; }
 
+    /// <summary>DuelSwitch (duels allowed on the maps that follow the server), DuelAnnounceSwitch (0 nothing, 1 the start and
+    /// the end are announced to everybody, 2 every kill too) and DuelMaxScore (the kills that win a duel).</summary>
+    public int DuelSwitch { get; internal set; }
+    public int DuelAnnounceSwitch { get; internal set; }
+    public int DuelMaxScore { get; internal set; } = 10;
+
     /// <summary>PKLimitShop and PKLimitMove: a murderer is not served by the NPC shops / may not use the warp list.</summary>
     public int PKLimitShop { get; internal set; }
     public int PKLimitMove { get; internal set; }
@@ -199,6 +205,9 @@ public sealed class ServerInfoConfig
             ChaosCastleMaxEntryCount = Enumerable.Range(0, 4).Select(n => evt.GetInt("GameServerInfo", $"ChaosCastleMaxEntryCount_AL{n}", 0)).ToArray(),
             PKLimitFree = common.GetInt("GameServerInfo", "PKLimitFree", 0),
             PKLimitEventEntry = common.GetInt("GameServerInfo", "PKLimitEventEntry", 0),
+            DuelSwitch = common.GetInt("GameServerInfo", "DuelSwitch", 0),
+            DuelAnnounceSwitch = common.GetInt("GameServerInfo", "DuelAnnounceSwitch", 0),
+            DuelMaxScore = common.GetInt("GameServerInfo", "DuelMaxScore", 10),
             PKLimitShop = common.GetInt("GameServerInfo", "PKLimitShop", 0),
             PKLimitMove = common.GetInt("GameServerInfo", "PKLimitMove", 0),
             ChaosCastleEvent = evt.GetInt("GameServerInfo", "ChaosCastleEvent", 1) != 0,

@@ -244,7 +244,7 @@ public sealed class ExcellentOptionRateTable
 /// <param name="NonPk">The NonPK column: -1 (the star) follows the server setting, 0 allows PK, 1 forbids it, 2 allows it
 /// without outlaws (a kill makes no murderer).</param>
 /// <param name="PkItemDrop">Whether a dying murderer may drop a worn item on this map.</param>
-public sealed record MapDropInfo(int ItemDropRate, int MoneyDropRate, int ExcItemDropRate, int SetItemDropRate, int ItemDrop, int NonPk = -1, int PkItemDrop = 0);
+public sealed record MapDropInfo(int ItemDropRate, int MoneyDropRate, int ExcItemDropRate, int SetItemDropRate, int ItemDrop, int NonPk = -1, int PkItemDrop = 0, int DuelEnable = -1);
 
 /// <summary> Port of the drop part of CMapManager (MapManager.cpp): per map, the item drop rate (percent), the zen
 /// drop rate, the chance per million that a drop is excellent or a set item, and whether items drop at all.
@@ -286,16 +286,23 @@ public sealed class MapDropTable
 
             int pkItemDrop = script.GetAsNumber();
 
-            // The rest of the row: HP bar, trade / personal shop / chat / party / duel / guild war switches,
-            // spawn gate and respawn gate (9 columns), then the name.
+            // The rest of the row: HP bar, trade / personal shop / chat / party switches, the duel switch, the guild war
+            // switch, spawn gate and respawn gate (9 columns), then the name.
+            int duelEnable = -1;
+
             for (int n = 0; n < 9; n++)
             {
-                script.GetAsNumber();
+                int column = script.GetAsNumber();
+
+                if (n == 5)
+                {
+                    duelEnable = column;
+                }
             }
 
             script.GetAsString(); // Name
 
-            Add(map, new MapDropInfo(itemDropRate, moneyDropRate, excItemDropRate, setItemDropRate, itemDrop, nonPk, pkItemDrop));
+            Add(map, new MapDropInfo(itemDropRate, moneyDropRate, excItemDropRate, setItemDropRate, itemDrop, nonPk, pkItemDrop, duelEnable));
         }
 
         Log.Add(LogColor.Blue, "[MapDropTable] {0} map(s) loaded from {1}", Count, path);
@@ -314,6 +321,10 @@ public sealed class MapDropTable
 
     /// <summary>GetMapNonOutlaw: players may fight here but killing makes no murderer.</summary>
     public bool NonOutlaw(int map) => _maps.TryGetValue(map, out var m) && m.NonPk == 2;
+
+    /// <summary>GetMapDuelEnable: duels may be held here. The star follows <paramref name="serverDuelSwitch"/>.</summary>
+    public bool DuelEnabled(int map, int serverDuelSwitch) =>
+        _maps.TryGetValue(map, out var m) ? (m.DuelEnable == -1 ? serverDuelSwitch != 0 : m.DuelEnable == 1) : serverDuelSwitch != 0;
 
     /// <summary>GetMapPKItemDrop: a dying murderer may drop a worn item here.</summary>
     public bool PkItemDrop(int map) => _maps.TryGetValue(map, out var m) && m.PkItemDrop != 0;
