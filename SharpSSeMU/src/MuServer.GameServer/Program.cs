@@ -97,7 +97,8 @@ CombatRules.Current = new CombatRules
 };
 
 // The Dark Horse and Dark Raven: experience per level, maximum level and what a kill gives them -- see World/PetRules.cs.
-PetRules.Current = new PetRules(gsiCommon.PetExperienceMultiplierConstA, gsiCommon.PetMaxLevel, gsiCommon.PetExperienceRateDivisor);
+PetRules.Current = new PetRules(gsiCommon.PetExperienceMultiplierConstA, gsiCommon.PetMaxLevel, gsiCommon.PetExperienceRateDivisor,
+    gsiCommon.GuardianDurabilityRate, gsiCommon.PetDurabilityRate);
 
 // The Dark Raven: its damage, speed and success rate by level and command, and how it wears -- see World/DarkSpirit.cs.
 DarkSpiritRules.Current = new DarkSpiritRules

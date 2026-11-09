@@ -19,6 +19,7 @@ public sealed partial class ClientProtocolHandler
             InDuel = InDuelWith,
             OnMonsterKilled = (master, monster, damage, ct) => OnMonsterDeathAsync(master, monster, damage, 0, ct),
             OnPlayerHit = CheckSelfDefenseAsync,
+            OnTargetDamaged = ApplyHelperWearAsync,
             OnPlayerKilled = (master, target, ct) => KillPlayerAsync(target, master.Index, 0, ct),
         };
     }
@@ -28,6 +29,41 @@ public sealed partial class ClientProtocolHandler
     public Task OnPlayerTickAsync(PlayerObject player, CancellationToken ct) => Spirits.TickAsync(player, ct);
 
     public Task LandSpiritBlowsAsync(CancellationToken ct) => Spirits.LandDueBlowsAsync(ct);
+
+    /// <summary>The pet a player wears on the helper slot wears down with the blow they took (CAttack::DamageSprite); when
+    /// one point goes the stats are worked out again, and when the pet is gone the new look is sent to everybody.</summary>
+    public async Task ApplyHelperWearAsync(PlayerObject target, int damage, CancellationToken ct)
+    {
+        var outcome = await _pets.WearHelperAsync(target, damage, ct);
+
+        if (outcome == PetManager.HelperWearOutcome.None)
+        {
+            return;
+        }
+
+        if (outcome.HasFlag(PetManager.HelperWearOutcome.Vanished))
+        {
+            target.RebuildCharSet();
+        }
+
+        target.RecalcCombatStats(_itemBalance, _characterBalance);
+
+        if (!outcome.HasFlag(PetManager.HelperWearOutcome.Vanished))
+        {
+            return;
+        }
+
+        await target.Session.SendAsync(ItemPacketBuilder.ItemEquipmentSend(target), ct);
+        var refresh = WorldPacketBuilder.ViewportPlayerAppear(new[] { target });
+
+        foreach (var other in _players.All)
+        {
+            if (other.Index != target.Index && other.VisibleTo.Contains(target.Index))
+            {
+                await other.Session.SendAsync(refresh, ct);
+            }
+        }
+    }
 
     /// <summary>Port of CGPetItemCommandRecv (Protocol.cpp:780), C1:A7: the order the player gives the raven.</summary>
     private async Task OnPetCommandAsync(ClientSession session, byte[] p, CancellationToken ct)

@@ -21,10 +21,17 @@ public sealed class PetRules
     /// <summary>PetExperienceRateDivisor; zero in the file is read as 1 (the original would divide by zero).</summary>
     public int RateDivisor { get; }
 
-    public PetRules(int experienceMultiplierConstA, int maxLevel, int rateDivisor)
+    /// <summary>GuardianDurabilityRate: the percentage of the normal wear the Guardian Angel, the Imp and the horns get
+    /// (the less, the faster they wear); PetDurabilityRate is the same for the Dark Horse and the Dark Raven.</summary>
+    public int GuardianDurabilityRate { get; }
+    public int PetDurabilityRate { get; }
+
+    public PetRules(int experienceMultiplierConstA, int maxLevel, int rateDivisor, int guardianDurabilityRate = 100, int petDurabilityRate = 100)
     {
         MaxLevel = Math.Clamp(maxLevel, 0, TableSize);
         RateDivisor = Math.Max(rateDivisor, 1);
+        GuardianDurabilityRate = guardianDurabilityRate <= 0 ? 100 : guardianDurabilityRate;
+        PetDurabilityRate = petDurabilityRate <= 0 ? 100 : petDurabilityRate;
 
         // gObjSetExperienceTable: levels 0 to 2 start at nothing; from 3 on ((n+10)*n*n*n) * ConstA, in the 32-bit
         // arithmetic of the original (it wraps for the very high levels nobody reaches).

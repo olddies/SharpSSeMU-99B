@@ -217,7 +217,8 @@ public static class DataServerCharacterPacketBuilder
         w.WriteUInt32(p.MaxMana);
         w.WriteUInt32(p.BP);
         w.WriteUInt32(p.MaxBP);
-        w.WriteBytes(p.Inventory, 1728); // ya sincronizado por SetItem, ver doc-comment de PlayerObject.Inventory
+        p.SyncInventory(); // what changed in an item in place (its durability, its level) is not in the blob yet
+        w.WriteBytes(p.Inventory, 1728);
         w.WriteBytes(p.Skill, 180);
         w.WriteByte(p.Map);
         w.WriteByte(p.X); // LIVE position (updated by OnMoveAsync) -- not the login one

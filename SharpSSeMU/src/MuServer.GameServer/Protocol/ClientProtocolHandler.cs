@@ -3714,7 +3714,10 @@ public sealed partial class ClientProtocolHandler
 
         double distance = Math.Sqrt(Math.Pow(player.X - targetX, 2) + Math.Pow(player.Y - targetY, 2));
 
-        if (distance > Math.Max(skill.Range, 1))
+        // A Dark Lord on his Dark Horse reaches two tiles further (CheckSkillRange, SkillManager.cpp:385).
+        int reach = Math.Max(skill.Range, 1) + (player.Class == 4 && player.Items[Item.SlotHelper].Index == Item.DarkHorse ? 2 : 0);
+
+        if (distance > reach)
         {
             return null; // out of range: "free cast" in the original (consumes no mana, see point 5)
         }

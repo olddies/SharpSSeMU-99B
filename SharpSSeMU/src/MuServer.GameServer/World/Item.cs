@@ -72,8 +72,31 @@ public sealed class Item
 
     public int PetLevel { get; set; } = 1;
 
-    /// <summary>The wear a Dark Raven has taken that is not yet a whole point of durability (m_DurabilitySmall).</summary>
+    /// <summary>The wear a Dark Raven or Dark Horse has taken that is not yet a whole point of durability
+    /// (m_DurabilitySmall).</summary>
     public int DurabilitySmall { get; set; }
+
+    /// <summary>The part of a point that the guardian pets' wear has left: the original keeps the durability as a float and
+    /// shows the whole part, so 254.5 shows 254 and the next half point takes it to 254.0.</summary>
+    public float DurabilityFraction { get; set; }
+
+    /// <summary>Takes <paramref name="amount"/> points of durability off, keeping the fraction (m_Durability -= ...). True
+    /// when what is left is under one point: the item is spent.</summary>
+    public bool WearDown(float amount)
+    {
+        float exact = Durability + DurabilityFraction - amount;
+
+        if (exact < 1)
+        {
+            Durability = 0;
+            DurabilityFraction = 0;
+            return true;
+        }
+
+        Durability = (byte)Math.Floor(exact);
+        DurabilityFraction = exact - Durability;
+        return false;
+    }
 
     public uint PetExp { get; set; }
 

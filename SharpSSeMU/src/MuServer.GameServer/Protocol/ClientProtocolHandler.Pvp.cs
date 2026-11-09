@@ -315,6 +315,7 @@ public sealed partial class ClientProtocolHandler
             _itemBalance, Rng, skill == null ? null : _skillDamage.Apply, chaosCastle: attacker.Map is >= 18 and <= 23, duel: InDuelWith(attacker, target));
 
         await ApplyAttackerLifeCostAsync(attacker, hit.AttackerLifeLost, ct);
+        await ApplyHelperWearAsync(target, hit.TargetWearDamage, ct);
 
         if (hit.Damage > 0)
         {

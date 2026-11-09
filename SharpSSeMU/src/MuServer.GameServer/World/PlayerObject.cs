@@ -249,6 +249,22 @@ public sealed class PlayerObject
         }
     }
 
+    /// <summary>Writes every item of <see cref="Items"/> into the raw <see cref="Inventory"/> blob. <see cref="SetItem"/> keeps
+    /// the two in step when an item is put in a slot, but an item that changes in place -- a pet or a weapon that wears down,
+    /// a level that goes up -- does not touch the blob; the save runs this first so that nothing is lost.</summary>
+    public void SyncInventory()
+    {
+        for (int slot = 0; slot < Item.InventorySize; slot++)
+        {
+            int offset = slot * 16;
+
+            if (offset + 16 <= Inventory.Length)
+            {
+                Items[slot].ToDbBytes(Inventory.AsSpan(offset, 16));
+            }
+        }
+    }
+
     /// <summary>Writes an item into a slot, keeping <see cref="Items"/> and the raw <see cref="Inventory"/>
     /// blob in sync (so that a later save to DataServer reflects the change without having to re-decode
     /// everything).</summary>

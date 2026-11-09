@@ -45,8 +45,10 @@ public sealed class CombatRules
 }
 
 /// <summary>What a hit produced: the damage and the effect the client colours it with (PMSG_DAMAGE_SEND type).
-/// <see cref="AttackerLifeLost"/> is the life the wings or the Imp cost the attacker for this hit.</summary>
-public readonly record struct PlayerHit(int Damage, byte Effect, int AttackerLifeLost);
+/// <see cref="AttackerLifeLost"/> is the life the wings or the Imp cost the attacker for this hit, and
+/// <see cref="TargetWearDamage"/> the damage the target's helper pet wears with (the blow before the skill multipliers and the
+/// server rates, CAttack::DamageSprite).</summary>
+public readonly record struct PlayerHit(int Damage, byte Effect, int AttackerLifeLost, int TargetWearDamage = 0);
 
 /// <summary> Port of the damage part of CAttack::Attack (Attack.cpp:249-437) for a player hitting a monster,
 /// with GetTargetDefense (1117-1154), GetAttackDamage (1156-1307), GetAttackDamageWizard (1309-1384) and the wing
@@ -242,6 +244,8 @@ public static class PlayerAttackMath
             damage = minDamage + rng.Next(minDamage);
         }
 
+        int wearDamage = damage;
+
         if (skill is SkillFallingSlash or SkillLunge or SkillUppercut or SkillCyclone or SkillSlash or SkillTwistingSlash
             or SkillRagefulBlow or SkillDeathStab or SkillImpale or SkillFireBreath or SkillIceArrow or SkillPenetration
             or SkillFireSlash or SkillPowerSlash)
@@ -288,7 +292,7 @@ public static class PlayerAttackMath
             damage = damage * rules.DamageRatePvM[Math.Clamp((int)player.Class, 0, 4)] / 100;
         }
 
-        return new PlayerHit(Math.Max(damage, 0), effect, lifeLost);
+        return new PlayerHit(Math.Max(damage, 0), effect, lifeLost, wearDamage);
     }
 
     /// <summary>A player's reflected damage hitting the monster that attacked them (Attack.cpp:377-385 with the

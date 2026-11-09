@@ -84,6 +84,11 @@ bool petEnabled = args.Length > 12 && args[12] == "pet";
 // and the raven its share; then it is told to stand down. The raven's new experience is printed (RAVENEXP=).
 bool ravenEnabled = args.Length > 12 && args[12] == "raven";
 
+// Optional: the guardian wear run (gameserver_helperwear_e2e_test.py) -- A wears a Guardian Angel (args[13] durability) and
+// the test monster hits him: the server tells him the angel's durability going down (C1:2A, slot 8), and the last one is
+// printed (ANGELDUR=) for the test to find in the database after A leaves.
+bool wearEnabled = args.Length > 12 && args[12] == "wear";
+
 int failures = 0;
 
 void Check(string name, bool ok, string extra = "")
@@ -221,7 +226,7 @@ async Task<(FakeMuClient Client, byte X, byte Y)> LoginAndEnterAsync(string labe
 // Phase 4 (~12s respawn) + Phase 5 (party/exp) + Phase 6 (Devil Square: up to ~3 min waiting for the window
 // forced by console + real STAND (1 min) + START (1 min) of the test bracket, see the test's DevilSquare.dat)
 // add steps.
-using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(dsEnabled || chaosCastleEnabled || pkEnabled || duelEnabled || petEnabled || ravenEnabled ? 300 : 90));
+using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(dsEnabled || chaosCastleEnabled || pkEnabled || duelEnabled || petEnabled || ravenEnabled || wearEnabled ? 300 : 90));
 
 try
 {
@@ -277,6 +282,46 @@ try
 
         var dieInB = await clientB.WaitForAsync(0x17, TimeSpan.FromSeconds(5));
         Check("[B] Recibe su propia muerte con A como asesino", ((dieInB.Full[3] << 8) | dieInB.Full[4]) == bIndex && ((dieInB.Full[6] << 8) | dieInB.Full[7]) == aIndex);
+
+        clientA.Close();
+        clientB.Close();
+        Console.WriteLine($"\n=== {(failures == 0 ? "TODO OK" : $"{failures} FALLO(S)")} ===");
+        return failures == 0 ? 0 : 1;
+    }
+
+    if (wearEnabled)
+    {
+        Console.WriteLine("\n=== Guardian Angel: el monstruo golpea a A y el angel se gasta ===");
+
+        int seedDurability = int.Parse(args[13]);
+        int lastDurability = -1, notices = 0;
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(40);
+
+        clientA.DiscardPending();
+
+        // The monster misses now and then, so wait for hits as long as it takes; after the first one, a few seconds more.
+        while (DateTime.UtcNow < deadline && notices < 3)
+        {
+            try
+            {
+                var pkt = await clientA.WaitForAnyAsync(TimeSpan.FromSeconds(notices == 0 ? 30 : 6), 0x2A);
+
+                if (pkt.Full[3] == 8)
+                {
+                    lastDurability = pkt.Full[4];
+                    notices++;
+                }
+            }
+            catch (TimeoutException)
+            {
+                break;
+            }
+        }
+
+        Check("[A] El servidor le dice la durabilidad del angel bajando (2A, slot 8)", notices > 0 && lastDurability < seedDurability && lastDurability > 0,
+            $"(notices={notices}, durability={lastDurability}, before={seedDurability})");
+
+        Console.WriteLine($"ANGELDUR={lastDurability}");
 
         clientA.Close();
         clientB.Close();

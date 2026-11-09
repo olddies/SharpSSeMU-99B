@@ -65,6 +65,91 @@ public sealed class PetManager
     private static Task SendInfoAsync(PlayerObject player, byte clientType, byte flag, int slot, Item pet, CancellationToken ct) =>
         player.Session.SendAsync(QuestPacketBuilder.PetItemInfoSend(clientType, flag, (byte)slot, (byte)pet.PetLevel, pet.PetExp), ct);
 
+    /// <summary>What the wear of the pet on the helper slot did to its wearer.</summary>
+    [Flags]
+    public enum HelperWearOutcome
+    {
+        None = 0,
+
+        /// <summary>The pet lost a whole point: the wearer's stats may change (the Dark Horse at nothing gives no defense).</summary>
+        StatsChanged = 1,
+
+        /// <summary>The pet is spent and gone: the wearer's appearance must be sent again.</summary>
+        Vanished = 2,
+    }
+
+    /// <summary>Port of CAttack::DamageSprite (Attack.cpp:728): the pet on the helper slot wears down with the blows its
+    /// wearer takes -- the Guardian Angel three points for every hundred of damage, the Imp two, the horns of Uniria and
+    /// Dinorant one (scaled by <c>GuardianDurabilityRate</c>) -- and goes when it is spent. The Dark Horse wears slower, by
+    /// <c>DarkHorseSprite</c> (a thousand and a half "small" points to a whole one), and is never taken away: it stays
+    /// at nothing, a pet that gives no defense. The wearer is told the durability.</summary>
+    public async Task<HelperWearOutcome> WearHelperAsync(PlayerObject target, int damage, CancellationToken ct)
+    {
+        var helper = target.Items[Item.SlotHelper];
+
+        if (!helper.IsItem())
+        {
+            return HelperWearOutcome.None;
+        }
+
+        var rules = _rules();
+
+        if (helper.Index == Item.DarkHorse)
+        {
+            return await WearHorseAsync(target, helper, damage, rules, ct);
+        }
+
+        // 1/GuardianDurabilityRate in hundredths; the player's own rate (lpObj->GuardianDurabilityRate) is 100 here.
+        float value = (1.0f / rules.GuardianDurabilityRate) * 100;
+        float points = helper.Index switch
+        {
+            var i when i == Item.GetItem(13, 0) => 3.0f, // Guardian Angel
+            var i when i == Item.GetItem(13, 1) => 2.0f, // Imp
+            var i when i == Item.GetItem(13, 2) => 1.0f, // Horn of Uniria
+            var i when i == Item.GetItem(13, 3) => 1.0f, // Horn of Dinorant
+            _ => 0.0f,
+        };
+
+        if (points == 0)
+        {
+            return HelperWearOutcome.None;
+        }
+
+        bool spent = helper.WearDown((damage * (points * value)) / 100);
+        await target.Session.SendAsync(ItemPacketBuilder.ItemDurSend((byte)Item.SlotHelper, helper.Durability, 0), ct);
+
+        if (!spent)
+        {
+            return HelperWearOutcome.None;
+        }
+
+        target.Items[Item.SlotHelper] = Item.Empty();
+        await target.Session.SendAsync(ItemPacketBuilder.ItemDeleteSend((byte)Item.SlotHelper, 0), ct);
+        return HelperWearOutcome.Vanished | HelperWearOutcome.StatsChanged;
+    }
+
+    private static async Task<HelperWearOutcome> WearHorseAsync(PlayerObject target, Item horse, int damage, PetRules rules, CancellationToken ct)
+    {
+        if (horse.Durability < 1)
+        {
+            return HelperWearOutcome.None;
+        }
+
+        horse.DurabilitySmall += ((damage * 2) / 100) + 1;
+
+        if (horse.DurabilitySmall <= (1500 * rules.PetDurabilityRate) / 100)
+        {
+            return HelperWearOutcome.None;
+        }
+
+        horse.Durability--;
+        horse.DurabilitySmall = 0;
+
+        await target.Session.SendAsync(ItemPacketBuilder.ItemDurSend((byte)Item.SlotHelper, horse.Durability, 0), ct);
+        await SendInfoAsync(target, 1, 0, Item.SlotHelper, horse, ct);
+        return HelperWearOutcome.StatsChanged;
+    }
+
     /// <summary>Port of CItem::PetValue (Item.cpp:958): the Dark Horse is worth two million for every level it has and
     /// the Dark Raven one million; a shop pays a third of that (before the rounding every price gets).</summary>
     public static long SellValue(Item pet) => (pet.Index == Item.DarkHorse ? 2_000_000L : 1_000_000L) * pet.PetLevel / 3;

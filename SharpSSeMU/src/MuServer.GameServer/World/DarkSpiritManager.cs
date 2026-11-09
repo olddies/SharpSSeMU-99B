@@ -54,6 +54,9 @@ public sealed class DarkSpiritManager
     /// <summary>A blow of damage on a player: the PvP side effects (self-defense, the duel's clock).</summary>
     public Func<PlayerObject, PlayerObject, CancellationToken, Task>? OnPlayerHit { get; set; }
 
+    /// <summary>The blow a player target takes, for the wear of the pet they wear (CAttack::DamageSprite).</summary>
+    public Func<PlayerObject, int, CancellationToken, Task>? OnTargetDamaged { get; set; }
+
     /// <summary>A player the raven's blow left without life: the master killed them.</summary>
     public Func<PlayerObject, PlayerObject, CancellationToken, Task>? OnPlayerKilled { get; set; }
 
@@ -432,6 +435,11 @@ public sealed class DarkSpiritManager
         {
             await master.Session.SendAsync(ItemPacketBuilder.ItemDurSend((byte)Item.SlotWeapon2, raven.Durability, 0), ct);
             await master.Session.SendAsync(QuestPacketBuilder.PetItemInfoSend(0, 0, (byte)Item.SlotWeapon2, (byte)raven.PetLevel, raven.PetExp), ct);
+        }
+
+        if (targetPlayer != null && OnTargetDamaged != null)
+        {
+            await OnTargetDamaged(targetPlayer, damage, ct);
         }
 
         damage = DarkSpiritMath.ApplyRates(master, targetPlayer, damage, chaosCastle: master.Map is >= 18 and <= 23 && targetPlayer != null, duel);

@@ -769,6 +769,12 @@ public sealed class ViewportTicker
                     damage = minDamage + Random.Shared.Next(minDamage);
                 }
 
+                // The pet on the helper slot wears down with the blow (CAttack::DamageSprite).
+                if (_protocolHandler != null)
+                {
+                    await _protocolHandler.ApplyHelperWearAsync(target, damage, ct);
+                }
+
                 target.Life = (uint)Math.Max(0, (long)target.Life - damage);
 
                 // CharacterLifeCheck (ObjectManager.cpp:2815-2947): the killing blow sends no damage packet,
