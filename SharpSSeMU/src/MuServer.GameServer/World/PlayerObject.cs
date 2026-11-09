@@ -57,6 +57,14 @@ public sealed class PlayerObject
     public DateTime DuelTick { get; set; } = DateTime.MinValue;
     public bool RespawnInPlace { get; set; }
 
+    /// <summary>The Dark Raven (CDarkSpirit): what it was told to do, the target it has (the master's last one, or the
+    /// one it was sent to), when it may attack next, and whether it worked the last time it was looked at (so that a
+    /// raven put on again starts in the normal mode).</summary>
+    public DarkSpiritMode SpiritMode { get; set; } = DarkSpiritMode.Normal;
+    public int SpiritTarget { get; set; } = -1;
+    public DateTime SpiritNextAttack { get; set; } = DateTime.MinValue;
+    public bool SpiritWorks { get; set; }
+
     public int[] SelfDefense { get; } = new[] { -1, -1, -1, -1, -1 };
     public DateTime[] SelfDefenseUntil { get; } = new DateTime[5];
     public DateTime MySelfDefenseTime { get; set; } = DateTime.MinValue;

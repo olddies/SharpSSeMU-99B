@@ -492,7 +492,7 @@ public static class WorldPacketBuilder
     }
 
     /// <summary>PMSG_NEW_CHARACTER_CALC_SEND (C1:F3:E1) -- Updates all the extended visual stats on the client (Attack Speed, Damage, Defense, etc.).</summary>
-    public static byte[] NewCharacterCalcSend(PlayerObject p)
+    public static byte[] NewCharacterCalcSend(PlayerObject p, DarkSpiritStats spirit = default)
     {
         var w = new PacketWriter();
         w.WriteUInt32(p.Life);
@@ -531,10 +531,10 @@ public static class WorldPacketBuilder
         w.WriteUInt32(0); // ViewRFDamageMultiplierA
         w.WriteUInt32(0); // ViewRFDamageMultiplierB
         w.WriteUInt32(0); // ViewRFDamageMultiplierC
-        w.WriteUInt32(0); // ViewDarkSpiritAttackDamageMin
-        w.WriteUInt32(0); // ViewDarkSpiritAttackDamageMax
-        w.WriteUInt32(0); // ViewDarkSpiritAttackSpeed
-        w.WriteUInt32(0); // ViewDarkSpiritAttackSuccessRate
+        w.WriteUInt32((uint)spirit.DamageMin); // ViewDarkSpiritAttackDamageMin
+        w.WriteUInt32((uint)spirit.DamageMax); // ViewDarkSpiritAttackDamageMax
+        w.WriteUInt32((uint)spirit.AttackSpeed); // ViewDarkSpiritAttackSpeed
+        w.WriteUInt32((uint)spirit.AttackSuccessRate); // ViewDarkSpiritAttackSuccessRate
         return PacketBuilder.BuildC1Sub(0xF3, 0xE1, w.ToArray());
     }
 
