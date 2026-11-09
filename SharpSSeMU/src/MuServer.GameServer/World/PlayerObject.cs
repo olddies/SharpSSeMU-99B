@@ -57,6 +57,14 @@ public sealed class PlayerObject
     public DateTime DuelTick { get; set; } = DateTime.MinValue;
     public bool RespawnInPlace { get; set; }
 
+    /// <summary>The Dark Raven (CDarkSpirit): what it was told to do, the target it has (the master's last one, or the
+    /// one it was sent to), when it may attack next, and whether it worked the last time it was looked at (so that a
+    /// raven put on again starts in the normal mode).</summary>
+    public DarkSpiritMode SpiritMode { get; set; } = DarkSpiritMode.Normal;
+    public int SpiritTarget { get; set; } = -1;
+    public DateTime SpiritNextAttack { get; set; } = DateTime.MinValue;
+    public bool SpiritWorks { get; set; }
+
     public int[] SelfDefense { get; } = new[] { -1, -1, -1, -1, -1 };
     public DateTime[] SelfDefenseUntil { get; } = new DateTime[5];
     public DateTime MySelfDefenseTime { get; set; } = DateTime.MinValue;
@@ -238,6 +246,22 @@ public sealed class PlayerObject
             }
 
             Items[slot] = Item.FromDbBytes(Inventory.AsSpan(offset, 16));
+        }
+    }
+
+    /// <summary>Writes every item of <see cref="Items"/> into the raw <see cref="Inventory"/> blob. <see cref="SetItem"/> keeps
+    /// the two in step when an item is put in a slot, but an item that changes in place -- a pet or a weapon that wears down,
+    /// a level that goes up -- does not touch the blob; the save runs this first so that nothing is lost.</summary>
+    public void SyncInventory()
+    {
+        for (int slot = 0; slot < Item.InventorySize; slot++)
+        {
+            int offset = slot * 16;
+
+            if (offset + 16 <= Inventory.Length)
+            {
+                Items[slot].ToDbBytes(Inventory.AsSpan(offset, 16));
+            }
         }
     }
 
@@ -584,9 +608,10 @@ public sealed class PlayerObject
     /// and defense (with the +10% defense rate and +5..+30% defense of a full armour set), the item options
     /// (luck, additional, excellent -- CItemOption::CalcItemCommonOption), the arrow/bolt bonus, the dual-wield
     /// penalty, and finally max life/mana/AG with the options' extra life. Current life, mana and AG keep the
-    /// same percentage of the maximum, as in the original, with the worn set items' bonuses. Not ported: the Dark
-    /// Horse defense and the item requirement check that disables an item whose stats the player no longer
-    /// meets (m_IsValidItem) -- this port never lets such an item be equipped in the first place. </summary>
+    /// same percentage of the maximum, as in the original, with the worn set items' bonuses and the Dark Horse's
+    /// defense. Not ported: the item requirement check that disables an item whose stats the player no longer
+    /// meets (m_IsValidItem) -- this port never lets such an item be equipped in the first place (a pet that
+    /// would outgrow its owner does not level up, see the experience flow). </summary>
     public void RecalcCombatStats(ItemBalanceTable items, CharacterBalanceConfig cfg)
     {
         int cls = Class switch
@@ -785,6 +810,15 @@ public sealed class PlayerObject
                 dsr += ItemCombatMath.GetDefenseSuccessRate(piece, info);
                 def += ItemCombatMath.GetDefense(piece, info);
             }
+        }
+
+        // The Dark Horse adds to the defense: a twentieth of the dexterity, two for every level it has and five
+        // (ObjectManager.cpp:2388), before the armour set's percentage.
+        var horse = Items[Item.SlotHelper];
+
+        if (horse.IsItem() && horse.Index == Item.DarkHorse && horse.Durability != 0)
+        {
+            def += (int)(dexterity / 20) + (horse.PetLevel * 2) + 5;
         }
 
         // Full armour set: the five pieces from helm to boots of the same model (the same sub-index in every

@@ -36,6 +36,68 @@ public static class DataServerCharacterPacketBuilder
         return PacketBuilder.BuildC1(0x08, w.ToArray());
     }
 
+    /// <summary>SDHP_CREATE_ITEM_SEND (GS->DS), C1:07 (GDCreateItemSend, DSProtocol.cpp:857): asks the DataServer for
+    /// the serial of a new item. It answers with the same fields plus the serial; <paramref name="requestId"/>
+    /// travels in the LootIndex field and comes back with it, so the answer finds who asked.</summary>
+    public static byte[] CreateItemRequest(ushort index, string account, byte map, ushort itemIndex, byte level, ushort requestId)
+    {
+        var w = new PacketWriter();
+        w.WriteUInt16(index);
+        w.WriteFixedString(account, 11);
+        w.WriteByte(0); // x
+        w.WriteByte(0); // y
+        w.WriteByte(map);
+        w.WriteUInt16(itemIndex);
+        w.WriteByte(level);
+        w.WriteByte(0); // durability
+        w.WriteByte(0); // option 1
+        w.WriteByte(0); // option 2
+        w.WriteByte(0); // option 3
+        w.WriteByte(0); // excellent options
+        w.WriteUInt16(requestId);
+        w.WriteByte(0); // set option
+        return PacketBuilder.BuildC1(0x07, w.ToArray());
+    }
+
+    /// <summary>SDHP_PET_ITEM_INFO_SEND (GS->DS), C2:09 (GDPetItemInfoSend, DSProtocol.cpp:908): index+account+type
+    /// (0 the inventory, 1 the warehouse)+count, then the slot and serial of each pet. The DataServer answers with
+    /// the level and experience it keeps under each serial.</summary>
+    public static byte[] PetItemInfoRequest(ushort index, string account, byte type, IReadOnlyList<(byte Slot, uint Serial)> pets)
+    {
+        var w = new PacketWriter();
+        w.WriteUInt16(index);
+        w.WriteFixedString(account, 11);
+        w.WriteByte(type);
+        w.WriteByte((byte)pets.Count);
+
+        foreach (var (slot, serial) in pets)
+        {
+            w.WriteByte(slot);
+            w.WriteUInt32(serial);
+        }
+
+        return PacketBuilder.BuildC2(0x09, w.ToArray());
+    }
+
+    /// <summary>SDHP_PET_ITEM_INFO_SAVE_SEND (GS->DS), C2:34 (GDPetItemInfoSaveSend, DSProtocol.cpp:1104):
+    /// index+account+count, then the serial, level and experience of each pet.</summary>
+    public static byte[] PetItemInfoSave(ushort index, string account, IReadOnlyList<(uint Serial, byte Level, uint Experience)> pets)
+    {
+        var w = new PacketWriter();
+        w.WriteUInt16(index);
+        w.WriteFixedString(account, 11);
+        w.WriteByte((byte)pets.Count);
+
+        foreach (var (serial, level, experience) in pets)
+        {
+            w.WriteUInt32(serial);
+            w.WriteByte(level);
+            w.WriteUInt32(experience);
+        }
+
+        return PacketBuilder.BuildC2(0x34, w.ToArray());
+    }
+
     /// <summary>SDHP_OPTION_DATA_SAVE_SEND (GS->DS), C1:33 (GDOptionDataSaveSend, DSProtocol.cpp:1075).</summary>
     public static byte[] OptionDataSave(ushort index, string account, string name, OptionData data)
     {
@@ -86,20 +148,13 @@ public static class DataServerCharacterPacketBuilder
         Encoding.ASCII.GetBytes(account, accountBytes);
         w.WriteBytes(accountBytes.ToArray(), 10);
 
+        // Each slot is 16 bytes in the database format -- the one OnWarehouseFromDataServerAsync reads back with
+        // Item.FromDbBytes. (It used to write the 5-byte client format here, which kept neither the serial nor the
+        // excellent options of a stored item.)
         byte[] itemsBlob = new byte[1920];
-        Span<byte> itemInfo = stackalloc byte[Item.WireByteSize];
         for (int slot = 0; slot < player.WarehouseItems.Length && slot < 120; slot++)
         {
-            var item = player.WarehouseItems[slot];
-            if (item.IsItem())
-            {
-                item.ToWireBytes(itemInfo);
-                itemInfo.CopyTo(itemsBlob.AsSpan(slot * 16, 16));
-            }
-            else
-            {
-                itemsBlob.AsSpan(slot * 16, 16).Fill(0xFF);
-            }
+            player.WarehouseItems[slot].ToDbBytes(itemsBlob.AsSpan(slot * 16, 16));
         }
         w.WriteBytes(itemsBlob, 1920);
         w.WriteUInt32(player.WarehouseMoney);
@@ -162,7 +217,8 @@ public static class DataServerCharacterPacketBuilder
         w.WriteUInt32(p.MaxMana);
         w.WriteUInt32(p.BP);
         w.WriteUInt32(p.MaxBP);
-        w.WriteBytes(p.Inventory, 1728); // ya sincronizado por SetItem, ver doc-comment de PlayerObject.Inventory
+        p.SyncInventory(); // what changed in an item in place (its durability, its level) is not in the blob yet
+        w.WriteBytes(p.Inventory, 1728);
         w.WriteBytes(p.Skill, 180);
         w.WriteByte(p.Map);
         w.WriteByte(p.X); // LIVE position (updated by OnMoveAsync) -- not the login one
@@ -437,7 +493,7 @@ public static class WorldPacketBuilder
     }
 
     /// <summary>PMSG_NEW_CHARACTER_CALC_SEND (C1:F3:E1) -- Updates all the extended visual stats on the client (Attack Speed, Damage, Defense, etc.).</summary>
-    public static byte[] NewCharacterCalcSend(PlayerObject p)
+    public static byte[] NewCharacterCalcSend(PlayerObject p, DarkSpiritStats spirit = default)
     {
         var w = new PacketWriter();
         w.WriteUInt32(p.Life);
@@ -476,10 +532,10 @@ public static class WorldPacketBuilder
         w.WriteUInt32(0); // ViewRFDamageMultiplierA
         w.WriteUInt32(0); // ViewRFDamageMultiplierB
         w.WriteUInt32(0); // ViewRFDamageMultiplierC
-        w.WriteUInt32(0); // ViewDarkSpiritAttackDamageMin
-        w.WriteUInt32(0); // ViewDarkSpiritAttackDamageMax
-        w.WriteUInt32(0); // ViewDarkSpiritAttackSpeed
-        w.WriteUInt32(0); // ViewDarkSpiritAttackSuccessRate
+        w.WriteUInt32((uint)spirit.DamageMin); // ViewDarkSpiritAttackDamageMin
+        w.WriteUInt32((uint)spirit.DamageMax); // ViewDarkSpiritAttackDamageMax
+        w.WriteUInt32((uint)spirit.AttackSpeed); // ViewDarkSpiritAttackSpeed
+        w.WriteUInt32((uint)spirit.AttackSuccessRate); // ViewDarkSpiritAttackSuccessRate
         return PacketBuilder.BuildC1Sub(0xF3, 0xE1, w.ToArray());
     }
 
@@ -2384,6 +2440,41 @@ public sealed record PetItemInfoRecv(byte Type, byte Flag, byte Slot)
     public static PetItemInfoRecv Parse(byte[] p) => new(p[3], p[4], p[5]);
 }
 
+/// <summary>SDHP_PET_ITEM_INFO_RECV (DS->GS), C2:09: the level and experience the DataServer keeps for the pets the
+/// GameServer asked about. <see cref="Type"/> is the container asked about (0 the inventory, 1 the warehouse).</summary>
+public sealed record PetItemInfoFromDataServer(ushort Index, string Account, byte Type, IReadOnlyList<(byte Slot, uint Serial, byte Level, uint Experience)> Pets)
+{
+    public static PetItemInfoFromDataServer? Parse(byte[] p)
+    {
+        const int header = 4; // C2
+
+        if (p.Length < header + 2 + 11 + 2)
+        {
+            return null;
+        }
+
+        var r = new PacketReader(p, header);
+        ushort index = r.ReadUInt16();
+        string account = PacketBuilder.ReadFixedString(p.AsSpan(header + 2, 11));
+        r = new PacketReader(p, header + 2 + 11);
+        byte type = r.ReadByte();
+        byte count = r.ReadByte();
+
+        var pets = new List<(byte, uint, byte, uint)>(count);
+
+        for (int n = 0; n < count && r.Position + 10 <= p.Length; n++)
+        {
+            byte slot = r.ReadByte();
+            uint serial = r.ReadUInt32();
+            byte level = r.ReadByte();
+            uint experience = r.ReadUInt32();
+            pets.Add((slot, serial, level, experience));
+        }
+
+        return new PetItemInfoFromDataServer(index, account, type, pets);
+    }
+}
+
 public static class QuestPacketBuilder
 {
     /// <summary>PMSG_QUEST_INFO_SEND (Quest.h:39-44), C1:A0 -- reply to CGQuestInfoRecv and to
@@ -2440,23 +2531,22 @@ public static class QuestPacketBuilder
         return PacketBuilder.BuildC1(0xA3, w.ToArray());
     }
 
-    /// <summary>PMSG_PET_ITEM_INFO_SEND (Protocol.h:462-470), C1:A9 -- echo of a pet's level/experience. This
-    /// port does not track PetItemLevel/PetItemExp yet (no real pet item spawns with the current balance), so
-    /// it always answers level=0/experience=0 -- enough for the real client not to keep waiting for a reply
-    /// that never arrives. Note: the original GCPetItemInfoSend itself receives a "durability" parameter that
-    /// it NEVER uses (it is not in the packet's struct, Protocol.cpp:1779-1796) -- it is omitted here for the
-    /// same reason, it is not a simplification of this port.</summary>
-    public static byte[] PetItemInfoSend(byte type, byte flag, byte slot)
+    /// <summary>PMSG_PET_ITEM_INFO_SEND (Protocol.h:462-470), C1:A9 -- a pet's level and experience, as an answer
+    /// to the client's query or when the pet gains experience (<paramref name="flag"/> 0xFE says it went up a level).
+    /// <paramref name="type"/> is 1 for the Dark Horse and 0 for the Dark Raven. Note: the original
+    /// GCPetItemInfoSend itself receives a "durability" parameter that it NEVER uses (it is not in the packet's
+    /// struct, Protocol.cpp:1779-1796) -- it is omitted here for the same reason.</summary>
+    public static byte[] PetItemInfoSend(byte type, byte flag, byte slot, byte level = 0, uint experience = 0)
     {
         var w = new PacketWriter();
         w.WriteByte(type);
         w.WriteByte(flag);
         w.WriteByte(slot);
-        w.WriteByte(0); // level
+        w.WriteByte(level);
         // Tras header(3)+type+flag+slot+level vamos en el offset 7, y el UINT experience se alinea a
         // 4 -> 1 byte de relleno (sizeof = 12, no 11).
         w.WriteByte(0); // alignment padding (offset 7 -> 8)
-        w.WriteUInt32(0); // experience
+        w.WriteUInt32(experience);
         return PacketBuilder.BuildC1(0xA9, w.ToArray());
     }
 }

@@ -40,11 +40,15 @@ public sealed class CombatRules
     public int AngelDecDamageConstA { get; init; } = 10;
     public int DinorantDecDamageConstA { get; init; } = 10;
     public int DinorantDecDamageConstB { get; init; } = 10;
+    public int DarkHorseDecDamageConstA { get; init; } = 10;
+    public int DarkHorseDecDamageConstB { get; init; } = 3;
 }
 
 /// <summary>What a hit produced: the damage and the effect the client colours it with (PMSG_DAMAGE_SEND type).
-/// <see cref="AttackerLifeLost"/> is the life the wings or the Imp cost the attacker for this hit.</summary>
-public readonly record struct PlayerHit(int Damage, byte Effect, int AttackerLifeLost);
+/// <see cref="AttackerLifeLost"/> is the life the wings or the Imp cost the attacker for this hit, and
+/// <see cref="TargetWearDamage"/> the damage the target's helper pet wears with (the blow before the skill multipliers and the
+/// server rates, CAttack::DamageSprite).</summary>
+public readonly record struct PlayerHit(int Damage, byte Effect, int AttackerLifeLost, int TargetWearDamage = 0);
 
 /// <summary> Port of the damage part of CAttack::Attack (Attack.cpp:249-437) for a player hitting a monster,
 /// with GetTargetDefense (1117-1154), GetAttackDamage (1156-1307), GetAttackDamageWizard (1309-1384) and the wing
@@ -240,6 +244,8 @@ public static class PlayerAttackMath
             damage = minDamage + rng.Next(minDamage);
         }
 
+        int wearDamage = damage;
+
         if (skill is SkillFallingSlash or SkillLunge or SkillUppercut or SkillCyclone or SkillSlash or SkillTwistingSlash
             or SkillRagefulBlow or SkillDeathStab or SkillImpale or SkillFireBreath or SkillIceArrow or SkillPenetration
             or SkillFireSlash or SkillPowerSlash)
@@ -286,7 +292,7 @@ public static class PlayerAttackMath
             damage = damage * rules.DamageRatePvM[Math.Clamp((int)player.Class, 0, 4)] / 100;
         }
 
-        return new PlayerHit(Math.Max(damage, 0), effect, lifeLost);
+        return new PlayerHit(Math.Max(damage, 0), effect, lifeLost, wearDamage);
     }
 
     /// <summary>A player's reflected damage hitting the monster that attacked them (Attack.cpp:377-385 with the
@@ -360,6 +366,13 @@ public static class PlayerAttackMath
             return damage * (100 - dec) / 100;
         }
 
+        if (helper.Index == Item.DarkHorse)
+        {
+            // The higher its level, the more of the blow the horse takes: (A + level) / B percent.
+            int dec = rules.DarkHorseDecDamageConstB == 0 ? 0 : (rules.DarkHorseDecDamageConstA + helper.PetLevel) / rules.DarkHorseDecDamageConstB;
+            return damage * (100 - dec) / 100;
+        }
+
         return damage;
     }
 
@@ -422,7 +435,7 @@ public static class PlayerAttackMath
 
     /// <summary>CItem::m_CurrentDurabilityState (Item.cpp:198-219): a worn weapon's magic rise drops to 80%..50%
     /// as its durability goes under 50%..20% of the maximum.</summary>
-    private static double DurabilityState(Item item, ItemBalance info)
+    internal static double DurabilityState(Item item, ItemBalance info)
     {
         int max = ItemCombatMath.GetItemDurability(item, info);
 

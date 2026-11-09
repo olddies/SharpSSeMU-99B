@@ -92,6 +92,34 @@ CombatRules.Current = new CombatRules
     AngelDecDamageConstA = gsiItem.AngelDecDamageConstA,
     DinorantDecDamageConstA = gsiItem.DinorantDecDamageConstA,
     DinorantDecDamageConstB = gsiItem.DinorantDecDamageConstB,
+    DarkHorseDecDamageConstA = gsiItem.DarkHorseDecDamageConstA,
+    DarkHorseDecDamageConstB = gsiItem.DarkHorseDecDamageConstB,
+};
+
+// The Dark Horse and Dark Raven: experience per level, maximum level and what a kill gives them -- see World/PetRules.cs.
+PetRules.Current = new PetRules(gsiCommon.PetExperienceMultiplierConstA, gsiCommon.PetMaxLevel, gsiCommon.PetExperienceRateDivisor,
+    gsiCommon.GuardianDurabilityRate, gsiCommon.PetDurabilityRate);
+
+// The Dark Raven: its damage, speed and success rate by level and command, and how it wears -- see World/DarkSpirit.cs.
+DarkSpiritRules.Current = new DarkSpiritRules
+{
+    RangeAttackRate = gsiCharacter.DarkSpiritRangeAttackRate,
+    CriticalDamageRate = gsiCharacter.DarkSpiritCriticalDamageRate,
+    ExcellentDamageRate = gsiCharacter.DarkSpiritExcellentDamageRate,
+    DamageMinConstA = gsiCharacter.DarkSpiritAttackDamageMinConstA,
+    DamageMinConstB = gsiCharacter.DarkSpiritAttackDamageMinConstB,
+    DamageMinConstC = gsiCharacter.DarkSpiritAttackDamageMinConstC,
+    DamageMaxConstA = gsiCharacter.DarkSpiritAttackDamageMaxConstA,
+    DamageMaxConstB = gsiCharacter.DarkSpiritAttackDamageMaxConstB,
+    DamageMaxConstC = gsiCharacter.DarkSpiritAttackDamageMaxConstC,
+    AttackSpeedConstA = gsiCharacter.DarkSpiritAttackSpeedConstA,
+    AttackSpeedConstB = gsiCharacter.DarkSpiritAttackSpeedConstB,
+    AttackSpeedConstC = gsiCharacter.DarkSpiritAttackSpeedConstC,
+    AttackSpeedConstD = gsiCharacter.DarkSpiritAttackSpeedConstD,
+    AttackSuccessRateConstA = gsiCharacter.DarkSpiritAttackSuccessRateConstA,
+    AttackSuccessRateConstB = gsiCharacter.DarkSpiritAttackSuccessRateConstB,
+    AttackSuccessRateConstC = gsiCharacter.DarkSpiritAttackSuccessRateConstC,
+    PetDurabilityRate = gsiCommon.PetDurabilityRate,
 };
 
 // The PK system's constants -- see World/PkSystem.cs.
