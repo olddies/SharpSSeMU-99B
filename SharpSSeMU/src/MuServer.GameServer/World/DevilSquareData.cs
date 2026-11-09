@@ -161,7 +161,7 @@ public sealed class EventEntryLevelTable
 {
     private readonly Dictionary<int, List<EventEntryLevelBracket>> _sections = new();
 
-    public const int SectionBloodCastle = 0, SectionDevilSquare = 1;
+    public const int SectionBloodCastle = 0, SectionDevilSquare = 1, SectionChaosCastle = 2;
 
     public static EventEntryLevelTable Load(string path)
     {
@@ -220,6 +220,10 @@ public sealed class EventEntryLevelTable
     /// enter, -1 when none. Like Devil Square's, the last row that fits wins.</summary>
     public int GetBloodCastleLevel(int level, bool specialClass) => GetLevel(SectionBloodCastle, level, specialClass);
 
+    /// <summary>Port of CEventEntryLevel::GetCCLevel: the Chaos Castle (0-based) a character of this level may
+    /// enter, -1 when none.</summary>
+    public int GetChaosCastleLevel(int level, bool specialClass) => GetLevel(SectionChaosCastle, level, specialClass);
+
     /// <summary>The (0-based) index of the last row of <paramref name="section"/> that fits the level, -1 if none.</summary>
     public int GetLevel(int section, int level, bool specialClass)
     {
@@ -253,10 +257,11 @@ public sealed record EventStageSpawnEntry(int Bracket, int Stage, int MonsterCla
 /// phase only consumes section 2. </summary>
 public sealed class EventStageSpawnTable
 {
-    public const int SectionBloodCastle = 0, SectionDevilSquare = 2;
+    public const int SectionBloodCastle = 0, SectionChaosCastle = 1, SectionDevilSquare = 2;
 
     private readonly List<EventStageSpawnEntry> _entries = new();
     private readonly List<EventStageSpawnEntry> _bloodCastle = new();
+    private readonly List<EventStageSpawnEntry> _chaosCastle = new();
 
     public static EventStageSpawnTable Load(string path)
     {
@@ -305,11 +310,15 @@ public sealed class EventStageSpawnTable
                 {
                     table._bloodCastle.Add(row);
                 }
+                else if (section == SectionChaosCastle)
+                {
+                    table._chaosCastle.Add(row);
+                }
             }
         }
 
-        Log.Add(LogColor.Blue, "[EventStageSpawn] {0} Devil Square and {1} Blood Castle row(s) loaded from {2}",
-            table._entries.Count, table._bloodCastle.Count, path);
+        Log.Add(LogColor.Blue, "[EventStageSpawn] {0} Devil Square, {1} Blood Castle and {2} Chaos Castle row(s) loaded from {3}",
+            table._entries.Count, table._bloodCastle.Count, table._chaosCastle.Count, path);
         return table;
     }
 
@@ -323,4 +332,9 @@ public sealed class EventStageSpawnTable
     /// does not come back.</summary>
     public IEnumerable<EventStageSpawnEntry> GetBloodCastleEntries(int level, int stage) =>
         _bloodCastle.Where(e => e.Bracket == level && e.Stage == stage);
+
+    /// <summary>The rows of a Chaos Castle level (0-based) that are added on reaching <paramref name="stage"/>
+    /// -- the filter part of CChaosCastle::StageSpawn.</summary>
+    public IEnumerable<EventStageSpawnEntry> GetChaosCastleEntries(int level, int stage) =>
+        _chaosCastle.Where(e => e.Bracket == level && e.Stage == stage);
 }

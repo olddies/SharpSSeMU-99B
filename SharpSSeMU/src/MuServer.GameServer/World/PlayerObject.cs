@@ -257,6 +257,10 @@ public sealed class PlayerObject
     public DateTime LastCombatTime { get; set; } = DateTime.MinValue;
     public DateTime? DiedAt { get; set; }
 
+    /// <summary>When a Chaos Castle last threw this player somewhere (ChaosCastleBlowTime): for a second after that
+    /// the player cannot walk.</summary>
+    public DateTime ChaosCastleBlowTime { get; set; } = DateTime.MinValue;
+
     public int PhysiSpeed { get; set; }
     public int MagicSpeed { get; set; }
 

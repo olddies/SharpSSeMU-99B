@@ -13,7 +13,7 @@ namespace MuServer.GameServer.Protocol;
 /// <summary> Port of ProtocolCore (Protocol.cpp) — Phase 1 (login) + Phase 2 (character selection, entering the
 /// world, player viewport, movement). The rest of the codes (chat, items, attack, guilds...) are added in later
 /// phases; for now they are only logged if they arrive. </summary>
-public sealed class ClientProtocolHandler
+public sealed partial class ClientProtocolHandler
 {
     private readonly GameServerConfig _config;
     private readonly JoinServerConnection _joinServer;
@@ -75,9 +75,11 @@ public sealed class ClientProtocolHandler
         GateTable? gates = null, MoveTable? moves = null, BloodCastleManager? bloodCastle = null, MessageTable? messages = null,
         QuestTable? quests = null, QuestObjectiveTable? questObjectives = null, QuestRewardTable? questRewards = null,
         GameServerInfoCommon? gsiCommon = null, ItemValueTable? itemValues = null,
-        GameServerInfoChaosMix? chaosMixRates = null, LootRoller? loot = null, ItemBagManager? bags = null, KalimaManager? kalima = null, DropEventManager? dropEvents = null)
+        GameServerInfoChaosMix? chaosMixRates = null, LootRoller? loot = null, ItemBagManager? bags = null, KalimaManager? kalima = null, DropEventManager? dropEvents = null,
+        ChaosCastleManager? chaosCastle = null)
     {
         _bags = bags;
+        _chaosCastle = chaosCastle;
         _kalima = kalima;
         _dropEvents = dropEvents;
         _loot = loot ?? new LootRoller(itemBalance, new ItemOptionRateTable(), new ExcellentOptionRateTable(), new MapDropTable(),
@@ -122,6 +124,13 @@ public sealed class ClientProtocolHandler
             _bloodCastle.GiveItemBag = GiveEventBagAsync;
             _bloodCastle.SaveCharacter = SaveCharacterAsync;
         }
+
+        if (_chaosCastle != null)
+        {
+            _chaosCastle.GrantExperience = (member, experience, ct) => ApplyExperienceGainAsync(member, -1, experience, 0, ct);
+            _chaosCastle.GiveItemBag = GiveEventBagAsync;
+            _chaosCastle.SaveCharacter = SaveCharacterAsync;
+        }
     }
 
     public async Task OnConnectAsync(ClientSession session, CancellationToken ct)
@@ -164,6 +173,18 @@ public sealed class ClientProtocolHandler
                 catch (Exception ex)
                 {
                     Log.Add(LogColor.Red, "[BloodCastle] Error when {0} left: {1}", session.Player.Name, ex.Message);
+                }
+            }
+
+            if (_chaosCastle != null)
+            {
+                try
+                {
+                    await _chaosCastle.OnPlayerLeftAsync(session.Player, ct);
+                }
+                catch (Exception ex)
+                {
+                    Log.Add(LogColor.Red, "[ChaosCastle] Error when {0} left: {1}", session.Player.Name, ex.Message);
                 }
             }
 
@@ -432,6 +453,18 @@ public sealed class ClientProtocolHandler
 
                 case 0x9A:
                     await OnBloodCastleEnterAsync(session, p, ct);
+                    break;
+
+                case 0xAF:
+                    if (p.Length > 3 && p[3] == 0x01)
+                    {
+                        await OnChaosCastleEnterAsync(session, p, ct);
+                    }
+                    else if (p.Length > 3 && p[3] == 0x02)
+                    {
+                        await OnChaosCastlePositionAsync(session, p, ct);
+                    }
+
                     break;
 
                 case 0x0E:
@@ -1144,6 +1177,12 @@ public sealed class ClientProtocolHandler
         var player = session.Player;
 
         if (player == null || player.IsDying || player.Life == 0)
+        {
+            return;
+        }
+
+        // A Chaos Castle that has just thrown the player somewhere keeps them from walking for a second (Protocol.cpp:570).
+        if (player.Map is >= 18 and <= 23 && (DateTime.UtcNow - player.ChaosCastleBlowTime).TotalMilliseconds < 1000)
         {
             return;
         }
@@ -3208,6 +3247,13 @@ public sealed class ClientProtocolHandler
 
         var recv = AttackRecv.Parse(p);
 
+        // Another player (their indices are above the monsters'): only where the rules allow it.
+        if (_players.TryGet(recv.TargetIndex, out var targetPlayer))
+        {
+            await AttackPlayerAsync(session, player, targetPlayer, recv, ct);
+            return;
+        }
+
         // ShopNumber != null => it is a shop NPC, not a real monster -- the original never lets one end up here
         // because OBJECT_NPC is not a valid attack target (CAttack::Attack validates lpTarget->Type ==
         // OBJECT_MONSTER), here it is replicated with the same field OnNpcTalkAsync already uses to identify
@@ -3341,6 +3387,12 @@ public sealed class ClientProtocolHandler
 
         var recv = SkillAttackRecv.Parse(p);
 
+        if (_players.TryGet(recv.TargetIndex, out var targetPlayer))
+        {
+            await SkillAttackPlayerAsync(session, player, targetPlayer, recv, ct);
+            return;
+        }
+
         // See the equivalent comment in OnAttackAsync -- a shop NPC is not a valid target.
         if (!_monsters.TryGet(recv.TargetIndex, out var monster) || monster.IsDead || monster.ShopNumber != null)
         {
@@ -3361,48 +3413,12 @@ public sealed class ClientProtocolHandler
             return;
         }
 
-        var skill = _skills.Get(recv.Skill);
+        var skill = await TryUseAttackSkillAsync(session, player, recv.Skill, monster.X, monster.Y, ct);
 
         if (skill == null)
         {
             return;
         }
-
-        // ---- Class/level validation (replaces the "learned skill" check, see point 1 of this method's
-        // doc-comment) ----
-        if (!skill.CanUse(player.Class, player.ChangeUp) || player.Level < skill.RequireLevel)
-        {
-            return;
-        }
-
-        // ---- Cooldown por skill (CheckSkillDelay, SkillManager.cpp:440-454) ----
-        var now = DateTime.UtcNow;
-
-        if (player.SkillDelay.TryGetValue(skill.Index, out var lastCast)
-            && (now - lastCast).TotalMilliseconds < skill.Delay)
-        {
-            return;
-        }
-
-        double distance = Math.Sqrt(Math.Pow(player.X - monster.X, 2) + Math.Pow(player.Y - monster.Y, 2));
-
-        if (distance > Math.Max(skill.Range, 1))
-        {
-            return; // out of range: "free cast" in the original (consumes no mana, see point 5)
-        }
-
-        player.SkillDelay[skill.Index] = now;
-
-        // ---- Mana/BP (CheckSkillMana/CheckSkillBP, SkillManager.cpp:333-365) ----
-        if ((int)player.Mana < skill.Mana || (int)player.BP < skill.BP)
-        {
-            return; // insuficiente: casteo totalmente silencioso, igual que el original (ver punto 5)
-        }
-
-        player.Mana = (uint)Math.Max((int)player.Mana - skill.Mana, 0);
-        player.BP = (uint)Math.Max((int)player.BP - skill.BP, 0);
-
-        await session.SendAsync(ManaPacketBuilder.ManaSend(0xFF, (int)player.Mana, (int)player.BP), ct);
 
         // ---- Step 1: miss/dodge (same calculation as CAttack::MissCheck used in OnAttackAsync) ----
         int attackSuccess = Math.Max(player.AttackSuccessRate, 0);
@@ -3469,6 +3485,57 @@ public sealed class ClientProtocolHandler
         }
 
         await OnMonsterDeathAsync(player, monster, damage, (byte)skill.Index, ct);
+    }
+
+    /// <summary>The checks a single-target attack skill goes through before it hits anything, and what it costs:
+    /// the skill exists, the class and level may use it, its cooldown has passed, the target is within range, and
+    /// there is mana and AG for it (which are then spent). Null when the cast does not happen.</summary>
+    private async Task<SkillInfo?> TryUseAttackSkillAsync(ClientSession session, PlayerObject player, byte skillId, int targetX, int targetY, CancellationToken ct)
+    {
+        var skill = _skills.Get(skillId);
+
+        if (skill == null)
+        {
+            return null;
+        }
+
+        // ---- Class/level validation (replaces the "learned skill" check, see point 1 of the doc-comment of
+        // OnSkillAttackAsync) ----
+        if (!skill.CanUse(player.Class, player.ChangeUp) || player.Level < skill.RequireLevel)
+        {
+            return null;
+        }
+
+        // ---- Cooldown por skill (CheckSkillDelay, SkillManager.cpp:440-454) ----
+        var now = DateTime.UtcNow;
+
+        if (player.SkillDelay.TryGetValue(skill.Index, out var lastCast)
+            && (now - lastCast).TotalMilliseconds < skill.Delay)
+        {
+            return null;
+        }
+
+        double distance = Math.Sqrt(Math.Pow(player.X - targetX, 2) + Math.Pow(player.Y - targetY, 2));
+
+        if (distance > Math.Max(skill.Range, 1))
+        {
+            return null; // out of range: "free cast" in the original (consumes no mana, see point 5)
+        }
+
+        player.SkillDelay[skill.Index] = now;
+
+        // ---- Mana/BP (CheckSkillMana/CheckSkillBP, SkillManager.cpp:333-365) ----
+        if ((int)player.Mana < skill.Mana || (int)player.BP < skill.BP)
+        {
+            return null; // insuficiente: casteo totalmente silencioso, igual que el original (ver punto 5)
+        }
+
+        player.Mana = (uint)Math.Max((int)player.Mana - skill.Mana, 0);
+        player.BP = (uint)Math.Max((int)player.BP - skill.BP, 0);
+
+        await session.SendAsync(ManaPacketBuilder.ManaSend(0xFF, (int)player.Mana, (int)player.BP), ct);
+
+        return skill;
     }
 
     private async Task OnDurationSkillAttackAsync(ClientSession session, byte[] p, CancellationToken ct)
@@ -3764,6 +3831,11 @@ public sealed class ClientProtocolHandler
             await _bloodCastle.OnMonsterKilledAsync(monster, ct);
         }
 
+        if (_chaosCastle != null)
+        {
+            await _chaosCastle.OnMonsterKilledAsync(monster, ct);
+        }
+
         if (_devilSquare != null)
         {
             await _devilSquare.OnMonsterKilledAsync(monster, ct);
@@ -3999,12 +4071,18 @@ public sealed class ClientProtocolHandler
         }
     }
 
-    /// <summary>The Blood Castle learns that a player was killed (UserDieProc).</summary>
-    public async Task OnPlayerKilledAsync(PlayerObject player, CancellationToken ct)
+    /// <summary>The events learn that a player was killed (UserDieProc). <paramref name="killerIndex"/> is who did
+    /// it: a monster's or a player's index, -1 when unknown.</summary>
+    public async Task OnPlayerKilledAsync(PlayerObject player, CancellationToken ct, int killerIndex = -1)
     {
         if (_bloodCastle != null)
         {
             await _bloodCastle.OnPlayerDiedAsync(player, ct);
+        }
+
+        if (_chaosCastle != null)
+        {
+            await _chaosCastle.OnPlayerDiedAsync(player, killerIndex, ct);
         }
     }
 
@@ -5119,6 +5197,10 @@ public sealed class ClientProtocolHandler
         if (recv.EventType == 2 && _bloodCastle != null)
         {
             await _bloodCastle.HandleRemainTimeQueryAsync(session, player, ct);
+        }
+        else if (recv.EventType == 4 && _chaosCastle != null)
+        {
+            await _chaosCastle.HandleRemainTimeQueryAsync(session, player, ct);
         }
         else if (_devilSquare != null)
         {

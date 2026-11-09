@@ -2112,13 +2112,13 @@ public static class DevilSquarePacketBuilder
     /// closed) OR EnteredUser = current participants (if already open) -- mutually exclusive, like the original
     /// (see this phase's research). RemainTimeL is always 0 in the Devil Square branch (the original does not
     /// write it there either).</summary>
-    public static byte[] RemainTimeSend(byte eventType, byte remainTimeH, byte enteredUser)
+    public static byte[] RemainTimeSend(byte eventType, byte remainTimeH, byte enteredUser, byte remainTimeL = 0)
     {
         var w = new PacketWriter();
         w.WriteByte(eventType);
         w.WriteByte(remainTimeH);
         w.WriteByte(enteredUser);
-        w.WriteByte(0);
+        w.WriteByte(remainTimeL);
         return PacketBuilder.BuildC1(0x91, w.ToArray());
     }
 
@@ -2162,6 +2162,7 @@ public static class DevilSquarePacketBuilder
 public static class EventDataServerPacketBuilder
 {
     public const byte HeadBloodCastle = 0x3D;
+    public const byte HeadChaosCastle = 0x3E;
     public const byte HeadDevilSquare = 0x3F;
 
     public static byte[] RankingScoreSave(byte head, ushort index, string account, string name, uint score)

@@ -63,6 +63,10 @@ string? secondCharName1 = shopEnabled && args.Length > 13 ? args[13] : null;
 // "always drops money" (MoneyRate=1), NOT at 0/1 (index 0 is already taken by the shared combat block above).
 bool groundItemEnabled = args.Length > 12 && args[12] == "grounditem";
 
+// Optional: the Chaos Castle run (gameserver_chaoscastle_e2e_test.py) -- A and B pay to go in, wait for the start the
+// test forced by console, and A kills B. It replaces the shared flow: the two clients log in and go straight to it.
+bool chaosCastleEnabled = args.Length > 12 && args[12] == "chaoscastle";
+
 int failures = 0;
 
 void Check(string name, bool ok, string extra = "")
@@ -117,6 +121,7 @@ async Task<(FakeMuClient Client, byte X, byte Y)> LoginAndEnterAsync(string labe
     await c.ConnectAsync(host, port, ct);
 
     var connectPkt = await c.WaitForAsync(0xF1, TimeSpan.FromSeconds(5), 0x00);
+    c.Index = (connectPkt.Full[5] << 8) | connectPkt.Full[6]; // [4]=result, [5..6]=the index the server gave this client
     Console.WriteLine($"[{label}] ConnectClientSend recibido ({connectPkt.Full.Length} bytes)");
 
     await c.SendLoginAsync(account, password);
@@ -188,12 +193,77 @@ async Task<(FakeMuClient Client, byte X, byte Y)> LoginAndEnterAsync(string labe
 // Phase 4 (~12s respawn) + Phase 5 (party/exp) + Phase 6 (Devil Square: up to ~3 min waiting for the window
 // forced by console + real STAND (1 min) + START (1 min) of the test bracket, see the test's DevilSquare.dat)
 // add steps.
-using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(dsEnabled ? 300 : 90));
+using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(dsEnabled || chaosCastleEnabled ? 300 : 90));
 
 try
 {
     var (clientA, ax, ay) = await LoginAndEnterAsync("A", account1, password1, char1, cts.Token, secondCharName1);
     var (clientB, _, _) = await LoginAndEnterAsync("B", account2, password2, char2, cts.Token);
+
+    if (chaosCastleEnabled)
+    {
+        Console.WriteLine("\n=== Chaos Castle: A y B pagan la entrada, esperan el comienzo y A mata a B ===");
+        int aIndex = clientA.Index, bIndex = clientB.Index;
+        Check("[A/B] Los indices de jugador salen del paquete de conexion", aIndex >= 9000 && bIndex >= 9000 && aIndex != bIndex, $"(A={aIndex}, B={bIndex})");
+
+        clientA.DiscardPending();
+        clientB.DiscardPending();
+
+        // The Armor of Guardsman is in slot 13 of both; the castle is the one their level allows.
+        await clientA.SendChaosCastleEnterAsync(0, 13);
+        var enteredA = await clientA.WaitForAsync(0xAF, TimeSpan.FromSeconds(5), 0x01);
+        Check("[A] Entra al Chaos Castle (AF:01, result 0)", enteredA.Full[4] == 0, $"(result={enteredA.Full[4]})");
+
+        await clientB.SendChaosCastleEnterAsync(0, 13);
+        var enteredB = await clientB.WaitForAsync(0xAF, TimeSpan.FromSeconds(5), 0x01);
+        Check("[B] Entra al Chaos Castle (AF:01, result 0)", enteredB.Full[4] == 0, $"(result={enteredB.Full[4]})");
+
+        // The wait ends at the forced start time and the fight begins on the next second: state 5 reaches them.
+        bool fightOn = false;
+
+        while (!fightOn)
+        {
+            var state = await clientA.WaitForAsync(0x9B, TimeSpan.FromSeconds(150));
+            fightOn = state.Full[3] == 5;
+        }
+
+        Check("[A] Recibe el comienzo de la pelea (9B, estado 5)", fightOn);
+
+        bool bDied = false;
+        int swings = 0;
+
+        for (; swings < 60 && !bDied; swings++)
+        {
+            await clientA.SendAttackAsync(bIndex, 120, 3);
+            bDied = await clientA.WaitForAttackOutcomeAsync(bIndex, TimeSpan.FromSeconds(5));
+        }
+
+        Check("[A] Mata a B en la pelea", bDied, $"(en {swings} golpe(s))");
+
+        var dieInB = await clientB.WaitForAsync(0x17, TimeSpan.FromSeconds(5));
+        int dieKiller = (dieInB.Full[6] << 8) | dieInB.Full[7];
+        Check("[B] Recibe su propia muerte con A como asesino", ((dieInB.Full[3] << 8) | dieInB.Full[4]) == bIndex && dieKiller == aIndex, $"(killer={dieKiller})");
+
+        // Alone and with no monsters left, A wins on the next second and gets the result window.
+        var scoreA = await clientA.WaitForAsync(0x93, TimeSpan.FromSeconds(15));
+        string scoreName = System.Text.Encoding.ASCII.GetString(scoreA.Full, 5, 10).TrimEnd('\0');
+        uint monsterKills = BitConverter.ToUInt32(scoreA.Full, 17);
+        uint rewardExperience = BitConverter.ToUInt32(scoreA.Full, 21);
+        uint userKills = BitConverter.ToUInt32(scoreA.Full, 25);
+        Check("[A] Recibe la ventana de resultado como ganador (93, tipo 1)", scoreA.Full[3] == 1 && scoreA.Full[4] == 0xFE && scoreName == char1,
+            $"(type={scoreA.Full[3]}, flag=0x{scoreA.Full[4]:X2}, name='{scoreName}')");
+        Check("[A] Su resultado cuenta una muerte de jugador y la experiencia del castillo",
+            userKills == 1 && monsterKills == 0 && rewardExperience == 1000, $"(players={userKills}, monsters={monsterKills}, experience={rewardExperience})");
+
+        // B's own window comes eight seconds after it died.
+        var scoreB = await clientB.WaitForAsync(0x93, TimeSpan.FromSeconds(20));
+        Check("[B] Recibe su ventana ocho segundos despues (93, tipo 0)", scoreB.Full[3] == 0 && scoreB.Full[4] == 0xFE, $"(type={scoreB.Full[3]})");
+
+        clientA.Close();
+        clientB.Close();
+        Console.WriteLine($"\n=== {(failures == 0 ? "TODO OK" : $"{failures} FALLO(S)")} ===");
+        return failures == 0 ? 0 : 1;
+    }
 
     Console.WriteLine("\n=== Esperando que el ViewportTicker los haga verse mutuamente (0x12) ===");
 

@@ -11,6 +11,25 @@ public sealed class CombatRules
     public int[] DamageRatePvM { get; init; } = { 100, 100, 100, 100, 100 };
     public int ReflectDamageRatePvM { get; init; } = 100;
 
+    // Player against player (Attack.cpp:381-403): the general rate, the class's own and the one for the class it
+    // hits, and inside the Chaos Castle its own rate on top.
+    public int GeneralDamageRatePvP { get; init; } = 100;
+    public int[] DamageRatePvP { get; init; } = { 100, 100, 100, 100, 100 };
+    public int[][] DamageRateTo { get; init; } = Enumerable.Range(0, 5).Select(_ => new[] { 100, 100, 100, 100, 100 }).ToArray();
+    public int ChaosCastleDamageRate { get; init; } = 50;
+
+    /// <summary>[class][A..D] and [class][A..C]: the constants of the PvP attack and defense success rates
+    /// (ObjectManager.cpp:2119-2135, 2267-2283), the shipped values by default.</summary>
+    public int[][] AttackSuccessRatePvPConst { get; init; } =
+    {
+        new[] { 3, 1, 4, 1 }, new[] { 3, 1, 45, 10 }, new[] { 3, 1, 6, 10 }, new[] { 3, 1, 35, 10 }, new[] { 3, 1, 4, 1 },
+    };
+
+    public int[][] DefenseSuccessRatePvPConst { get; init; } =
+    {
+        new[] { 2, 1, 4 }, new[] { 2, 1, 2 }, new[] { 2, 1, 10 }, new[] { 2, 1, 4 }, new[] { 2, 1, 2 },
+    };
+
     /// <summary>% of max life recovered every 5 seconds per class (always recovered on top: +5 after 5 seconds
     /// without fighting, plus the items' HP recovery option).</summary>
     public int[] HpRecoveryRate { get; init; } = new int[5];
@@ -63,12 +82,70 @@ public static class PlayerAttackMath
     /// <param name="applySkillDamage">SkillDamage.txt multiplier (gSkillDamage.GetDamage); identity when null.</param>
     public static PlayerHit HitMonster(
         PlayerObject player, int monsterDefense, int skill, int skillDamageMin, int skillDamageMax, bool graze,
-        ItemBalanceTable items, Random rng, Func<int, int, int>? applySkillDamage = null)
+        ItemBalanceTable items, Random rng, Func<int, int, int>? applySkillDamage = null) =>
+        Hit(player, null, monsterDefense, skill, skillDamageMin, skillDamageMax, graze, items, rng, applySkillDamage, false);
+
+    /// <summary>A player hitting another (CAttack::Attack with two users): the target's defense is halved, what the
+    /// target wears reduces the hit and the PvP damage rates replace the PvM ones. <paramref name="chaosCastle"/> adds
+    /// the Chaos Castle's own rate.</summary>
+    public static PlayerHit HitPlayer(
+        PlayerObject attacker, PlayerObject target, int skill, int skillDamageMin, int skillDamageMax, bool graze,
+        ItemBalanceTable items, Random rng, Func<int, int, int>? applySkillDamage = null, bool chaosCastle = false) =>
+        Hit(attacker, target, (int)target.Defense * 50 / 100, skill, skillDamageMin, skillDamageMax, graze, items, rng, applySkillDamage, chaosCastle);
+
+    /// <summary>Port of CAttack::MissCheckPvP (Attack.cpp:1033-1062): the attacker's PvP success rate against the
+    /// target's, scaled by their levels. True when the blow lands.</summary>
+    public static bool PvpBlowLands(PlayerObject attacker, PlayerObject target, Random rng)
+    {
+        var rules = CombatRules.Current;
+        double attack = PvpAttackSuccessRate(attacker, rules);
+        double defense = PvpDefenseSuccessRate(target, rules);
+
+        double rate = attack + defense == 0 ? 0 : 100 * (attack * 10000.0 / (attack + defense) / 10000.0) * 2;
+        rate *= attacker.Level + target.Level == 0 ? 0 : attacker.Level * 10000.0 / (attacker.Level + target.Level) / 10000.0;
+        int successRate = (int)rate;
+
+        int levelGap = target.Level - attacker.Level;
+
+        if (levelGap is >= 100 and < 199)
+        {
+            successRate -= 5;
+        }
+        else if (levelGap is >= 200 and < 299)
+        {
+            successRate -= 10;
+        }
+        else if (levelGap >= 300)
+        {
+            successRate -= 15;
+        }
+
+        return rng.Next(100) <= successRate;
+    }
+
+    /// <summary>ObjectManager.cpp:2119-2135: <c>Level * A / B + Dexterity * C / D</c>, the dexterity with its additions.</summary>
+    public static int PvpAttackSuccessRate(PlayerObject player, CombatRules rules)
+    {
+        var c = rules.AttackSuccessRatePvPConst[Math.Clamp((int)player.Class, 0, 4)];
+        return ((int)player.Level * c[0] / Math.Max(c[1], 1)) + ((int)(player.Dexterity + player.AddDexterity) * c[2] / Math.Max(c[3], 1));
+    }
+
+    /// <summary>ObjectManager.cpp:2267-2283: <c>Level * A / B + Dexterity / C</c>.</summary>
+    public static int PvpDefenseSuccessRate(PlayerObject player, CombatRules rules)
+    {
+        var c = rules.DefenseSuccessRatePvPConst[Math.Clamp((int)player.Class, 0, 4)];
+        return ((int)player.Level * c[0] / Math.Max(c[1], 1)) + ((int)(player.Dexterity + player.AddDexterity) / Math.Max(c[2], 1));
+    }
+
+    private static PlayerHit Hit(
+        PlayerObject player, PlayerObject? target, int monsterDefense, int skill, int skillDamageMin, int skillDamageMax, bool graze,
+        ItemBalanceTable items, Random rng, Func<int, int, int>? applySkillDamage, bool chaosCastle)
     {
         var rules = CombatRules.Current;
         byte effect = EffectNone;
 
-        // GetTargetDefense: a monster's defense, unless the attacker's ignore-defense option triggers.
+        // GetTargetDefense: a monster's defense (a player's, halved, when the target is one), unless the
+        // attacker's ignore-defense option triggers.
         int defense = Math.Max(monsterDefense, 0);
 
         if (rng.Next(100) < player.IgnoreDefenseRate)
@@ -132,8 +209,28 @@ public static class PlayerAttackMath
         }
 
         int lifeLost = 0;
+
+        // What the target player wears takes its share between the attacker's bonuses, as in WingSprite and
+        // HelperSprite (Attack.cpp:299-315, 623-726): the damage reduction option first, then each sprite applies
+        // the attacker's side and then the target's.
+        if (target != null)
+        {
+            damage -= damage * target.DamageReduction / 100;
+        }
+
         damage = WingBonus(player, damage, ref lifeLost);
+
+        if (target != null)
+        {
+            damage = TargetWing(target, damage);
+        }
+
         damage = PetBonus(player, damage, rules, ref lifeLost);
+
+        if (target != null)
+        {
+            damage = TargetHelper(target, damage, rules);
+        }
 
         int minDamage = Math.Max(player.Level / 10, 1);
 
@@ -165,8 +262,23 @@ public static class PlayerAttackMath
             damage += damage;
         }
 
-        damage = damage * rules.GeneralDamageRatePvM / 100;
-        damage = damage * rules.DamageRatePvM[Math.Clamp((int)player.Class, 0, 4)] / 100;
+        if (target != null)
+        {
+            int own = Math.Clamp((int)player.Class, 0, 4);
+            damage = damage * rules.GeneralDamageRatePvP / 100;
+            damage = damage * rules.DamageRatePvP[own] / 100;
+            damage = damage * rules.DamageRateTo[own][Math.Clamp((int)target.Class, 0, 4)] / 100;
+
+            if (chaosCastle)
+            {
+                damage = damage * rules.ChaosCastleDamageRate / 100;
+            }
+        }
+        else
+        {
+            damage = damage * rules.GeneralDamageRatePvM / 100;
+            damage = damage * rules.DamageRatePvM[Math.Clamp((int)player.Class, 0, 4)] / 100;
+        }
 
         return new PlayerHit(Math.Max(damage, 0), effect, lifeLost);
     }
@@ -186,40 +298,63 @@ public static class PlayerAttackMath
     /// of WingSprite/HelperSprite): the damage reduction option, then the wings and the guardian pets.</summary>
     public static int ReduceMonsterHit(PlayerObject target, int damage)
     {
-        var rules = CombatRules.Current;
-
         damage -= damage * target.DamageReduction / 100;
+        damage = TargetWing(target, damage);
+        damage = TargetHelper(target, damage, CombatRules.Current);
+        return Math.Max(damage, 0);
+    }
 
+    /// <summary>The target side of WingSprite (Attack.cpp:657-676): first wings take 12% (-2% per level) off, second
+    /// wings 25% (-2% per level) and the Cape of Lord 10% (-1% per level).</summary>
+    private static int TargetWing(PlayerObject target, int damage)
+    {
         var wing = target.Items[Item.SlotWing];
 
-        if (wing.IsItem() && wing.Durability > 0)
+        if (!wing.IsItem() || wing.Durability == 0)
         {
-            if (wing.Index >= Item.GetItem(12, 0) && wing.Index <= Item.GetItem(12, 2))
-            {
-                damage = damage * (88 - (wing.Level * 2)) / 100;
-            }
-            else if (wing.Index >= Item.GetItem(12, 3) && wing.Index <= Item.GetItem(12, 6))
-            {
-                damage = damage * (75 - (wing.Level * 2)) / 100;
-            }
+            return damage;
         }
 
+        if (wing.Index >= Item.GetItem(12, 0) && wing.Index <= Item.GetItem(12, 2))
+        {
+            return damage * (88 - (wing.Level * 2)) / 100;
+        }
+
+        if (wing.Index >= Item.GetItem(12, 3) && wing.Index <= Item.GetItem(12, 6))
+        {
+            return damage * (75 - (wing.Level * 2)) / 100;
+        }
+
+        if (wing.Index == Item.GetItem(13, 30)) // Cape of Lord
+        {
+            return damage * (90 - wing.Level) / 100;
+        }
+
+        return damage;
+    }
+
+    /// <summary>The target side of HelperSprite (Attack.cpp:706-725): the Guardian Angel and the Horn of Dinorant.</summary>
+    private static int TargetHelper(PlayerObject target, int damage, CombatRules rules)
+    {
         var helper = target.Items[Item.SlotHelper];
 
-        if (helper.IsItem() && helper.Durability > 0)
+        if (!helper.IsItem() || helper.Durability == 0)
         {
-            if (helper.Index == Item.GetItem(13, 0)) // Guardian Angel
-            {
-                damage = damage * (100 - rules.AngelDecDamageConstA) / 100;
-            }
-            else if (helper.Index == Dinorant)
-            {
-                int dec = rules.DinorantDecDamageConstA + ((helper.NewOption & 1) == 0 ? 0 : rules.DinorantDecDamageConstB);
-                damage = damage * (100 - dec) / 100;
-            }
+            return damage;
         }
 
-        return Math.Max(damage, 0);
+        if (helper.Index == Item.GetItem(13, 0)) // Guardian Angel
+        {
+            return damage * (100 - rules.AngelDecDamageConstA) / 100;
+        }
+
+        if (helper.Index == Dinorant)
+        {
+            int dec = rules.DinorantDecDamageConstA + ((helper.NewOption & 1) == 0 ? 0 : rules.DinorantDecDamageConstB);
+            return damage * (100 - dec) / 100;
+        }
+
+        return damage;
     }
 
     /// <summary>Attacker side of WingSprite: first wings +12% (+2% per level), second wings +32% (+1% per level);
@@ -243,6 +378,11 @@ public static class PlayerAttackMath
         if (wing.Index >= Item.GetItem(12, 3) && wing.Index <= Item.GetItem(12, 6))
         {
             return damage * (132 + wing.Level) / 100;
+        }
+
+        if (wing.Index == Item.GetItem(13, 30)) // Cape of Lord
+        {
+            return damage * (120 + (wing.Level * 2)) / 100;
         }
 
         return damage;

@@ -235,7 +235,9 @@ public sealed class BloodCastleManager
         {
             foreach (var castle in _levels)
             {
-                if (!castle.HasData || castle.State == BloodCastleState.Blank)
+                // A castle with no start time left (Blank) still sends the scores that are waiting, as the original's
+                // MainProc does for every castle whatever its state.
+                if (!castle.HasData)
                 {
                     continue;
                 }

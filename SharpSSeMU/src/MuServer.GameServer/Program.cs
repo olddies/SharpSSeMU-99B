@@ -79,6 +79,12 @@ CombatRules.Current = new CombatRules
     GeneralDamageRatePvM = gsiCharacter.GeneralDamageRatePvM,
     DamageRatePvM = gsiCharacter.DamageRatePvM.ToArray(),
     ReflectDamageRatePvM = gsiCharacter.ReflectDamageRatePvM,
+    GeneralDamageRatePvP = gsiCharacter.GeneralDamageRatePvP,
+    DamageRatePvP = gsiCharacter.DamageRatePvP.ToArray(),
+    DamageRateTo = Enumerable.Range(0, 5).Select(a => Enumerable.Range(0, 5).Select(b => gsiCharacter.DamageRateTo[a, b]).ToArray()).ToArray(),
+    ChaosCastleDamageRate = gsiCharacter.ChaosCastleDamageRate,
+    AttackSuccessRatePvPConst = Enumerable.Range(0, 5).Select(gsiCharacter.AttackSuccessRatePvPConst).ToArray(),
+    DefenseSuccessRatePvPConst = Enumerable.Range(0, 5).Select(gsiCharacter.DefenseSuccessRatePvPConst).ToArray(),
     HpRecoveryRate = gsiCharacter.HPRecoveryRate.ToArray(),
     SatanIncDamageConstA = gsiItem.SatanIncDamageConstA,
     DinorantIncDamageConstA = gsiItem.DinorantIncDamageConstA,
@@ -330,6 +336,11 @@ var bloodCastle = new BloodCastleManager(
     bloodCastleConfig, eventEntryLevels, eventStageSpawns, eventSpawnPool, monsterInfoTable, maps, monsters, players,
     gates, groundItems, dataServer.SendAsync, messages);
 
+var chaosCastleConfig = ChaosCastleConfig.Load(Path.Combine(config.EventPath, "ChaosCastle.dat"));
+var chaosCastle = new ChaosCastleManager(
+    chaosCastleConfig, eventEntryLevels, eventStageSpawns, eventSpawnPool, monsterInfoTable, maps, monsters, players,
+    gates, groundItems, dataServer.SendAsync, messages);
+
 var dropEvents = new DropEventManager(
     DropEventManager.Load(Path.Combine(config.EventPath, "DropEvent.dat")), lootRoller, players, messages,
     WorldPacketBuilder.ServerInfo.DropEventSwitch);
@@ -340,7 +351,7 @@ var kalima = new KalimaManager(
 protocolHandler = new ClientProtocolHandler(
     config, joinServer, dataServer, players, maps, monsters, parties, itemBalance, characterBalance,
     skills, skillDamage, devilSquare, shops, groundItems, gates, moves, bloodCastle, messages,
-    questTable, questObjectiveTable, questRewardTable, gsiCommon, itemValues, gsiChaosMix, lootRoller, itemBags, kalima, dropEvents);
+    questTable, questObjectiveTable, questRewardTable, gsiCommon, itemValues, gsiChaosMix, lootRoller, itemBags, kalima, dropEvents, chaosCastle);
 
 protocolHandler.DeveloperCommands = gsiCommand.CommandDeveloperSwitch != 0;
 
@@ -353,6 +364,7 @@ joinServer.Start(cts.Token);
 dataServer.Start(cts.Token);
 devilSquare.Start(cts.Token);
 bloodCastle.Start(cts.Token);
+chaosCastle.Start(cts.Token);
 kalima.Start(cts.Token);
 dropEvents.Start(cts.Token);
 
@@ -456,6 +468,15 @@ while (!cts.Token.IsCancellationRequested)
                 int? level = parts.Length > 0 && int.TryParse(parts[0], out var n) ? n - 1 : null;
                 int delay = parts.Length > 1 && int.TryParse(parts[1], out var s) ? s : 40;
                 _ = bloodCastle.ForceStartAsync(level, delay);
+            }
+
+            if (trimmed.StartsWith("cc forcestart", StringComparison.OrdinalIgnoreCase))
+            {
+                // 'cc forcestart' | 'cc forcestart N' (castle, 1-based) | 'cc forcestart N S' (+ delay in seconds)
+                var parts = trimmed["cc forcestart".Length..].Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                int? level = parts.Length > 0 && int.TryParse(parts[0], out var n) ? n - 1 : null;
+                int delay = parts.Length > 1 && int.TryParse(parts[1], out var s) ? s : 40;
+                _ = chaosCastle.ForceStartAsync(level, delay);
             }
 
             break;

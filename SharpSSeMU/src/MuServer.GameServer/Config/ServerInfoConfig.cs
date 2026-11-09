@@ -124,6 +124,14 @@ public sealed class ServerInfoConfig
         return cap != 0 && entries >= cap;
     }
 
+    /// <summary>ChaosCastleEvent: the whole event on or off. ChaosCastleMinUser: players needed to start.
+    /// ChaosCastleBlowUserRate: % chance that a dying monster blows the players near it away. ChaosCastleMoneyRate:
+    /// % of the entry fees of everybody that a random participant wins when the wait ends.</summary>
+    public bool ChaosCastleEvent { get; internal set; } = true;
+    public int ChaosCastleMinUser { get; internal set; } = 1;
+    public int ChaosCastleBlowUserRate { get; internal set; } = 50;
+    public int ChaosCastleMoneyRate { get; internal set; } = 80;
+
     /// <summary>DropEventSwitch: the drop events of DropEvent.dat run.</summary>
     public bool DropEventSwitch { get; private set; } = true;
 
@@ -183,6 +191,10 @@ public sealed class ServerInfoConfig
             ChaosCastleMaxEntryCount = Enumerable.Range(0, 4).Select(n => evt.GetInt("GameServerInfo", $"ChaosCastleMaxEntryCount_AL{n}", 0)).ToArray(),
             PKLimitFree = common.GetInt("GameServerInfo", "PKLimitFree", 0),
             PKLimitEventEntry = common.GetInt("GameServerInfo", "PKLimitEventEntry", 0),
+            ChaosCastleEvent = evt.GetInt("GameServerInfo", "ChaosCastleEvent", 1) != 0,
+            ChaosCastleMinUser = evt.GetInt("GameServerInfo", "ChaosCastleMinUser", 1),
+            ChaosCastleBlowUserRate = evt.GetInt("GameServerInfo", "ChaosCastleBlowUserRate", 50),
+            ChaosCastleMoneyRate = evt.GetInt("GameServerInfo", "ChaosCastleMoneyRate", 80),
             DropEventSwitch = evt.GetInt("GameServerInfo", "DropEventSwitch", 1) != 0,
         };
 

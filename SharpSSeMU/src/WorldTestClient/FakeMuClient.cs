@@ -28,6 +28,10 @@ public sealed class FakeMuClient
 
     public string Name { get; }
 
+    /// <summary>The player index the server gave this client (read from the connection packet), the number the
+    /// other clients target when they attack it.</summary>
+    public int Index { get; set; }
+
     public FakeMuClient(string name, string serverSerial, string clientVersion, string enc1Path, string dec2Path)
     {
         Name = name;
@@ -447,6 +451,11 @@ public sealed class FakeMuClient
         w.WriteByte(slot);
         return SendRawAsync(PacketBuilder.BuildC1(0x90, w.ToArray()));
     }
+
+    /// <summary>PMSG_CHAOS_CASTLE_ENTER_RECV, C1:AF:01 -- the castle asked for (the server decides by level) and the
+    /// slot of the Armor of Guardsman.</summary>
+    public Task SendChaosCastleEnterAsync(byte level, byte slot) =>
+        SendRawAsync(PacketBuilder.BuildC1Sub(0xAF, 0x01, new[] { level, slot }));
 
     /// <summary>PMSG_EVENT_REMAIN_TIME_RECV, C1:91 -- eventType=1 es Devil Square.</summary>
     public Task SendEventRemainTimeAsync(byte eventType, byte itemLevel)

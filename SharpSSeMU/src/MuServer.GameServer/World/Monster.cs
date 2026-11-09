@@ -98,6 +98,10 @@ public sealed class Monster
     /// one stage of it, or the castle gate or a statue (<c>BLOOD_CASTLE_LEVEL::MonsterIndex</c>).</summary>
     public int? BloodCastleLevel { get; set; }
 
+    /// <summary>Non-null if this monster belongs to the (0-based) level of a running Chaos Castle
+    /// (<c>CHAOS_CASTLE_LEVEL::MonsterIndex</c>).</summary>
+    public int? ChaosCastleLevel { get; set; }
+
     /// <summary>Takes no damage (the original's EFFECT_MONSTER_PHYSI/MAGIC_DAMAGE_IMMUNITY): the Blood Castle gate
     /// and statues until their stage is reached.</summary>
     public bool Immune { get; set; }

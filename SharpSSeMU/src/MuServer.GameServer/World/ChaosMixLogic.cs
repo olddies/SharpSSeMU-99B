@@ -49,9 +49,10 @@ public sealed record ChaosMixResult(bool Success, byte ResultCode, Item? Item, b
 /// production server (nobody ships a chaos machine that never delivers anything), and the full <c>ItemBagEx</c>
 /// engine (per-section weights, class filter, drop rate) is a separate system, shared with Devil Square/Blood
 /// Castle/monster drops, that deserves its own port instead of a rushed one as a dependency of this.</para>
-/// <para>The two pet mixes (Dark Horse and Dark Raven) are not ported: both pets are for the Dark Lord only, a
-/// class a 0.99B game does not have. The Dinorant and the Devil Square and Blood Castle ticket mixes are ported
-/// (<see cref="MixDinorant"/>, <see cref="MixEventTicket"/>).</para> </summary>
+/// <para>The two pet mixes (Dark Horse and Dark Raven) are not ported: they hand out a pet, and the pets themselves
+/// (their level and experience, their commands, the Trainer window the mix runs in) do not exist in this server
+/// yet, so the item could not do anything. The Dinorant and the Devil Square and Blood Castle ticket mixes are
+/// ported (<see cref="MixDinorant"/>, <see cref="MixEventTicket"/>).</para> </summary>
 public static class ChaosMixLogic
 {
     private static readonly int ItemChaos = Item.GetItem(12, 15);   // Jewel of Chaos
@@ -120,7 +121,7 @@ public static class ChaosMixLogic
             // CHAOS_MIX_DINORANT -> DinorantMix: Chaos + ten Horns of Uniria (full durability) -> Horn of Dinorant.
             ChaosMixType.Dinorant => MixDinorant(player, items, rates, execute, bags),
 
-            _ => new ChaosMixResult(false, 0, null, false, 0, 0), // the pet mixes (Dark Lord only): not ported
+            _ => new ChaosMixResult(false, 0, null, false, 0, 0), // the pet mixes: the pets are not ported
         };
     }
 
