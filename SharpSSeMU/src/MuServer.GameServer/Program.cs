@@ -460,6 +460,12 @@ protocolHandler = new ClientProtocolHandler(
 protocolHandler.Effects.OverwriteMode = gsiCommon.EffectOverwriteMode;
 protocolHandler.SkillUseAreas = skillUseAreas;
 protocolHandler.ComboTable = comboTable;
+protocolHandler.UseMonsterInfo(monsterInfoTable);
+protocolHandler.Summons.MonsterBySkill = new[]
+{
+    gsiSkill.SummonMonster1, gsiSkill.SummonMonster2, gsiSkill.SummonMonster3, gsiSkill.SummonMonster4,
+    gsiSkill.SummonMonster5, gsiSkill.SummonMonster6, gsiSkill.SummonMonster7,
+};
 var moveSummons = new MoveSummonTable { PkLimitFree = gsiCommon.PKLimitFree, PkLimitMoveSummon = gsiCommon.PKLimitMoveSummon };
 moveSummons.Load(config.MoveSummonPath);
 protocolHandler.MoveSummons = moveSummons;

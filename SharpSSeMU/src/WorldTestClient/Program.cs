@@ -115,6 +115,11 @@ bool comboEnabled = args.Length > 12 && args[12] == "combo";
 // A; and B walking away during the countdown calls it off.
 bool partySkillsEnabled = args.Length > 12 && args[12] == "partyskills";
 
+// Optional: the summon run (gameserver_summons_e2e_test.py) -- A, a Fairy Elf, calls her Goblin: both clients see it come (the summon list,
+// with A's name), A is told its life, it goes for the (tough) test monster and A sees its damage numbers (B does not), B cannot hurt it,
+// and a second cast sends it away.
+bool summonEnabled = args.Length > 12 && args[12] == "summon";
+
 int failures = 0;
 
 void Check(string name, bool ok, string extra = "")
@@ -252,7 +257,7 @@ async Task<(FakeMuClient Client, byte X, byte Y)> LoginAndEnterAsync(string labe
 // Phase 4 (~12s respawn) + Phase 5 (party/exp) + Phase 6 (Devil Square: up to ~3 min waiting for the window
 // forced by console + real STAND (1 min) + START (1 min) of the test bracket, see the test's DevilSquare.dat)
 // add steps.
-using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(dsEnabled || chaosCastleEnabled || pkEnabled || duelEnabled || petEnabled || ravenEnabled || wearEnabled || trainerEnabled || buffEnabled || debuffEnabled || comboEnabled || partySkillsEnabled ? 300 : 90));
+using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(dsEnabled || chaosCastleEnabled || pkEnabled || duelEnabled || petEnabled || ravenEnabled || wearEnabled || trainerEnabled || buffEnabled || debuffEnabled || comboEnabled || partySkillsEnabled || summonEnabled ? 300 : 90));
 
 try
 {
@@ -443,6 +448,78 @@ try
         gotB = await castB;
 
         Check("[B] Al cancelarlo el efecto termina (C1:07, estado 0, bit 8)", HasState(gotB, 0, ManaShieldBit, bIndex));
+
+        clientA.Close();
+        clientB.Close();
+        Console.WriteLine($"\n=== {(failures == 0 ? "TODO OK" : $"{failures} FALLO(S)")} ===");
+        return failures == 0 ? 0 : 1;
+    }
+
+    if (summonEnabled)
+    {
+        Console.WriteLine("\n=== Invocaciones: A (Elfa) llama a su Goblin, que ataca al monstruo; B no puede danarlo; un segundo hechizo lo despide ===");
+
+        const byte SummonGoblin = 30;
+        const int monsterIdx = 0;
+
+        // The summon list (C2:1F): the records start at byte 5, 22 bytes each.
+        FakeMuClient.DecodedPacket? SummonList(List<FakeMuClient.DecodedPacket> packets) => packets.FirstOrDefault(p => p.Head == 0x1F);
+
+        await WaitUntilTheyMeetAsync(clientA, clientB);
+        clientA.DiscardPending();
+        clientB.DiscardPending();
+
+        var windowA = clientA.CollectAsync(TimeSpan.FromSeconds(2));
+        var windowB = clientB.CollectAsync(TimeSpan.FromSeconds(2));
+        await clientA.SendSkillAttackAsync(SummonGoblin, clientA.Index);
+        var (gotA, gotB) = (await windowA, await windowB);
+
+        var listA = SummonList(gotA);
+        var listB = SummonList(gotB);
+        int summonIdx = listA != null ? ((listA.Full[5] & 0x7F) << 8) | listA.Full[6] : -1;
+
+        Check("[A] Ve llegar a su invocacion (lista de invocaciones, C2:1F)", listA != null);
+        Check("[A] y llega con el circulo magico (marca 0x80 del indice)", listA != null && (listA.Full[5] & 0x80) != 0);
+        Check("[A] La clase es la del Goblin (26)", listA != null && ((listA.Full[7] << 8) | listA.Full[8]) == 26,
+            listA == null ? "" : $"(clase={(listA.Full[7] << 8) | listA.Full[8]})");
+        Check("[A] y lleva el nombre de su ama", listA != null && System.Text.Encoding.ASCII.GetString(listA.Full, 16, 10).TrimEnd('\0') == char1,
+            listA == null ? "" : $"(nombre={System.Text.Encoding.ASCII.GetString(listA.Full, 16, 10).TrimEnd('\0')})");
+        Check("[B] Tambien la ve", listB != null);
+        Check("[A] Le dicen la vida de su invocacion, llena (F3:20, 100)", gotA.Any(p => p.Head == 0xF3 && p.SubHead == 0x20 && p.Full[4] == 100));
+
+        // The summon goes for the monster: A sees its damage numbers, B does not.
+        windowA = clientA.CollectAsync(TimeSpan.FromSeconds(10));
+        windowB = clientB.CollectAsync(TimeSpan.FromSeconds(10));
+        (gotA, gotB) = (await windowA, await windowB);
+
+        bool Number(FakeMuClient.DecodedPacket p) =>
+            p.Head == 0xD9 && (((p.Full[3] & 0x7F) << 8) | p.Full[4]) == monsterIdx && ((p.Full[5] << 8) | p.Full[6]) > 0;
+
+        Check("[A] La invocacion golpea al monstruo y A ve sus numeros de dano (C1:D9)", gotA.Any(Number));
+        Check("[A] y se la ve moverse o atacar (C1:18 o C1:D7 de la invocacion)",
+            gotA.Any(p => (p.Head == 0x18 || p.Head == 0xD7) && ((p.Full[3] << 8) | p.Full[4]) == summonIdx));
+
+        // B cannot hurt it: nothing happens.
+        clientB.DiscardPending();
+        var attackWindow = clientB.CollectAsync(TimeSpan.FromSeconds(1.5));
+        await clientB.SendAttackAsync(summonIdx, 120, 3);
+        var attackHeard = await attackWindow;
+
+        Check("[B] No puede golpear la invocacion de otro (sin numero de dano suyo)",
+            !attackHeard.Any(p => p.Head == 0xD9 && (((p.Full[3] & 0x7F) << 8) | p.Full[4]) == summonIdx));
+
+        // A second cast sends it away: it disappears from both views and the bar is emptied.
+        windowA = clientA.CollectAsync(TimeSpan.FromSeconds(2));
+        windowB = clientB.CollectAsync(TimeSpan.FromSeconds(2));
+        await clientA.SendSkillAttackAsync(SummonGoblin, clientA.Index);
+        (gotA, gotB) = (await windowA, await windowB);
+
+        bool Destroyed(List<FakeMuClient.DecodedPacket> packets) =>
+            packets.Any(p => p.Head == 0x14 && p.Full.Length > 5 && Enumerable.Range(0, p.Full[3]).Any(i => (((p.Full[4 + i * 2] & 0x7F) << 8) | p.Full[5 + i * 2]) == summonIdx));
+
+        Check("[A] El segundo hechizo la despide: desaparece de su vista (C2:14)", Destroyed(gotA));
+        Check("[B] y de la de B", Destroyed(gotB));
+        Check("[A] y su barra se vacia (F3:20, 0)", gotA.Any(p => p.Head == 0xF3 && p.SubHead == 0x20 && p.Full[4] == 0));
 
         clientA.Close();
         clientB.Close();

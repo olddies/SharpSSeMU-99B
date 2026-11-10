@@ -521,8 +521,35 @@ class Deployment:
         if proc.poll() is not None:
             raise EnvironmentError_(f"{project} murió justo después de abrir el puerto {port}")
 
+    def _wait_for_log(self, name: str, text: str, timeout: float) -> bool:
+        """Waits until the console of server `name` has printed `text`; False if it never does (or the server was not started)."""
+        entry = self.servers.consoles.get(name)
+
+        if entry is None:
+            return False
+
+        path = entry[1]
+        deadline = time.monotonic() + timeout
+
+        while time.monotonic() < deadline:
+            try:
+                if text in path.read_text(encoding="utf-8", errors="replace"):
+                    return True
+            except OSError:
+                pass
+
+            time.sleep(0.25)
+
+        return False
+
     def start_game(self) -> None:
         self._start_and_wait("game", "MuServer.GameServer", self.game_dir, self.game_port)
+
+        # The GameServer opens its port BEFORE it has registered with the JoinServer (it can take ten seconds or more on a busy machine),
+        # and a client that logs in during that window waits for an answer that comes after it has given up: the "Timeout waiting for
+        # head 0xF1:0x01" that failed one test of every full run. Wait until the JoinServer has seen it.
+        if not self._wait_for_log("join", "GameServer connected", 60.0):
+            print("WARNING: the JoinServer did not report the GameServer connected within 60 s; going on anyway")
 
     # -- character creation against the DataServer -----------------------
 

@@ -20,7 +20,7 @@ public sealed class Monster : IEffectCarrier
     public float Life { get; set; }
     public float MaxLife { get; set; }
 
-    public byte Map { get; init; }
+    public byte Map { get; set; }
     public byte X { get; set; }
     public byte Y { get; set; }
     public byte TX { get; set; }
@@ -46,6 +46,7 @@ public sealed class Monster : IEffectCarrier
     public int MonsterSkill { get; init; }
     public int ViewRange { get; init; }
     public int AttackSpeed { get; init; }
+    public int MoveSpeed { get; init; }
     public int ItemRate { get; init; }
     public int MoneyRate { get; init; }
 
@@ -136,6 +137,18 @@ public sealed class Monster : IEffectCarrier
 
         return defense;
     }
+
+    /// <summary>The player whose summon this is (a Fairy Elf's Summon skills), or -1 for any other monster. A summon follows its master and
+    /// fights what he fights; it is nobody's target and what it kills is its master's.</summary>
+    public int OwnerIndex { get; set; } = -1;
+
+    public bool IsSummon => OwnerIndex >= 0;
+
+    /// <summary>It has just been called: the next time somebody sees it appear it comes with the magic circle.</summary>
+    public bool JustSummoned { get; set; }
+
+    /// <summary>Whether a player can attack it: not a shop NPC, and not somebody's summon.</summary>
+    public bool CanBeAttacked => ShopNumber == null && !IsSummon;
 
     /// <summary>Once dead it is taken out of the world instead of coming back (<c>PosNum = -1</c> in the
     /// original): the Blood Castle gate and statues.</summary>

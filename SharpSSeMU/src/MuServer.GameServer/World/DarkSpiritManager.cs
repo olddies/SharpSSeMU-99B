@@ -334,7 +334,7 @@ public sealed class DarkSpiritManager
     }
 
     private static bool IsAttackable(Monster monster, byte map) =>
-        monster.Live && !monster.IsDead && monster.Map == map && monster.ShopNumber == null
+        monster.Live && !monster.IsDead && monster.Map == map && monster.CanBeAttacked
         && !(monster.MonsterClass is >= 100 and <= 110) && monster.MonsterClass != 523; // not the traps
 
     private bool TryGetObject(int index, out byte map, out int x, out int y, out bool alive)
@@ -384,7 +384,7 @@ public sealed class DarkSpiritManager
             return;
         }
 
-        if (targetPlayer == null && (monster == null || monster.ShopNumber != null))
+        if (targetPlayer == null && (monster == null || !monster.CanBeAttacked))
         {
             return;
         }

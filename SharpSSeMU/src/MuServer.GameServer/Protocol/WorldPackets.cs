@@ -831,6 +831,42 @@ public static class WorldPacketBuilder
         return BuildC2NoSub(0x13, body.ToArray());
     }
 
+    /// <summary>PMSG_VIEWPORT_SUMMON inside the PMSG_VIEWPORT_SEND batch (GCViewportSummonSend, Viewport.cpp:775), C2:1F: the summons that come
+    /// into view, each with the name of its master. 22 bytes a record (the WORD of the effects aligns it): the index (0x80 on the first
+    /// sight, which brings the magic circle), the class, the effects, where it is and where it goes, the direction, the master's name.</summary>
+    public static byte[] ViewportSummonAppear(IReadOnlyList<(Monster Summon, string MasterName)> summons)
+    {
+        using var body = new MemoryStream();
+        body.WriteByte((byte)summons.Count);
+
+        foreach (var (m, masterName) in summons)
+        {
+            byte indexHi = (byte)((m.Index >> 8) & 0xFF);
+
+            if (m.JustSummoned)
+            {
+                indexHi |= 0x80;
+            }
+
+            body.WriteByte(indexHi);
+            body.WriteByte((byte)(m.Index & 0xFF));
+            body.WriteByte((byte)((m.MonsterClass >> 8) & 0xFF));
+            body.WriteByte((byte)(m.MonsterClass & 0xFF));
+            ushort effectBits = EffectManager.StateBits(m);
+            body.WriteByte((byte)(effectBits & 0xFF));
+            body.WriteByte((byte)(effectBits >> 8));
+            body.WriteByte(m.X);
+            body.WriteByte(m.Y);
+            body.WriteByte(m.TX);
+            body.WriteByte(m.TY);
+            body.WriteByte((byte)(m.Dir * 16));
+            body.Write(PacketBuilder.FixedString(masterName, 10));
+            body.WriteByte(0); // tail padding of the 22-byte struct
+        }
+
+        return BuildC2NoSub(0x1F, body.ToArray());
+    }
+
     /// <summary>PMSG_MOVE_SEND, C1:D7 -- notifica el movimiento de un objeto (monstruo/jugador) en el mapa.</summary>
     public static byte[] ViewportMonsterMove(int monsterIndex, byte x, byte y, byte dir)
     {
