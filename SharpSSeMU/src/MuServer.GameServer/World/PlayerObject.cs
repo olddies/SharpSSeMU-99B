@@ -181,6 +181,11 @@ public sealed class PlayerObject
     }
 
     public bool InChaosBox { get; set; }
+
+    /// <summary>The Trainer's window (Interface.type == INTERFACE_TRAINER): it works on the same box as the Chaos Machine
+    /// but with its own flag (5) in the client's item moves, and only for the pets.</summary>
+    public bool InTrainer { get; set; }
+
     public Item[] ChaosBoxItems { get; } = CreateEmptyChaosBoxItems();
     public byte[] ChaosBoxMap { get; } = new byte[32];
 
@@ -194,10 +199,19 @@ public sealed class PlayerObject
     public void ClearChaosBox()
     {
         InChaosBox = false;
+        InTrainer = false;
+        EmptyChaosBox();
+    }
+
+    /// <summary>Takes what is in the box away and leaves the window open (CChaosBox::ChaosBoxInit): what a mix does with its
+    /// ingredients, success or not.</summary>
+    public void EmptyChaosBox()
+    {
         for (int n = 0; n < ChaosBoxItems.Length; n++)
         {
             ChaosBoxItems[n] = Item.Empty();
         }
+
         Array.Fill(ChaosBoxMap, (byte)0xFF);
     }
 

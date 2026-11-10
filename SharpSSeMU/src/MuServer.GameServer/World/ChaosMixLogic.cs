@@ -19,6 +19,8 @@ public enum ChaosMixType
     Wing1 = 7,
     BloodCastle = 8,
     Wing2 = 11,
+    Pet1 = 13, // the Dark Horse, at the Trainer
+    Pet2 = 14, // the Dark Raven, at the Trainer
     Wing3 = 24, // "Cape" in the original -- it was not in the previous port, it is added here.
 }
 
@@ -121,7 +123,11 @@ public static class ChaosMixLogic
             // CHAOS_MIX_DINORANT -> DinorantMix: Chaos + ten Horns of Uniria (full durability) -> Horn of Dinorant.
             ChaosMixType.Dinorant => MixDinorant(player, items, rates, execute, bags),
 
-            _ => new ChaosMixResult(false, 0, null, false, 0, 0), // the pet mixes: the pets are not ported
+            // CHAOS_MIX_PET1 / CHAOS_MIX_PET2 -> PetMix(0 / 1): at the Trainer's window.
+            ChaosMixType.Pet1 => MixPet(player, items, rates, execute, 0),
+            ChaosMixType.Pet2 => MixPet(player, items, rates, execute, 1),
+
+            _ => new ChaosMixResult(false, 0, null, false, 0, 0),
         };
     }
 
@@ -156,7 +162,7 @@ public static class ChaosMixLogic
     /// possibly something that happens elsewhere that could not be read); it was decided to always clear, which
     /// is the safe option -- the opposite would risk the player recovering their ingredients for free on
     /// closing the window.</summary>
-    private static void ClearBox(PlayerObject player) => player.ClearChaosBox();
+    private static void ClearBox(PlayerObject player) => player.EmptyChaosBox(); // the window stays open for the next mix
 
     /// <summary>The item of a mix from its item bag (GetItemBySpecialValue(CHAOS_BOX, level)). False when there is
     /// no such bag, so the caller uses its built-in list; true with a null item when the bag gave nothing, which
@@ -223,6 +229,75 @@ public static class ChaosMixLogic
         }
 
         ClearBox(player);
+        return new ChaosMixResult(false, 0, null, false, rate, zen);
+    }
+
+    /// <summary>Port of CChaosBox::PetMix (ChaosBox.cpp:840): a Jewel of Chaos, the Spirit of the pet (level 0 for the Dark
+    /// Horse, 1 for the Dark Raven), a Jewel of Creation and Bless and Soul -- five of each for the horse, two for the raven --
+    /// make a pet of level 1 for five million zen or one. The pet is put in the Trainer's box by the caller (result 100).</summary>
+    private static ChaosMixResult MixPet(PlayerObject player, List<Item> items, GameServerInfoChaosMix rates, bool execute, int type)
+    {
+        int chaosCount = 0, horseSoulCount = 0, ravenSoulCount = 0, blessCount = 0, soulCount = 0, creationCount = 0;
+        int spirit = Item.GetItem(13, 31);
+
+        foreach (var it in items)
+        {
+            if (it.Index == ItemChaos)
+            {
+                chaosCount++;
+            }
+            else if (it.Index == spirit && it.Level == 0)
+            {
+                horseSoulCount++;
+            }
+            else if (it.Index == spirit && it.Level == 1)
+            {
+                ravenSoulCount++;
+            }
+            else if (it.Index == ItemBless)
+            {
+                blessCount++;
+            }
+            else if (it.Index == ItemSoul)
+            {
+                soulCount++;
+            }
+            else if (it.Index == ItemCreation)
+            {
+                creationCount++;
+            }
+        }
+
+        int jewels = 5 - (type * 3);
+
+        if (chaosCount != 1 || (type == 0 && horseSoulCount != 1) || (type == 1 && ravenSoulCount != 1)
+            || blessCount != jewels || soulCount != jewels || creationCount != 1)
+        {
+            return new ChaosMixResult(false, 7, null, false, 0, 0);
+        }
+
+        int zen = 5_000_000 - (4_000_000 * type);
+        int rate = Math.Clamp(rates.PetMixRate[Math.Clamp(player.AccountLevel, 0, 3)], 0, 100);
+
+        if (!execute)
+        {
+            return new ChaosMixResult(false, 0, null, false, rate, zen);
+        }
+
+        if (player.Money < zen)
+        {
+            return new ChaosMixResult(false, 2, null, false, rate, zen);
+        }
+
+        player.Money -= (uint)zen;
+        ClearBox(player);
+
+        if (Random.Shared.Next(100) < rate)
+        {
+            var pet = new Item { Index = (short)(Item.GetItem(13, 4) + type), Durability = 255 };
+            return new ChaosMixResult(true, 100, pet, false, rate, zen);
+        }
+
         return new ChaosMixResult(false, 0, null, false, rate, zen);
     }
 

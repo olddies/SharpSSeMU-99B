@@ -150,6 +150,16 @@ public sealed class PetManager
         return HelperWearOutcome.StatsChanged;
     }
 
+    /// <summary>What a pet costs (CItem::PetValue's m_BuyMoney): two million for every level of a Dark Horse, one million of
+    /// a Dark Raven, with the rounding every price gets.</summary>
+    public static long BuyValue(Item pet)
+    {
+        long price = (pet.Index == Item.DarkHorse ? 2_000_000L : 1_000_000L) * pet.PetLevel;
+        price = Math.Min(price, 2_000_000_000);
+        price = price >= 100 ? (price / 10) * 10 : price;
+        return price >= 1000 ? (price / 100) * 100 : price;
+    }
+
     /// <summary>Port of CItem::PetValue (Item.cpp:958): the Dark Horse is worth two million for every level it has and
     /// the Dark Raven one million; a shop pays a third of that (before the rounding every price gets).</summary>
     public static long SellValue(Item pet) => (pet.Index == Item.DarkHorse ? 2_000_000L : 1_000_000L) * pet.PetLevel / 3;

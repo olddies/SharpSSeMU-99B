@@ -89,6 +89,12 @@ bool ravenEnabled = args.Length > 12 && args[12] == "raven";
 // printed (ANGELDUR=) for the test to find in the database after A leaves.
 bool wearEnabled = args.Length > 12 && args[12] == "wear";
 
+// Optional: the Trainer run (gameserver_trainer_e2e_test.py) -- A talks to the Trainer (the NPC at index 1 of the test spawn),
+// puts the ingredients of a Dark Raven in its window, mixes (the test makes it sure to work), finds the pet in the box with
+// result 100, takes it to the inventory, and repairs it. The pet's serial is printed (RAVENSERIAL=) for the test to find in
+// the database.
+bool trainerEnabled = args.Length > 12 && args[12] == "trainer";
+
 int failures = 0;
 
 void Check(string name, bool ok, string extra = "")
@@ -226,7 +232,7 @@ async Task<(FakeMuClient Client, byte X, byte Y)> LoginAndEnterAsync(string labe
 // Phase 4 (~12s respawn) + Phase 5 (party/exp) + Phase 6 (Devil Square: up to ~3 min waiting for the window
 // forced by console + real STAND (1 min) + START (1 min) of the test bracket, see the test's DevilSquare.dat)
 // add steps.
-using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(dsEnabled || chaosCastleEnabled || pkEnabled || duelEnabled || petEnabled || ravenEnabled || wearEnabled ? 300 : 90));
+using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(dsEnabled || chaosCastleEnabled || pkEnabled || duelEnabled || petEnabled || ravenEnabled || wearEnabled || trainerEnabled ? 300 : 90));
 
 try
 {
@@ -289,22 +295,81 @@ try
         return failures == 0 ? 0 : 1;
     }
 
+    if (trainerEnabled)
+    {
+        Console.WriteLine("\n=== Trainer: A mezcla un Dark Raven en la ventana del Trainer, lo saca de la caja y repara un Dark Horse ===");
+
+        const int trainerIndex = 1; // the NPC of the test spawn, after the test monster
+        await WaitUntilTheyMeetAsync(clientA, clientB);
+
+        await clientA.SendNpcTalkAsync(trainerIndex);
+        var talk = await clientA.WaitForAsync(0x30, TimeSpan.FromSeconds(5));
+        Check("[A] El Trainer abre su ventana (30, resultado 7)", talk.Full[3] == 7, $"(result={talk.Full[3]})");
+
+        // The ingredients were put in the inventory (slots 12 to 18): Chaos, the raven's Spirit, Creation, two Bless, two Soul.
+        // Flag 5 is the Trainer's window.
+        for (byte n = 0; n < 7; n++)
+        {
+            await clientA.SendItemMoveAsync(0, (byte)(12 + n), 5, n);
+            var moved = await clientA.WaitForAsync(0x24, TimeSpan.FromSeconds(5));
+            Check($"[A] Mueve el ingrediente {n + 1} a la caja del Trainer (24, indicador 5)", moved.Full[3] == 5, $"(result={moved.Full[3]})");
+        }
+
+        await clientA.SendChaosMixAsync(14);
+        var mix = await clientA.WaitForAsync(0x86, TimeSpan.FromSeconds(5));
+        Check("[A] La mezcla da un Dark Raven en la caja (86, resultado 100)", mix.Full[3] == 100 && mix.Full[4] == 0xA5, $"(result={mix.Full[3]}, item=0x{mix.Full[4]:X2})");
+
+        // The new pet is in the first slot of the box: take it to the inventory.
+        await clientA.SendItemMoveAsync(5, 0, 0, 20);
+        var taken = await clientA.WaitForAsync(0x24, TimeSpan.FromSeconds(5));
+        Check("[A] Saca el Dark Raven de la caja a su inventario (24, indicador 0)", taken.Full[3] == 0, $"(result={taken.Full[3]})");
+
+        // The pet is the player's: ask its level (the DataServer gave it a serial and started it at level 1).
+        await clientA.SendPetInfoQueryAsync(0, 0, 20);
+        var info = await clientA.WaitForAsync(0xA9, TimeSpan.FromSeconds(5));
+        Check("[A] El Dark Raven nuevo empieza en nivel 1 (A9)", info.Full[6] == 1, $"(level={info.Full[6]})");
+
+        // A Dark Horse of the test, worn down to 100 (slot 22): the Trainer repairs it for its price.
+        await clientA.SendPetInfoQueryAsync(1, 0, 22);
+        await clientA.WaitForAsync(0xA9, TimeSpan.FromSeconds(5)); // makes sure its level has arrived
+
+        await clientA.SendItemRepairAsync(22);
+        var durability = await clientA.WaitForAsync(0x2A, TimeSpan.FromSeconds(5));
+        Check("[A] El Trainer repara el Dark Horse (2A, slot 22, durabilidad 255)", durability.Full[3] == 22 && durability.Full[4] == 255,
+            $"(slot={durability.Full[3]}, durability={durability.Full[4]})");
+        var repaired = await clientA.WaitForAsync(0x34, TimeSpan.FromSeconds(5));
+        uint moneyAfter = BitConverter.ToUInt32(repaired.Full, 4);
+        Check("[A] Le cuesta zen (34)", moneyAfter < 19_000_000, $"(money={moneyAfter})");
+
+        // Away from the Trainer a pet is not repaired.
+        await clientA.SendNpcTalkCloseAsync();
+        await Task.Delay(500);
+        await clientA.SendItemRepairAsync(22);
+        var again = await clientA.WaitForAsync(0x34, TimeSpan.FromSeconds(5));
+        Check("[A] Fuera del Trainer no se repara una mascota (34 sin cambio)", BitConverter.ToUInt32(again.Full, 4) == moneyAfter);
+
+        clientA.Close();
+        clientB.Close();
+        Console.WriteLine($"\n=== {(failures == 0 ? "TODO OK" : $"{failures} FALLO(S)")} ===");
+        return failures == 0 ? 0 : 1;
+    }
+
     if (wearEnabled)
     {
         Console.WriteLine("\n=== Guardian Angel: el monstruo golpea a A y el angel se gasta ===");
 
         int seedDurability = int.Parse(args[13]);
         int lastDurability = -1, notices = 0;
-        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(40);
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(80);
 
         clientA.DiscardPending();
 
-        // The monster misses now and then, so wait for hits as long as it takes; after the first one, a few seconds more.
+        // The monster wanders about its spawn and misses now and then, so wait for hits as long as it takes; after the first one, a few seconds more.
         while (DateTime.UtcNow < deadline && notices < 3)
         {
             try
             {
-                var pkt = await clientA.WaitForAnyAsync(TimeSpan.FromSeconds(notices == 0 ? 30 : 6), 0x2A);
+                var pkt = await clientA.WaitForAnyAsync(TimeSpan.FromSeconds(notices == 0 ? 70 : 6), 0x2A);
 
                 if (pkt.Full[3] == 8)
                 {

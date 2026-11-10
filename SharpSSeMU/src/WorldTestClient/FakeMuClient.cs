@@ -345,6 +345,25 @@ public sealed class FakeMuClient
         return SendRawAsync(PacketBuilder.BuildC1(0x24, w.ToArray()));
     }
 
+    /// <summary>PMSG_ITEM_MOVE_RECV, C1:24 between any two containers (0 the inventory, 3 the Chaos Machine's box, 5 the
+    /// Trainer's).</summary>
+    public Task SendItemMoveAsync(byte sourceFlag, byte sourceSlot, byte targetFlag, byte targetSlot)
+    {
+        var w = new PacketWriter();
+        w.WriteByte(sourceFlag);
+        w.WriteByte(sourceSlot);
+        w.WriteBytes(new byte[5], 5); // ItemInfo: the server ignores it
+        w.WriteByte(targetFlag);
+        w.WriteByte(targetSlot);
+        return SendRawAsync(PacketBuilder.BuildC1(0x24, w.ToArray()));
+    }
+
+    /// <summary>PMSG_ITEM_REPAIR_RECV, C1:34 -- repairs the item in a slot (type 0 at an NPC, 1 by the player himself).</summary>
+    public Task SendItemRepairAsync(byte slot, byte type = 0) => SendRawAsync(PacketBuilder.BuildC1(0x34, new[] { slot, type }));
+
+    /// <summary>PMSG_CHAOS_MIX_RECV, C1:86 -- asks for the mix of the box (13 the Dark Horse, 14 the Dark Raven).</summary>
+    public Task SendChaosMixAsync(byte type) => SendRawAsync(PacketBuilder.BuildC1(0x86, new[] { type }));
+
     /// <summary>PMSG_CHAT_RECV, C1:00 -- public chat (name=own name, verified by the server against the real
     /// one).</summary>
     public Task SendChatAsync(string name, string message)

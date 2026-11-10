@@ -1641,8 +1641,9 @@ public static class ChatPacketBuilder
 
 public static class ChaosBoxPacketBuilder
 {
-    /// <summary>PMSG_SHOP_ITEM_LIST_SEND (C2:31), type=3 -- Opens the Chaos Box window on the client and syncs its items.</summary>
-    public static byte[] ChaosBoxItemListSend(IReadOnlyList<Item> items)
+    /// <summary>PMSG_SHOP_ITEM_LIST_SEND (C2:31), type=3 -- Opens the Chaos Box window on the client and syncs its items
+    /// (type 5 is the list of the Trainer's window).</summary>
+    public static byte[] ChaosBoxItemListSend(IReadOnlyList<Item> items, byte type = 3)
     {
         using var body = new MemoryStream();
         byte itemCount = 0;
@@ -1661,7 +1662,7 @@ public static class ChaosBoxPacketBuilder
         }
 
         var header = new PacketWriter();
-        header.WriteByte(3); // Type 3 = Chaos Box
+        header.WriteByte(type); // Type 3 = Chaos Box, 5 = Trainer
         header.WriteByte(itemCount);
         header.WriteBytes(body.ToArray(), (int)body.Length);
 
