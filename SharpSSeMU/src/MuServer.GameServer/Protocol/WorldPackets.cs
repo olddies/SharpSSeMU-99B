@@ -815,8 +815,9 @@ public static class WorldPacketBuilder
             body.WriteByte((byte)(m.Index & 0xFF));
             body.WriteByte((byte)((m.MonsterClass >> 8) & 0xFF));
             body.WriteByte((byte)(m.MonsterClass & 0xFF));
-            body.WriteByte(0); // count (WORD, effect list) low -- no active effects yet
-            body.WriteByte(0); // high
+            ushort effectBits = EffectManager.StateBits(m); // count (WORD, effect list): a poisoned or frozen monster is seen so
+            body.WriteByte((byte)(effectBits & 0xFF));
+            body.WriteByte((byte)(effectBits >> 8));
             body.WriteByte(m.X);
             body.WriteByte(m.Y);
             body.WriteByte(m.TX);

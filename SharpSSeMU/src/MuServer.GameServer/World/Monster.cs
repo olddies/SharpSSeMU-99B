@@ -8,7 +8,7 @@ namespace MuServer.GameServer.World;
 /// this phase's research: an idle monster never enters EMOTION_ATTACK/movement and therefore never emits its
 /// own 0xD7/0xD9 packets), but it means monsters do not attack the player yet -- they can only be attacked.
 /// Monster counterattack is left for a next pass of this same phase. </summary>
-public sealed class Monster
+public sealed class Monster : IEffectCarrier
 {
     public required int Index { get; init; }
     public required int MonsterClass { get; init; }
@@ -102,9 +102,40 @@ public sealed class Monster
     /// (<c>CHAOS_CASTLE_LEVEL::MonsterIndex</c>).</summary>
     public int? ChaosCastleLevel { get; set; }
 
-    /// <summary>Takes no damage (the original's EFFECT_MONSTER_PHYSI/MAGIC_DAMAGE_IMMUNITY): the Blood Castle gate
-    /// and statues until their stage is reached.</summary>
+    /// <summary>Takes no damage at all, whatever hits it: the Blood Castle gate and statues until their stage is reached and the
+    /// Kalima gate. (The original gives the first two the monster immunity effects, which <see cref="EffectManager.IsImmune"/>
+    /// also honors; this flag is what the event code sets.) A blow against it is a miss.</summary>
     public bool Immune { get; set; }
+
+    // ---------------------------------------------------------------- effects (EffectList.txt)
+
+    /// <summary>The sixteen effect slots (CEffect Effect[MAX_EFFECT_LIST]): the poison, the ice... that skills put on it.</summary>
+    public ActiveEffect[] ActiveEffects { get; } = ActiveEffect.CreateSlots();
+
+    /// <summary>What the active effects change in its numbers (EffectOption): the Fire Slash lowers its defense, the Ice slows it.</summary>
+    public EffectBonus EffectBonus { get; } = new();
+
+    /// <summary>How well it shrugs a skill off (Resistance[7] of MonsterList.txt: ice, poison, lightning, fire, earth, wind, water).
+    /// 0 never resists; each point makes the skill's effect one chance in (resistance + 1) to land; 255 is immune.</summary>
+    public byte[] Resistance { get; } = new byte[7];
+
+    /// <summary>The defense a hit meets (the first lines of CAttack::GetTargetDefense, Attack.cpp:1119), with what the effects add and take.</summary>
+    public int EffectiveDefense()
+    {
+        int defense = Defense + EffectBonus.AddDefense - EffectBonus.SubDefense;
+
+        if (EffectBonus.MulDefense > 0)
+        {
+            defense += defense * EffectBonus.MulDefense / 100;
+        }
+
+        if (EffectBonus.DivDefense > 0)
+        {
+            defense -= defense * EffectBonus.DivDefense / 100;
+        }
+
+        return defense;
+    }
 
     /// <summary>Once dead it is taken out of the world instead of coming back (<c>PosNum = -1</c> in the
     /// original): the Blood Castle gate and statues.</summary>

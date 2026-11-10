@@ -37,6 +37,10 @@ public sealed class DarkSpiritManager
     /// <summary>The clock (tests move it).</summary>
     internal Func<DateTime> Clock { get; set; } = () => DateTime.UtcNow;
 
+    /// <summary>Whether a target takes no blow of the raven (DarkSpirit.cpp:592-630): the raven strikes as a plain blow, so what stops
+    /// one stops it (the physical immunity). The blow is a miss.</summary>
+    public Func<IEffectCarrier, bool> IsImmune { get; set; } = _ => false;
+
     private DateTime Now => Clock();
 
     /// <summary>Whether a tile is a safe zone: the raven does not fight from one nor at one.</summary>
@@ -392,6 +396,20 @@ public sealed class DarkSpiritManager
         bool duel = targetPlayer != null && InDuel(master, targetPlayer);
         var rules = _rules();
 
+        // An immune target takes nothing: a miss, before any roll.
+        if (IsImmune((IEffectCarrier?)targetPlayer ?? monster!))
+        {
+            var immuneMiss = CombatPacketBuilder.DamageSend(targetIndex, 0, 0, missFlag: true, targetPlayer?.Life ?? (uint)monster!.Life);
+            await master.Session.SendAsync(immuneMiss, ct);
+
+            if (targetPlayer != null)
+            {
+                await targetPlayer.Session.SendAsync(immuneMiss, ct);
+            }
+
+            return;
+        }
+
         // The hit roll: the raven's success rate against a monster's, the PvP one between players.
         bool graze = false;
 
@@ -424,7 +442,7 @@ public sealed class DarkSpiritManager
         }
 
         // The damage.
-        int defense = targetPlayer != null ? targetPlayer.EffectiveDefense() * 50 / 100 : monster!.Defense * 50 / 100;
+        int defense = targetPlayer != null ? targetPlayer.EffectiveDefense() * 50 / 100 : monster!.EffectiveDefense() * 50 / 100;
         int roll = DarkSpiritMath.Roll(master, stats.Value, _items, rules, _rng, out byte effect);
         int damage = DarkSpiritMath.AfterTarget(master, targetPlayer, roll, Math.Max(defense, 0), graze, action);
 
@@ -456,7 +474,7 @@ public sealed class DarkSpiritManager
 
     private async Task HitMonsterAsync(PlayerObject master, Monster monster, int damage, byte effect, CancellationToken ct)
     {
-        int applied = monster.Immune ? 0 : damage; // the Blood Castle gate and statues take none until their stage
+        int applied = damage;
         monster.Life = Math.Max(monster.Life - applied, 0);
         monster.DamageByAttacker.AddOrUpdate(master.Index, applied, (_, previous) => previous + applied);
 

@@ -41,6 +41,13 @@ public sealed class SupportSkillRules
     public int GreaterCriticalDamageConstB { get; init; } = 30;
     public int GreaterCriticalDamageTimeConstA { get; init; } = 60;
     public int GreaterCriticalDamageTimeConstB { get; init; } = 10;
+
+    /// <summary>Fire Slash (it hurts, and leaves the target with less defense): the percent it takes is A + strength / B, at most
+    /// MaxRate, for TimeConstA seconds.</summary>
+    public int FireSlashConstA { get; init; } = 10;
+    public int FireSlashConstB { get; init; } = 50;
+    public int FireSlashTimeConstA { get; init; } = 10;
+    public int FireSlashMaxRate { get; init; } = 30;
 }
 
 /// <summary>The skills that help and the numbers they give (SkillManager.cpp:1152-1340, 1727-1777, 2089-2133). A value is what the

@@ -116,6 +116,19 @@ public sealed class ActiveEffect
 
     public bool IsEffect => Index != Empty;
 
+    /// <summary>The sixteen empty slots of a carrier.</summary>
+    public static ActiveEffect[] CreateSlots()
+    {
+        var slots = new ActiveEffect[Slots];
+
+        for (int n = 0; n < slots.Length; n++)
+        {
+            slots[n] = new ActiveEffect();
+        }
+
+        return slots;
+    }
+
     public void Clear()
     {
         Index = Empty;
@@ -180,6 +193,16 @@ public sealed class EffectBonus
     public int DelayActionTime;
 }
 
+/// <summary>Whatever can carry effects: a player or a monster (the original keeps the sixteen slots and the EffectOption on every
+/// object, gObj[], and the skills that hurt put their effects on monsters as well as on players).</summary>
+public interface IEffectCarrier
+{
+    int Index { get; }
+    byte Map { get; }
+    ActiveEffect[] ActiveEffects { get; }
+    EffectBonus EffectBonus { get; }
+}
+
 /// <summary>
 /// Port of CEffectManager (EffectManager.cpp): the buffs and debuffs a player carries. Skills put them on (Greater Defense on
 /// a party member, Mana Shield on oneself...), they count down once a second and go, they change what a hit does through
@@ -209,15 +232,15 @@ public sealed class EffectManager
 
     // ---------------------------------------------------------------- finding
 
-    public ActiveEffect? Get(PlayerObject player, int index) =>
+    public ActiveEffect? Get(IEffectCarrier player, int index) =>
         player.ActiveEffects.FirstOrDefault(e => e.IsEffect && e.Index == index);
 
-    public ActiveEffect? GetByGroup(PlayerObject player, int group) =>
+    public ActiveEffect? GetByGroup(IEffectCarrier player, int group) =>
         player.ActiveEffects.FirstOrDefault(e => e.IsEffect && e.Group == group);
 
-    public bool Check(PlayerObject player, int index) => Get(player, index) != null;
+    public bool Check(IEffectCarrier player, int index) => Get(player, index) != null;
 
-    public bool CheckByGroup(PlayerObject player, int group) => GetByGroup(player, group) != null;
+    public bool CheckByGroup(IEffectCarrier player, int group) => GetByGroup(player, group) != null;
 
     // ---------------------------------------------------------------- adding and removing
 
@@ -225,7 +248,7 @@ public sealed class EffectManager
     /// <c>type</c>: true when the effect comes back from the database, with its own count and powers; false for a skill, where
     /// the fixed duration and powers of EffectList.txt, when it has them, take over. False when nothing was added: no such
     /// effect, no free slot, or a stronger one of its group is running.</summary>
-    public async Task<bool> AddAsync(PlayerObject target, bool restoring, int index, int count, ushort v1, ushort v2, ushort v3, ushort v4, CancellationToken ct)
+    public async Task<bool> AddAsync(IEffectCarrier target, bool restoring, int index, int count, ushort v1, ushort v2, ushort v3, ushort v4, CancellationToken ct)
     {
         var info = _table.Get(index);
 
@@ -282,7 +305,7 @@ public sealed class EffectManager
     }
 
     /// <summary>Port of DelEffect: ends the effect with this index.</summary>
-    public async Task<bool> DelAsync(PlayerObject target, int index, CancellationToken ct)
+    public async Task<bool> DelAsync(IEffectCarrier target, int index, CancellationToken ct)
     {
         var effect = Get(target, index);
 
@@ -296,7 +319,7 @@ public sealed class EffectManager
     }
 
     /// <summary>Port of DelEffectByGroup.</summary>
-    public async Task<bool> DelByGroupAsync(PlayerObject target, int group, CancellationToken ct)
+    public async Task<bool> DelByGroupAsync(IEffectCarrier target, int group, CancellationToken ct)
     {
         var effect = GetByGroup(target, group);
 
@@ -309,7 +332,7 @@ public sealed class EffectManager
         return true;
     }
 
-    private async Task EndAsync(PlayerObject target, ActiveEffect effect, CancellationToken ct)
+    private async Task EndAsync(IEffectCarrier target, ActiveEffect effect, CancellationToken ct)
     {
         byte index = effect.Index;
         await RemoveAsync(target, effect, ct);
@@ -318,7 +341,7 @@ public sealed class EffectManager
     }
 
     /// <summary>Port of ClearAllEffect: the effects that die with the player (type 0): dying ends them.</summary>
-    public async Task ClearAllAsync(PlayerObject target, CancellationToken ct)
+    public async Task ClearAllAsync(IEffectCarrier target, CancellationToken ct)
     {
         foreach (var effect in target.ActiveEffects)
         {
@@ -330,7 +353,7 @@ public sealed class EffectManager
     }
 
     /// <summary>Port of ClearDebuffEffect: ends up to <paramref name="count"/> of the debuffs.</summary>
-    public async Task ClearDebuffsAsync(PlayerObject target, int count, CancellationToken ct)
+    public async Task ClearDebuffsAsync(IEffectCarrier target, int count, CancellationToken ct)
     {
         foreach (var effect in target.ActiveEffects)
         {
@@ -345,9 +368,9 @@ public sealed class EffectManager
 
     /// <summary>Port of the loop of CEffectManager::MainProc (EffectManager.cpp:121), once a second for each player: an effect
     /// with time left loses a second and, at the last, goes. One with no count never ends by itself.</summary>
-    public async Task TickAsync(PlayerObject player, CancellationToken ct)
+    public async Task TickAsync(IEffectCarrier carrier, CancellationToken ct)
     {
-        foreach (var effect in player.ActiveEffects)
+        foreach (var effect in carrier.ActiveEffects)
         {
             if (!effect.IsEffect || effect.Count == 0)
             {
@@ -356,21 +379,50 @@ public sealed class EffectManager
 
             effect.Count--;
 
-            if (effect.Count == 0)
+            // PeriodicEffect: the effects that act every few seconds (Poison) do it with the count already lowered.
+            if (OnPeriodic != null)
             {
-                await EndAsync(player, effect, ct);
+                await OnPeriodic(carrier, effect, ct);
+            }
+
+            if (effect.IsEffect && effect.Count == 0)
+            {
+                await EndAsync(carrier, effect, ct);
             }
         }
     }
 
+    /// <summary>What an effect does every second it runs (CEffectManager::PeriodicEffect): the poison takes its toll. Called with
+    /// the count already lowered; the handler decides whether this second is one of the effect's own.</summary>
+    public Func<IEffectCarrier, ActiveEffect, CancellationToken, Task>? OnPeriodic { get; set; }
+
+    /// <summary>Port of CheckImmobilizeEffect: the Ice Arrow roots whoever it hits to the ground.</summary>
+    public bool CheckImmobilize(IEffectCarrier carrier) => Check(carrier, EffectIds.IceArrow);
+
+    /// <summary>The immunities (Attack.cpp:196-234): a player with the physical immunity takes no plain blow and with the magic one
+    /// no skill; a monster has its own pair. The attack that meets one is a miss.</summary>
+    public bool IsImmune(IEffectCarrier carrier, bool bySkill)
+    {
+        if (carrier is Monster monster && monster.Immune)
+        {
+            return true; // the Blood Castle gate and statues until their stage, and the Kalima gate
+        }
+
+        int effect = carrier is Monster
+            ? (bySkill ? EffectIds.MonsterMagicDamageImmunity : EffectIds.MonsterPhysiDamageImmunity)
+            : (bySkill ? EffectIds.MagicDamageImmunity : EffectIds.PhysiDamageImmunity);
+
+        return Check(carrier, effect);
+    }
+
     // ---------------------------------------------------------------- what an effect does
 
-    private Task InsertAsync(PlayerObject target, ActiveEffect effect, CancellationToken ct) => ApplyAsync(target, effect, +1, ct);
+    private Task InsertAsync(IEffectCarrier target, ActiveEffect effect, CancellationToken ct) => ApplyAsync(target, effect, +1, ct);
 
-    private Task RemoveAsync(PlayerObject target, ActiveEffect effect, CancellationToken ct) => ApplyAsync(target, effect, -1, ct);
+    private Task RemoveAsync(IEffectCarrier target, ActiveEffect effect, CancellationToken ct) => ApplyAsync(target, effect, -1, ct);
 
     /// <summary>Port of InsertEffect and RemoveEffect (EffectManager.cpp:266-340), which are the same with the sign changed.</summary>
-    private async Task ApplyAsync(PlayerObject target, ActiveEffect effect, int sign, CancellationToken ct)
+    private async Task ApplyAsync(IEffectCarrier target, ActiveEffect effect, int sign, CancellationToken ct)
     {
         var bonus = target.EffectBonus;
         int value = effect.Value[0] * sign;
@@ -409,9 +461,10 @@ public sealed class EffectManager
                 break;
         }
 
-        if (OnStatsChanged != null)
+        // CharacterCalcAttribute: a player's numbers are worked out again; a monster has nothing to recalculate.
+        if (target is PlayerObject player && OnStatsChanged != null)
         {
-            await OnStatsChanged(target, ct);
+            await OnStatsChanged(player, ct);
         }
     }
 
@@ -433,7 +486,7 @@ public sealed class EffectManager
 
     /// <summary>Port of GenerateEffectList: every state bit of the player's effects together, which travels in the viewport
     /// packets (the "effect list" count) so others see the auras.</summary>
-    public static ushort StateBits(PlayerObject player)
+    public static ushort StateBits(IEffectCarrier player)
     {
         ushort bits = 0;
 
@@ -450,7 +503,7 @@ public sealed class EffectManager
 
     /// <summary>Port of GCEffectStateSend (EffectManager.cpp:628): the player and, outside the Chaos Castle, everybody who sees
     /// him are told an effect came (<paramref name="state"/> 1) or went (0).</summary>
-    private async Task SendStateAsync(PlayerObject target, byte state, byte effect, CancellationToken ct)
+    private async Task SendStateAsync(IEffectCarrier target, byte state, byte effect, CancellationToken ct)
     {
         ushort bit = StateBit(effect);
 
@@ -460,10 +513,28 @@ public sealed class EffectManager
         }
 
         var packet = EffectPacketBuilder.StateSend(state, bit, target.Index);
-        await target.Session.SendAsync(packet, ct);
+
+        if (target is PlayerObject self)
+        {
+            await self.Session.SendAsync(packet, ct);
+        }
 
         if (target.Map is >= 18 and <= 23)
         {
+            return;
+        }
+
+        // MsgSendV2: everybody who sees the carrier (the players for a player, the players that have the monster in view).
+        if (target is Monster monster)
+        {
+            foreach (int viewerIndex in monster.VisibleTo.ToList())
+            {
+                if (_players.TryGet(viewerIndex, out var viewer) && viewer.WorldEntered)
+                {
+                    await viewer.Session.SendAsync(packet, ct);
+                }
+            }
+
             return;
         }
 

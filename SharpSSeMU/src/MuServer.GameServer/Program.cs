@@ -274,6 +274,10 @@ SupportSkillRules.Current = new SupportSkillRules
     GreaterCriticalDamageConstB = gsiSkill.GreaterCriticalDamageConstB,
     GreaterCriticalDamageTimeConstA = gsiSkill.GreaterCriticalDamageTimeConstA,
     GreaterCriticalDamageTimeConstB = gsiSkill.GreaterCriticalDamageTimeConstB,
+    FireSlashConstA = gsiSkill.FireSlashConstA,
+    FireSlashConstB = gsiSkill.FireSlashConstB,
+    FireSlashTimeConstA = gsiSkill.FireSlashTimeConstA,
+    FireSlashMaxRate = gsiSkill.FireSlashMaxRate,
 };
 
 // Phase 6 (first pass): Devil Square -- see World/DevilSquareData.cs/DevilSquareManager.cs. The data is loaded
