@@ -372,6 +372,25 @@ public class DuelTests
     // ---------------------------------------------------------------- the map column
 
     [Test]
+    public async Task Ending_a_duel_tells_the_ravens_to_forget_the_opponent()
+    {
+        var h = new Harness();
+        var told = new List<(int Player, int Opponent)>();
+        h.Duel.OnDuelReset = (player, opponent, _) =>
+        {
+            told.Add((player.Index, opponent));
+            return Task.CompletedTask;
+        };
+
+        await h.StartDuelAsync();
+        told.Clear();
+        await h.Duel.HandleEndAsync(h.Alice, CancellationToken.None);
+
+        Assert.That(told, Does.Contain((h.Alice.Index, h.Bob.Index)), "Alice's raven forgets Bob");
+        Assert.That(told, Does.Contain((h.Bob.Index, h.Alice.Index)), "and Bob's forgets Alice");
+    }
+
+    [Test]
     public void The_map_table_reads_the_duel_column()
     {
         string path = Path.Combine(Path.GetTempPath(), $"maps-{Guid.NewGuid():N}.txt");

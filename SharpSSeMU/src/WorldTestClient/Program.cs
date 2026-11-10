@@ -619,6 +619,31 @@ try
         await clientA.WaitForAsync(0x42, TimeSpan.FromSeconds(5));
         await clientB.WaitForAsync(0x42, TimeSpan.FromSeconds(5));
 
+        // The Soul Master's own Teleport: three tiles away, with the echo of the skill and the new place; too far (eight tiles or more), his
+        // client is put back where the server has him and nothing is paid or shown.
+        clientA.DiscardPending();
+        clientB.DiscardPending();
+        var ownWindowA = clientA.CollectAsync(TimeSpan.FromSeconds(1.5));
+        var ownWindowB = clientB.CollectAsync(TimeSpan.FromSeconds(1.5));
+        await clientB.SendTeleportSkillAsync(203, 155);
+        var (ownA, ownB) = (await ownWindowA, await ownWindowB);
+
+        var ownPlace = Placed(ownB);
+        Check("[B] Su Teleport: el eco de la habilidad con el acierto marcado (C3:19, skill 6)", Echo(ownB, 6, bIndex, bIndex));
+        Check("[A] Ve el eco del Teleport de B", Echo(ownA, 6, bIndex, bIndex));
+        Check("[B] y queda en el sitio pedido (C1:1C, 203,155)", ownPlace != null && ownPlace.Full[5] == 203 && ownPlace.Full[6] == 155,
+            ownPlace == null ? "(sin paquete)" : $"(x={ownPlace.Full[5]}, y={ownPlace.Full[6]})");
+
+        clientB.DiscardPending();
+        var ownFarWindow = clientB.CollectAsync(TimeSpan.FromSeconds(1.5));
+        await clientB.SendTeleportSkillAsync(240, 155);
+        var ownFar = await ownFarWindow;
+        var back = Placed(ownFar);
+
+        Check("[B] Demasiado lejos: lo devuelven donde esta (C1:1C, 203,155) y sin eco",
+            back != null && back.Full[5] == 203 && back.Full[6] == 155 && !ownFar.Any(p => p.Head == 0x19),
+            back == null ? "(sin paquete)" : $"(x={back.Full[5]}, y={back.Full[6]})");
+
         // Teleport Ally: B sends himself six tiles away (a lone member is his own ally).
         clientA.DiscardPending();
         clientB.DiscardPending();

@@ -46,13 +46,25 @@ public sealed class DuelManager
 
     private static bool InAnyDuelState(PlayerObject p) => p.DuelUserReserved >= 0 || p.DuelUserRequested >= 0 || p.DuelUser >= 0;
 
-    private static void Reset(PlayerObject p)
+    /// <summary>What happens to a player's raven when a duel of his ends or is called off: it forgets the opponent as a target
+    /// (CDuel::ResetDuel, Duel.cpp:136). Set by the program, which has the ravens.</summary>
+    public Func<PlayerObject, int, CancellationToken, Task>? OnDuelReset { get; set; }
+
+    /// <summary>Port of CDuel::ResetDuel: the player is out of any duel, request or reservation; his raven forgets the opponent.</summary>
+    private async Task ResetAsync(PlayerObject p, CancellationToken ct)
     {
+        int opponent = p.DuelUser;
+
         p.DuelUserReserved = -1;
         p.DuelUserRequested = -1;
         p.DuelScore = 0;
         p.DuelUser = -1;
         p.DuelTick = DateTime.MinValue;
+
+        if (OnDuelReset != null)
+        {
+            await OnDuelReset(p, opponent, ct);
+        }
     }
 
     private string Text(int number, string fallback) => _messages.GetMessage(number) is { Length: > 0 } text ? text : fallback;
@@ -164,8 +176,8 @@ public sealed class DuelManager
                 await Notice(player, notice, ct);
             }
 
-            Reset(player);
-            Reset(asker);
+            await ResetAsync(player, ct);
+            await ResetAsync(asker, ct);
             await asker.Session.SendAsync(DuelPacketBuilder.StartSend(0, player.Index, player.Name), ct);
         }
 
@@ -223,30 +235,30 @@ public sealed class DuelManager
     {
         if (Find(player.DuelUserReserved) is { } reserved)
         {
-            Reset(reserved);
+            await ResetAsync(reserved, ct);
             await player.Session.SendAsync(DuelPacketBuilder.StartSend(0, reserved.Index, reserved.Name), ct);
-            Reset(player);
+            await ResetAsync(player, ct);
             return;
         }
 
         if (Find(player.DuelUserRequested) is { } requester)
         {
-            Reset(requester);
+            await ResetAsync(requester, ct);
             await requester.Session.SendAsync(DuelPacketBuilder.StartSend(0, player.Index, player.Name), ct);
-            Reset(player);
+            await ResetAsync(player, ct);
             return;
         }
 
         if (Find(player.DuelUser) is { } opponent)
         {
-            Reset(opponent);
+            await ResetAsync(opponent, ct);
             await opponent.Session.SendAsync(DuelPacketBuilder.EndSend(opponent.Index, opponent.Name), ct);
-            Reset(player);
+            await ResetAsync(player, ct);
             await player.Session.SendAsync(DuelPacketBuilder.EndSend(player.Index, player.Name), ct);
             return;
         }
 
-        Reset(player); // the other side is gone
+        await ResetAsync(player, ct); // the other side is gone
     }
 
     private async Task SendScoreAsync(PlayerObject first, PlayerObject second, CancellationToken ct)
@@ -291,11 +303,11 @@ public sealed class DuelManager
 
         if (killer.DuelScore >= ServerInfo.DuelMaxScore)
         {
-            Reset(killer);
+            await ResetAsync(killer, ct);
             await killer.Session.SendAsync(DuelPacketBuilder.EndSend(killer.Index, killer.Name), ct);
             await SaveRankingAsync(killer, win: 1, lose: 0, ct);
 
-            Reset(victim);
+            await ResetAsync(victim, ct);
             await victim.Session.SendAsync(DuelPacketBuilder.EndSend(victim.Index, victim.Name), ct);
             await SaveRankingAsync(victim, win: 0, lose: 1, ct);
 
@@ -348,11 +360,11 @@ public sealed class DuelManager
         {
             if (Find(player.DuelUserReserved) is { } asked)
             {
-                Reset(asked);
+                await ResetAsync(asked, ct);
                 await player.Session.SendAsync(DuelPacketBuilder.StartSend(0, asked.Index, asked.Name), ct);
             }
 
-            Reset(player);
+            await ResetAsync(player, ct);
             return;
         }
 
@@ -360,11 +372,11 @@ public sealed class DuelManager
         {
             if (Find(player.DuelUserRequested) is { } requester)
             {
-                Reset(requester);
+                await ResetAsync(requester, ct);
                 await requester.Session.SendAsync(DuelPacketBuilder.StartSend(0, player.Index, player.Name), ct);
             }
 
-            Reset(player);
+            await ResetAsync(player, ct);
             return;
         }
 
@@ -372,11 +384,11 @@ public sealed class DuelManager
         {
             if (Find(player.DuelUser) is { } opponent)
             {
-                Reset(opponent);
+                await ResetAsync(opponent, ct);
                 await opponent.Session.SendAsync(DuelPacketBuilder.EndSend(opponent.Index, opponent.Name), ct);
             }
 
-            Reset(player);
+            await ResetAsync(player, ct);
             await player.Session.SendAsync(DuelPacketBuilder.EndSend(player.Index, player.Name), ct);
         }
     }
@@ -393,17 +405,17 @@ public sealed class DuelManager
         {
             if (Find(index) is { } waiting)
             {
-                Reset(waiting);
+                await ResetAsync(waiting, ct);
                 await waiting.Session.SendAsync(DuelPacketBuilder.StartSend(0, player.Index, player.Name), ct);
             }
         }
 
         if (Find(player.DuelUser) is { } opponent)
         {
-            Reset(opponent);
+            await ResetAsync(opponent, ct);
             await opponent.Session.SendAsync(DuelPacketBuilder.EndSend(opponent.Index, opponent.Name), ct);
         }
 
-        Reset(player);
+        await ResetAsync(player, ct);
     }
 }

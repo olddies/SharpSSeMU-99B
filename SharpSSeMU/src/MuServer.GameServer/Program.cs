@@ -471,7 +471,11 @@ moveSummons.Load(config.MoveSummonPath);
 protocolHandler.MoveSummons = moveSummons;
 protocolHandler.DeveloperCommands = gsiCommand.CommandDeveloperSwitch != 0;
 protocolHandler.CommandInfo = gsiCommand;
-protocolHandler.Duel = new DuelManager(players, lootRoller.MapDrops, messages, dataServer.SendAsync);
+protocolHandler.Duel = new DuelManager(players, lootRoller.MapDrops, messages, dataServer.SendAsync)
+{
+    // A duel that ends makes the ravens forget the opponent (CDuel::ResetDuel).
+    OnDuelReset = (player, opponent, ct) => protocolHandler.Spirits.ResetTargetOfAsync(player, opponent, ct),
+};
 
 if (protocolHandler.DeveloperCommands)
 {
