@@ -124,6 +124,8 @@ public sealed partial class ClientProtocolHandler
             await Duel.OnSecondAsync(player, ct);
         }
 
+        await Effects.TickAsync(player, ct); // the buffs and debuffs lose a second
+
         foreach (int against in PkSystem.ExpireSelfDefense(player, DateTime.UtcNow))
         {
             var notice = ChatPacketBuilder.NoticeSend(BloodCastleManager.Fmt(MessageText(285, "Self defense against %s finished"), player.Name), 1);
@@ -251,7 +253,14 @@ public sealed partial class ClientProtocolHandler
             }
         }
 
-        await ResolvePlayerHitAsync(attacker, target, skill: null, ct);
+        // The Crystal weapons cast Ice by themselves on one blow in twenty (Attack.cpp:237).
+        var iceProc = CrystalIceProc(attacker);
+        bool landed = await ResolvePlayerHitAsync(attacker, target, iceProc, ct);
+
+        if (iceProc != null)
+        {
+            await SendSkillEchoAsync(attacker, iceProc, target.Index, landed, ct);
+        }
     }
 
     /// <summary>A single-target skill on another player (the player branch of <see cref="OnSkillAttackAsync"/>).</summary>
@@ -276,32 +285,23 @@ public sealed partial class ClientProtocolHandler
             return;
         }
 
-        await ResolvePlayerHitAsync(attacker, target, skill, ct);
-
-        var skillPacket = SkillPacketBuilder.SkillAttackSend((byte)skill.Index, attacker.Index, target.Index);
-        await session.SendEncryptedAsync(skillPacket, ct);
-
-        foreach (var viewer in _players.All)
-        {
-            if (viewer.Index != attacker.Index && viewer.VisibleTo.Contains(attacker.Index))
-            {
-                await viewer.Session.SendEncryptedAsync(skillPacket, ct);
-            }
-        }
+        bool landed = await ResolvePlayerHitAsync(attacker, target, skill, ct);
+        await SendSkillEchoAsync(attacker, skill, target.Index, landed, ct);
     }
 
     /// <summary>The roll, the damage and its consequences of one blow of a player on another: CAttack::Attack's
     /// MissCheckPvP, the PvP damage, the life it takes and, when it kills, the death.</summary>
-    private async Task ResolvePlayerHitAsync(PlayerObject attacker, PlayerObject target, SkillInfo? skill, CancellationToken ct)
+    private async Task<bool> ResolvePlayerHitAsync(PlayerObject attacker, PlayerObject target, SkillInfo? skill, CancellationToken ct)
     {
         byte skillIndex = skill == null ? (byte)0 : (byte)skill.Index;
 
-        if (!PlayerAttackMath.PvpBlowLands(attacker, target, Rng))
+        // The immunities (Attack.cpp:196-206): a plain blow against the physical one and a skill against the magic one are misses.
+        if (Effects.IsImmune(target, bySkill: skill != null) || !PlayerAttackMath.PvpBlowLands(attacker, target, Rng))
         {
             var miss = CombatPacketBuilder.DamageSend(target.Index, 0, 0, missFlag: true, target.Life);
             await attacker.Session.SendAsync(miss, ct);
             await target.Session.SendAsync(miss, ct);
-            return;
+            return false;
         }
 
         var now = DateTime.UtcNow;
@@ -313,6 +313,10 @@ public sealed partial class ClientProtocolHandler
 
         var hit = PlayerAttackMath.HitPlayer(attacker, target, skillIndex, skill?.DamageMin ?? 0, skill?.DamageMax ?? 0, graze: false,
             _itemBalance, Rng, skill == null ? null : _skillDamage.Apply, chaosCastle: attacker.Map is >= 18 and <= 23, duel: InDuelWith(attacker, target));
+
+        // APPLY_EFFECT: what the skill leaves on the target, once the damage is worked out.
+        bool landed = skill == null
+            || await ApplySkillEffectAsync(attacker.Index, (int)(attacker.Strength + attacker.AddStrength), target, skill, ct);
 
         await ApplyAttackerLifeCostAsync(attacker, hit.AttackerLifeLost, ct);
         await ApplyHelperWearAsync(target, hit.TargetWearDamage, ct);
@@ -333,10 +337,11 @@ public sealed partial class ClientProtocolHandler
             var damagePacket = CombatPacketBuilder.DamageSend(target.Index, hit.Damage, hit.Effect, missFlag: false, target.Life);
             await attacker.Session.SendAsync(damagePacket, ct);
             await target.Session.SendAsync(damagePacket, ct);
-            return;
+            return landed;
         }
 
         await KillPlayerAsync(target, attacker.Index, skillIndex, ct);
+        return landed;
     }
 
     /// <summary>A player's death by another player's hand: the event learns of it, and the target and whoever sees

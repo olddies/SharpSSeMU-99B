@@ -96,7 +96,7 @@ public static class PlayerAttackMath
     public static PlayerHit HitPlayer(
         PlayerObject attacker, PlayerObject target, int skill, int skillDamageMin, int skillDamageMax, bool graze,
         ItemBalanceTable items, Random rng, Func<int, int, int>? applySkillDamage = null, bool chaosCastle = false, bool duel = false) =>
-        Hit(attacker, target, (int)target.Defense * 50 / 100, skill, skillDamageMin, skillDamageMax, graze, items, rng, applySkillDamage, chaosCastle, duel);
+        Hit(attacker, target, Math.Max(target.EffectiveDefense(), 0) * 50 / 100, skill, skillDamageMin, skillDamageMax, graze, items, rng, applySkillDamage, chaosCastle, duel);
 
     /// <summary>Port of CAttack::MissCheckPvP (Attack.cpp:1033-1062): the attacker's PvP success rate against the
     /// target's, scaled by their levels. True when the blow lands.</summary>
@@ -164,8 +164,8 @@ public static class PlayerAttackMath
         if (UsesMagicDamage(player, skill))
         {
             // GetAttackDamageWizard: the spell's damage, then the staff or magic sword "rise" on top of both.
-            damageMin = player.MagicDamageMin + skillDamageMin + player.SkillDamageBonus;
-            damageMax = player.MagicDamageMax + skillDamageMax + player.SkillDamageBonus;
+            damageMin = player.MagicDamageMin + skillDamageMin + player.SkillDamageBonus + player.EffectBonus.AddMagicDamage;
+            damageMax = player.MagicDamageMax + skillDamageMax + player.SkillDamageBonus + player.EffectBonus.AddMagicDamage;
 
             var right = player.Items[Item.SlotWeapon1];
             var info = right.IsItem() ? items.Get(right.Index) : null;
@@ -182,8 +182,8 @@ public static class PlayerAttackMath
             // GetAttackDamage: the hands a plain attack uses, plus the skill's damage.
             (int handMin, int handMax) = player.SelectAttackHands();
             int skillBonus = skill != 0 ? player.SkillDamageBonus : 0;
-            damageMin = handMin + skillDamageMin + skillBonus;
-            damageMax = handMax + skillDamageMax + skillBonus;
+            damageMin = handMin + skillDamageMin + skillBonus + player.EffectBonus.AddPhysiDamage;
+            damageMax = handMax + skillDamageMax + skillBonus + player.EffectBonus.AddPhysiDamage;
         }
 
         int range = Math.Max(damageMax - damageMin, 1);
@@ -192,7 +192,7 @@ public static class PlayerAttackMath
         if (rng.Next(100) < player.CriticalDamageRate)
         {
             effect = EffectCritical;
-            damage = damageMax + player.CriticalDamage;
+            damage = damageMax + player.CriticalDamage + player.EffectBonus.AddCriticalDamage;
         }
 
         if (rng.Next(100) < player.ExcellentDamageRate)
@@ -221,6 +221,7 @@ public static class PlayerAttackMath
         if (target != null)
         {
             damage -= damage * target.DamageReduction / 100;
+            damage -= damage * Math.Max(target.EffectBonus.AddDamageReduction, 0) / 100;
         }
 
         damage = WingBonus(player, damage, ref lifeLost);
@@ -311,6 +312,7 @@ public static class PlayerAttackMath
     public static int ReduceMonsterHit(PlayerObject target, int damage)
     {
         damage -= damage * target.DamageReduction / 100;
+        damage -= damage * Math.Max(target.EffectBonus.AddDamageReduction, 0) / 100;
         damage = TargetWing(target, damage);
         damage = TargetHelper(target, damage, CombatRules.Current);
         return Math.Max(damage, 0);

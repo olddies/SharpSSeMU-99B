@@ -95,6 +95,16 @@ bool wearEnabled = args.Length > 12 && args[12] == "wear";
 // the database.
 bool trainerEnabled = args.Length > 12 && args[12] == "trainer";
 
+// Optional: the buff run (gameserver_buffs_e2e_test.py) -- A, a Fairy Elf with a Mana Shield kept in the database, buffs B and
+// herself and heals herself; B, a Dark Wizard, shields himself and takes the shield off. Over the network: the effect packets
+// (C1:07) of each, the skill echoes, the cost, and a skill that is not the caster's does nothing.
+bool buffEnabled = args.Length > 12 && args[12] == "buff";
+
+// Optional: the debuff run (gameserver_debuffs_e2e_test.py) -- A, a Dark Wizard, poisons and freezes the (tough) test monster; B, a
+// Fairy Elf, roots it with an Ice Arrow. Over the network: the effect packets (C1:07) about the monster, the skill echoes with the
+// success flag, the poison's damage numbers (C1:D9, type 5), the monster standing still, and the poison ending.
+bool debuffEnabled = args.Length > 12 && args[12] == "debuff";
+
 int failures = 0;
 
 void Check(string name, bool ok, string extra = "")
@@ -232,7 +242,7 @@ async Task<(FakeMuClient Client, byte X, byte Y)> LoginAndEnterAsync(string labe
 // Phase 4 (~12s respawn) + Phase 5 (party/exp) + Phase 6 (Devil Square: up to ~3 min waiting for the window
 // forced by console + real STAND (1 min) + START (1 min) of the test bracket, see the test's DevilSquare.dat)
 // add steps.
-using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(dsEnabled || chaosCastleEnabled || pkEnabled || duelEnabled || petEnabled || ravenEnabled || wearEnabled || trainerEnabled ? 300 : 90));
+using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(dsEnabled || chaosCastleEnabled || pkEnabled || duelEnabled || petEnabled || ravenEnabled || wearEnabled || trainerEnabled || buffEnabled || debuffEnabled ? 300 : 90));
 
 try
 {
@@ -347,6 +357,185 @@ try
         await clientA.SendItemRepairAsync(22);
         var again = await clientA.WaitForAsync(0x34, TimeSpan.FromSeconds(5));
         Check("[A] Fuera del Trainer no se repara una mascota (34 sin cambio)", BitConverter.ToUInt32(again.Full, 4) == moneyAfter);
+
+        clientA.Close();
+        clientB.Close();
+        Console.WriteLine($"\n=== {(failures == 0 ? "TODO OK" : $"{failures} FALLO(S)")} ===");
+        return failures == 0 ? 0 : 1;
+    }
+
+    if (buffEnabled)
+    {
+        Console.WriteLine("\n=== Buffs: A (Fairy Elf) buffs B y a si misma y se cura; B (Dark Wizard) se pone el escudo y se lo quita ===");
+
+        int aIndex = clientA.Index, bIndex = clientB.Index;
+        const int GreaterDamageBit = 1 << 2, GreaterDefenseBit = 1 << 3, ManaShieldBit = 1 << 8;
+
+        bool HasState(List<FakeMuClient.DecodedPacket> packets, int state, int effect, int index) =>
+            packets.Any(p => p.Head == 0x07 && p.Full.Length >= 8 && p.Full[3] == state && (p.Full[4] | (p.Full[5] << 8)) == effect
+                && ((p.Full[6] << 8) | p.Full[7]) == index);
+
+        // The entrance: the Mana Shield the database kept comes back (and the two meet).
+        var enteringA = clientA.CollectAsync(TimeSpan.FromSeconds(4));
+        var enteringB = clientB.CollectAsync(TimeSpan.FromSeconds(4));
+        var (joinedA, joinedB) = (await enteringA, await enteringB);
+
+        Check("[A] Al entrar vuelve el Mana Shield que guardo la base (C1:07, estado 1)", HasState(joinedA, 1, ManaShieldBit, aIndex));
+        Check("[A] y [B] se ven (viewport 0x12)", joinedA.Any(p => p.Head == 0x12) && joinedB.Any(p => p.Head == 0x12));
+
+        // A casts Greater Damage on B: the echo, the cost, and B (and A, who sees him) are told.
+        var castA = clientA.CollectAsync(TimeSpan.FromSeconds(2));
+        var castB = clientB.CollectAsync(TimeSpan.FromSeconds(2));
+        await clientA.SendSkillAttackAsync(28, bIndex);
+        var (gotA, gotB) = (await castA, await castB);
+
+        Check("[A] Greater Damage sobre B: el eco de la habilidad con el acierto marcado (C3:19, skill 28)",
+            gotA.Any(p => p.Head == 0x19 && p.Full[3] == 28 && (((p.Full[6] & 0x7F) << 8) | p.Full[7]) == bIndex && (p.Full[6] & 0x80) != 0));
+        Check("[A] Paga el mana (C1:27)", gotA.Any(p => p.Head == 0x27));
+        Check("[B] Recibe el efecto Greater Damage (C1:07, estado 1, bit 2)", HasState(gotB, 1, GreaterDamageBit, bIndex));
+        Check("[A] Ve el efecto de B", HasState(gotA, 1, GreaterDamageBit, bIndex));
+
+        // A casts Greater Defense on herself: B sees it.
+        castA = clientA.CollectAsync(TimeSpan.FromSeconds(2));
+        castB = clientB.CollectAsync(TimeSpan.FromSeconds(2));
+        await clientA.SendSkillAttackAsync(27, aIndex);
+        (gotA, gotB) = (await castA, await castB);
+
+        Check("[A] Greater Defense sobre si misma (C1:07, bit 3)", HasState(gotA, 1, GreaterDefenseBit, aIndex));
+        Check("[B] Ve el efecto de A", HasState(gotB, 1, GreaterDefenseBit, aIndex));
+        Check("[A] Su defensa y sus maximos se recalculan (F3:E1 y C1:26 0xFE)",
+            gotA.Any(p => p.Head == 0xF3 && p.SubHead == 0xE1) && gotA.Any(p => p.Head == 0x26 && p.Full[3] == 0xFE));
+
+        // A heals herself: the life packet comes (type 0xFF).
+        castA = clientA.CollectAsync(TimeSpan.FromSeconds(2));
+        await clientA.SendSkillAttackAsync(26, aIndex);
+        gotA = await castA;
+
+        Check("[A] Heal sobre si misma: recibe su vida (C1:26 0xFF)", gotA.Any(p => p.Head == 0x26 && p.Full[3] == 0xFF));
+
+        // A skill that is not an Elf's does nothing: no effect, no cost, no echo.
+        castA = clientA.CollectAsync(TimeSpan.FromSeconds(1.5));
+        await clientA.SendSkillAttackAsync(16, aIndex);
+        gotA = await castA;
+
+        Check("[A] Mana Shield no es de una Elf: no pasa nada (sin C1:07 ni eco; el mana lo manda tambien la regeneracion, asi que no se mira)",
+            !gotA.Any(p => p.Head == 0x07 || p.Head == 0x19));
+
+        // B shields himself and takes the shield off.
+        castB = clientB.CollectAsync(TimeSpan.FromSeconds(2));
+        await clientB.SendSkillAttackAsync(16, bIndex);
+        gotB = await castB;
+
+        Check("[B] Mana Shield sobre si mismo (C1:07, bit 8)", HasState(gotB, 1, ManaShieldBit, bIndex));
+
+        castB = clientB.CollectAsync(TimeSpan.FromSeconds(2));
+        await clientB.SendSkillCancelAsync(16, bIndex);
+        gotB = await castB;
+
+        Check("[B] Al cancelarlo el efecto termina (C1:07, estado 0, bit 8)", HasState(gotB, 0, ManaShieldBit, bIndex));
+
+        clientA.Close();
+        clientB.Close();
+        Console.WriteLine($"\n=== {(failures == 0 ? "TODO OK" : $"{failures} FALLO(S)")} ===");
+        return failures == 0 ? 0 : 1;
+    }
+
+    if (debuffEnabled)
+    {
+        Console.WriteLine("\n=== Debuffs: A (Dark Wizard) envenena y congela al monstruo; B (Fairy Elf) lo inmoviliza con Ice Arrow ===");
+
+        const int monsterIdx = 0;
+        const int PoisonBit = 1 << 0, IceBit = 1 << 1, IceArrowBit = 1 << 5;
+        const byte PoisonSkill = 1, IceSkill = 7, IceArrowSkill = 51;
+
+        bool MonsterState(List<FakeMuClient.DecodedPacket> packets, int state, int effect) =>
+            packets.Any(p => p.Head == 0x07 && p.Full.Length >= 8 && p.Full[3] == state && (p.Full[4] | (p.Full[5] << 8)) == effect
+                && ((p.Full[6] << 8) | p.Full[7]) == monsterIdx);
+
+        bool Echo(List<FakeMuClient.DecodedPacket> packets, int skill, int casterIdx) =>
+            packets.Any(p => p.Head == 0x19 && p.Full[3] == skill && ((p.Full[4] << 8) | p.Full[5]) == casterIdx
+                && (p.Full[6] & 0x80) != 0 && (((p.Full[6] & 0x7F) << 8) | p.Full[7]) == monsterIdx);
+
+        await WaitUntilTheyMeetAsync(clientA, clientB);
+        clientA.DiscardPending();
+        clientB.DiscardPending();
+
+        // A poisons the monster. The hit can miss (the monster defends): try again a few times.
+        List<FakeMuClient.DecodedPacket> gotA = new();
+        List<FakeMuClient.DecodedPacket> gotB = new();
+        var heardByA = new List<FakeMuClient.DecodedPacket>(); // everything A hears from the first cast on
+
+        for (int attempt = 0; attempt < 8 && !MonsterState(gotA, 1, PoisonBit); attempt++)
+        {
+            var castA = clientA.CollectAsync(TimeSpan.FromSeconds(1.5));
+            var castB = clientB.CollectAsync(TimeSpan.FromSeconds(1.5));
+            await clientA.SendSkillAttackAsync(PoisonSkill, monsterIdx);
+            (gotA, gotB) = (await castA, await castB);
+            heardByA.AddRange(gotA);
+        }
+
+        var poisonStarted = DateTime.UtcNow;
+
+        Check("[A] Poison sobre el monstruo: el monstruo queda envenenado (C1:07, estado 1, bit 0)", MonsterState(gotA, 1, PoisonBit));
+        Check("[B] Ve el veneno del monstruo", MonsterState(gotB, 1, PoisonBit));
+        Check("[A] El eco de la habilidad lleva el acierto marcado (C3:19, skill 1, 0x80)", Echo(gotA, PoisonSkill, clientA.Index));
+        Check("[B] Ve el eco del lanzamiento", Echo(gotB, PoisonSkill, clientA.Index));
+
+        // The poison keeps hurting every two seconds, as a damage number of its own colour (type 5), for the poisoner.
+        var poisonWindowA = clientA.CollectAsync(TimeSpan.FromSeconds(6));
+        var poisonWindowB = clientB.CollectAsync(TimeSpan.FromSeconds(6));
+        var (poisonA, poisonB) = (await poisonWindowA, await poisonWindowB);
+        heardByA.AddRange(poisonA);
+        var poisonHits = poisonA.Where(p => p.Head == 0xD9 && p.Full[7] == 5 && ((p.Full[3] & 0x7F) << 8 | p.Full[4]) == monsterIdx
+            && ((p.Full[5] << 8) | p.Full[6]) > 0).ToList();
+        Check("[A] El veneno le quita vida cada dos segundos (C1:D9 de tipo 5, daño > 0)", poisonHits.Count >= 2, $"(golpes={poisonHits.Count})");
+        Check("[B] Esos números son de A, que es quien lo envenenó: B no los recibe",
+            !poisonB.Any(p => p.Head == 0xD9 && p.Full[7] == 5 && ((p.Full[3] & 0x7F) << 8 | p.Full[4]) == monsterIdx));
+
+        // Ice on top: a group of its own, so both run.
+        List<FakeMuClient.DecodedPacket> iceA = new();
+
+        for (int attempt = 0; attempt < 8 && !MonsterState(iceA, 1, IceBit); attempt++)
+        {
+            var cast = clientA.CollectAsync(TimeSpan.FromSeconds(1.5));
+            await clientA.SendSkillAttackAsync(IceSkill, monsterIdx);
+            iceA = await cast;
+            heardByA.AddRange(iceA);
+        }
+
+        Check("[A] Ice sobre el monstruo envenenado: también se congela (C1:07, estado 1, bit 1)", MonsterState(iceA, 1, IceBit));
+
+        // B roots it with an Ice Arrow, and for seven seconds it does not move.
+        List<FakeMuClient.DecodedPacket> arrowB = new();
+        List<FakeMuClient.DecodedPacket> arrowA = new();
+
+        for (int attempt = 0; attempt < 8 && !MonsterState(arrowB, 1, IceArrowBit); attempt++)
+        {
+            var castB = clientB.CollectAsync(TimeSpan.FromSeconds(1.5));
+            var castA = clientA.CollectAsync(TimeSpan.FromSeconds(1.5));
+            await clientB.SendSkillAttackAsync(IceArrowSkill, monsterIdx);
+            (arrowB, arrowA) = (await castB, await castA);
+            heardByA.AddRange(arrowA);
+        }
+
+        Check("[B] Ice Arrow sobre el monstruo (C1:07, estado 1, bit 5)", MonsterState(arrowB, 1, IceArrowBit));
+        Check("[A] Ve la flecha de hielo", MonsterState(arrowA, 1, IceArrowBit));
+
+        var still = await clientA.CollectAsync(TimeSpan.FromSeconds(5));
+        heardByA.AddRange(still);
+        Check("[A] Inmovilizado, el monstruo no se mueve en cinco segundos (sin C1:D7 suyo)",
+            !still.Any(p => p.Head == 0xD7 && ((p.Full[3] << 8) | p.Full[4]) == monsterIdx));
+
+        // Twenty seconds after it was cast the poison ends by itself and everybody who sees the monster is told (it may well have
+        // ended already, while the rest was going on).
+        var until = poisonStarted + TimeSpan.FromSeconds(30);
+
+        while (DateTime.UtcNow < until && !MonsterState(heardByA, 0, PoisonBit))
+        {
+            heardByA.AddRange(await clientA.CollectAsync(TimeSpan.FromSeconds(2)));
+        }
+
+        Check("[A] Pasados sus veinte segundos el veneno termina (C1:07, estado 0, bit 0)", MonsterState(heardByA, 0, PoisonBit));
 
         clientA.Close();
         clientB.Close();

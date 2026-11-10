@@ -231,6 +231,7 @@ public static class DataServerCharacterPacketBuilder
         w.WriteUInt32(p.ChatLimitTime);
         w.WriteUInt16(p.FruitAddPoint);
         w.WriteUInt16(p.FruitSubPoint);
+        EffectManager.Encode(p, p.Effect); // the effects that are kept (EffectByteConvert) go to the row
         w.WriteBytes(p.Effect, 208);
         w.WriteUInt16(p.BCCount);
         w.WriteUInt16(p.CCCount);
@@ -725,8 +726,10 @@ public static class WorldPacketBuilder
             // Without it, count/name/tx/ty/ DirAndPkLevel reach the real client shifted 1 byte.
             body.WriteByte(0); // alignment padding (offset 17)
 
-            body.WriteByte(0); // count (WORD, lista de efectos) low -- sin efectos visuales portados
-            body.WriteByte(0); // high
+            // count (WORD, effect list): the state bits of the effects the player has, so others see the auras.
+            ushort effectBits = EffectManager.StateBits(target);
+            body.WriteByte((byte)(effectBits & 0xFF));
+            body.WriteByte((byte)(effectBits >> 8));
 
             body.Write(PacketBuilder.FixedString(target.Name, 10));
 
@@ -812,8 +815,9 @@ public static class WorldPacketBuilder
             body.WriteByte((byte)(m.Index & 0xFF));
             body.WriteByte((byte)((m.MonsterClass >> 8) & 0xFF));
             body.WriteByte((byte)(m.MonsterClass & 0xFF));
-            body.WriteByte(0); // count (WORD, effect list) low -- no active effects yet
-            body.WriteByte(0); // high
+            ushort effectBits = EffectManager.StateBits(m); // count (WORD, effect list): a poisoned or frozen monster is seen so
+            body.WriteByte((byte)(effectBits & 0xFF));
+            body.WriteByte((byte)(effectBits >> 8));
             body.WriteByte(m.X);
             body.WriteByte(m.Y);
             body.WriteByte(m.TX);

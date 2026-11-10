@@ -92,6 +92,7 @@ public sealed class MonsterRegistry
                 ShopNumber = (info.Type != 0) ? entry.MonsterClass : null,
             };
 
+            SetResistance(monster, info);
             map?.SetStandAttr(x, y);
             _monsters[index] = monster;
             spawned++;
@@ -128,6 +129,16 @@ public sealed class MonsterRegistry
         monster.Live = true;
         monster.DiedAt = null;
         monster.DamageByAttacker.Clear();
+
+        // ClearAllEffect: it comes back clean. (Nobody is told: it was taken out of every view before coming back.)
+        foreach (var effect in monster.ActiveEffects)
+        {
+            effect.Clear();
+        }
+
+        monster.EffectBonus.DelayLevel = 0;
+        monster.EffectBonus.DelayActionTime = 0;
+        monster.EffectBonus.DivDefense = 0;
         map?.SetStandAttr(x, y);
     }
 
@@ -191,9 +202,19 @@ public sealed class MonsterRegistry
             MaxRegenMillis = info.RegenTime * 1000,
         };
 
+        SetResistance(monster, info);
         map?.SetStandAttr(x, y);
         _monsters[index] = monster;
         return monster;
+    }
+
+    /// <summary>gObjSetMonster (Monster.cpp:271-277): the resistances of MonsterList.txt, none above 255.</summary>
+    private static void SetResistance(Monster monster, MonsterInfo info)
+    {
+        for (int n = 0; n < monster.Resistance.Length && n < info.Resistance.Length; n++)
+        {
+            monster.Resistance[n] = (byte)Math.Clamp(info.Resistance[n], 0, 255);
+        }
     }
 
     /// <summary>Spawns a shop NPC (ShopManager.txt) as one more <see cref="Monster"/> -- it reuses the same

@@ -112,6 +112,8 @@ public sealed class ViewportTicker
             {
                 await _protocolHandler.OnPlayerSecondAsync(player, ct);
             }
+
+            await _protocolHandler.OnMonstersSecondAsync(ct); // the poison and the ice of the monsters
         }
 
         if (_tickCount % ManaRegenTickInterval == 0)
@@ -614,10 +616,15 @@ public sealed class ViewportTicker
                 }
             }
 
+            // The Ice makes every action of the monster come later (DelayActionTime, Monster.cpp:1191), and an Ice Arrow keeps it
+            // from moving at all (gMonsterCheckMovingCondition, Monster.cpp:1690) -- it can still strike what is within reach.
+            int iceDelay = ClientProtocolHandler.ActionDelay(monster);
+            bool rooted = _protocolHandler != null && _protocolHandler.IsRooted(monster);
+
             if (target == null)
             {
                 // Autonomous movement (passive roaming of the monster in its spawn area)
-                if (now >= monster.LastMoveTime.AddSeconds(3 + Random.Shared.Next(0, 3)))
+                if (!rooted && now >= monster.LastMoveTime.AddMilliseconds((3 + Random.Shared.Next(0, 3)) * 1000 + iceDelay))
                 {
                     monster.LastMoveTime = now;
 
@@ -668,7 +675,7 @@ public sealed class ViewportTicker
             double eucDist = Math.Sqrt(Math.Pow(monster.X - target.X, 2) + Math.Pow(monster.Y - target.Y, 2));
             double attackRange = monster.AttackRange > 0 ? monster.AttackRange : 1.5;
 
-            int attackCooldownMs = monster.AttackSpeed > 0 ? monster.AttackSpeed : 1500;
+            int attackCooldownMs = (monster.AttackSpeed > 0 ? monster.AttackSpeed : 1500) + iceDelay;
 
             if (eucDist <= attackRange)
             {
@@ -684,6 +691,13 @@ public sealed class ViewportTicker
                 monster.Dir = GetDir8(signX, signY, monster.Dir);
 
                 var (isSpell, skillId) = GetMonsterAttackSkill(monster.MonsterClass, monster.AttackRange, monster.AttackType, monster.MonsterSkill);
+
+                // The immunities (Attack.cpp:196-206): a player with the physical one takes no blow, with the magic one no spell.
+                if (_protocolHandler != null && _protocolHandler.Effects.IsImmune(target, bySkill: isSpell))
+                {
+                    await target.Session.SendAsync(CombatPacketBuilder.DamageSend(target.Index, 0, 0, true, target.Life), ct);
+                    continue;
+                }
 
                 // ---- Step 1: miss/dodge (port of CAttack::MissCheck, Attack.cpp:987-1031) ---- Same
                 // calculation as OnAttackAsync (see ClientProtocolHandler.cs), but here the attacker is the
@@ -716,7 +730,7 @@ public sealed class ViewportTicker
                 // ---- Step 2: target defense (CAttack::GetTargetDefense, Attack.cpp:1117-1154) ---- Defense is
                 // halved when the target is an OBJECT_USER -- here the target is always a player, so the half
                 // always applies (not only for spells).
-                int targetDefense = Math.Max((int)target.Defense * 50 / 100, 0);
+                int targetDefense = Math.Max(target.EffectiveDefense() * 50 / 100, 0);
 
                 // ---- Step 3: raw damage ---- Melee: CAttack::GetAttackDamage, OBJECT_MONSTER branch
                 // (Attack.cpp:1156-1307) -- uses the monster's PhysiDamageMin/Max directly, without
@@ -769,6 +783,14 @@ public sealed class ViewportTicker
                     damage = minDamage + Random.Shared.Next(minDamage);
                 }
 
+                // APPLY_EFFECT (Attack.cpp:432): the poison of a Poison spell, the ice of an Ice one... on the player, if he does not resist.
+                bool spellLanded = true;
+
+                if (skillInfo != null && _protocolHandler != null && SkillDebuffs.HasEffect(skillInfo.Index))
+                {
+                    spellLanded = await _protocolHandler.ApplySkillEffectAsync(monster.Index, 0, target, skillInfo, ct);
+                }
+
                 // The pet on the helper slot wears down with the blow (CAttack::DamageSprite).
                 if (_protocolHandler != null)
                 {
@@ -793,7 +815,7 @@ public sealed class ViewportTicker
 
                 if (isSpell)
                 {
-                    var skillPacket = CombatPacketBuilder.SkillAttackSend(monster.Index, skillId, target.Index, true);
+                    var skillPacket = CombatPacketBuilder.SkillAttackSend(monster.Index, skillId, target.Index, spellLanded);
                     foreach (var obsIndex in monster.VisibleTo)
                     {
                         if (_players.TryGet(obsIndex, out var obsPlayer) && obsPlayer.WorldEntered)
@@ -847,8 +869,8 @@ public sealed class ViewportTicker
             }
             else if (eucDist <= 7.0)
             {
-                // Chase: move the monster 1 tile towards the player
-                if (now < monster.LastMoveTime.AddMilliseconds(1000)) continue;
+                // Chase: move the monster 1 tile towards the player (the ice slows it, an Ice Arrow roots it)
+                if (rooted || now < monster.LastMoveTime.AddMilliseconds(1000 + iceDelay)) continue;
 
                 monster.LastMoveTime = now;
 
@@ -907,6 +929,12 @@ public sealed class ViewportTicker
         {
             if (now >= player.DiedAt?.AddMilliseconds(1000))
             {
+                // ClearAllEffect (ObjectManager.cpp:272): coming back, the player sheds the buffs and debuffs that are not kept.
+                if (_protocolHandler != null)
+                {
+                    await _protocolHandler.Effects.ClearAllAsync(player, ct);
+                }
+
                 player.IsDying = false;
                 player.DiedAt = null;
 

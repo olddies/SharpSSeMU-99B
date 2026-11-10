@@ -17,6 +17,7 @@ public sealed partial class ClientProtocolHandler
             IsSafeZone = (map, x, y) => _maps.GetMap(map)?.CheckAttr(x, y, 1) ?? false,
             CanAttackPlayer = CanAttackPlayer,
             InDuel = InDuelWith,
+            IsImmune = target => Effects.IsImmune(target, bySkill: false),
             OnMonsterKilled = (master, monster, damage, ct) => OnMonsterDeathAsync(master, monster, damage, 0, ct),
             OnPlayerHit = CheckSelfDefenseAsync,
             OnTargetDamaged = ApplyHelperWearAsync,

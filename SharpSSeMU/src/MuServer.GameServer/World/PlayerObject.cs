@@ -9,7 +9,7 @@ namespace MuServer.GameServer.World;
 /// Phase 3 really interprets them). Unlike the network packets (which are ported byte by byte), this is an
 /// idiomatic C# class -- the original's global gObj[10000] is replaced here by PlayerRegistry + this class per
 /// player. </summary>
-public sealed class PlayerObject
+public sealed class PlayerObject : IEffectCarrier
 {
     public required int Index { get; init; }
     public required ClientSession Session { get; init; }
@@ -178,6 +178,36 @@ public sealed class PlayerObject
         {
             WarehouseItems[n] = Item.Empty();
         }
+    }
+
+    /// <summary>The sixteen effect slots of the player (CEffect Effect[MAX_EFFECT_LIST]): the buffs and debuffs running on him, see
+    /// <see cref="EffectManager"/>. <see cref="Effect"/> is the raw blob the DataServer keeps, which only loading and saving touch.</summary>
+    public ActiveEffect[] ActiveEffects { get; } = ActiveEffect.CreateSlots();
+
+    /// <summary>How well he shrugs a skill off (Resistance[7]): the best of his amulet and rings, item by item, each a point of the
+    /// item's resistance per level, at most 255. Ice, poison, lightning, fire, earth, wind, water, in that order.</summary>
+    public byte[] Resistance { get; } = new byte[7];
+
+    /// <summary>What the active effects add to the player's numbers (EffectOption).</summary>
+    public EffectBonus EffectBonus { get; } = new();
+
+    /// <summary>The defense a hit meets (the first lines of CAttack::GetTargetDefense, Attack.cpp:1119): his own, plus what the
+    /// effects add and take, as a percentage and flat, before the half that players are given.</summary>
+    public int EffectiveDefense()
+    {
+        int defense = (int)Defense + EffectBonus.AddDefense - EffectBonus.SubDefense;
+
+        if (EffectBonus.MulDefense > 0)
+        {
+            defense += defense * EffectBonus.MulDefense / 100;
+        }
+
+        if (EffectBonus.DivDefense > 0)
+        {
+            defense -= defense * EffectBonus.DivDefense / 100;
+        }
+
+        return defense;
     }
 
     public bool InChaosBox { get; set; }
@@ -1103,6 +1133,25 @@ public sealed class PlayerObject
             }
         }
 
+        // ---- Resistance (ObjectManager.cpp:2426-2438): the best of the amulet and the two rings for each element ----
+        for (int n = 0; n < Resistance.Length; n++)
+        {
+            int best = 0;
+
+            foreach (var slot in new[] { Item.SlotAmulet, Item.SlotRing1, Item.SlotRing2 })
+            {
+                var piece = Items[slot];
+                var info = piece.IsItem() ? items.Get(piece.Index) : null;
+
+                if (info != null && n < info.Resistance.Length)
+                {
+                    best = Math.Max(best, Math.Min(info.Resistance[n] * piece.Level, 255)); // Item.cpp:229
+                }
+            }
+
+            Resistance[n] = (byte)best;
+        }
+
         // ---- Step 10: dual-wield penalty (ObjectManager.cpp:2461-2473): DK/MG/DL with two melee weapons
         // (sections 0-3) -- both hands at 55% ----
         bool meleeRight = rightInfo != null && right.Index < Item.GetItem(4, 0);
@@ -1140,6 +1189,8 @@ public sealed class PlayerObject
         DlDamageMultiplierRate = Math.Min(200 + SafeDiv(energy, cfg.DlDamageMultiplierConstA), cfg.DlDamageMultiplierMaxRate);
 
         // ---- Step 11: max life/mana/AG with the options' extra, current values keeping their percentage ----
+        // The effects add to the life too: Greater Life is a percentage of the maximum (ObjectManager.cpp:2486-2488).
+        AddLife += (int)((long)maxLife * EffectBonus.MulMaxHP / 100);
         MaxLife = (uint)Math.Max(maxLife + AddLife, 1);
         MaxMana = (uint)Math.Max(maxMana + AddMana, 1);
         MaxBP = (uint)Math.Max(maxBp + AddBp, 1);

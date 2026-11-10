@@ -77,8 +77,9 @@ public sealed partial class ClientProtocolHandler
         QuestTable? quests = null, QuestObjectiveTable? questObjectives = null, QuestRewardTable? questRewards = null,
         GameServerInfoCommon? gsiCommon = null, ItemValueTable? itemValues = null,
         GameServerInfoChaosMix? chaosMixRates = null, LootRoller? loot = null, ItemBagManager? bags = null, KalimaManager? kalima = null, DropEventManager? dropEvents = null,
-        ChaosCastleManager? chaosCastle = null)
+        ChaosCastleManager? chaosCastle = null, EffectTable? effects = null)
     {
+        Effects = new EffectManager(effects ?? new EffectTable(), players) { OnStatsChanged = RefreshStatsAsync, OnPeriodic = OnEffectPeriodicAsync };
         _bags = bags;
         _chaosCastle = chaosCastle;
         _kalima = kalima;
@@ -412,13 +413,7 @@ public sealed partial class ClientProtocolHandler
                     break;
 
                 case 0x1B:
-                    // Port of CGSkillCancelRecv (SkillManager.cpp:2591-2601): in the original it cancels an
-                    // active skill effect (gEffectManager.DelEffect) -- this port has no effect manager yet
-                    // (the 0x1E duration-skills are only the animation/ projectile, with no persistent
-                    // damage-over-time to cancel), so there is nothing to undo and the no-op is faithful to the
-                    // current scope, not a placeholder. The explicit case is added (instead of falling into the
-                    // default) so as not to pollute the log with "not implemented" for a packet that is in fact
-                    // already handled.
+                    await OnSkillCancelAsync(session, p, ct);
                     break;
 
                 case 0x1D:
@@ -1120,6 +1115,9 @@ public sealed partial class ClientProtocolHandler
         // DSProtocol.cpp:497: the level and experience of the Dark Horse or Dark Raven in the inventory.
         await RequestPetInfoAsync(player, 0, ct);
 
+        // The buffs and debuffs the database kept come back with the time they had left (CharacterInfoSet).
+        await Effects.RestoreAsync(player, player.Effect, ct);
+
         Log.Add(LogColor.Blue, "[Protocol][{0}] '{1}' entered the world (Map={2} X={3} Y={4})",
             session.Index, player.Name, player.Map, player.X, player.Y);
     }
@@ -1232,6 +1230,12 @@ public sealed partial class ClientProtocolHandler
 
         // A Chaos Castle that has just thrown the player somewhere keeps them from walking for a second (Protocol.cpp:570).
         if (player.Map is >= 18 and <= 23 && (DateTime.UtcNow - player.ChaosCastleBlowTime).TotalMilliseconds < 1000)
+        {
+            return;
+        }
+
+        // Rooted by an Ice Arrow: the order to walk is ignored (Protocol.cpp:958).
+        if (Effects.CheckImmobilize(player))
         {
             return;
         }
@@ -2124,7 +2128,9 @@ public sealed partial class ClientProtocolHandler
         // 2. Antidote (14,8)
         if (section == 14 && sub == 8)
         {
-            // Limpia veneno/hielo
+            // Cures the poison and the ice (ItemManager.cpp:3113).
+            await Effects.DelAsync(player, EffectIds.Poison, ct);
+            await Effects.DelAsync(player, EffectIds.Ice, ct);
             player.SetItem(recv.SourceSlot, Item.Empty());
             await session.SendAsync(ItemPacketBuilder.ItemDeleteSend(recv.SourceSlot, 1), ct);
             return;
@@ -3517,6 +3523,16 @@ public sealed partial class ClientProtocolHandler
             }
         }
 
+        // Immune to a plain blow (Attack.cpp:224): the blow is a miss, whatever the roll.
+        if (Effects.IsImmune(monster, bySkill: false))
+        {
+            await session.SendAsync(CombatPacketBuilder.DamageSend(monster.Index, 0, 0, missFlag: true, monster.Life), ct);
+            return;
+        }
+
+        // The Crystal weapons cast Ice by themselves on one blow in twenty (Attack.cpp:237): from here the blow is that skill.
+        var iceProc = CrystalIceProc(player);
+
         // ---- Paso 1: miss/dodge (puerto de CAttack::MissCheck, Attack.cpp:987-1031) ----
         int attackSuccess = Math.Max(player.AttackSuccessRate, 0);
         int defenseSuccess = Math.Max(monster.DefenseSuccessRate, 0);
@@ -3527,6 +3543,12 @@ public sealed partial class ClientProtocolHandler
             if (Rng.Next(100) >= 5)
             {
                 await session.SendAsync(CombatPacketBuilder.DamageSend(monster.Index, 0, 0, missFlag: true, monster.Life), ct);
+
+                if (iceProc != null)
+                {
+                    await SendSkillEchoAsync(player, iceProc, monster.Index, landed: false, ct);
+                }
+
                 return;
             }
 
@@ -3539,6 +3561,12 @@ public sealed partial class ClientProtocolHandler
             if (Rng.Next(denom) < defenseSuccess)
             {
                 await session.SendAsync(CombatPacketBuilder.DamageSend(monster.Index, 0, 0, missFlag: true, monster.Life), ct);
+
+                if (iceProc != null)
+                {
+                    await SendSkillEchoAsync(player, iceProc, monster.Index, landed: false, ct);
+                }
+
                 return;
             }
         }
@@ -3547,8 +3575,16 @@ public sealed partial class ClientProtocolHandler
         // wings and pets, damage floor and the PvM damage rates ----
         player.LastCombatTime = DateTime.UtcNow;
         Spirits.SetTarget(player, monster.Index);
-        var hit = PlayerAttackMath.HitMonster(player, monster.Defense, 0, 0, 0, graze, _itemBalance, Rng);
-        int damage = monster.Immune ? 0 : hit.Damage; // the Blood Castle gate and statues take none until their stage
+        var hit = PlayerAttackMath.HitMonster(player, monster.EffectiveDefense(), iceProc?.Index ?? 0, iceProc?.DamageMin ?? 0, iceProc?.DamageMax ?? 0,
+            graze, _itemBalance, Rng, iceProc == null ? null : _skillDamage.Apply);
+        int damage = hit.Damage;
+
+        if (iceProc != null)
+        {
+            bool frozen = await ApplySkillEffectAsync(player.Index, (int)(player.Strength + player.AddStrength), monster, iceProc, ct);
+            await SendSkillEchoAsync(player, iceProc, monster.Index, frozen, ct);
+        }
+
         await ApplyAttackerLifeCostAsync(player, hit.AttackerLifeLost, ct);
 
         monster.Life = Math.Max(monster.Life - damage, 0);
@@ -3604,6 +3640,13 @@ public sealed partial class ClientProtocolHandler
 
         var recv = SkillAttackRecv.Parse(p);
 
+        // The skills that help (Heal, Mana Shield, Greater Defense...) take a different road: they put something on a friend.
+        if (SupportSkills.IsSupport(recv.Skill))
+        {
+            await CastSupportSkillAsync(session, player, recv, ct);
+            return;
+        }
+
         if (_players.TryGet(recv.TargetIndex, out var targetPlayer))
         {
             await SkillAttackPlayerAsync(session, player, targetPlayer, recv, ct);
@@ -3637,6 +3680,14 @@ public sealed partial class ClientProtocolHandler
             return;
         }
 
+        // Immune to skills (Attack.cpp:230): a miss, and the skill is shown not to have taken.
+        if (Effects.IsImmune(monster, bySkill: true))
+        {
+            await session.SendAsync(CombatPacketBuilder.DamageSend(monster.Index, 0, 0, missFlag: true, monster.Life), ct);
+            await SendSkillEchoAsync(player, skill, monster.Index, landed: false, ct);
+            return;
+        }
+
         // ---- Step 1: miss/dodge (same calculation as CAttack::MissCheck used in OnAttackAsync) ----
         int attackSuccess = Math.Max(player.AttackSuccessRate, 0);
         int defenseSuccess = Math.Max(monster.DefenseSuccessRate, 0);
@@ -3657,6 +3708,7 @@ public sealed partial class ClientProtocolHandler
         if (missed)
         {
             await session.SendAsync(CombatPacketBuilder.DamageSend(monster.Index, 0, 0, missFlag: true, monster.Life), ct);
+            await SendSkillEchoAsync(player, skill, monster.Index, landed: false, ct);
             return;
         }
 
@@ -3665,9 +3717,12 @@ public sealed partial class ClientProtocolHandler
         // multipliers, critical/excellent, wings and pets ----
         player.LastCombatTime = DateTime.UtcNow;
         Spirits.SetTarget(player, monster.Index);
-        var hit = PlayerAttackMath.HitMonster(player, monster.Defense, skill.Index, skill.DamageMin, skill.DamageMax, graze,
+        var hit = PlayerAttackMath.HitMonster(player, monster.EffectiveDefense(), skill.Index, skill.DamageMin, skill.DamageMax, graze,
             _itemBalance, Rng, _skillDamage.Apply);
-        int damage = monster.Immune ? 0 : hit.Damage; // the Blood Castle gate and statues take none until their stage
+        int damage = hit.Damage;
+
+        // APPLY_EFFECT (Attack.cpp:432): what the skill leaves on the target, after the damage is worked out and before it lands.
+        bool landed = await ApplySkillEffectAsync(player.Index, (int)(player.Strength + player.AddStrength), monster, skill, ct);
         await ApplyAttackerLifeCostAsync(player, hit.AttackerLifeLost, ct);
 
         monster.Life = Math.Max(monster.Life - damage, 0);
@@ -3682,17 +3737,8 @@ public sealed partial class ClientProtocolHandler
         }
 
         // Port of GCSkillAttackSend (SkillManager.cpp:2665-2685): unicast to the caster itself + fan-out by
-        // viewport to whoever is watching, block-encrypted (C3).
-        var skillPacket = SkillPacketBuilder.SkillAttackSend((byte)skill.Index, player.Index, monster.Index);
-        await session.SendEncryptedAsync(skillPacket, ct);
-
-        foreach (var viewer in _players.All)
-        {
-            if (viewer.Index != player.Index && viewer.VisibleTo.Contains(player.Index))
-            {
-                await viewer.Session.SendEncryptedAsync(skillPacket, ct);
-            }
-        }
+        // viewport to whoever is watching, block-encrypted (C3). The 0x80 of the target says the skill took.
+        await SendSkillEchoAsync(player, skill, monster.Index, landed, ct);
 
         Log.Add(LogColor.Black, "[Skill][{0}] '{1}' casts '{2}' on {3}(#{4}) for {5} (mana {6}/{7}, remaining life {8}/{9})",
             player.Index, player.Name, skill.Name, monster.Name, monster.Index, damage, player.Mana, player.MaxMana, monster.Life, monster.MaxLife);
@@ -3839,6 +3885,12 @@ public sealed partial class ClientProtocolHandler
 
     private async Task ProcessSkillDamageAsync(PlayerObject player, Monster monster, SkillInfo skill, CancellationToken ct)
     {
+        if (Effects.IsImmune(monster, bySkill: true))
+        {
+            await player.Session.SendAsync(CombatPacketBuilder.DamageSend(monster.Index, 0, 0, missFlag: true, monster.Life), ct);
+            return;
+        }
+
         int attackSuccess = Math.Max(player.AttackSuccessRate, 0);
         int defenseSuccess = Math.Max(monster.DefenseSuccessRate, 0);
 
@@ -3878,9 +3930,10 @@ public sealed partial class ClientProtocolHandler
 
         player.LastCombatTime = DateTime.UtcNow;
         Spirits.SetTarget(player, monster.Index);
-        var hit = PlayerAttackMath.HitMonster(player, monster.Defense, skill.Index, skill.DamageMin, skill.DamageMax, graze,
+        var hit = PlayerAttackMath.HitMonster(player, monster.EffectiveDefense(), skill.Index, skill.DamageMin, skill.DamageMax, graze,
             _itemBalance, Rng, _skillDamage.Apply);
-        int damage = monster.Immune ? 0 : hit.Damage; // the Blood Castle gate and statues take none until their stage
+        int damage = hit.Damage;
+        await ApplySkillEffectAsync(player.Index, (int)(player.Strength + player.AddStrength), monster, skill, ct); // the ice of an Ice Storm, the slash of a Fire Slash...
         await ApplyAttackerLifeCostAsync(player, hit.AttackerLifeLost, ct);
 
         monster.Life = Math.Max(monster.Life - damage, 0);
@@ -3965,6 +4018,29 @@ public sealed partial class ClientProtocolHandler
         }
 
         await OnMonsterDeathAsync(player, monster, damage, 0, ct);
+    }
+
+    /// <summary>The Crystal Morning Star and the Crystal Sword, worn in the right hand with durability left, cast Ice by themselves on
+    /// one plain blow in twenty (CAttack::Attack, Attack.cpp:237-254): the blow becomes that skill, free of cost. Null when it does not happen.</summary>
+    private SkillInfo? CrystalIceProc(PlayerObject player)
+    {
+        return SkillDebuffs.CrystalCastsIce(player.Items[Item.SlotWeapon1], n => Rng.Next(n)) ? _skills.Get(SkillDebuffs.Ice) : null;
+    }
+
+    /// <summary>GCSkillAttackSend (SkillManager.cpp:2665): the caster and whoever sees him are shown the skill land on its target
+    /// (<paramref name="landed"/> sets the 0x80 the client reads as "the skill took effect") or fail.</summary>
+    private async Task SendSkillEchoAsync(PlayerObject caster, SkillInfo skill, int targetIndex, bool landed, CancellationToken ct)
+    {
+        var packet = CombatPacketBuilder.SkillAttackSend(caster.Index, (byte)skill.Index, targetIndex, landed);
+        await caster.Session.SendEncryptedAsync(packet, ct);
+
+        foreach (var viewer in _players.All)
+        {
+            if (viewer.Index != caster.Index && viewer.WorldEntered && viewer.VisibleTo.Contains(caster.Index))
+            {
+                await viewer.Session.SendEncryptedAsync(packet, ct);
+            }
+        }
     }
 
     /// <summary>The life the wings or the Imp/Dinorant cost for a hit (WingSprite/HelperSprite, Attack.cpp:623-706),
