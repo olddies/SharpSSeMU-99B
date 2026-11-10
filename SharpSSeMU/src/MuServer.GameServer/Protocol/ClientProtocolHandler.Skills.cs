@@ -176,6 +176,11 @@ public sealed partial class ClientProtocolHandler
 
                 break;
 
+            case SupportSkills.SummonParty:
+                await StartSummonPartyAsync(caster, ct); // the cast takes effect even for a Dark Lord with no party, as in the original
+                helped.Add(caster);
+                break;
+
             default:
                 return;
         }

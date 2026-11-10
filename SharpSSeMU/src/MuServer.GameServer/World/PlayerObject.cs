@@ -210,6 +210,9 @@ public sealed class PlayerObject : IEffectCarrier
         return defense;
     }
 
+    /// <summary>What he has done towards a combo (ComboSkill).</summary>
+    public ComboState Combo { get; } = new();
+
     public bool InChaosBox { get; set; }
 
     /// <summary>The Trainer's window (Interface.type == INTERFACE_TRAINER): it works on the same box as the Chaos Machine
@@ -1236,6 +1239,13 @@ public sealed class PlayerObject : IEffectCarrier
     /// instant each skill was cast (by index), for the per-skill cooldown of the "Delay" column (milliseconds)
     /// of SkillList.txt.</summary>
     public Dictionary<int, DateTime> SkillDelay { get; } = new();
+
+    /// <summary>Port of lpObj->SkillSummonPartyTime/Map/X/Y: while a Dark Lord's Summon Party is on its way to him, the seconds left and the
+    /// place where he will arrive. Zero when no summoning is pending.</summary>
+    public int SkillSummonPartyTime { get; set; }
+    public byte SkillSummonPartyMap { get; set; }
+    public byte SkillSummonPartyX { get; set; }
+    public byte SkillSummonPartyY { get; set; }
 
     // ---------------------------------------------------------------- Fase 5: party (primera pasada)
 

@@ -94,7 +94,7 @@ REQUIRED_FILES = [
 REQUIRED_DIRS = ["Data/Monster/Spawn", "Data/Shop", "Data/Terrain"]
 OPTIONAL_FILES = [
     "Data/Item/ItemValue.txt", "Data/Item/ItemOption.txt", "Data/Skill/SkillDamage.txt",
-    "Data/Skill/EffectList.txt", "Data/Skill/SkillUseArea.txt",
+    "Data/Skill/EffectList.txt", "Data/Skill/SkillUseArea.txt", "Data/Skill/ComboSkill.txt", "Data/Move/MoveSummon.txt",
     "Data/Item/ItemOptionRate.txt", "Data/Item/ExcellentOptionRate.txt", "Data/Item/ItemDrop.txt",
     "Data/Item/SetItemType.txt", "Data/Item/SetItemOption.txt",
     "Data/Item/ItemMoneyDrop.txt", "Data/MapManager.txt", "Data/MapRateInfo.txt", "Data/EventItemBagManager.txt",

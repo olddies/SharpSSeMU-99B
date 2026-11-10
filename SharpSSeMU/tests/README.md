@@ -36,7 +36,7 @@ process hanging.
 
 ## Known state
 
-All nineteen tests pass (`full_chain`, `fase1`-`fase6`, `chaoscastle`, `pk`, `duel`, `pet`, `darkraven`, `helperwear`, `trainer`, `buffs`, `debuffs`, `grounditem`, `shop`, `skills`).
+All twenty-one tests pass (`full_chain`, `fase1`-`fase6`, `chaoscastle`, `pk`, `duel`, `pet`, `darkraven`, `helperwear`, `trainer`, `buffs`, `debuffs`, `combo`, `partyskills`, `grounditem`, `shop`, `skills`).
 
 The long-standing "one failure in the combat sequence" was not server balance: the harness started
 each server with its console piped to the test and never read the pipe while the test ran. Once the

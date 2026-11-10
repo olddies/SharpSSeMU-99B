@@ -408,6 +408,10 @@ public sealed partial class ClientProtocolHandler
                     await OnSkillAttackAsync(session, p, ct);
                     break;
 
+                case 0xB0:
+                    await OnTeleportAllyAsync(session, p, ct);
+                    break;
+
                 case 0x1E:
                     await OnDurationSkillAttackAsync(session, p, ct);
                     break;
@@ -1240,6 +1244,8 @@ public sealed partial class ClientProtocolHandler
             return;
         }
 
+        await CancelSummonAsync(player, ct); // walking calls off a summoning (Protocol.cpp:963)
+
         var recv = MoveRecv.Parse(p);
 
         byte dir = (byte)(recv.Path[0] >> 4);
@@ -1360,6 +1366,8 @@ public sealed partial class ClientProtocolHandler
             return;
         }
 
+        await CancelSummonAsync(player, ct); // gObjMoveGate (User.cpp:2054)
+
         var target = (gate.TargetGate != 0) ? _gates.Get(gate.TargetGate) : gate;
         target ??= gate;
 
@@ -1416,6 +1424,8 @@ public sealed partial class ClientProtocolHandler
 
         var gate = _gates.Get(gateNumber);
         if (gate == null) return;
+
+        await CancelSummonAsync(player, ct); // gObjMoveGate (User.cpp:2054)
 
         var targetGate = (gate.TargetGate != 0) ? _gates.Get(gate.TargetGate) ?? gate : gate;
 
@@ -3508,6 +3518,7 @@ public sealed partial class ClientProtocolHandler
         }
 
         player.Dir = recv.Dir;
+        player.Combo.Init(); // a plain blow breaks the chain (CGAttackRecv, Attack.cpp:1583)
 
         // Broadcast of the attack animation (0x18) -- exact port of GCActionSend (Protocol.cpp: 1488-1507):
         // broadcasts PMSG_ACTION_SEND (0x18) via MsgSendV2 ONLY to the observers in the attacker's viewport,
@@ -3673,12 +3684,14 @@ public sealed partial class ClientProtocolHandler
             return;
         }
 
-        var skill = await TryUseAttackSkillAsync(session, player, recv.Skill, monster.X, monster.Y, ct);
+        var cast = await TryUseAttackSkillAsync(session, player, recv.Skill, monster.X, monster.Y, ct);
 
-        if (skill == null)
+        if (cast == null)
         {
             return;
         }
+
+        var (skill, combo) = cast.Value;
 
         // Immune to skills (Attack.cpp:230): a miss, and the skill is shown not to have taken.
         if (Effects.IsImmune(monster, bySkill: true))
@@ -3718,7 +3731,7 @@ public sealed partial class ClientProtocolHandler
         player.LastCombatTime = DateTime.UtcNow;
         Spirits.SetTarget(player, monster.Index);
         var hit = PlayerAttackMath.HitMonster(player, monster.EffectiveDefense(), skill.Index, skill.DamageMin, skill.DamageMax, graze,
-            _itemBalance, Rng, _skillDamage.Apply);
+            _itemBalance, Rng, _skillDamage.Apply, combo);
         int damage = hit.Damage;
 
         // APPLY_EFFECT (Attack.cpp:432): what the skill leaves on the target, after the damage is worked out and before it lands.
@@ -3740,6 +3753,11 @@ public sealed partial class ClientProtocolHandler
         // viewport to whoever is watching, block-encrypted (C3). The 0x80 of the target says the skill took.
         await SendSkillEchoAsync(player, skill, monster.Index, landed, ct);
 
+        if (combo)
+        {
+            await SendComboEchoAsync(player, monster.Index, ct);
+        }
+
         Log.Add(LogColor.Black, "[Skill][{0}] '{1}' casts '{2}' on {3}(#{4}) for {5} (mana {6}/{7}, remaining life {8}/{9})",
             player.Index, player.Name, skill.Name, monster.Name, monster.Index, damage, player.Mana, player.MaxMana, monster.Life, monster.MaxLife);
 
@@ -3748,13 +3766,13 @@ public sealed partial class ClientProtocolHandler
             return;
         }
 
-        await OnMonsterDeathAsync(player, monster, damage, (byte)skill.Index, ct);
+        await OnMonsterDeathAsync(player, monster, damage, combo ? (byte)PlayerAttackMath.SkillCombo : (byte)skill.Index, ct);
     }
 
     /// <summary>The checks a single-target attack skill goes through before it hits anything, and what it costs:
     /// the skill exists, the class and level may use it, its cooldown has passed, the target is within range, and
     /// there is mana and AG for it (which are then spent). Null when the cast does not happen.</summary>
-    private async Task<SkillInfo?> TryUseAttackSkillAsync(ClientSession session, PlayerObject player, byte skillId, int targetX, int targetY, CancellationToken ct)
+    private async Task<(SkillInfo Skill, bool Combo)?> TryUseAttackSkillAsync(ClientSession session, PlayerObject player, byte skillId, int targetX, int targetY, CancellationToken ct)
     {
         var skill = _skills.Get(skillId);
 
@@ -3779,6 +3797,9 @@ public sealed partial class ClientProtocolHandler
             return null;
         }
 
+        // The combo (UseAttackSkill, SkillManager.cpp:786): worked out before the cost and the range, so it moves along even if the skill then fails.
+        bool combo = await CheckComboAsync(player, skill, ct);
+
         double distance = Math.Sqrt(Math.Pow(player.X - targetX, 2) + Math.Pow(player.Y - targetY, 2));
 
         // A Dark Lord on his Dark Horse reaches two tiles further (CheckSkillRange, SkillManager.cpp:385).
@@ -3802,8 +3823,60 @@ public sealed partial class ClientProtocolHandler
 
         await session.SendAsync(ManaPacketBuilder.ManaSend(0xFF, (int)player.Mana, (int)player.BP), ct);
 
-        return skill;
+        return (skill, combo);
     }
+
+    /// <summary>Whether this cast is the third blow of a combo (UseAttackSkill, SkillManager.cpp:786-808). Only the classes that can combo
+    /// are asked; a client that fires them faster than the check allows is punished.</summary>
+    private async Task<bool> CheckComboAsync(PlayerObject player, SkillInfo skill, CancellationToken ct)
+    {
+        if (!ComboRules.CanCombo(player) || !player.Combo.CheckCombo(ComboTable, player.Class, skill.Index, Environment.TickCount64))
+        {
+            return false;
+        }
+
+        var rules = ComboRules.Current;
+        long now = Environment.TickCount64;
+
+        if (rules.HackCheck == 0 || now - player.Combo.LastComboAt > rules.HackTolerance)
+        {
+            player.Combo.LastComboAt = now;
+            return true;
+        }
+
+        // CheckAutoComboHack: faster than a hand can.
+        Log.Add(LogColor.Red, "[Combo][{0}] '{1}' fired a combo only {2} ms after the last (tolerance {3})", player.Index, player.Name, now - player.Combo.LastComboAt, rules.HackTolerance);
+
+        if (rules.HackAction == 1)
+        {
+            player.Life = 0;
+            await KillPlayerAsync(player, -1, 0, ct);
+        }
+        else if (rules.HackAction == 2)
+        {
+            await player.Session.SendAsync(ClientPacketBuilder.CloseClientSend(0), ct);
+        }
+
+        return false;
+    }
+
+    /// <summary>The combo's own echo (SKILL_COMBO) for a target, on top of the skill's: the client shows the combo flash.</summary>
+    private async Task SendComboEchoAsync(PlayerObject caster, int targetIndex, CancellationToken ct)
+    {
+        var packet = CombatPacketBuilder.SkillAttackSend(caster.Index, PlayerAttackMath.SkillCombo, targetIndex, hit: true);
+        await caster.Session.SendEncryptedAsync(packet, ct);
+
+        foreach (var viewer in _players.All)
+        {
+            if (viewer.Index != caster.Index && viewer.WorldEntered && viewer.VisibleTo.Contains(caster.Index))
+            {
+                await viewer.Session.SendEncryptedAsync(packet, ct);
+            }
+        }
+    }
+
+    /// <summary>The combos of ComboSkill.txt.</summary>
+    public ComboSkillTable ComboTable { get; set; } = new();
 
     private async Task OnDurationSkillAttackAsync(ClientSession session, byte[] p, CancellationToken ct)
     {
@@ -3813,6 +3886,8 @@ public sealed partial class ClientProtocolHandler
         var recv = DurationSkillAttackRecv.Parse(p);
 
         var skill = _skills?.Get(recv.Skill);
+        bool combo = false;
+
         if (skill != null)
         {
             var now = DateTime.UtcNow;
@@ -3821,6 +3896,8 @@ public sealed partial class ClientProtocolHandler
                 return;
             }
             player.SkillDelay[skill.Index] = now;
+
+            combo = await CheckComboAsync(player, skill, ct); // the third blow of a combo (UseDurationSkillAttack, SkillManager.cpp:852)
 
             if ((int)player.Mana >= skill.Mana && (int)player.BP >= skill.BP)
             {
@@ -3845,7 +3922,7 @@ public sealed partial class ClientProtocolHandler
         {
             if (recv.TargetIndex != 0xFFFF && _monsters.TryGet(recv.TargetIndex, out var monster) && monster.Map == player.Map && !monster.IsDead)
             {
-                await ProcessSkillDamageAsync(player, monster, skill, ct);
+                await ProcessSkillDamageAsync(player, monster, skill, ct, combo);
             }
             else
             {
@@ -3857,7 +3934,7 @@ public sealed partial class ClientProtocolHandler
                     if (m.Map == player.Map && !m.IsDead && m.ShopNumber == null &&
                         Math.Abs(m.X - player.X) <= radius && Math.Abs(m.Y - player.Y) <= radius)
                     {
-                        await ProcessSkillDamageAsync(player, m, skill, ct);
+                        await ProcessSkillDamageAsync(player, m, skill, ct, combo);
                     }
                 }
             }
@@ -3883,7 +3960,7 @@ public sealed partial class ClientProtocolHandler
         }
     }
 
-    private async Task ProcessSkillDamageAsync(PlayerObject player, Monster monster, SkillInfo skill, CancellationToken ct)
+    private async Task ProcessSkillDamageAsync(PlayerObject player, Monster monster, SkillInfo skill, CancellationToken ct, bool combo = false)
     {
         if (Effects.IsImmune(monster, bySkill: true))
         {
@@ -3931,9 +4008,15 @@ public sealed partial class ClientProtocolHandler
         player.LastCombatTime = DateTime.UtcNow;
         Spirits.SetTarget(player, monster.Index);
         var hit = PlayerAttackMath.HitMonster(player, monster.EffectiveDefense(), skill.Index, skill.DamageMin, skill.DamageMax, graze,
-            _itemBalance, Rng, _skillDamage.Apply);
+            _itemBalance, Rng, _skillDamage.Apply, combo);
         int damage = hit.Damage;
         await ApplySkillEffectAsync(player.Index, (int)(player.Strength + player.AddStrength), monster, skill, ct); // the ice of an Ice Storm, the slash of a Fire Slash...
+
+        if (combo)
+        {
+            await SendComboEchoAsync(player, monster.Index, ct); // each target the combo reaches is shown it (SkillManager.cpp:1140)
+        }
+
         await ApplyAttackerLifeCostAsync(player, hit.AttackerLifeLost, ct);
 
         monster.Life = Math.Max(monster.Life - damage, 0);
@@ -3948,7 +4031,7 @@ public sealed partial class ClientProtocolHandler
             return;
         }
 
-        await OnMonsterDeathAsync(player, monster, damage, (byte)skill.Index, ct);
+        await OnMonsterDeathAsync(player, monster, damage, combo ? (byte)PlayerAttackMath.SkillCombo : (byte)skill.Index, ct);
     }
 
     /// <summary>Port of CObjectManager::CharacterMonsterDieHunt (ObjectManager.cpp:1648-1690), run two seconds

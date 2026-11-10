@@ -105,6 +105,16 @@ bool buffEnabled = args.Length > 12 && args[12] == "buff";
 // success flag, the poison's damage numbers (C1:D9, type 5), the monster standing still, and the poison ending.
 bool debuffEnabled = args.Length > 12 && args[12] == "debuff";
 
+// Optional: the combo run (gameserver_combo_e2e_test.py) -- A, a Blade Knight who has finished his quest, strikes Falling Slash, Twisting
+// Slash and Rageful Blow in a row at the (tough) test monster, and the third is a combo; with a plain blow in the middle it is not. B, a
+// Blade Knight who has not finished the quest, does the same and gets no combo.
+bool comboEnabled = args.Length > 12 && args[12] == "combo";
+
+// Optional: the party skills run (gameserver_partyskills_e2e_test.py) -- A, a Dark Lord, and B, a Soul Master, in a party: B sends himself
+// with Teleport Ally (and is refused beyond eight tiles); A calls the party with Summon Party, B is told the seconds and arrives next to
+// A; and B walking away during the countdown calls it off.
+bool partySkillsEnabled = args.Length > 12 && args[12] == "partyskills";
+
 int failures = 0;
 
 void Check(string name, bool ok, string extra = "")
@@ -242,7 +252,7 @@ async Task<(FakeMuClient Client, byte X, byte Y)> LoginAndEnterAsync(string labe
 // Phase 4 (~12s respawn) + Phase 5 (party/exp) + Phase 6 (Devil Square: up to ~3 min waiting for the window
 // forced by console + real STAND (1 min) + START (1 min) of the test bracket, see the test's DevilSquare.dat)
 // add steps.
-using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(dsEnabled || chaosCastleEnabled || pkEnabled || duelEnabled || petEnabled || ravenEnabled || wearEnabled || trainerEnabled || buffEnabled || debuffEnabled ? 300 : 90));
+using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(dsEnabled || chaosCastleEnabled || pkEnabled || duelEnabled || petEnabled || ravenEnabled || wearEnabled || trainerEnabled || buffEnabled || debuffEnabled || comboEnabled || partySkillsEnabled ? 300 : 90));
 
 try
 {
@@ -433,6 +443,175 @@ try
         gotB = await castB;
 
         Check("[B] Al cancelarlo el efecto termina (C1:07, estado 0, bit 8)", HasState(gotB, 0, ManaShieldBit, bIndex));
+
+        clientA.Close();
+        clientB.Close();
+        Console.WriteLine($"\n=== {(failures == 0 ? "TODO OK" : $"{failures} FALLO(S)")} ===");
+        return failures == 0 ? 0 : 1;
+    }
+
+    if (partySkillsEnabled)
+    {
+        Console.WriteLine("\n=== Skills de grupo: B (Soul Master) se teletransporta con Teleport Ally; A (Dark Lord) invoca al grupo con Summon Party ===");
+
+        const byte TeleportAllySkill = 15, SummonPartySkill = 63;
+        int aIndex = clientA.Index, bIndex = clientB.Index;
+
+        string NoticeText(FakeMuClient.DecodedPacket p) => System.Text.Encoding.Latin1.GetString(p.Full, 13, Math.Max(p.Full.Length - 14, 0));
+
+        bool Echo(List<FakeMuClient.DecodedPacket> packets, int skill, int casterIdx, int targetIdx) =>
+            packets.Any(p => p.Head == 0x19 && p.Full[3] == skill && ((p.Full[4] << 8) | p.Full[5]) == casterIdx
+                && (p.Full[6] & 0x80) != 0 && (((p.Full[6] & 0x7F) << 8) | p.Full[7]) == targetIdx);
+
+        FakeMuClient.DecodedPacket? Placed(List<FakeMuClient.DecodedPacket> packets) =>
+            packets.LastOrDefault(p => p.Head == 0x1C && p.Full[3] == 0);
+
+        await WaitUntilTheyMeetAsync(clientA, clientB);
+
+        // The party: A invites B, B accepts.
+        await clientA.SendPartyRequestAsync(bIndex);
+        var invitation = await clientB.WaitForAsync(0x40, TimeSpan.FromSeconds(5));
+        await clientB.SendPartyRequestResultAsync(1, (invitation.Full[3] << 8) | invitation.Full[4]);
+        await clientA.WaitForAsync(0x42, TimeSpan.FromSeconds(5));
+        await clientB.WaitForAsync(0x42, TimeSpan.FromSeconds(5));
+
+        // Teleport Ally: B sends himself six tiles away (a lone member is his own ally).
+        clientA.DiscardPending();
+        clientB.DiscardPending();
+        var windowA = clientA.CollectAsync(TimeSpan.FromSeconds(1.5));
+        var windowB = clientB.CollectAsync(TimeSpan.FromSeconds(1.5));
+        await clientB.SendTeleportAllyAsync(bIndex, 206, 158);
+        var (gotA, gotB) = (await windowA, await windowB);
+
+        var placed = Placed(gotB);
+        Check("[B] Teleport Ally: el eco de la habilidad con el acierto marcado (C3:19, skill 15)", Echo(gotB, TeleportAllySkill, bIndex, bIndex));
+        Check("[A] Ve el eco del lanzamiento de B", Echo(gotA, TeleportAllySkill, bIndex, bIndex));
+        Check("[B] y el servidor lo coloca en el sitio pedido (C1:1C, 206,158)", placed != null && placed.Full[5] == 206 && placed.Full[6] == 158,
+            placed == null ? "(sin paquete)" : $"(x={placed.Full[5]}, y={placed.Full[6]})");
+
+        // Too far (more than eight tiles from where he stands): nothing happens.
+        clientB.DiscardPending();
+        var farWindow = clientB.CollectAsync(TimeSpan.FromSeconds(1.5));
+        await clientB.SendTeleportAllyAsync(bIndex, 230, 158);
+        var farHeard = await farWindow;
+
+        Check("[B] A mas de ocho casillas no pasa nada (sin eco ni C1:1C)", !farHeard.Any(p => p.Head == 0x19 || p.Head == 0x1C));
+
+        // Summon Party: A calls B. B is told the seconds, and arrives within four tiles of A.
+        clientA.DiscardPending();
+        clientB.DiscardPending();
+        windowA = clientA.CollectAsync(TimeSpan.FromSeconds(9));
+        windowB = clientB.CollectAsync(TimeSpan.FromSeconds(9));
+        await clientA.SendSkillAttackAsync(SummonPartySkill, aIndex);
+        (gotA, gotB) = (await windowA, await windowB);
+
+        var countdown = gotB.Where(p => p.Head == 0x0D && NoticeText(p).Contains("teleported in")).Select(NoticeText).ToList();
+        placed = Placed(gotB);
+
+        Check("[A] Summon Party: el eco de la habilidad (C3:19, skill 63)", Echo(gotA, SummonPartySkill, aIndex, aIndex));
+        Check("[B] Le avisan de los segundos que faltan (cinco avisos de la cuenta atras)", countdown.Count >= 5, $"(avisos={countdown.Count}: {string.Join(" | ", countdown)})");
+        Check("[B] Llega junto a A: a cuatro casillas como mucho (C1:1C)",
+            placed != null && Math.Abs(placed.Full[5] - 198) <= 4 && Math.Abs(placed.Full[6] - 150) <= 4,
+            placed == null ? "(sin paquete)" : $"(x={placed.Full[5]}, y={placed.Full[6]})");
+        Check("[B] y se ve el teletransporte (C3:19, skill 6)", Echo(gotB, 6, bIndex, bIndex));
+
+        // A calls him again and B walks away during the countdown: it is called off.
+        await Task.Delay(500);
+        clientA.DiscardPending();
+        clientB.DiscardPending();
+        windowB = clientB.CollectAsync(TimeSpan.FromSeconds(8));
+        await clientA.SendSkillAttackAsync(SummonPartySkill, aIndex);
+        await Task.Delay(1500);
+        await clientB.SendMoveAsync(placed != null ? placed.Full[5] : (byte)198, placed != null ? placed.Full[6] : (byte)150, 0);
+        gotB = await windowB;
+
+        Check("[B] Si camina durante la cuenta atras se cancela (aviso 'no fue posible', 272)",
+            gotB.Any(p => p.Head == 0x0D && NoticeText(p).Contains("not possible")));
+        Check("[B] y no llega a teletransportarse", !gotB.Any(p => p.Head == 0x1C));
+
+        clientA.Close();
+        clientB.Close();
+        Console.WriteLine($"\n=== {(failures == 0 ? "TODO OK" : $"{failures} FALLO(S)")} ===");
+        return failures == 0 ? 0 : 1;
+    }
+
+    if (comboEnabled)
+    {
+        Console.WriteLine("\n=== Combo: A (Blade Knight con la mision hecha) encadena tres golpes y el tercero es combo; B (sin la mision) no ===");
+
+        const int monsterIdx = 0;
+        const byte FallingSlash = 19, TwistingSlash = 41, RagefulBlow = 42;
+        const int ComboSkill = 59;
+
+        bool ComboDamage(List<FakeMuClient.DecodedPacket> packets) =>
+            packets.Any(p => p.Head == 0xD9 && (p.Full[7] & 0x80) != 0 && (((p.Full[3] & 0x7F) << 8) | p.Full[4]) == monsterIdx);
+
+        bool ComboEcho(List<FakeMuClient.DecodedPacket> packets, int casterIdx) =>
+            packets.Any(p => p.Head == 0x19 && p.Full[3] == ComboSkill && ((p.Full[4] << 8) | p.Full[5]) == casterIdx
+                && (p.Full[6] & 0x80) != 0 && (((p.Full[6] & 0x7F) << 8) | p.Full[7]) == monsterIdx);
+
+        async Task Chain(FakeMuClient client, bool plainBlowInTheMiddle)
+        {
+            await client.SendSkillAttackAsync(FallingSlash, monsterIdx);
+            await Task.Delay(400);
+
+            if (plainBlowInTheMiddle)
+            {
+                await client.SendAttackAsync(monsterIdx, 120, 3);
+                await Task.Delay(400);
+            }
+
+            await client.SendDurationSkillAttackAsync(TwistingSlash, 200, 150, monsterIdx);
+            await Task.Delay(400);
+            await client.SendDurationSkillAttackAsync(RagefulBlow, 200, 150, monsterIdx);
+        }
+
+        await WaitUntilTheyMeetAsync(clientA, clientB);
+
+        // A: the chain, until the third blow lands (it can miss).
+        List<FakeMuClient.DecodedPacket> heardA = new(), heardB = new();
+
+        for (int attempt = 0; attempt < 8 && !ComboDamage(heardA); attempt++)
+        {
+            clientA.DiscardPending();
+            clientB.DiscardPending();
+            var windowA = clientA.CollectAsync(TimeSpan.FromSeconds(3));
+            var windowB = clientB.CollectAsync(TimeSpan.FromSeconds(3));
+            await Chain(clientA, plainBlowInTheMiddle: false);
+            (heardA, heardB) = (await windowA, await windowB);
+        }
+
+        Check("[A] El tercer golpe seguido es combo: el daño trae la marca de combo (C1:D9, tipo 0x80)", ComboDamage(heardA));
+        Check("[A] y el servidor manda el eco del combo (C3:19, skill 59, 0x80)", ComboEcho(heardA, clientA.Index));
+        Check("[B] Ve el eco del combo de A", ComboEcho(heardB, clientA.Index));
+
+        // A with a plain blow in the middle: the chain is broken, no combo (several tries, since any one can be a miss).
+        bool brokenCombo = false;
+
+        for (int attempt = 0; attempt < 3; attempt++)
+        {
+            clientA.DiscardPending();
+            var window = clientA.CollectAsync(TimeSpan.FromSeconds(3.5));
+            await Chain(clientA, plainBlowInTheMiddle: true);
+            var heard = await window;
+            brokenCombo |= ComboDamage(heard) || ComboEcho(heard, clientA.Index);
+        }
+
+        Check("[A] Un golpe normal en medio rompe la cadena: no hay combo", !brokenCombo);
+
+        // B has not finished the quest: the same chain gives him nothing.
+        bool bCombo = false;
+
+        for (int attempt = 0; attempt < 3; attempt++)
+        {
+            clientB.DiscardPending();
+            var window = clientB.CollectAsync(TimeSpan.FromSeconds(3));
+            await Chain(clientB, plainBlowInTheMiddle: false);
+            var heard = await window;
+            bCombo |= ComboDamage(heard) || ComboEcho(heard, clientB.Index);
+        }
+
+        Check("[B] Sin la mision hecha la misma cadena no es combo", !bCombo);
 
         clientA.Close();
         clientB.Close();

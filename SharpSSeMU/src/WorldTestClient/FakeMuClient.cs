@@ -481,6 +481,35 @@ public sealed class FakeMuClient
         return SendRawAsync(PacketBuilder.BuildC1(0x19, w.ToArray()));
     }
 
+    /// <summary>PMSG_DURATION_SKILL_ATTACK_RECV, C3:1E -- the skills that strike around a point (Twisting Slash, Rageful Blow...): the skill, the
+    /// spot, the direction, the reach, the angle, the target the client points at and a key.</summary>
+    public Task SendDurationSkillAttackAsync(byte skill, byte x, byte y, int targetIndex, byte dir = 3)
+    {
+        var w = new PacketWriter();
+        w.WriteByte(skill);
+        w.WriteByte(x);
+        w.WriteByte(y);
+        w.WriteByte(dir);
+        w.WriteByte(3);
+        w.WriteByte(0);
+        w.WriteByte((byte)((targetIndex >> 8) & 0xFF));
+        w.WriteByte((byte)(targetIndex & 0xFF));
+        w.WriteByte(0);
+        return SendRawAsync(PacketBuilder.BuildC1(0x1E, w.ToArray()));
+    }
+
+    /// <summary>PMSG_SKILL_TELEPORT_ALLY_RECV, C3:B0 -- the Soul Master's Teleport Ally: the party member to send (a WORD of the machine, so
+    /// little endian) and the spot.</summary>
+    public Task SendTeleportAllyAsync(int index, byte x, byte y)
+    {
+        var w = new PacketWriter();
+        w.WriteByte((byte)(index & 0xFF));
+        w.WriteByte((byte)((index >> 8) & 0xFF));
+        w.WriteByte(x);
+        w.WriteByte(y);
+        return SendRawAsync(PacketBuilder.BuildC1(0xB0, w.ToArray()));
+    }
+
     /// <summary>PMSG_SKILL_CANCEL_RECV, C3:1B -- takes off the effect of a skill (Mana Shield is the one a player can cancel).</summary>
     public Task SendSkillCancelAsync(byte skill, int index)
     {
