@@ -15,6 +15,7 @@ public sealed class SummonManager
     /// (<c>MoveRange = 15</c>) and the dir it appears with.</summary>
     private const int MoveRange = 15;
     private const byte SummonDir = 2;
+    private const int DeathLinger = 700; // ms
     private const int FirstSummonSkill = 30;
     private const int LastSummonSkill = 36;
 
@@ -143,7 +144,7 @@ public sealed class SummonManager
     {
         var summon = Of(owner);
 
-        if (summon == null || summon.TargetIndex != -1 || monsterIndex == summon.Index || !_monsters.TryGet(monsterIndex, out var target) || !CanBeTarget(target, summon))
+        if (summon == null || !summon.Live || summon.TargetIndex != -1 || monsterIndex == summon.Index || !_monsters.TryGet(monsterIndex, out var target) || !CanBeTarget(target, summon))
         {
             return;
         }
@@ -169,8 +170,32 @@ public sealed class SummonManager
     {
         var now = Clock();
 
+        // The monsters that a summon has hit fight back (their own AI is paused meanwhile).
+        foreach (var monster in _monsters.All.Where(m => m.SummonTargetIndex != -1).ToList())
+        {
+            await FightSummonAsync(monster, now, ct);
+        }
+
         foreach (var summon in _monsters.All.Where(m => m.IsSummon).ToList())
         {
+            // A summon that was killed lingers for its death animation, then goes (gObjMonsterDie, 500 ms later).
+            if (!summon.Live)
+            {
+                if (summon.DiedAt != null && (now - summon.DiedAt.Value).TotalMilliseconds >= DeathLinger)
+                {
+                    if (_players.TryGet(summon.OwnerIndex, out var master) && master.SummonIndex == summon.Index)
+                    {
+                        await KillAsync(master, ct);
+                    }
+                    else
+                    {
+                        await RemoveAsync(summon, ct);
+                    }
+                }
+
+                continue;
+            }
+
             if (!_players.TryGet(summon.OwnerIndex, out var owner) || !owner.WorldEntered || owner.IsDying || owner.Life == 0 || !owner.Session.Connected)
             {
                 if (owner != null)
@@ -352,42 +377,12 @@ public sealed class SummonManager
         summon.Dir = Direction(Math.Sign(target.X - summon.X), Math.Sign(target.Y - summon.Y), summon.Dir);
         await ToViewersAsync(summon, CombatPacketBuilder.ActionSend(summon.Index, summon.Dir, 0, target.Index), ct);
 
-        int attackRate = Math.Max(summon.AttackSuccessRate, 0);
-        int defenseRate = Math.Max(target.DefenseSuccessRate, 0);
-        bool graze = false;
+        var (hit, damage) = Blow(summon, target);
 
-        if (attackRate < defenseRate)
-        {
-            if (_rng.Next(100) >= 5)
-            {
-                await owner.Session.SendAsync(CombatPacketBuilder.DamageSend(target.Index, 0, 0, missFlag: true, target.Life), ct);
-                return;
-            }
-
-            graze = true;
-        }
-        else if (_rng.Next(attackRate == 0 ? 1 : attackRate) < defenseRate)
+        if (!hit)
         {
             await owner.Session.SendAsync(CombatPacketBuilder.DamageSend(target.Index, 0, 0, missFlag: true, target.Life), ct);
             return;
-        }
-
-        int min = summon.DamageMin > 0 ? summon.DamageMin : 5;
-        int max = summon.DamageMax >= min ? summon.DamageMax : min + 5;
-        int damage = min + _rng.Next(Math.Max(max - min, 1));
-
-        damage = Math.Max(damage - Math.Max(target.EffectiveDefense(), 0), 0);
-
-        if (graze)
-        {
-            damage = damage * 30 / 100;
-        }
-
-        int floor = Math.Max(summon.Level / 10, 1);
-
-        if (damage < floor)
-        {
-            damage = floor + _rng.Next(floor);
         }
 
         target.Life = Math.Max(target.Life - damage, 0);
@@ -396,6 +391,7 @@ public sealed class SummonManager
         if (target.Life > 0)
         {
             await owner.Session.SendAsync(CombatPacketBuilder.DamageSend(target.Index, damage, 0, missFlag: false, target.Life), ct);
+            Provoke(target, summon);
             return;
         }
 
@@ -405,6 +401,128 @@ public sealed class SummonManager
         {
             await OnMonsterKilled(owner, target, damage, ct);
         }
+    }
+
+    /// <summary>The hit roll and the damage of one blow of a monster on another (CAttack::Attack with monsters on both sides): the attacker's
+    /// success rate against the defender's, the damage between its minimum and maximum less the defender's defense, a third of it on a graze,
+    /// and a floor by the attacker's level. A miss is (false, 0).</summary>
+    private (bool Hit, int Damage) Blow(Monster attacker, Monster defender)
+    {
+        int attackRate = Math.Max(attacker.AttackSuccessRate, 0);
+        int defenseRate = Math.Max(defender.DefenseSuccessRate, 0);
+        bool graze = false;
+
+        if (attackRate < defenseRate)
+        {
+            if (_rng.Next(100) >= 5)
+            {
+                return (false, 0);
+            }
+
+            graze = true;
+        }
+        else if (_rng.Next(attackRate == 0 ? 1 : attackRate) < defenseRate)
+        {
+            return (false, 0);
+        }
+
+        int min = attacker.DamageMin > 0 ? attacker.DamageMin : 5;
+        int max = attacker.DamageMax >= min ? attacker.DamageMax : min + 5;
+        int damage = min + _rng.Next(Math.Max(max - min, 1));
+
+        damage = Math.Max(damage - Math.Max(defender.EffectiveDefense(), 0), 0);
+
+        if (graze)
+        {
+            damage = damage * 30 / 100;
+        }
+
+        int floor = Math.Max(attacker.Level / 10, 1);
+
+        if (damage < floor)
+        {
+            damage = floor + _rng.Next(floor);
+        }
+
+        return (true, damage);
+    }
+
+    /// <summary>Port of gObjMonsterProcessHit (Monster.cpp:1719) for a monster a summon has hit: within reach of it, it goes for the summon
+    /// (a summon always draws the blow back); from farther away only if it had nothing else to do.</summary>
+    private static void Provoke(Monster target, Monster summon)
+    {
+        double reach = target.AttackRange > 0 ? target.AttackRange : 1.5;
+
+        if (Distance(target.X, target.Y, summon.X, summon.Y) <= reach)
+        {
+            target.SummonTargetIndex = summon.Index;
+        }
+        else if (target.SummonTargetIndex == -1 && target.TargetIndex == -1)
+        {
+            target.SummonTargetIndex = summon.Index;
+        }
+    }
+
+    /// <summary>A monster that has been hit by a summon: it chases it and strikes it, until one of them is gone or it has lost it.</summary>
+    private async Task FightSummonAsync(Monster monster, DateTime now, CancellationToken ct)
+    {
+        if (!monster.Live || !_monsters.TryGet(monster.SummonTargetIndex, out var summon) || !summon.IsSummon || !summon.Live
+            || summon.Map != monster.Map || Distance(monster.X, monster.Y, summon.X, summon.Y) > Math.Max(monster.ViewRange, 7)
+            || (_maps.GetMap(summon.Map)?.CheckAttr(summon.X, summon.Y, 1) ?? false))
+        {
+            monster.SummonTargetIndex = -1; // it lost it: back to the usual
+            return;
+        }
+
+        double reach = monster.AttackRange > 0 ? monster.AttackRange : 1.5;
+
+        if (Distance(monster.X, monster.Y, summon.X, summon.Y) > reach)
+        {
+            await StepTowardsAsync(monster, summon.X, summon.Y, now, _maps.GetMap(monster.Map), ct);
+            return;
+        }
+
+        int attackSpeed = monster.AttackSpeed > 0 ? monster.AttackSpeed : 1500;
+
+        if (now < monster.LastAttackTime.AddMilliseconds(attackSpeed))
+        {
+            return;
+        }
+
+        monster.LastAttackTime = now;
+        monster.Dir = Direction(Math.Sign(summon.X - monster.X), Math.Sign(summon.Y - monster.Y), monster.Dir);
+        await ToViewersAsync(monster, CombatPacketBuilder.ActionSend(monster.Index, monster.Dir, 0, summon.Index), ct);
+
+        var (hit, damage) = Blow(monster, summon);
+
+        if (hit)
+        {
+            await HurtAsync(summon, monster, damage, now, ct);
+        }
+    }
+
+    /// <summary>A summon that has taken a blow (CharacterLifeCheck, ObjectManager.cpp:2810): its master's bar is told what is left, and if
+    /// nothing is, everybody who sees it is shown it die (it goes a moment later).</summary>
+    private async Task HurtAsync(Monster summon, Monster by, int damage, DateTime now, CancellationToken ct)
+    {
+        summon.Life = Math.Max(summon.Life - damage, 0);
+
+        if (_players.TryGet(summon.OwnerIndex, out var owner) && owner.WorldEntered)
+        {
+            await owner.Session.SendAsync(SummonPacketBuilder.SummonLifeSend((int)summon.Life, (int)summon.MaxLife), ct);
+        }
+
+        if (summon.Life > 0)
+        {
+            return;
+        }
+
+        summon.Live = false;
+        summon.DiedAt = now;
+        summon.TargetIndex = -1;
+        by.SummonTargetIndex = -1;
+        await ToViewersAsync(summon, CombatPacketBuilder.UserDieSend(summon.Index, 0, by.Index), ct);
+        Log.Add(LogColor.Black, "[Summon][{0}] {1} (#{2}) was killed by {3} (#{4})", summon.OwnerIndex, summon.Name, summon.Index, by.Name, by.Index);
     }
 
     private async Task ToViewersAsync(Monster monster, byte[] packet, CancellationToken ct)
