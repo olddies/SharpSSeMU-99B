@@ -26,6 +26,8 @@ public sealed partial class ClientProtocolHandler
             return false;
         }
 
+        StartKnockback(attackerIndex, target, skill, ct); // Lightning and the Dark Knight's skills push, the Earthquake throws
+
         var effect = SkillDebuffs.EffectFor(skill.Index, attackerIndex, attackerStrength, SupportSkillRules.Current);
 
         if (effect != null && skill.Effect > 0)
