@@ -144,6 +144,10 @@ public sealed class Monster : IEffectCarrier
 
     public bool IsSummon => OwnerIndex >= 0;
 
+    /// <summary>The summon this monster is fighting, -1 when it fights none: a monster that a summon hits goes for it instead of the players
+    /// (gObjMonsterProcessHit, Monster.cpp:1719), and the summon manager plays its part until one of them is gone.</summary>
+    public int SummonTargetIndex { get; set; } = -1;
+
     /// <summary>It has just been called: the next time somebody sees it appear it comes with the magic circle.</summary>
     public bool JustSummoned { get; set; }
 

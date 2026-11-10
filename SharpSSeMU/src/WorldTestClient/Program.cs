@@ -120,6 +120,10 @@ bool partySkillsEnabled = args.Length > 12 && args[12] == "partyskills";
 // and a second cast sends it away.
 bool summonEnabled = args.Length > 12 && args[12] == "summon";
 
+// Optional: the run in which the summon is hurt (gameserver_summonhurt_e2e_test.py) -- the (strong, tough) test monster answers the blows of
+// A's Goblin: A's bar goes down, everybody who sees it sees it die, it goes, and A can call another.
+bool summonHurtEnabled = args.Length > 12 && args[12] == "summonhurt";
+
 int failures = 0;
 
 void Check(string name, bool ok, string extra = "")
@@ -257,7 +261,7 @@ async Task<(FakeMuClient Client, byte X, byte Y)> LoginAndEnterAsync(string labe
 // Phase 4 (~12s respawn) + Phase 5 (party/exp) + Phase 6 (Devil Square: up to ~3 min waiting for the window
 // forced by console + real STAND (1 min) + START (1 min) of the test bracket, see the test's DevilSquare.dat)
 // add steps.
-using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(dsEnabled || chaosCastleEnabled || pkEnabled || duelEnabled || petEnabled || ravenEnabled || wearEnabled || trainerEnabled || buffEnabled || debuffEnabled || comboEnabled || partySkillsEnabled || summonEnabled ? 300 : 90));
+using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(dsEnabled || chaosCastleEnabled || pkEnabled || duelEnabled || petEnabled || ravenEnabled || wearEnabled || trainerEnabled || buffEnabled || debuffEnabled || comboEnabled || partySkillsEnabled || summonEnabled || summonHurtEnabled ? 300 : 90));
 
 try
 {
@@ -448,6 +452,69 @@ try
         gotB = await castB;
 
         Check("[B] Al cancelarlo el efecto termina (C1:07, estado 0, bit 8)", HasState(gotB, 0, ManaShieldBit, bIndex));
+
+        clientA.Close();
+        clientB.Close();
+        Console.WriteLine($"\n=== {(failures == 0 ? "TODO OK" : $"{failures} FALLO(S)")} ===");
+        return failures == 0 ? 0 : 1;
+    }
+
+    if (summonHurtEnabled)
+    {
+        Console.WriteLine("\n=== Invocacion herida: el monstruo contraataca a la invocacion de A, que muere; A llama otra ===");
+
+        const byte SummonGoblin = 30;
+
+        await WaitUntilTheyMeetAsync(clientA, clientB);
+        clientA.DiscardPending();
+        clientB.DiscardPending();
+
+        var windowA = clientA.CollectAsync(TimeSpan.FromSeconds(1.5));
+        var windowB = clientB.CollectAsync(TimeSpan.FromSeconds(1.5));
+        await clientA.SendSkillAttackAsync(SummonGoblin, clientA.Index);
+        var (gotA, gotB) = (await windowA, await windowB);
+
+        var list = gotA.FirstOrDefault(p => p.Head == 0x1F);
+        int summonIdx = list != null ? ((list.Full[5] & 0x7F) << 8) | list.Full[6] : -1;
+        Check("[A] Llama a su Goblin (lista de invocaciones, C2:1F)", list != null);
+
+        // The Goblin goes for the monster; the monster, hit, answers. Listen until it is gone (or 40 seconds).
+        var heardA = new List<FakeMuClient.DecodedPacket>(gotA);
+        var heardB = new List<FakeMuClient.DecodedPacket>(gotB);
+
+        bool Gone(List<FakeMuClient.DecodedPacket> packets) =>
+            packets.Any(p => p.Head == 0x14 && p.Full.Length > 5 && Enumerable.Range(0, p.Full[3]).Any(i => (((p.Full[4 + i * 2] & 0x7F) << 8) | p.Full[5 + i * 2]) == summonIdx));
+
+        var until = DateTime.UtcNow + TimeSpan.FromSeconds(40);
+
+        while (DateTime.UtcNow < until && !Gone(heardA))
+        {
+            var slotA = clientA.CollectAsync(TimeSpan.FromSeconds(2));
+            var slotB = clientB.CollectAsync(TimeSpan.FromSeconds(2));
+            heardA.AddRange(await slotA);
+            heardB.AddRange(await slotB);
+        }
+
+        var bars = heardA.Where(p => p.Head == 0xF3 && p.SubHead == 0x20).Select(p => (int)p.Full[4]).ToList();
+
+        Check("[A] Su barra de vida baja mientras el monstruo la golpea (F3:20 por debajo de 100)", bars.Any(b => b < 100), $"(barras={string.Join(",", bars)})");
+
+        bool Died(List<FakeMuClient.DecodedPacket> packets) =>
+            packets.Any(p => p.Head == 0x17 && ((p.Full[3] << 8) | p.Full[4]) == summonIdx);
+
+        Check("[A] Ve morir a su invocacion (C1:17)", Died(heardA));
+        Check("[B] y B tambien", Died(heardB));
+        Check("[A] y desaparece de su vista (C1:14)", Gone(heardA));
+        Check("[B] y de la de B", Gone(heardB));
+        Check("[A] y su barra queda a cero (F3:20, 0)", bars.Count > 0 && bars.Last() == 0, $"(barras={string.Join(",", bars)})");
+
+        // She can call another.
+        clientA.DiscardPending();
+        var again = clientA.CollectAsync(TimeSpan.FromSeconds(2));
+        await clientA.SendSkillAttackAsync(SummonGoblin, clientA.Index);
+        var gotAgain = await again;
+
+        Check("[A] Puede llamar a otra (lista de invocaciones, C2:1F)", gotAgain.Any(p => p.Head == 0x1F));
 
         clientA.Close();
         clientB.Close();

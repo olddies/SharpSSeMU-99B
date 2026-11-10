@@ -561,7 +561,8 @@ public sealed class ViewportTicker
     {
         if (_monsters == null || _protocolHandler == null) return;
 
-        var allMonsters = _monsters.All.Where(m => m.Live && m.CanBeAttacked).ToList(); // the summons have their own AI (SummonManager)
+        // The summons have their own AI (SummonManager), and so does a monster while it fights one.
+        var allMonsters = _monsters.All.Where(m => m.Live && m.CanBeAttacked && m.SummonTargetIndex == -1).ToList();
         var allPlayers = _players.All.Where(p => p.WorldEntered && p.Life > 0).ToList();
 
         if (allMonsters.Count == 0 || allPlayers.Count == 0) return;
