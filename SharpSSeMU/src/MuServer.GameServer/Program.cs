@@ -238,6 +238,44 @@ skills.Load(config.SkillListPath);
 var skillDamage = new SkillDamageTable();
 skillDamage.Load(config.SkillDamagePath);
 
+// The buffs and debuffs skills put on players (Data/Skill/EffectList.txt) and the numbers of the skills that cast them
+// (GameServerInfo - Skill.dat) -- see World/Effects.cs and World/SupportSkills.cs.
+var effectTable = new EffectTable();
+effectTable.Load(config.EffectListPath);
+var skillUseAreas = new SkillUseAreaTable();
+skillUseAreas.Load(config.SkillUseAreaPath);
+SupportSkillRules.Current = new SupportSkillRules
+{
+    ManaShieldConstA = gsiSkill.ManaShieldConstA,
+    ManaShieldConstB = gsiSkill.ManaShieldConstB,
+    ManaShieldConstC = gsiSkill.ManaShieldConstC,
+    ManaShieldMaxRate = gsiSkill.ManaShieldMaxRate,
+    ManaShieldTimeConstA = gsiSkill.ManaShieldTimeConstA,
+    ManaShieldTimeConstB = gsiSkill.ManaShieldTimeConstB,
+    ManaShieldRate = gsiSkill.ManaShieldRate.ToArray(),
+    HealConstA = gsiSkill.HealConstA,
+    HealConstB = gsiSkill.HealConstB,
+    GreaterDefenseConstA = gsiSkill.GreaterDefenseConstA,
+    GreaterDefenseConstB = gsiSkill.GreaterDefenseConstB,
+    GreaterDefenseTimeConstA = gsiSkill.GreaterDefenseTimeConstA,
+    GreaterDefenseRate = gsiSkill.GreaterDefenseRate.ToArray(),
+    GreaterDamageConstA = gsiSkill.GreaterDamageConstA,
+    GreaterDamageConstB = gsiSkill.GreaterDamageConstB,
+    GreaterDamageTimeConstA = gsiSkill.GreaterDamageTimeConstA,
+    GreaterDamageRate = gsiSkill.GreaterDamageRate.ToArray(),
+    GreaterLifeConstA = gsiSkill.GreaterLifeConstA,
+    GreaterLifeConstB = gsiSkill.GreaterLifeConstB,
+    GreaterLifeConstC = gsiSkill.GreaterLifeConstC,
+    GreaterLifeMaxRate = gsiSkill.GreaterLifeMaxRate,
+    GreaterLifeTimeConstA = gsiSkill.GreaterLifeTimeConstA,
+    GreaterLifeTimeConstB = gsiSkill.GreaterLifeTimeConstB,
+    GreaterLifeRate = gsiSkill.GreaterLifeRate.ToArray(),
+    GreaterCriticalDamageConstA = gsiSkill.GreaterCriticalDamageConstA,
+    GreaterCriticalDamageConstB = gsiSkill.GreaterCriticalDamageConstB,
+    GreaterCriticalDamageTimeConstA = gsiSkill.GreaterCriticalDamageTimeConstA,
+    GreaterCriticalDamageTimeConstB = gsiSkill.GreaterCriticalDamageTimeConstB,
+};
+
 // Phase 6 (first pass): Devil Square -- see World/DevilSquareData.cs/DevilSquareManager.cs. The data is loaded
 // here (it does not depend on DataServerConnection), but the DevilSquareManager itself is built further down,
 // once dataServer exists (it needs to send it the ranking save, head 0x3F).
@@ -400,8 +438,10 @@ var kalima = new KalimaManager(
 protocolHandler = new ClientProtocolHandler(
     config, joinServer, dataServer, players, maps, monsters, parties, itemBalance, characterBalance,
     skills, skillDamage, devilSquare, shops, groundItems, gates, moves, bloodCastle, messages,
-    questTable, questObjectiveTable, questRewardTable, gsiCommon, itemValues, gsiChaosMix, lootRoller, itemBags, kalima, dropEvents, chaosCastle);
+    questTable, questObjectiveTable, questRewardTable, gsiCommon, itemValues, gsiChaosMix, lootRoller, itemBags, kalima, dropEvents, chaosCastle, effectTable);
 
+protocolHandler.Effects.OverwriteMode = gsiCommon.EffectOverwriteMode;
+protocolHandler.SkillUseAreas = skillUseAreas;
 protocolHandler.DeveloperCommands = gsiCommand.CommandDeveloperSwitch != 0;
 protocolHandler.CommandInfo = gsiCommand;
 protocolHandler.Duel = new DuelManager(players, lootRoller.MapDrops, messages, dataServer.SendAsync);

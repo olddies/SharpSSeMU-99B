@@ -124,6 +124,8 @@ public sealed partial class ClientProtocolHandler
             await Duel.OnSecondAsync(player, ct);
         }
 
+        await Effects.TickAsync(player, ct); // the buffs and debuffs lose a second
+
         foreach (int against in PkSystem.ExpireSelfDefense(player, DateTime.UtcNow))
         {
             var notice = ChatPacketBuilder.NoticeSend(BloodCastleManager.Fmt(MessageText(285, "Self defense against %s finished"), player.Name), 1);

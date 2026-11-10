@@ -180,6 +180,44 @@ public sealed class PlayerObject
         }
     }
 
+    /// <summary>The sixteen effect slots of the player (CEffect Effect[MAX_EFFECT_LIST]): the buffs and debuffs running on him, see
+    /// <see cref="EffectManager"/>. <see cref="Effect"/> is the raw blob the DataServer keeps, which only loading and saving touch.</summary>
+    public ActiveEffect[] ActiveEffects { get; } = CreateEffectSlots();
+
+    /// <summary>What the active effects add to the player's numbers (EffectOption).</summary>
+    public EffectBonus EffectBonus { get; } = new();
+
+    private static ActiveEffect[] CreateEffectSlots()
+    {
+        var slots = new ActiveEffect[ActiveEffect.Slots];
+
+        for (int n = 0; n < slots.Length; n++)
+        {
+            slots[n] = new ActiveEffect();
+        }
+
+        return slots;
+    }
+
+    /// <summary>The defense a hit meets (the first lines of CAttack::GetTargetDefense, Attack.cpp:1119): his own, plus what the
+    /// effects add and take, as a percentage and flat, before the half that players are given.</summary>
+    public int EffectiveDefense()
+    {
+        int defense = (int)Defense + EffectBonus.AddDefense - EffectBonus.SubDefense;
+
+        if (EffectBonus.MulDefense > 0)
+        {
+            defense += defense * EffectBonus.MulDefense / 100;
+        }
+
+        if (EffectBonus.DivDefense > 0)
+        {
+            defense -= defense * EffectBonus.DivDefense / 100;
+        }
+
+        return defense;
+    }
+
     public bool InChaosBox { get; set; }
 
     /// <summary>The Trainer's window (Interface.type == INTERFACE_TRAINER): it works on the same box as the Chaos Machine
@@ -1140,6 +1178,8 @@ public sealed class PlayerObject
         DlDamageMultiplierRate = Math.Min(200 + SafeDiv(energy, cfg.DlDamageMultiplierConstA), cfg.DlDamageMultiplierMaxRate);
 
         // ---- Step 11: max life/mana/AG with the options' extra, current values keeping their percentage ----
+        // The effects add to the life too: Greater Life is a percentage of the maximum (ObjectManager.cpp:2486-2488).
+        AddLife += (int)((long)maxLife * EffectBonus.MulMaxHP / 100);
         MaxLife = (uint)Math.Max(maxLife + AddLife, 1);
         MaxMana = (uint)Math.Max(maxMana + AddMana, 1);
         MaxBP = (uint)Math.Max(maxBp + AddBp, 1);

@@ -38,7 +38,7 @@ haya dejado un proceso colgado.
 
 ## Estado conocido
 
-Pasan los diecisiete tests (`full_chain`, `fase1`-`fase6`, `chaoscastle`, `pk`, `duel`, `pet`, `darkraven`, `helperwear`, `trainer`, `grounditem`, `shop`, `skills`).
+Pasan los dieciocho tests (`full_chain`, `fase1`-`fase6`, `chaoscastle`, `pk`, `duel`, `pet`, `darkraven`, `helperwear`, `trainer`, `buffs`, `grounditem`, `shop`, `skills`).
 
 El "único fallo en la secuencia de combate" que arrastrábamos no era balance del servidor: el harness
 arrancaba cada servidor con la consola conectada por pipe al test y nunca la leía mientras el test

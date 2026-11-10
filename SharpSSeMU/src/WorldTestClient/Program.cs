@@ -95,6 +95,11 @@ bool wearEnabled = args.Length > 12 && args[12] == "wear";
 // the database.
 bool trainerEnabled = args.Length > 12 && args[12] == "trainer";
 
+// Optional: the buff run (gameserver_buffs_e2e_test.py) -- A, a Fairy Elf with a Mana Shield kept in the database, buffs B and
+// herself and heals herself; B, a Dark Wizard, shields himself and takes the shield off. Over the network: the effect packets
+// (C1:07) of each, the skill echoes, the cost, and a skill that is not the caster's does nothing.
+bool buffEnabled = args.Length > 12 && args[12] == "buff";
+
 int failures = 0;
 
 void Check(string name, bool ok, string extra = "")
@@ -232,7 +237,7 @@ async Task<(FakeMuClient Client, byte X, byte Y)> LoginAndEnterAsync(string labe
 // Phase 4 (~12s respawn) + Phase 5 (party/exp) + Phase 6 (Devil Square: up to ~3 min waiting for the window
 // forced by console + real STAND (1 min) + START (1 min) of the test bracket, see the test's DevilSquare.dat)
 // add steps.
-using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(dsEnabled || chaosCastleEnabled || pkEnabled || duelEnabled || petEnabled || ravenEnabled || wearEnabled || trainerEnabled ? 300 : 90));
+using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(dsEnabled || chaosCastleEnabled || pkEnabled || duelEnabled || petEnabled || ravenEnabled || wearEnabled || trainerEnabled || buffEnabled ? 300 : 90));
 
 try
 {
@@ -347,6 +352,82 @@ try
         await clientA.SendItemRepairAsync(22);
         var again = await clientA.WaitForAsync(0x34, TimeSpan.FromSeconds(5));
         Check("[A] Fuera del Trainer no se repara una mascota (34 sin cambio)", BitConverter.ToUInt32(again.Full, 4) == moneyAfter);
+
+        clientA.Close();
+        clientB.Close();
+        Console.WriteLine($"\n=== {(failures == 0 ? "TODO OK" : $"{failures} FALLO(S)")} ===");
+        return failures == 0 ? 0 : 1;
+    }
+
+    if (buffEnabled)
+    {
+        Console.WriteLine("\n=== Buffs: A (Fairy Elf) buffs B y a si misma y se cura; B (Dark Wizard) se pone el escudo y se lo quita ===");
+
+        int aIndex = clientA.Index, bIndex = clientB.Index;
+        const int GreaterDamageBit = 1 << 2, GreaterDefenseBit = 1 << 3, ManaShieldBit = 1 << 8;
+
+        bool HasState(List<FakeMuClient.DecodedPacket> packets, int state, int effect, int index) =>
+            packets.Any(p => p.Head == 0x07 && p.Full.Length >= 8 && p.Full[3] == state && (p.Full[4] | (p.Full[5] << 8)) == effect
+                && ((p.Full[6] << 8) | p.Full[7]) == index);
+
+        // The entrance: the Mana Shield the database kept comes back (and the two meet).
+        var enteringA = clientA.CollectAsync(TimeSpan.FromSeconds(4));
+        var enteringB = clientB.CollectAsync(TimeSpan.FromSeconds(4));
+        var (joinedA, joinedB) = (await enteringA, await enteringB);
+
+        Check("[A] Al entrar vuelve el Mana Shield que guardo la base (C1:07, estado 1)", HasState(joinedA, 1, ManaShieldBit, aIndex));
+        Check("[A] y [B] se ven (viewport 0x12)", joinedA.Any(p => p.Head == 0x12) && joinedB.Any(p => p.Head == 0x12));
+
+        // A casts Greater Damage on B: the echo, the cost, and B (and A, who sees him) are told.
+        var castA = clientA.CollectAsync(TimeSpan.FromSeconds(2));
+        var castB = clientB.CollectAsync(TimeSpan.FromSeconds(2));
+        await clientA.SendSkillAttackAsync(28, bIndex);
+        var (gotA, gotB) = (await castA, await castB);
+
+        Check("[A] Greater Damage sobre B: el eco de la habilidad con el acierto marcado (C3:19, skill 28)",
+            gotA.Any(p => p.Head == 0x19 && p.Full[3] == 28 && (((p.Full[6] & 0x7F) << 8) | p.Full[7]) == bIndex && (p.Full[6] & 0x80) != 0));
+        Check("[A] Paga el mana (C1:27)", gotA.Any(p => p.Head == 0x27));
+        Check("[B] Recibe el efecto Greater Damage (C1:07, estado 1, bit 2)", HasState(gotB, 1, GreaterDamageBit, bIndex));
+        Check("[A] Ve el efecto de B", HasState(gotA, 1, GreaterDamageBit, bIndex));
+
+        // A casts Greater Defense on herself: B sees it.
+        castA = clientA.CollectAsync(TimeSpan.FromSeconds(2));
+        castB = clientB.CollectAsync(TimeSpan.FromSeconds(2));
+        await clientA.SendSkillAttackAsync(27, aIndex);
+        (gotA, gotB) = (await castA, await castB);
+
+        Check("[A] Greater Defense sobre si misma (C1:07, bit 3)", HasState(gotA, 1, GreaterDefenseBit, aIndex));
+        Check("[B] Ve el efecto de A", HasState(gotB, 1, GreaterDefenseBit, aIndex));
+        Check("[A] Su defensa y sus maximos se recalculan (F3:E1 y C1:26 0xFE)",
+            gotA.Any(p => p.Head == 0xF3 && p.SubHead == 0xE1) && gotA.Any(p => p.Head == 0x26 && p.Full[3] == 0xFE));
+
+        // A heals herself: the life packet comes (type 0xFF).
+        castA = clientA.CollectAsync(TimeSpan.FromSeconds(2));
+        await clientA.SendSkillAttackAsync(26, aIndex);
+        gotA = await castA;
+
+        Check("[A] Heal sobre si misma: recibe su vida (C1:26 0xFF)", gotA.Any(p => p.Head == 0x26 && p.Full[3] == 0xFF));
+
+        // A skill that is not an Elf's does nothing: no effect, no cost, no echo.
+        castA = clientA.CollectAsync(TimeSpan.FromSeconds(1.5));
+        await clientA.SendSkillAttackAsync(16, aIndex);
+        gotA = await castA;
+
+        Check("[A] Mana Shield no es de una Elf: no pasa nada (sin C1:07 ni eco; el mana lo manda tambien la regeneracion, asi que no se mira)",
+            !gotA.Any(p => p.Head == 0x07 || p.Head == 0x19));
+
+        // B shields himself and takes the shield off.
+        castB = clientB.CollectAsync(TimeSpan.FromSeconds(2));
+        await clientB.SendSkillAttackAsync(16, bIndex);
+        gotB = await castB;
+
+        Check("[B] Mana Shield sobre si mismo (C1:07, bit 8)", HasState(gotB, 1, ManaShieldBit, bIndex));
+
+        castB = clientB.CollectAsync(TimeSpan.FromSeconds(2));
+        await clientB.SendSkillCancelAsync(16, bIndex);
+        gotB = await castB;
+
+        Check("[B] Al cancelarlo el efecto termina (C1:07, estado 0, bit 8)", HasState(gotB, 0, ManaShieldBit, bIndex));
 
         clientA.Close();
         clientB.Close();

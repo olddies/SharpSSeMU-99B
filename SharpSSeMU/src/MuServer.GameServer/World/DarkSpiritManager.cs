@@ -424,7 +424,7 @@ public sealed class DarkSpiritManager
         }
 
         // The damage.
-        int defense = targetPlayer != null ? (int)targetPlayer.Defense * 50 / 100 : monster!.Defense * 50 / 100;
+        int defense = targetPlayer != null ? targetPlayer.EffectiveDefense() * 50 / 100 : monster!.Defense * 50 / 100;
         int roll = DarkSpiritMath.Roll(master, stats.Value, _items, rules, _rng, out byte effect);
         int damage = DarkSpiritMath.AfterTarget(master, targetPlayer, roll, Math.Max(defense, 0), graze, action);
 

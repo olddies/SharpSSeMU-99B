@@ -77,8 +77,9 @@ public sealed partial class ClientProtocolHandler
         QuestTable? quests = null, QuestObjectiveTable? questObjectives = null, QuestRewardTable? questRewards = null,
         GameServerInfoCommon? gsiCommon = null, ItemValueTable? itemValues = null,
         GameServerInfoChaosMix? chaosMixRates = null, LootRoller? loot = null, ItemBagManager? bags = null, KalimaManager? kalima = null, DropEventManager? dropEvents = null,
-        ChaosCastleManager? chaosCastle = null)
+        ChaosCastleManager? chaosCastle = null, EffectTable? effects = null)
     {
+        Effects = new EffectManager(effects ?? new EffectTable(), players) { OnStatsChanged = RefreshStatsAsync };
         _bags = bags;
         _chaosCastle = chaosCastle;
         _kalima = kalima;
@@ -412,13 +413,7 @@ public sealed partial class ClientProtocolHandler
                     break;
 
                 case 0x1B:
-                    // Port of CGSkillCancelRecv (SkillManager.cpp:2591-2601): in the original it cancels an
-                    // active skill effect (gEffectManager.DelEffect) -- this port has no effect manager yet
-                    // (the 0x1E duration-skills are only the animation/ projectile, with no persistent
-                    // damage-over-time to cancel), so there is nothing to undo and the no-op is faithful to the
-                    // current scope, not a placeholder. The explicit case is added (instead of falling into the
-                    // default) so as not to pollute the log with "not implemented" for a packet that is in fact
-                    // already handled.
+                    await OnSkillCancelAsync(session, p, ct);
                     break;
 
                 case 0x1D:
@@ -1119,6 +1114,9 @@ public sealed partial class ClientProtocolHandler
 
         // DSProtocol.cpp:497: the level and experience of the Dark Horse or Dark Raven in the inventory.
         await RequestPetInfoAsync(player, 0, ct);
+
+        // The buffs and debuffs the database kept come back with the time they had left (CharacterInfoSet).
+        await Effects.RestoreAsync(player, player.Effect, ct);
 
         Log.Add(LogColor.Blue, "[Protocol][{0}] '{1}' entered the world (Map={2} X={3} Y={4})",
             session.Index, player.Name, player.Map, player.X, player.Y);
@@ -3604,6 +3602,13 @@ public sealed partial class ClientProtocolHandler
 
         var recv = SkillAttackRecv.Parse(p);
 
+        // The skills that help (Heal, Mana Shield, Greater Defense...) take a different road: they put something on a friend.
+        if (SupportSkills.IsSupport(recv.Skill))
+        {
+            await CastSupportSkillAsync(session, player, recv, ct);
+            return;
+        }
+
         if (_players.TryGet(recv.TargetIndex, out var targetPlayer))
         {
             await SkillAttackPlayerAsync(session, player, targetPlayer, recv, ct);
@@ -4300,6 +4305,7 @@ public sealed partial class ClientProtocolHandler
     public async Task OnPlayerKilledAsync(PlayerObject player, CancellationToken ct, int killerIndex = -1)
     {
         _players.TryGet(killerIndex, out var killerPlayer);
+        await Effects.ClearAllAsync(player, ct); // the buffs and debuffs that are not kept end with the player
         await OnMurdererDiedAsync(player, killerPlayer, ct);
         await Spirits.StandDownAsync(player, ct);
         await Spirits.ResetTargetAsync(player.Index, ct);

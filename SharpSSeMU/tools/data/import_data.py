@@ -46,6 +46,8 @@ WANTED = [
     ("Shop", "Data/Shop"),
     ("Skill/SkillList.txt", "Data/Skill/SkillList.txt"),
     ("Skill/SkillDamage.txt", "Data/Skill/SkillDamage.txt"),
+    ("Skill/EffectList.txt", "Data/Skill/EffectList.txt"),
+    ("Skill/SkillUseArea.txt", "Data/Skill/SkillUseArea.txt"),
     ("Move/Gate.txt", "Data/Move/Gate.txt"),
     ("Move/Move.txt", "Data/Move/Move.txt"),
     ("Message.txt", "Data/Message.txt"),

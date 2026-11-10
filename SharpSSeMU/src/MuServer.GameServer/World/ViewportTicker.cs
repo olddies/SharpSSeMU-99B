@@ -716,7 +716,7 @@ public sealed class ViewportTicker
                 // ---- Step 2: target defense (CAttack::GetTargetDefense, Attack.cpp:1117-1154) ---- Defense is
                 // halved when the target is an OBJECT_USER -- here the target is always a player, so the half
                 // always applies (not only for spells).
-                int targetDefense = Math.Max((int)target.Defense * 50 / 100, 0);
+                int targetDefense = Math.Max(target.EffectiveDefense() * 50 / 100, 0);
 
                 // ---- Step 3: raw damage ---- Melee: CAttack::GetAttackDamage, OBJECT_MONSTER branch
                 // (Attack.cpp:1156-1307) -- uses the monster's PhysiDamageMin/Max directly, without

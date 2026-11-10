@@ -219,6 +219,26 @@ public sealed class FakeMuClient
         }
     }
 
+    /// <summary>Everything that arrives in the next <paramref name="window"/>, in order (nothing is dropped).</summary>
+    public async Task<List<DecodedPacket>> CollectAsync(TimeSpan window)
+    {
+        var seen = new List<DecodedPacket>();
+        using var cts = new CancellationTokenSource(window);
+
+        try
+        {
+            await foreach (var pkt in _incoming.Reader.ReadAllAsync(cts.Token))
+            {
+                seen.Add(pkt);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+
+        return seen;
+    }
+
     /// <summary>Like <see cref="WaitForAsync"/>, but returns the first packet whose head is any of
     /// <paramref name="heads"/> (the others are discarded the same way).</summary>
     public async Task<DecodedPacket> WaitForAnyAsync(TimeSpan timeout, params byte[] heads)
@@ -459,6 +479,16 @@ public sealed class FakeMuClient
         w.WriteByte((byte)(targetIndex & 0xFF));
         w.WriteByte(dis);
         return SendRawAsync(PacketBuilder.BuildC1(0x19, w.ToArray()));
+    }
+
+    /// <summary>PMSG_SKILL_CANCEL_RECV, C3:1B -- takes off the effect of a skill (Mana Shield is the one a player can cancel).</summary>
+    public Task SendSkillCancelAsync(byte skill, int index)
+    {
+        var w = new PacketWriter();
+        w.WriteByte(skill);
+        w.WriteByte((byte)((index >> 8) & 0xFF));
+        w.WriteByte((byte)(index & 0xFF));
+        return SendRawAsync(PacketBuilder.BuildC1(0x1B, w.ToArray()));
     }
 
     /// <summary>PMSG_DEVIL_SQUARE_ENTER_RECV, C1:90 -- level=bracket pedido (0-based), slot=slot de

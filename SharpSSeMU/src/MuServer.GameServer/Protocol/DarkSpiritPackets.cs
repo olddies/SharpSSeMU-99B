@@ -33,6 +33,22 @@ public static class DarkSpiritPacketBuilder
     }
 }
 
+/// <summary>The packet that tells the client an effect is on or off (EffectManager.h).</summary>
+public static class EffectPacketBuilder
+{
+    /// <summary>PMSG_EFFECT_STATE_SEND, C1:07: <paramref name="state"/> 1 when the effect starts and 0 when it ends,
+    /// <paramref name="effect"/> the bit of the effect (1 &lt;&lt; n, see <see cref="World.EffectManager.StateBit"/>), and who has it.</summary>
+    public static byte[] StateSend(byte state, ushort effect, int index)
+    {
+        var w = new PacketWriter();
+        w.WriteByte(state);
+        w.WriteUInt16(effect);
+        w.WriteByte((byte)((index >> 8) & 0xFF));
+        w.WriteByte((byte)(index & 0xFF));
+        return PacketBuilder.BuildC1(0x07, w.ToArray());
+    }
+}
+
 /// <summary>PMSG_PET_ITEM_COMMAND_RECV, C1:A7: the order the player gives the raven.</summary>
 public sealed record PetCommandRecv(byte Type, byte Command, int Index)
 {
