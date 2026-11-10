@@ -1240,6 +1240,9 @@ public sealed class PlayerObject : IEffectCarrier
     /// of SkillList.txt.</summary>
     public Dictionary<int, DateTime> SkillDelay { get; } = new();
 
+    /// <summary>The index of the monster this player has summoned (lpObj->SummonIndex), -1 when he has none.</summary>
+    public int SummonIndex { get; set; } = -1;
+
     /// <summary>Port of lpObj->SkillSummonPartyTime/Map/X/Y: while a Dark Lord's Summon Party is on its way to him, the seconds left and the
     /// place where he will arrive. Zero when no summoning is pending.</summary>
     public int SkillSummonPartyTime { get; set; }

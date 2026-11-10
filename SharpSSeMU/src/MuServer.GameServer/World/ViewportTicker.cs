@@ -135,6 +135,12 @@ public sealed class ViewportTicker
         }
 
         await TickMonsterAIAsync(ct);
+
+        if (_protocolHandler != null)
+        {
+            await _protocolHandler.Summons.TickAsync(ct); // the Elves' summons follow their masters and fight
+        }
+
         await RespawnDyingPlayersAsync(ct);
 
         var all = _players.All.Where(p => p.WorldEntered).ToList();
@@ -195,6 +201,15 @@ public sealed class ViewportTicker
 
             await TickMonstersForObserverAsync(observer, view, ct);
             await TickGroundItemsForObserverAsync(observer, view, ct);
+        }
+
+        // A summon is announced with its magic circle only the first time it is seen.
+        if (_monsters != null)
+        {
+            foreach (var fresh in _monsters.All.Where(m => m.JustSummoned))
+            {
+                fresh.JustSummoned = false;
+            }
         }
     }
 
@@ -385,9 +400,18 @@ public sealed class ViewportTicker
 
         var noLongerVisible = observer.VisibleMonsters.Where(idx => !currentlyVisible.Contains(idx)).ToList();
 
-        if (newlyVisible.Count > 0)
+        var plain = newlyVisible.Where(m => !m.IsSummon).ToList();
+        var summons = newlyVisible.Where(m => m.IsSummon).ToList();
+
+        if (plain.Count > 0)
         {
-            await observer.Session.SendAsync(WorldPacketBuilder.ViewportMonsterAppear(newlyVisible), ct);
+            await observer.Session.SendAsync(WorldPacketBuilder.ViewportMonsterAppear(plain), ct);
+        }
+
+        if (summons.Count > 0)
+        {
+            var records = summons.Select(m => (m, _players.TryGet(m.OwnerIndex, out var master) ? master.Name : string.Empty)).ToList();
+            await observer.Session.SendAsync(WorldPacketBuilder.ViewportSummonAppear(records), ct);
         }
 
         if (noLongerVisible.Count > 0)
@@ -537,7 +561,7 @@ public sealed class ViewportTicker
     {
         if (_monsters == null || _protocolHandler == null) return;
 
-        var allMonsters = _monsters.All.Where(m => m.Live && m.ShopNumber == null).ToList();
+        var allMonsters = _monsters.All.Where(m => m.Live && m.CanBeAttacked).ToList(); // the summons have their own AI (SummonManager)
         var allPlayers = _players.All.Where(p => p.WorldEntered && p.Life > 0).ToList();
 
         if (allMonsters.Count == 0 || allPlayers.Count == 0) return;

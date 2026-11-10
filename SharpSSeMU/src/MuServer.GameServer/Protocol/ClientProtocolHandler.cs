@@ -167,6 +167,7 @@ public sealed partial class ClientProtocolHandler
             // on disconnecting, not only when they send an explicit PMSG_PARTY_DEL_MEMBER_RECV).
             // notifyRemoved=false: there is no point sending a packet to a socket that is closing.
             await RemovePlayerFromPartyAsync(session.Player, ct, notifyRemoved: false);
+            await Summons.KillAsync(session.Player, ct);
 
             if (_bloodCastle != null)
             {
@@ -3490,7 +3491,7 @@ public sealed partial class ClientProtocolHandler
         // because OBJECT_NPC is not a valid attack target (CAttack::Attack validates lpTarget->Type ==
         // OBJECT_MONSTER), here it is replicated with the same field OnNpcTalkAsync already uses to identify
         // NPCs (see the comment of Monster.ShopNumber).
-        if (!_monsters.TryGet(recv.TargetIndex, out var monster) || monster.IsDead || monster.ShopNumber != null)
+        if (!_monsters.TryGet(recv.TargetIndex, out var monster) || monster.IsDead || !monster.CanBeAttacked)
         {
             return;
         }
@@ -3586,6 +3587,7 @@ public sealed partial class ClientProtocolHandler
         // wings and pets, damage floor and the PvM damage rates ----
         player.LastCombatTime = DateTime.UtcNow;
         Spirits.SetTarget(player, monster.Index);
+        Summons.SetEnemy(player, monster.Index);
         var hit = PlayerAttackMath.HitMonster(player, monster.EffectiveDefense(), iceProc?.Index ?? 0, iceProc?.DamageMin ?? 0, iceProc?.DamageMax ?? 0,
             graze, _itemBalance, Rng, iceProc == null ? null : _skillDamage.Apply);
         int damage = hit.Damage;
@@ -3651,6 +3653,13 @@ public sealed partial class ClientProtocolHandler
 
         var recv = SkillAttackRecv.Parse(p);
 
+        // The Elf's Summon skills call a monster instead of hitting one.
+        if (SummonManager.IsSummonSkill(recv.Skill))
+        {
+            await CastSummonSkillAsync(session, player, recv, ct);
+            return;
+        }
+
         // The skills that help (Heal, Mana Shield, Greater Defense...) take a different road: they put something on a friend.
         if (SupportSkills.IsSupport(recv.Skill))
         {
@@ -3665,7 +3674,7 @@ public sealed partial class ClientProtocolHandler
         }
 
         // See the equivalent comment in OnAttackAsync -- a shop NPC is not a valid target.
-        if (!_monsters.TryGet(recv.TargetIndex, out var monster) || monster.IsDead || monster.ShopNumber != null)
+        if (!_monsters.TryGet(recv.TargetIndex, out var monster) || monster.IsDead || !monster.CanBeAttacked)
         {
             return;
         }
@@ -3730,6 +3739,7 @@ public sealed partial class ClientProtocolHandler
         // multipliers, critical/excellent, wings and pets ----
         player.LastCombatTime = DateTime.UtcNow;
         Spirits.SetTarget(player, monster.Index);
+        Summons.SetEnemy(player, monster.Index);
         var hit = PlayerAttackMath.HitMonster(player, monster.EffectiveDefense(), skill.Index, skill.DamageMin, skill.DamageMax, graze,
             _itemBalance, Rng, _skillDamage.Apply, combo);
         int damage = hit.Damage;
@@ -3931,7 +3941,7 @@ public sealed partial class ClientProtocolHandler
 
                 foreach (var m in _monsters.All)
                 {
-                    if (m.Map == player.Map && !m.IsDead && m.ShopNumber == null &&
+                    if (m.Map == player.Map && !m.IsDead && m.CanBeAttacked &&
                         Math.Abs(m.X - player.X) <= radius && Math.Abs(m.Y - player.Y) <= radius)
                     {
                         await ProcessSkillDamageAsync(player, m, skill, ct, combo);
@@ -3953,7 +3963,7 @@ public sealed partial class ClientProtocolHandler
 
         foreach (var targetIndex in recv.Targets)
         {
-            if (_monsters.TryGet(targetIndex, out var monster) && monster.Map == player.Map && !monster.IsDead && monster.ShopNumber == null)
+            if (_monsters.TryGet(targetIndex, out var monster) && monster.Map == player.Map && !monster.IsDead && monster.CanBeAttacked)
             {
                 await ProcessSkillDamageAsync(player, monster, skill, ct);
             }
@@ -4007,6 +4017,7 @@ public sealed partial class ClientProtocolHandler
 
         player.LastCombatTime = DateTime.UtcNow;
         Spirits.SetTarget(player, monster.Index);
+        Summons.SetEnemy(player, monster.Index);
         var hit = PlayerAttackMath.HitMonster(player, monster.EffectiveDefense(), skill.Index, skill.DamageMin, skill.DamageMax, graze,
             _itemBalance, Rng, _skillDamage.Apply, combo);
         int damage = hit.Damage;
@@ -4459,6 +4470,7 @@ public sealed partial class ClientProtocolHandler
     public async Task OnPlayerKilledAsync(PlayerObject player, CancellationToken ct, int killerIndex = -1)
     {
         _players.TryGet(killerIndex, out var killerPlayer);
+        await Summons.KillAsync(player, ct); // gObjUserDie: the summon goes with its master
         await OnMurdererDiedAsync(player, killerPlayer, ct);
         await Spirits.StandDownAsync(player, ct);
         await Spirits.ResetTargetAsync(player.Index, ct);
