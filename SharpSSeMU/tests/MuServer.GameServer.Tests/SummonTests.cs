@@ -326,6 +326,96 @@ public class SummonTests
         Assert.That(h.Summons.Of(elf)!.TargetIndex, Is.EqualTo(-1));
     }
 
+    // ---------------------------------------------------------------- the monsters fight back
+
+    [Test]
+    public async Task A_monster_that_a_summon_hits_goes_for_the_summon()
+    {
+        var h = new Harness();
+        var elf = h.Elf(x: 100, y: 100);
+        await h.Cast(elf);
+        var summon = h.Summons.Of(elf)!;
+        var prey = h.Target(99, 102, monsterClass: 21);
+        prey.MaxLife = 100000;
+        prey.Life = 100000;
+        h.Summons.SetEnemy(elf, prey.Index);
+
+        await h.Tick(times: 3, stepMs: 700);
+
+        Assert.That(prey.SummonTargetIndex, Is.EqualTo(summon.Index), "within its reach, it answers the blow");
+    }
+
+    [Test]
+    public async Task The_monster_hurts_the_summon_and_the_master_sees_the_bar_go_down()
+    {
+        var h = new Harness();
+        var elf = h.Elf(x: 100, y: 100);
+        await h.Cast(elf);
+        var summon = h.Summons.Of(elf)!;
+        var prey = h.Target(99, 102, monsterClass: 21);
+        prey.MaxLife = 100000;
+        prey.Life = 100000;
+        h.Summons.SetEnemy(elf, prey.Index);
+
+        await h.Tick(times: 6, stepMs: 700);
+
+        Assert.That(summon.Life, Is.LessThan(summon.MaxLife).Or.Property("Live").False);
+        var bars = Sent(elf).Sent.Where(p => p.Length > 4 && p[2] == 0xF3 && p[3] == 0x20).Select(p => (int)p[4]).ToList();
+        Assert.That(bars.Last(), Is.LessThan(100), "the last thing he was told is that it is hurt: " + string.Join(",", bars));
+    }
+
+    [Test]
+    public async Task A_summon_that_dies_is_shown_dying_then_goes_and_its_master_can_call_another()
+    {
+        var h = new Harness();
+        var elf = h.Elf(x: 100, y: 100);
+        var watcher = h.Elf(9001);
+        await h.Cast(elf);
+        var summon = h.Summons.Of(elf)!;
+        summon.VisibleTo.Add(watcher.Index);
+        watcher.VisibleMonsters.Add(summon.Index);
+        summon.Life = 1;
+        var prey = h.Target(99, 102, monsterClass: 21);
+        prey.MaxLife = 100000;
+        prey.Life = 100000;
+        h.Summons.SetEnemy(elf, prey.Index);
+
+        await h.Tick(times: 8, stepMs: 700);
+
+        Assert.That(summon.Live, Is.False.Or.Property("Index").Not.EqualTo(elf.SummonIndex));
+        Assert.That(Sent(watcher).Of(0x17), Has.Count.EqualTo(1), "everybody who sees it sees it die");
+
+        await h.Tick(times: 3, stepMs: 700);
+
+        Assert.That(h.Monsters.TryGet(summon.Index, out _), Is.False, "and it goes");
+        Assert.That(elf.SummonIndex, Is.EqualTo(-1));
+        var bars = Sent(elf).Sent.Where(p => p.Length > 4 && p[2] == 0xF3 && p[3] == 0x20).Select(p => (int)p[4]).ToList();
+        Assert.That(bars.Last(), Is.EqualTo(0), "the bar is emptied");
+        Assert.That(prey.SummonTargetIndex, Is.EqualTo(-1), "the monster is free again");
+        Assert.That(await h.Cast(elf), Is.True, "she can call another");
+    }
+
+    [Test]
+    public async Task A_monster_that_loses_the_summon_goes_back_to_its_usual_ways()
+    {
+        var h = new Harness();
+        var elf = h.Elf(x: 100, y: 100);
+        await h.Cast(elf);
+        var summon = h.Summons.Of(elf)!;
+        var prey = h.Target(99, 102, monsterClass: 21);
+        prey.MaxLife = 100000;
+        prey.Life = 100000;
+        h.Summons.SetEnemy(elf, prey.Index);
+        await h.Tick(times: 3, stepMs: 700);
+        Assert.That(prey.SummonTargetIndex, Is.EqualTo(summon.Index));
+
+        summon.X = 150; // taken far away
+        summon.Y = 150;
+        await h.Tick();
+
+        Assert.That(prey.SummonTargetIndex, Is.EqualTo(-1));
+    }
+
     // ---------------------------------------------------------------- what the others see
 
     [Test]
