@@ -63,6 +63,7 @@ public sealed class GameServerConfig
     public required string SkillDamagePath { get; init; } // Data/Skill/SkillDamage.txt (multiplicador opcional por skill)
     public string EffectListPath { get; init; } = Path.Combine("Data", "Skill", "EffectList.txt"); // buffs and debuffs, see World/Effects.cs
     public string SkillUseAreaPath { get; init; } = Path.Combine("Data", "Skill", "SkillUseArea.txt"); // casting in safe zones, see World/SkillUseArea.cs
+    public string ComboSkillPath { get; init; } = Path.Combine("Data", "Skill", "ComboSkill.txt"); // the skills that make a combo, see World/ComboSkill.cs
     public required string ShopManagerPath { get; init; } // Data/ShopManager.txt (NPCs de tienda -- ver World/Shop.cs)
     public required string ShopDataPath { get; init; } // Data/Shop (un .txt de items por NPC, referenciado por ShopManager.txt)
 
@@ -151,6 +152,7 @@ public sealed class GameServerConfig
             SkillDamagePath = ini.GetString("GameServerInfo", "SkillDamagePath", Path.Combine(baseDir, "Data", "Skill", "SkillDamage.txt")),
             EffectListPath = ini.GetString("GameServerInfo", "EffectListPath", Path.Combine(baseDir, "Data", "Skill", "EffectList.txt")),
             SkillUseAreaPath = ini.GetString("GameServerInfo", "SkillUseAreaPath", Path.Combine(baseDir, "Data", "Skill", "SkillUseArea.txt")),
+            ComboSkillPath = ini.GetString("GameServerInfo", "ComboSkillPath", Path.Combine(baseDir, "Data", "Skill", "ComboSkill.txt")),
             ShopManagerPath = ini.GetString("GameServerInfo", "ShopManagerPath", Path.Combine(baseDir, "Data", "ShopManager.txt")),
             QuestPath = ini.GetString("GameServerInfo", "QuestPath", Path.Combine(baseDir, "Data", "Quest", "Quest.txt")),
             QuestObjectivePath = ini.GetString("GameServerInfo", "QuestObjectivePath", Path.Combine(baseDir, "Data", "Quest", "QuestObjective.txt")),

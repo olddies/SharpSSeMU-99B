@@ -210,6 +210,9 @@ public sealed class PlayerObject : IEffectCarrier
         return defense;
     }
 
+    /// <summary>What he has done towards a combo (ComboSkill).</summary>
+    public ComboState Combo { get; } = new();
+
     public bool InChaosBox { get; set; }
 
     /// <summary>The Trainer's window (Interface.type == INTERFACE_TRAINER): it works on the same box as the Chaos Machine

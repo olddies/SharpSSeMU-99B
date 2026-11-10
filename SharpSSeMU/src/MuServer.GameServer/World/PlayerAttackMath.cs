@@ -63,6 +63,10 @@ public static class PlayerAttackMath
     public const byte EffectCritical = 3;
     public const byte EffectReflect = 4;
     public const byte EffectDoubleDamage = 0x40;
+    public const byte EffectCombo = 0x80;
+
+    /// <summary>The skill number the client is told for a blow that was a combo (SKILL_COMBO).</summary>
+    public const int SkillCombo = 59;
 
     // SkillManager.h
     private const int SkillFallingSlash = 19, SkillLunge = 20, SkillUppercut = 21, SkillCyclone = 22, SkillSlash = 23;
@@ -87,16 +91,16 @@ public static class PlayerAttackMath
     /// <param name="applySkillDamage">SkillDamage.txt multiplier (gSkillDamage.GetDamage); identity when null.</param>
     public static PlayerHit HitMonster(
         PlayerObject player, int monsterDefense, int skill, int skillDamageMin, int skillDamageMax, bool graze,
-        ItemBalanceTable items, Random rng, Func<int, int, int>? applySkillDamage = null) =>
-        Hit(player, null, monsterDefense, skill, skillDamageMin, skillDamageMax, graze, items, rng, applySkillDamage, false);
+        ItemBalanceTable items, Random rng, Func<int, int, int>? applySkillDamage = null, bool combo = false) =>
+        Hit(player, null, monsterDefense, skill, skillDamageMin, skillDamageMax, graze, items, rng, applySkillDamage, false, combo: combo);
 
     /// <summary>A player hitting another (CAttack::Attack with two users): the target's defense is halved, what the
     /// target wears reduces the hit and the PvP damage rates replace the PvM ones. <paramref name="chaosCastle"/> adds
     /// the Chaos Castle's own rate.</summary>
     public static PlayerHit HitPlayer(
         PlayerObject attacker, PlayerObject target, int skill, int skillDamageMin, int skillDamageMax, bool graze,
-        ItemBalanceTable items, Random rng, Func<int, int, int>? applySkillDamage = null, bool chaosCastle = false, bool duel = false) =>
-        Hit(attacker, target, Math.Max(target.EffectiveDefense(), 0) * 50 / 100, skill, skillDamageMin, skillDamageMax, graze, items, rng, applySkillDamage, chaosCastle, duel);
+        ItemBalanceTable items, Random rng, Func<int, int, int>? applySkillDamage = null, bool chaosCastle = false, bool duel = false, bool combo = false) =>
+        Hit(attacker, target, Math.Max(target.EffectiveDefense(), 0) * 50 / 100, skill, skillDamageMin, skillDamageMax, graze, items, rng, applySkillDamage, chaosCastle, duel, combo);
 
     /// <summary>Port of CAttack::MissCheckPvP (Attack.cpp:1033-1062): the attacker's PvP success rate against the
     /// target's, scaled by their levels. True when the blow lands.</summary>
@@ -144,7 +148,7 @@ public static class PlayerAttackMath
 
     private static PlayerHit Hit(
         PlayerObject player, PlayerObject? target, int monsterDefense, int skill, int skillDamageMin, int skillDamageMax, bool graze,
-        ItemBalanceTable items, Random rng, Func<int, int, int>? applySkillDamage, bool chaosCastle, bool duel = false)
+        ItemBalanceTable items, Random rng, Func<int, int, int>? applySkillDamage, bool chaosCastle, bool duel = false, bool combo = false)
     {
         var rules = CombatRules.Current;
         byte effect = EffectNone;
@@ -268,6 +272,13 @@ public static class PlayerAttackMath
         {
             effect |= EffectDoubleDamage;
             damage += damage;
+        }
+
+        // The combo (Attack.cpp:357-364): the blow doubled, a part of the stats on top, and scaled.
+        if (combo)
+        {
+            effect |= EffectCombo;
+            damage = ComboRules.Current.Apply(player, damage);
         }
 
         if (target != null)

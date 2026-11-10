@@ -242,6 +242,7 @@ public sealed partial class ClientProtocolHandler
         }
 
         attacker.Dir = recv.Dir;
+        attacker.Combo.Init(); // a plain blow breaks the chain
 
         var actionPacket = CombatPacketBuilder.ActionSend(attacker.Index, attacker.Dir, recv.Action, target.Index);
 
@@ -278,22 +279,28 @@ public sealed partial class ClientProtocolHandler
             return;
         }
 
-        var skill = await TryUseAttackSkillAsync(session, attacker, recv.Skill, target.X, target.Y, ct);
+        var cast = await TryUseAttackSkillAsync(session, attacker, recv.Skill, target.X, target.Y, ct);
 
-        if (skill == null)
+        if (cast == null)
         {
             return;
         }
 
-        bool landed = await ResolvePlayerHitAsync(attacker, target, skill, ct);
+        var (skill, combo) = cast.Value;
+        bool landed = await ResolvePlayerHitAsync(attacker, target, skill, ct, combo);
         await SendSkillEchoAsync(attacker, skill, target.Index, landed, ct);
+
+        if (combo)
+        {
+            await SendComboEchoAsync(attacker, target.Index, ct);
+        }
     }
 
     /// <summary>The roll, the damage and its consequences of one blow of a player on another: CAttack::Attack's
     /// MissCheckPvP, the PvP damage, the life it takes and, when it kills, the death.</summary>
-    private async Task<bool> ResolvePlayerHitAsync(PlayerObject attacker, PlayerObject target, SkillInfo? skill, CancellationToken ct)
+    private async Task<bool> ResolvePlayerHitAsync(PlayerObject attacker, PlayerObject target, SkillInfo? skill, CancellationToken ct, bool combo = false)
     {
-        byte skillIndex = skill == null ? (byte)0 : (byte)skill.Index;
+        byte skillIndex = combo ? (byte)PlayerAttackMath.SkillCombo : skill == null ? (byte)0 : (byte)skill.Index;
 
         // The immunities (Attack.cpp:196-206): a plain blow against the physical one and a skill against the magic one are misses.
         if (Effects.IsImmune(target, bySkill: skill != null) || !PlayerAttackMath.PvpBlowLands(attacker, target, Rng))
@@ -312,7 +319,7 @@ public sealed partial class ClientProtocolHandler
         Spirits.SetTarget(attacker, target.Index);
 
         var hit = PlayerAttackMath.HitPlayer(attacker, target, skillIndex, skill?.DamageMin ?? 0, skill?.DamageMax ?? 0, graze: false,
-            _itemBalance, Rng, skill == null ? null : _skillDamage.Apply, chaosCastle: attacker.Map is >= 18 and <= 23, duel: InDuelWith(attacker, target));
+            _itemBalance, Rng, skill == null ? null : _skillDamage.Apply, chaosCastle: attacker.Map is >= 18 and <= 23, duel: InDuelWith(attacker, target), combo: combo);
 
         // APPLY_EFFECT: what the skill leaves on the target, once the damage is worked out.
         bool landed = skill == null
