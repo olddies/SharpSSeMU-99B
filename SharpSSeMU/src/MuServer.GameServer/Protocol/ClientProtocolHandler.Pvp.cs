@@ -125,6 +125,7 @@ public sealed partial class ClientProtocolHandler
         }
 
         await Effects.TickAsync(player, ct); // the buffs and debuffs lose a second
+        await OnSummonSecondAsync(player, ct); // a summoning on its way
 
         foreach (int against in PkSystem.ExpireSelfDefense(player, DateTime.UtcNow))
         {

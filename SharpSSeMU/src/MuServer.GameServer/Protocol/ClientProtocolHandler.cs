@@ -408,6 +408,10 @@ public sealed partial class ClientProtocolHandler
                     await OnSkillAttackAsync(session, p, ct);
                     break;
 
+                case 0xB0:
+                    await OnTeleportAllyAsync(session, p, ct);
+                    break;
+
                 case 0x1E:
                     await OnDurationSkillAttackAsync(session, p, ct);
                     break;
@@ -1240,6 +1244,8 @@ public sealed partial class ClientProtocolHandler
             return;
         }
 
+        await CancelSummonAsync(player, ct); // walking calls off a summoning (Protocol.cpp:963)
+
         var recv = MoveRecv.Parse(p);
 
         byte dir = (byte)(recv.Path[0] >> 4);
@@ -1360,6 +1366,8 @@ public sealed partial class ClientProtocolHandler
             return;
         }
 
+        await CancelSummonAsync(player, ct); // gObjMoveGate (User.cpp:2054)
+
         var target = (gate.TargetGate != 0) ? _gates.Get(gate.TargetGate) : gate;
         target ??= gate;
 
@@ -1416,6 +1424,8 @@ public sealed partial class ClientProtocolHandler
 
         var gate = _gates.Get(gateNumber);
         if (gate == null) return;
+
+        await CancelSummonAsync(player, ct); // gObjMoveGate (User.cpp:2054)
 
         var targetGate = (gate.TargetGate != 0) ? _gates.Get(gate.TargetGate) ?? gate : gate;
 

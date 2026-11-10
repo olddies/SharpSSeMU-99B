@@ -498,6 +498,18 @@ public sealed class FakeMuClient
         return SendRawAsync(PacketBuilder.BuildC1(0x1E, w.ToArray()));
     }
 
+    /// <summary>PMSG_SKILL_TELEPORT_ALLY_RECV, C3:B0 -- the Soul Master's Teleport Ally: the party member to send (a WORD of the machine, so
+    /// little endian) and the spot.</summary>
+    public Task SendTeleportAllyAsync(int index, byte x, byte y)
+    {
+        var w = new PacketWriter();
+        w.WriteByte((byte)(index & 0xFF));
+        w.WriteByte((byte)((index >> 8) & 0xFF));
+        w.WriteByte(x);
+        w.WriteByte(y);
+        return SendRawAsync(PacketBuilder.BuildC1(0xB0, w.ToArray()));
+    }
+
     /// <summary>PMSG_SKILL_CANCEL_RECV, C3:1B -- takes off the effect of a skill (Mana Shield is the one a player can cancel).</summary>
     public Task SendSkillCancelAsync(byte skill, int index)
     {

@@ -1240,6 +1240,13 @@ public sealed class PlayerObject : IEffectCarrier
     /// of SkillList.txt.</summary>
     public Dictionary<int, DateTime> SkillDelay { get; } = new();
 
+    /// <summary>Port of lpObj->SkillSummonPartyTime/Map/X/Y: while a Dark Lord's Summon Party is on its way to him, the seconds left and the
+    /// place where he will arrive. Zero when no summoning is pending.</summary>
+    public int SkillSummonPartyTime { get; set; }
+    public byte SkillSummonPartyMap { get; set; }
+    public byte SkillSummonPartyX { get; set; }
+    public byte SkillSummonPartyY { get; set; }
+
     // ---------------------------------------------------------------- Fase 5: party (primera pasada)
 
     /// <summary>Port of lpObj->PartyNumber -- party ID in PartyRegistry, -1 = no party (same convention as the

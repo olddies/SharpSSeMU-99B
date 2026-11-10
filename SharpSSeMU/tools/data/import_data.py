@@ -51,6 +51,7 @@ WANTED = [
     ("Skill/ComboSkill.txt", "Data/Skill/ComboSkill.txt"),
     ("Move/Gate.txt", "Data/Move/Gate.txt"),
     ("Move/Move.txt", "Data/Move/Move.txt"),
+    ("Move/MoveSummon.txt", "Data/Move/MoveSummon.txt"),
     ("Message.txt", "Data/Message.txt"),
     ("Quest", "Data/Quest"),
     ("Terrain", "Data/Terrain"),

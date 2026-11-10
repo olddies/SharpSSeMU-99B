@@ -460,6 +460,9 @@ protocolHandler = new ClientProtocolHandler(
 protocolHandler.Effects.OverwriteMode = gsiCommon.EffectOverwriteMode;
 protocolHandler.SkillUseAreas = skillUseAreas;
 protocolHandler.ComboTable = comboTable;
+var moveSummons = new MoveSummonTable { PkLimitFree = gsiCommon.PKLimitFree, PkLimitMoveSummon = gsiCommon.PKLimitMoveSummon };
+moveSummons.Load(config.MoveSummonPath);
+protocolHandler.MoveSummons = moveSummons;
 protocolHandler.DeveloperCommands = gsiCommand.CommandDeveloperSwitch != 0;
 protocolHandler.CommandInfo = gsiCommand;
 protocolHandler.Duel = new DuelManager(players, lootRoller.MapDrops, messages, dataServer.SendAsync);

@@ -61,8 +61,11 @@ public static class SupportSkills
     public const int GreaterLife = 48;
     public const int GreaterCriticalDamage = 64;
 
+    /// <summary>The Dark Lord's Summon Party: not a buff, but it is cast like one -- on himself, for his party.</summary>
+    public const int SummonParty = 63;
+
     public static bool IsSupport(int skill) =>
-        skill is ManaShield or Heal or GreaterDefense or GreaterDamage or GreaterLife or GreaterCriticalDamage;
+        skill is ManaShield or Heal or GreaterDefense or GreaterDamage or GreaterLife or GreaterCriticalDamage or SummonParty;
 
     /// <summary>The skills that fall on the one the caster points at; the others (Greater Life and Greater Critical Damage) fall
     /// on the caster and his party.</summary>
