@@ -3,7 +3,7 @@
 Hero1 is a Blade Knight who has finished his quest (the Dark Knight's combo asks for quest 3); Hero2 is one who has not. The test monster is the
 Spider of the other tests with plenty of life, so the blows are told apart by their damage packets rather than by its death.
 Checked over the network: Hero1's Falling Slash, Twisting Slash and Rageful Blow in a row make the third a combo (the damage packet carries
-the combo flag and the server sends the combo's own skill echo, which Hero2, who watches, sees too); with a plain blow in the middle the
+the combo flag and the server sends the combo's own skill echo, which Hero2, who watches, sees too); with another skill in the middle the
 chain is broken and there is none; Hero2, who has not finished the quest, gets none from the same chain.
 
 Requisitos: PostgreSQL y el SDK de .NET instalados. Ver tests/README.md.

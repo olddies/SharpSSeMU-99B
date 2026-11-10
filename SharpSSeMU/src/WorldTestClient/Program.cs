@@ -701,7 +701,9 @@ try
 
             if (plainBlowInTheMiddle)
             {
-                await client.SendAttackAsync(monsterIdx, 120, 3);
+                // Another skill in the middle (Defense, which is in no combo): the chain is forgotten when it is cast, whatever the range. A
+                // plain blow does the same, but it is refused for range before it gets there, and the Falling Slash pushes the monster away.
+                await client.SendSkillAttackAsync(18, monsterIdx);
                 await Task.Delay(400);
             }
 
@@ -714,6 +716,7 @@ try
 
         // A: the chain, until the third blow lands (it can miss).
         List<FakeMuClient.DecodedPacket> heardA = new(), heardB = new();
+        var everythingA = new List<FakeMuClient.DecodedPacket>(); // all that A hears while the chains are struck
 
         for (int attempt = 0; attempt < 8 && !ComboDamage(heardA); attempt++)
         {
@@ -723,7 +726,12 @@ try
             var windowB = clientB.CollectAsync(TimeSpan.FromSeconds(3));
             await Chain(clientA, plainBlowInTheMiddle: false);
             (heardA, heardB) = (await windowA, await windowB);
+            everythingA.AddRange(heardA);
         }
+
+        // Falling Slash, the first blow of every chain, pushes the monster a tile (the position packet C1:D0, about its index).
+        Check("[A] El Falling Slash empuja al monstruo una casilla (C1:D0 del monstruo, junto a donde estaba)",
+            everythingA.Any(p => p.Head == 0xD0 && ((p.Full[3] << 8) | p.Full[4]) == monsterIdx && Math.Abs(p.Full[5] - 200) <= 3 && Math.Abs(p.Full[6] - 150) <= 3));
 
         Check("[A] El tercer golpe seguido es combo: el daño trae la marca de combo (C1:D9, tipo 0x80)", ComboDamage(heardA));
         Check("[A] y el servidor manda el eco del combo (C3:19, skill 59, 0x80)", ComboEcho(heardA, clientA.Index));
@@ -741,7 +749,7 @@ try
             brokenCombo |= ComboDamage(heard) || ComboEcho(heard, clientA.Index);
         }
 
-        Check("[A] Un golpe normal en medio rompe la cadena: no hay combo", !brokenCombo);
+        Check("[A] Otra skill en medio rompe la cadena: no hay combo", !brokenCombo);
 
         // B has not finished the quest: the same chain gives him nothing.
         bool bCombo = false;
