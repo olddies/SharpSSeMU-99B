@@ -135,6 +135,23 @@ public sealed class DarkSpiritManager
         }
     }
 
+    /// <summary>Port of CDarkSpirit::ResetTarget for one master (DarkSpirit.cpp:413): if his raven had <paramref name="index"/> as its
+    /// target it forgets it, and a raven sent to that one stands down. Only a Dark Lord has a raven.</summary>
+    public async Task ResetTargetOfAsync(PlayerObject master, int index, CancellationToken ct)
+    {
+        if (master.Class != 4 || master.SpiritTarget != index)
+        {
+            return;
+        }
+
+        master.SpiritTarget = -1;
+
+        if (master.SpiritMode == DarkSpiritMode.AttackTarget)
+        {
+            await SetModeAsync(master, DarkSpiritMode.Normal, -1, ct);
+        }
+    }
+
     /// <summary>The raven goes quiet (the master died, moved through a gate, entered the world or left the game).</summary>
     public Task StandDownAsync(PlayerObject master, CancellationToken ct) => SetModeAsync(master, DarkSpiritMode.Normal, -1, ct);
 

@@ -498,6 +498,17 @@ public sealed class FakeMuClient
         return SendRawAsync(PacketBuilder.BuildC1(0x1E, w.ToArray()));
     }
 
+    /// <summary>PMSG_TELEPORT_RECV, C1:1C with gate 0 -- the Dark Wizard's own Teleport skill: the spot he asks to be at.</summary>
+    public Task SendTeleportSkillAsync(byte x, byte y)
+    {
+        var w = new PacketWriter();
+        w.WriteByte(0); // gate 0: not a gate, the skill
+        w.WriteByte(x);
+        w.WriteByte(y);
+        w.WriteByte(0);
+        return SendRawAsync(PacketBuilder.BuildC1(0x1C, w.ToArray()));
+    }
+
     /// <summary>PMSG_SKILL_TELEPORT_ALLY_RECV, C3:B0 -- the Soul Master's Teleport Ally: the party member to send (a WORD of the machine, so
     /// little endian) and the spot.</summary>
     public Task SendTeleportAllyAsync(int index, byte x, byte y)

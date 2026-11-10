@@ -219,6 +219,44 @@ public class DarkSpiritTests
         Assert.That(h.Session.Of(0xA7).Last()[4], Is.EqualTo(0));
     }
 
+    [Test]
+    public async Task When_a_duel_ends_the_ravens_of_its_two_players_forget_each_other()
+    {
+        var h = new Harness();
+        await h.Spirits.SetModeAsync(h.Master, DarkSpiritMode.AttackTarget, 77, CancellationToken.None);
+
+        await h.Spirits.ResetTargetOfAsync(h.Master, 78, CancellationToken.None);
+        Assert.That((h.Master.SpiritMode, h.Master.SpiritTarget), Is.EqualTo((DarkSpiritMode.AttackTarget, 77)), "another opponent: nothing changes");
+
+        await h.Spirits.ResetTargetOfAsync(h.Master, 77, CancellationToken.None);
+        Assert.That((h.Master.SpiritMode, h.Master.SpiritTarget), Is.EqualTo((DarkSpiritMode.Normal, -1)), "the opponent: the raven stands down");
+        Assert.That(h.Session.Of(0xA7).Last()[4], Is.EqualTo(0));
+    }
+
+    [Test]
+    public async Task A_raven_in_another_mode_only_loses_the_target_when_a_duel_ends()
+    {
+        var h = new Harness();
+        await h.Spirits.SetModeAsync(h.Master, DarkSpiritMode.AttackWithMaster, -1, CancellationToken.None);
+        h.Master.SpiritTarget = 77;
+
+        await h.Spirits.ResetTargetOfAsync(h.Master, 77, CancellationToken.None);
+
+        Assert.That((h.Master.SpiritMode, h.Master.SpiritTarget), Is.EqualTo((DarkSpiritMode.AttackWithMaster, -1)), "same mode, no target");
+    }
+
+    [Test]
+    public async Task Only_a_Dark_Lords_raven_is_reset()
+    {
+        var h = new Harness();
+        h.Master.SpiritTarget = 77;
+        h.Master.Class = 1;
+
+        await h.Spirits.ResetTargetOfAsync(h.Master, 77, CancellationToken.None);
+
+        Assert.That(h.Master.SpiritTarget, Is.EqualTo(77));
+    }
+
     // ---------------------------------------------------------------- attacking
 
     [Test]

@@ -53,6 +53,42 @@ public sealed partial class ClientProtocolHandler
         await target.Session.SendEncryptedAsync(WorldPacketBuilder.TeleportSend(0, target.Map, target.X, target.Y, target.Dir), ct);
     }
 
+    /// <summary>Port of CGTeleportRecv for gate 0 (Move.cpp:231): the Dark Wizard's own Teleport. The spot must be within eight tiles of where
+    /// the server has him and neither end a safe zone; otherwise his client is put back where he is. He must know the skill and pay its
+    /// mana and AG; the cast is shown to everybody who sees him and he is at the new spot.</summary>
+    private async Task OnSkillTeleportAsync(ClientSession session, PlayerObject player, byte x, byte y, CancellationToken ct)
+    {
+        if (player.IsDying || player.Life == 0)
+        {
+            return;
+        }
+
+        if (!CheckTeleportArea(player, x, y))
+        {
+            await session.SendEncryptedAsync(WorldPacketBuilder.TeleportSend(0, player.Map, player.X, player.Y, player.Dir), ct);
+            return;
+        }
+
+        var skill = _skills.Get(SkillTeleport);
+
+        if (skill == null || !skill.CanUse(player.Class, player.ChangeUp) || player.Level < skill.RequireLevel)
+        {
+            return;
+        }
+
+        if ((int)player.Mana < skill.Mana || (int)player.BP < skill.BP)
+        {
+            return;
+        }
+
+        await SendSkillEchoAsync(player, skill, player.Index, landed: true, ct);
+        await TeleportMagicUseAsync(player, x, y, ct);
+
+        player.Mana = (uint)Math.Max((int)player.Mana - skill.Mana, 0);
+        player.BP = (uint)Math.Max((int)player.BP - skill.BP, 0);
+        await session.SendAsync(ManaPacketBuilder.ManaSend(0xFF, (int)player.Mana, (int)player.BP), ct);
+    }
+
     /// <summary>Port of CGSkillTeleportAllyRecv (C3:B0): a member of the party is sent to a spot within eight tiles of where he stands. Both
     /// must be in the same party and map; the cost is paid by the caster. A target who is gone is the caster himself.</summary>
     private async Task OnTeleportAllyAsync(ClientSession session, byte[] p, CancellationToken ct)

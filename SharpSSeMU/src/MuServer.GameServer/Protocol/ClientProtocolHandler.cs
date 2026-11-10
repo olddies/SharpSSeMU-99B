@@ -1347,12 +1347,7 @@ public sealed partial class ClientProtocolHandler
 
         if (recv.Gate == 0) // DW Teleport Skill
         {
-            player.X = recv.X;
-            player.Y = recv.Y;
-            player.TX = recv.X;
-            player.TY = recv.Y;
-            await session.SendEncryptedAsync(
-                WorldPacketBuilder.TeleportSend(0, player.Map, player.X, player.Y, player.Dir), ct);
+            await OnSkillTeleportAsync(session, player, recv.X, recv.Y, ct);
             return;
         }
 
