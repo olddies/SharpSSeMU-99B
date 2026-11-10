@@ -96,6 +96,19 @@ CombatRules.Current = new CombatRules
     DarkHorseDecDamageConstB = gsiItem.DarkHorseDecDamageConstB,
 };
 
+// The combo: its damage by class (Character.dat) and the check against clients that fire it too fast (Common.dat) -- see World/ComboSkill.cs.
+ComboRules.Current = new ComboRules
+{
+    DamageConstA = gsiCharacter.ComboDamageConstA.ToArray(),
+    DamageConstB = gsiCharacter.ComboDamageConstB.ToArray(),
+    DamageConstC = gsiCharacter.ComboDamageConstC.ToArray(),
+    HackCheck = gsiCommon.CheckAutoComboHack,
+    HackTolerance = gsiCommon.CheckAutoComboHackTolerance,
+    HackAction = gsiCommon.CheckAutoComboHackAction,
+};
+var comboTable = new ComboSkillTable();
+comboTable.Load(config.ComboSkillPath);
+
 // The Dark Horse and Dark Raven: experience per level, maximum level and what a kill gives them -- see World/PetRules.cs.
 PetRules.Current = new PetRules(gsiCommon.PetExperienceMultiplierConstA, gsiCommon.PetMaxLevel, gsiCommon.PetExperienceRateDivisor,
     gsiCommon.GuardianDurabilityRate, gsiCommon.PetDurabilityRate);
@@ -446,6 +459,7 @@ protocolHandler = new ClientProtocolHandler(
 
 protocolHandler.Effects.OverwriteMode = gsiCommon.EffectOverwriteMode;
 protocolHandler.SkillUseAreas = skillUseAreas;
+protocolHandler.ComboTable = comboTable;
 protocolHandler.DeveloperCommands = gsiCommand.CommandDeveloperSwitch != 0;
 protocolHandler.CommandInfo = gsiCommand;
 protocolHandler.Duel = new DuelManager(players, lootRoller.MapDrops, messages, dataServer.SendAsync);
